@@ -187,6 +187,7 @@ class ProfileViewController: DemoQuickLayoutHostingController {
             aboutTitleLabel
             bioLabel
         }
+        .frame(maxWidth: .infinity)
         .padding(.all, 16)
         .background {
             makeCardBackground()
