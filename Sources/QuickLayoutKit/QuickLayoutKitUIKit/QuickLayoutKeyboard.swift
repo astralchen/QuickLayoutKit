@@ -42,6 +42,26 @@ public struct QuickLayoutResolvedKeyboardContext: Equatable, Sendable {
 
     /// A Boolean value indicating whether this looks like an external hardware keyboard transition.
     public let isHardwareKeyboardLikely: Bool
+
+    /// Creates resolved keyboard geometry.
+    ///
+    /// This initializer is useful for deterministic tests and for integrations
+    /// that resolve keyboard geometry outside ``QuickLayoutKeyboardContext``.
+    public init(
+        keyboardFrameInView: CGRect,
+        visibleBounds: CGRect,
+        intersection: CGRect,
+        height: CGFloat,
+        isFloatingOrSplitKeyboard: Bool,
+        isHardwareKeyboardLikely: Bool
+    ) {
+        self.keyboardFrameInView = keyboardFrameInView
+        self.visibleBounds = visibleBounds
+        self.intersection = intersection
+        self.height = height
+        self.isFloatingOrSplitKeyboard = isFloatingOrSplitKeyboard
+        self.isHardwareKeyboardLikely = isHardwareKeyboardLikely
+    }
 }
 
 public extension Notification.Name {
@@ -59,6 +79,12 @@ public extension Notification.Name {
 
 /// A parsed UIKit keyboard notification.
 public struct QuickLayoutKeyboardContext: Equatable, Sendable {
+
+    /// A discoverable spelling for keyboard events scoped to a context.
+    public typealias Event = QuickLayoutKeyboardEvent
+
+    /// A discoverable spelling for resolved geometry scoped to a context.
+    public typealias Resolved = QuickLayoutResolvedKeyboardContext
 
     /// The keyboard frame at the beginning of the transition.
     public let beginFrame: CGRect
@@ -244,6 +270,9 @@ public final class QuickLayoutKeyboardObserver: ObservableObject {
 @MainActor
 public final class QuickLayoutKeyboardAvoider {
 
+    /// A discoverable spelling for safe-area behavior scoped to the avoider.
+    public typealias SafeAreaStrategy = QuickLayoutKeyboardSafeAreaStrategy
+
     private weak var scrollView: UIScrollView?
     private let observer: QuickLayoutKeyboardObserver
     private var cancellables: Set<AnyCancellable> = []
@@ -257,16 +286,37 @@ public final class QuickLayoutKeyboardAvoider {
     public var extraBottomPadding: CGFloat = 0
 
     /// Controls how resolved keyboard height combines with the scroll view safe area.
-    public var safeAreaStrategy: QuickLayoutKeyboardSafeAreaStrategy = .ignore
+    public var safeAreaStrategy: SafeAreaStrategy = .ignore
 
-    /// Creates a keyboard avoider for a scroll view.
+    /// Creates a keyboard avoider that observes one notification center.
+    ///
+    /// The created keyboard observer and the active-input observation both use
+    /// `notificationCenter`.
+    ///
+    /// - Parameters:
+    ///   - scrollView: The scroll view whose insets should track the keyboard.
+    ///   - notificationCenter: The center used for keyboard and editing
+    ///     notifications.
+    public convenience init(
+        scrollView: UIScrollView,
+        notificationCenter: NotificationCenter = .default
+    ) {
+        self.init(
+            scrollView: scrollView,
+            observer: QuickLayoutKeyboardObserver(notificationCenter: notificationCenter),
+            notificationCenter: notificationCenter
+        )
+    }
+
+    /// Creates a keyboard avoider with an explicit keyboard observer.
     ///
     /// - Parameters:
     ///   - scrollView: The scroll view whose insets should track the keyboard.
     ///   - observer: The keyboard observer to use.
+    ///   - notificationCenter: The center used for editing notifications.
     public init(
         scrollView: UIScrollView,
-        observer: QuickLayoutKeyboardObserver = QuickLayoutKeyboardObserver(),
+        observer: QuickLayoutKeyboardObserver,
         notificationCenter: NotificationCenter = .default
     ) {
         self.scrollView = scrollView

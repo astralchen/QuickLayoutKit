@@ -24,6 +24,7 @@ let package = Package(
         .target(
             name: "QuickLayoutKit",
             dependencies: [
+                "QuickLayout",
                 "QuickLayoutKitCore",
                 "QuickLayoutKitUIKit",
             ],
@@ -50,4 +51,3 @@ let package = Package(
         ),
     ]
 )
-

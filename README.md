@@ -6,9 +6,10 @@ small set of UIKit-focused building blocks so view controllers, scroll views,
 safe-area spacing, and self-sizing cells can be written with QuickLayout's
 declarative layout syntax.
 
-The package exports three modules:
+The package contains three modules:
 
-- `QuickLayoutKit` re-exports the public core and UIKit helpers.
+- `QuickLayoutKit` is the public product and re-exports QuickLayout together
+  with the public core and UIKit helpers.
 - `QuickLayoutKitCore` contains shared QuickLayout extensions.
 - `QuickLayoutKitUIKit` contains UIKit integration types.
 
@@ -39,10 +40,9 @@ Then add the `QuickLayoutKit` product to your app target:
 )
 ```
 
-Import both QuickLayout and QuickLayoutKit where you declare layouts:
+Import QuickLayoutKit where you declare layouts:
 
 ```swift
-import QuickLayout
 import QuickLayoutKit
 ```
 
@@ -58,7 +58,6 @@ work:
 
 ```swift
 import UIKit
-import QuickLayout
 import QuickLayoutKit
 
 final class CounterViewController: QuickLayoutHostingController {
@@ -219,7 +218,7 @@ final class DynamicScrollViewController: QuickLayoutHostingController {
     private var rows: [UIView] = []
 
     override var body: Layout {
-        ScrollView(scrollView, axis: .vertical) {
+        ScrollView(scrollView, .vertical) {
             VStack(spacing: 12) {
                 ForEach(rows) { row in
                     row.frame(height: 80)
@@ -235,57 +234,41 @@ final class DynamicScrollViewController: QuickLayoutHostingController {
 The scroll view also supports direct construction:
 
 ```swift
-let scrollView = QuickLayoutScrollView.vertical {
+let scrollView = QuickLayoutScrollView(.vertical, showsIndicators: false) {
     headerView
     contentView
     footerView
 }
 ```
 
-For horizontal content, pass `axis: .horizontal` to `ScrollView` or use
-`QuickLayoutScrollView.horizontal`.
+Like SwiftUI's `ScrollView`, the primary API consists of an axis, indicator
+visibility, and builder content. QuickLayoutKit accepts one axis rather than an
+axis set because it uses that choice to provide an implicit `VStack` or
+`HStack`. Pass `.horizontal` for horizontally arranged content.
 
 For RTL-aware horizontal scrolling, the scroll view resolves leading and
-trailing from the current UIKit direction by default. Set
-`quickLayoutDirectionOverride` when an app-level language switch needs an
-explicit direction before UIKit has propagated traits:
+trailing from the current UIKit direction. Use UIKit's native semantic content
+attribute when an app-level language switch supplies an explicit direction:
 
 ```swift
-scrollView.quickLayoutDirectionOverride = .rightToLeft
-scrollView.scrollToBeginning(animated: false) // semantic leading: physical right
+scrollView.semanticContentAttribute = .forceRightToLeft
+scrollView.scrollTo(.leading, animated: false) // physical right in RTL
 ```
 
-For direct scroll content management, update or append builder content and ask
-the scroll view to preserve the visible position. Use anchors when prepend or
-replace operations should keep a visible view stable on screen:
+`ScrollView` refreshes the existing UIKit instance with the latest builder
+content whenever its containing QuickLayout body is evaluated. Keep mutable
+content in the controller, then invalidate the host after changing it:
 
 ```swift
-scrollView.updateContent(
-    axis: .vertical,
-    options: [.layoutImmediately, .preserveVisiblePosition]
-) {
-    headerView
-    ForEach(rows)
-}
-
-scrollView.appendContent {
-    newRowView
-}
-
-scrollView.prependContent(
-    options: [.layoutImmediately, .preserveVisiblePosition],
-    preserving: .view(firstVisibleRow)
-) {
-    olderRowView
-}
-
+rows.append(newRowView)
+setNeedsQuickLayout()
+quickLayoutIfNeeded()
 scrollView.scrollTo(.bottom, animated: true)
 ```
 
-`scrollToBeginning(animated:)` and `scrollToEnd(animated:)` remain available as
-convenience methods. Set `scrollEventHandler` to observe content-size changes,
-pending scroll application, and anchor preservation results in debug tooling or
-production diagnostics.
+Other behavior stays in UIKit's existing API: use `isScrollEnabled`,
+`keyboardDismissMode`, `alwaysBounceVertical`, `alwaysBounceHorizontal`, or
+`UIScrollViewDelegate` instead of parallel QuickLayout-specific wrappers.
 
 ### Layout direction
 

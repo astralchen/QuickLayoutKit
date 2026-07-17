@@ -1,5 +1,5 @@
 //
-//  ScrollElement.swift
+//  ScrollView.swift
 //  QuickLayoutKit
 //
 //  Created by Sondra on 2025/12/24.
@@ -15,33 +15,35 @@ import QuickLayout
 /// Use this function inside a layout builder to declare scrollable QuickLayout
 /// content while reusing a specific `QuickLayoutScrollView` instance.
 ///
+/// The explicit scroll view parameter supplies the stable UIKit identity that
+/// SwiftUI normally manages for its value-typed `ScrollView`.
+///
 /// - Parameters:
 ///   - scrollView: The scroll view to use as the backing view.
-///   - axis: The axis along which the scroll view scrolls.
+///   - axis: The single axis along which the scroll view scrolls.
+///   - showsIndicators: Whether to show the indicator for that axis.
 ///   - content: A builder closure that returns the elements to display.
 /// - Returns: A layout element that renders the scroll view.
 @MainActor public func ScrollView(
     _ scrollView: QuickLayoutScrollView,
-    axis: QuickLayout.Axis = .vertical,
+    _ axis: QuickLayout.Axis = .vertical,
+    showsIndicators: Bool = true,
     @FastArrayBuilder<Element> content: () -> [Element]
 ) -> LeafElement & Layout {
-    ScrollElement(scrollView, axis: axis, contentElements: content())
+    scrollView.configure(
+        axis: axis,
+        showsIndicators: showsIndicators,
+        content: content()
+    )
+    return ScrollElement(scrollView)
 }
-
-
 
 @MainActor
 private struct ScrollElement: @MainActor Layout, @MainActor LeafElement {
 
     private let child: QuickLayoutScrollView
 
-    init(
-        _ scrollView: QuickLayoutScrollView,
-        axis: Axis,
-        contentElements: [Element],
-    ) {
-        scrollView.axis = axis
-        scrollView.contentElements = contentElements
+    init(_ scrollView: QuickLayoutScrollView) {
         self.child = scrollView
     }
 
@@ -52,7 +54,7 @@ private struct ScrollElement: @MainActor Layout, @MainActor LeafElement {
     func quick_flexibility(for axis: Axis) -> Flexibility {
         child.quick_flexibility(for: axis)
     }
-    
+
     func quick_layoutPriority() -> CGFloat {
         child.quick_layoutPriority()
     }

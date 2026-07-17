@@ -9,7 +9,6 @@ import CoreGraphics
 import Testing
 import UIKit
 import AppLocalization
-import QuickLayout
 import QuickLayoutKit
 @testable import Demo
 
@@ -47,31 +46,76 @@ struct DemoTests {
         #expect(viewController.sizeThatFits(in: CGSize(width: 200, height: CGFloat.greatestFiniteMagnitude)).height > 0)
     }
 
-    @Test func scrollViewUpdatesContentAndScrollsToEdges() {
+    @Test func scrollViewInitializerConfiguresContentAndIndicators() {
         let first = UIView()
         let second = UIView()
-        let scrollView = QuickLayoutScrollView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
-
-        scrollView.updateContent(axis: .vertical) {
+        let scrollView = QuickLayoutScrollView(.vertical, showsIndicators: false) {
             first.frame(height: 120)
             second.frame(height: 120)
         }
+        scrollView.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
         scrollView.layoutIfNeeded()
         scrollView.scrollTo(.bottom, animated: false)
 
+        #expect(scrollView.axis == .vertical)
+        #expect(first.superview === scrollView)
+        #expect(second.superview === scrollView)
+        #expect(!scrollView.showsVerticalScrollIndicator)
+        #expect(!scrollView.showsHorizontalScrollIndicator)
         #expect(scrollView.contentSize.height >= 240)
         #expect(scrollView.contentOffset.y > 0)
+    }
+
+    @Test func verticalScrollViewCentersContentOnItsCrossAxis() {
+        let item = UIView()
+        let scrollView = QuickLayoutScrollView(.vertical) {
+            item.frame(width: 40, height: 40)
+        }
+        scrollView.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
+        scrollView.semanticContentAttribute = .forceRightToLeft
+
+        scrollView.layoutIfNeeded()
+
+        #expect(item.frame.midX == scrollView.bounds.midX)
+        #expect(scrollView.contentSize.width == scrollView.bounds.width)
+    }
+
+    @Test func horizontalScrollViewAppliesViewportHeightOnItsCrossAxis() {
+        let item = UIView()
+        let scrollView = QuickLayoutScrollView(.horizontal) {
+            item.frame(width: 40, height: 40)
+        }
+        scrollView.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
+
+        scrollView.layoutIfNeeded()
+
+        #expect(item.frame.midY == scrollView.bounds.midY)
+        #expect(scrollView.contentSize.height == scrollView.bounds.height)
+    }
+
+    @Test func scrollViewLayoutFunctionUpdatesExistingUIKitInstance() {
+        let item = UIView()
+        let scrollView = QuickLayoutScrollView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
+
+        _ = ScrollView(scrollView, .horizontal, showsIndicators: false) {
+            item.frame(width: 240)
+        }
+        scrollView.layoutIfNeeded()
+
+        #expect(scrollView.axis == .horizontal)
+        #expect(item.superview === scrollView)
+        #expect(!scrollView.showsHorizontalScrollIndicator)
+        #expect(scrollView.contentSize.width >= 240)
     }
 
     @Test func horizontalScrollEdgesFollowSemanticDirection() {
         let first = UIView()
         let second = UIView()
-        let scrollView = QuickLayoutScrollView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
-
-        scrollView.updateContent(axis: .horizontal) {
+        let scrollView = QuickLayoutScrollView(.horizontal) {
             first.frame(width: 120)
             second.frame(width: 120)
         }
+        scrollView.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
         scrollView.layoutIfNeeded()
 
         let leadingLTR = -scrollView.adjustedContentInset.left
@@ -93,69 +137,16 @@ struct DemoTests {
         #expect(scrollView.contentOffset.x == leadingLTR)
     }
 
-    @Test func horizontalScrollViewUsesExplicitQuickLayoutDirectionOverride() {
-        let first = UIView()
-        let second = UIView()
-        let scrollView = QuickLayoutScrollView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
-        scrollView.semanticContentAttribute = .forceLeftToRight
-        scrollView.quickLayoutDirectionOverride = .rightToLeft
-
-        scrollView.updateContent(axis: .horizontal) {
-            first.frame(width: 120)
-            second.frame(width: 120)
-        }
-        scrollView.layoutIfNeeded()
-        scrollView.scrollTo(.leading, animated: false)
-
-        let maximumOffset = max(
-            -scrollView.adjustedContentInset.left,
-            scrollView.contentSize.width - scrollView.bounds.width + scrollView.adjustedContentInset.right
-        )
-
-        #expect(first.frame.minX > second.frame.minX)
-        #expect(scrollView.contentOffset.x == maximumOffset)
-    }
-
-    @Test func scrollViewPrependPreservesVisibleViewAnchorAndEmitsEvents() {
-        let prepended = UIView()
-        let first = UIView()
-        let second = UIView()
-        let scrollView = QuickLayoutScrollView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
-        var events: [QuickLayoutScrollView.Event] = []
-        scrollView.scrollEventHandler = { events.append($0) }
-
-        scrollView.updateContent(axis: .vertical) {
-            first.frame(height: 100)
-            second.frame(height: 100)
-        }
-        scrollView.layoutIfNeeded()
-        scrollView.contentOffset = CGPoint(x: 0, y: 50)
-        let before = second.convert(second.bounds, to: scrollView).minY - scrollView.contentOffset.y
-
-        scrollView.prependContent(
-            options: [.layoutImmediately],
-            preserving: .view(second)
-        ) {
-            prepended.frame(height: 80)
-        }
-
-        let after = second.convert(second.bounds, to: scrollView).minY - scrollView.contentOffset.y
-
-        #expect(abs(after - before) < 0.5)
-        #expect(events.contains { if case .contentSizeChanged = $0 { true } else { false } })
-        #expect(events.contains { if case .didPreserveVisiblePosition = $0 { true } else { false } })
-    }
-
     @Test func horizontalScrollViewAppliesRTLDirectionToContentLayout() {
         let first = UIView()
         let second = UIView()
-        let scrollView = QuickLayoutScrollView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
-        scrollView.semanticContentAttribute = .forceRightToLeft
-
-        scrollView.updateContent(axis: .horizontal) {
+        let scrollView = QuickLayoutScrollView(.horizontal) {
             first.frame(width: 120)
             second.frame(width: 120)
         }
+        scrollView.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
+        scrollView.semanticContentAttribute = .forceRightToLeft
+
         scrollView.layoutIfNeeded()
 
         #expect(first.frame.minX > second.frame.minX)
@@ -167,9 +158,9 @@ struct DemoTests {
         let scrollView = QuickLayoutScrollView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
         scrollView.axis = .horizontal
         scrollView.semanticContentAttribute = .forceRightToLeft
-        scrollView.scrollToBeginning(animated: false)
+        scrollView.scrollTo(.leading, animated: false)
 
-        scrollView.updateContent(axis: .horizontal) {
+        _ = ScrollView(scrollView, .horizontal) {
             first.frame(width: 120)
             second.frame(width: 120)
         }
@@ -209,9 +200,9 @@ struct DemoTests {
         let scrollView = QuickLayoutScrollView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
         scrollView.axis = .horizontal
         scrollView.semanticContentAttribute = .forceRightToLeft
-        scrollView.scrollToBeginning(animated: false)
+        scrollView.scrollTo(.leading, animated: false)
 
-        scrollView.updateContent(axis: .horizontal) {
+        _ = ScrollView(scrollView, .horizontal) {
             first.frame(width: 120)
             second.frame(width: 120)
         }
@@ -384,6 +375,28 @@ struct DemoTests {
         #expect(scrollView.horizontalScrollIndicatorInsets.bottom == 11)
     }
 
+    @Test func keyboardAvoiderUsesInjectedNotificationCenterForDefaultObserver() {
+        let notificationCenter = NotificationCenter()
+        let scrollView = UIScrollView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        let avoider = QuickLayoutKeyboardAvoider(
+            scrollView: scrollView,
+            notificationCenter: notificationCenter
+        )
+        let keyboardFrame = CGRect(x: 0, y: 360, width: 320, height: 120)
+
+        notificationCenter.post(
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil,
+            userInfo: [
+                UIResponder.keyboardFrameEndUserInfoKey: keyboardFrame,
+                UIResponder.keyboardAnimationDurationUserInfoKey: 0,
+            ]
+        )
+
+        #expect(scrollView.contentInset.bottom == 120)
+        _ = avoider
+    }
+
     @Test func keyboardAvoiderAppliesSafeAreaStrategiesAndExtraPadding() {
         let scrollView = TestSafeAreaScrollView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
         scrollView.testSafeAreaInsets = UIEdgeInsets(top: 0, left: 0, bottom: 34, right: 0)
@@ -514,6 +527,34 @@ struct DemoTests {
         #expect(environment.displayScale == view.traitCollection.displayScale)
         #expect(environment.layoutMargins.leading == 12)
         #expect(view.quickLayoutDirection == .rightToLeft)
+    }
+
+    @Test func quickLayoutEnvironmentReportsPublicChanges() {
+        let previous = QuickLayoutEnvironment(
+            layoutDirection: .leftToRight,
+            preferredContentSizeCategory: .large,
+            horizontalSizeClass: .compact,
+            verticalSizeClass: .regular,
+            userInterfaceStyle: .light,
+            displayScale: 2,
+            safeAreaInsets: .init(top: 0, leading: 0, bottom: 0, trailing: 0),
+            layoutMargins: .init(top: 8, leading: 8, bottom: 8, trailing: 8)
+        )
+        let current = QuickLayoutEnvironment(
+            layoutDirection: .rightToLeft,
+            preferredContentSizeCategory: .large,
+            horizontalSizeClass: .compact,
+            verticalSizeClass: .regular,
+            userInterfaceStyle: .light,
+            displayScale: 2,
+            safeAreaInsets: .init(top: 0, leading: 0, bottom: 34, trailing: 0),
+            layoutMargins: .init(top: 8, leading: 8, bottom: 8, trailing: 8)
+        )
+
+        let changes = current.changes(from: previous)
+
+        #expect(changes == [.layoutDirection, .safeArea])
+        #expect(QuickLayoutEnvironmentChangeReason.all.isSuperset(of: changes))
     }
 
     @Test func quickLayoutViewNotifiesEnvironmentChangesFromMargins() {

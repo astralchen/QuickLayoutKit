@@ -121,7 +121,7 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
 
         if let lastQuickLayoutEnvironment {
             reason = environment
-                .changeReason(from: lastQuickLayoutEnvironment)
+                .changes(from: lastQuickLayoutEnvironment)
                 .union(explicitReason)
         } else {
             reason = explicitReason

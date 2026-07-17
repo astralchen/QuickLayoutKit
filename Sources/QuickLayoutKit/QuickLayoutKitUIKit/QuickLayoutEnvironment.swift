@@ -5,6 +5,10 @@ import QuickLayout
 /// placement.
 public struct QuickLayoutEnvironment: Equatable {
 
+    /// A discoverable spelling for environment change reasons scoped to an
+    /// environment snapshot.
+    public typealias ChangeReason = QuickLayoutEnvironmentChangeReason
+
     /// The effective QuickLayout layout direction.
     public let layoutDirection: LayoutDirection
 
@@ -61,8 +65,12 @@ public struct QuickLayoutEnvironment: Equatable {
             && lhs.layoutMargins.quickLayout_isEqual(to: rhs.layoutMargins)
     }
 
-    func changeReason(from previous: QuickLayoutEnvironment) -> QuickLayoutEnvironmentChangeReason {
-        var reason: QuickLayoutEnvironmentChangeReason = []
+    /// Returns the environment values that differ from an earlier snapshot.
+    ///
+    /// - Parameter previous: The snapshot to compare with the receiver.
+    /// - Returns: An option set describing every changed environment value.
+    public func changes(from previous: QuickLayoutEnvironment) -> ChangeReason {
+        var reason: ChangeReason = []
 
         if layoutDirection != previous.layoutDirection {
             reason.insert(.layoutDirection)
@@ -120,6 +128,17 @@ public struct QuickLayoutEnvironmentChangeReason: OptionSet, Sendable {
 
     /// The layout margins changed.
     public static let layoutMargins = QuickLayoutEnvironmentChangeReason(rawValue: 1 << 6)
+
+    /// Every environment value tracked by QuickLayoutKit.
+    public static let all: QuickLayoutEnvironmentChangeReason = [
+        .layoutDirection,
+        .preferredContentSizeCategory,
+        .sizeClass,
+        .userInterfaceStyle,
+        .displayScale,
+        .safeArea,
+        .layoutMargins,
+    ]
 }
 
 /// A type that can react to QuickLayout environment changes.

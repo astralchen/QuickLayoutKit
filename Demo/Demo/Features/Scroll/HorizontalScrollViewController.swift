@@ -14,7 +14,7 @@ class HorizontalScrollViewViewController: DemoQuickLayoutHostingController {
 
     override var localizedTitleKey: String? { "demo.horizontalScroll.title" }
 
-    let scrollView = QuickLayoutScrollView()
+    let scrollView = QuickLayoutScrollView(.horizontal)
 
     let views: [UIView] =  {
 
@@ -31,7 +31,7 @@ class HorizontalScrollViewViewController: DemoQuickLayoutHostingController {
 
     override var body: Layout {
 
-        ScrollView(scrollView, axis: .horizontal) {
+        ScrollView(scrollView, .horizontal) {
             HStack(spacing: 16) {
                 ForEach(views) { view in
                     view
@@ -60,16 +60,15 @@ class HorizontalScrollViewViewController: DemoQuickLayoutHostingController {
 
     override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
         super.reloadLayoutDirection(direction)
-        scrollView.quickLayoutDirectionOverride = direction == .rightToLeft ? .rightToLeft : .leftToRight
         scrollView.semanticContentAttribute = direction.appLayoutDirection.semanticContentAttribute
-        scrollView.scrollToBeginning(animated: false)
+        scrollView.scrollTo(.leading, animated: false)
     }
 
     private func prepareInitialScrollPosition() {
         UIView.performWithoutAnimation {
             view.setNeedsLayout()
             view.layoutIfNeeded()
-            scrollView.scrollToBeginning(animated: false)
+            scrollView.scrollTo(.leading, animated: false)
             scrollView.layoutIfNeeded()
         }
     }

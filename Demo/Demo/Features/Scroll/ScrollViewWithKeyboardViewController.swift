@@ -191,7 +191,7 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
     private var cancellables: Set<AnyCancellable> = []
 
     override var body: Layout {
-        ScrollView(scrollView, axis: .vertical) {
+        ScrollView(scrollView, .vertical) {
             VStack(spacing: 20) {
                 // Header
                 headerView
