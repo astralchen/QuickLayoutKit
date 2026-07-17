@@ -134,11 +134,11 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
     private var axisLayout: Layout {
         switch axis {
         case .vertical:
-            VStack(alignment: .center, spacing: 0) {
+            VStack {
                 ForEach(contentElements)
             }
         case .horizontal:
-            HStack(alignment: .center, spacing: 0) {
+            HStack {
                 ForEach(contentElements)
             }
         }
