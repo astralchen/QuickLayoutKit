@@ -1,4 +1,5 @@
 import Combine
+import ObjectiveC
 import UIKit
 
 /// The UIKit keyboard notification event represented by a context.
@@ -322,8 +323,11 @@ public final class QuickLayoutKeyboardAvoider {
         self.scrollView = scrollView
         self.observer = observer
         self.baseContentInset = scrollView.contentInset
+            .subtracting(scrollView.quickLayoutAppliedContentMarginInsets)
         self.baseVerticalScrollIndicatorInsets = scrollView.verticalScrollIndicatorInsets
+            .subtracting(scrollView.quickLayoutAppliedIndicatorMarginInsets)
         self.baseHorizontalScrollIndicatorInsets = scrollView.horizontalScrollIndicatorInsets
+            .subtracting(scrollView.quickLayoutAppliedIndicatorMarginInsets)
 
         observer.$context
             .sink { [weak self] context in
@@ -362,8 +366,11 @@ public final class QuickLayoutKeyboardAvoider {
     public func captureCurrentInsetsAsBase() {
         guard let scrollView else { return }
         baseContentInset = scrollView.contentInset
+            .subtracting(scrollView.quickLayoutAppliedContentMarginInsets)
         baseVerticalScrollIndicatorInsets = scrollView.verticalScrollIndicatorInsets
+            .subtracting(scrollView.quickLayoutAppliedIndicatorMarginInsets)
         baseHorizontalScrollIndicatorInsets = scrollView.horizontalScrollIndicatorInsets
+            .subtracting(scrollView.quickLayoutAppliedIndicatorMarginInsets)
     }
 
     /// Applies a keyboard context immediately.
@@ -375,14 +382,18 @@ public final class QuickLayoutKeyboardAvoider {
         let resolved = context.resolved(in: scrollView)
         let insetDelta = insetDelta(for: resolved, in: scrollView)
         keyboardInsetDelta = insetDelta
+        scrollView.quickLayoutKeyboardInsetDelta = insetDelta
 
         var contentInset = baseContentInset
+            .adding(scrollView.quickLayoutAppliedContentMarginInsets)
         var verticalIndicatorInsets = baseVerticalScrollIndicatorInsets
+            .adding(scrollView.quickLayoutAppliedIndicatorMarginInsets)
         var horizontalIndicatorInsets = baseHorizontalScrollIndicatorInsets
+            .adding(scrollView.quickLayoutAppliedIndicatorMarginInsets)
 
-        contentInset.bottom = baseContentInset.bottom + insetDelta
-        verticalIndicatorInsets.bottom = baseVerticalScrollIndicatorInsets.bottom + insetDelta
-        horizontalIndicatorInsets.bottom = baseHorizontalScrollIndicatorInsets.bottom + insetDelta
+        contentInset.bottom += insetDelta
+        verticalIndicatorInsets.bottom += insetDelta
+        horizontalIndicatorInsets.bottom += insetDelta
 
         UIView.animate(
             withDuration: context.animationDuration,
@@ -465,5 +476,29 @@ public final class QuickLayoutKeyboardAvoider {
             return view
         }
         return notification.object as? UIView
+    }
+}
+
+private enum QuickLayoutKeyboardAssociatedKeys {
+    nonisolated(unsafe) static var insetDelta: UInt8 = 0
+}
+
+extension UIScrollView {
+
+    var quickLayoutKeyboardInsetDelta: CGFloat {
+        get {
+            (objc_getAssociatedObject(
+                self,
+                &QuickLayoutKeyboardAssociatedKeys.insetDelta
+            ) as? NSNumber)?.doubleValue ?? 0
+        }
+        set {
+            objc_setAssociatedObject(
+                self,
+                &QuickLayoutKeyboardAssociatedKeys.insetDelta,
+                NSNumber(value: newValue),
+                .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+            )
+        }
     }
 }

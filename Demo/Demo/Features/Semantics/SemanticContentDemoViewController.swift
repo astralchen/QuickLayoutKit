@@ -101,10 +101,11 @@ class SemanticContentDemoViewController: DemoQuickLayoutHostingController {
                     ltrSection
                     rtlSection
                 }
-                .padding(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
             }
+            .contentMargins(16)
         }
-        .padding(.top, view.safeAreaInsets.top)
+        .safeAreaPadding(.top, 0)
+        .safeAreaPadding(.horizontal, 0)
     }
 }
 
@@ -277,6 +278,7 @@ class ExampleRow2: UIView {
             Spacer()
             directionIconView
                 .resizable()
+                .scaledToFit()
                 .frame(width: 24, height: 24)
             Spacer()
 
@@ -307,6 +309,8 @@ class ExampleRow3: UIView {
         layer.cornerRadius = 8
 
         imageView.backgroundColor = .systemGreen
+        imageView.image = UIImage(systemName: "person.crop.circle.fill")
+        imageView.tintColor = .white
         imageView.layer.cornerRadius = 20
         imageView.contentMode = .scaleAspectFill
         imageView.clipsToBounds = true
@@ -324,6 +328,7 @@ class ExampleRow3: UIView {
         HStack(spacing: 12) {
             imageView
                 .resizable()
+                .scaledToFill()
                 .frame(width: 40, height: 40)
             descLabel
             Spacer()

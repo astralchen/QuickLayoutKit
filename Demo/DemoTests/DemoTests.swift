@@ -229,6 +229,176 @@ struct DemoTests {
         #expect(viewController.scrollView.contentOffset.x > 0)
     }
 
+    @Test func horizontalScrollDemoUsesViewportRelativeCards() {
+        let viewController = HorizontalScrollViewViewController()
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 300)
+        viewController.view.setNeedsLayout()
+        viewController.view.layoutIfNeeded()
+
+        let firstCard = viewController.views[0]
+        let contentViewportWidth = viewController.scrollView.bounds.width
+            - viewController.scrollView.adjustedContentInset.left
+            - viewController.scrollView.adjustedContentInset.right
+        let expectedWidth = (contentViewportWidth - 16 * 2) / 3 * 2 + 16
+        let expectedCornerRadius = min(24, max(12, expectedWidth * 0.08))
+
+        #expect(viewController.scrollView.contentInset.left == 16)
+        #expect(viewController.scrollView.contentInset.right == 16)
+        #expect(viewController.scrollView.contentOffset.x == -16)
+        #expect(abs(firstCard.bounds.width - expectedWidth) < 1)
+        #expect(abs(firstCard.layer.cornerRadius - expectedCornerRadius) < 1)
+
+        viewController.view.frame = CGRect(x: 0, y: 0, width: 844, height: 300)
+        viewController.view.setNeedsLayout()
+        viewController.view.layoutIfNeeded()
+
+        #expect(firstCard.bounds.width > expectedWidth)
+        #expect(firstCard.layer.cornerRadius == 24)
+    }
+
+    @Test func counterDemoFallsBackToVerticalActionsWhenNarrow() {
+        DemoLocalization.setLocale(identifier: "en-US")
+        let viewController = CounterViewController()
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 500)
+        viewController.view.setNeedsLayout()
+        viewController.view.layoutIfNeeded()
+
+        #expect(
+            abs(
+                viewController.decrementButton.frame.midY
+                    - viewController.incrementButton.frame.midY
+            ) < 1
+        )
+
+        viewController.view.frame = CGRect(x: 0, y: 0, width: 140, height: 500)
+        viewController.view.setNeedsLayout()
+        viewController.view.layoutIfNeeded()
+
+        #expect(
+            viewController.decrementButton.frame.maxY
+                < viewController.incrementButton.frame.minY
+        )
+    }
+
+    @Test func mediaExamplesPreserveTheirAspectRatios() throws {
+        let messageCell = MessageCell()
+        messageCell.configure(MessageModel.mockData[0])
+        messageCell.body.applyFrame(
+            CGRect(x: 0, y: 0, width: 320, height: 80),
+            alignment: .topLeading
+        )
+
+        let fitRow = ExampleRow2()
+        fitRow.body.applyFrame(
+            CGRect(x: 0, y: 0, width: 320, height: 72),
+            alignment: .topLeading
+        )
+        let iconSize = try #require(fitRow.directionIconView.image?.size)
+        let iconRatio = iconSize.width / iconSize.height
+        let fittedRatio = fitRow.directionIconView.bounds.width
+            / fitRow.directionIconView.bounds.height
+
+        let fillRow = ExampleRow3()
+        fillRow.body.applyFrame(
+            CGRect(x: 0, y: 0, width: 320, height: 72),
+            alignment: .topLeading
+        )
+        let fillImageSize = try #require(fillRow.imageView.image?.size)
+        let fillImageRatio = fillImageSize.width / fillImageSize.height
+        let filledRatio = fillRow.imageView.bounds.width
+            / fillRow.imageView.bounds.height
+
+        #expect(messageCell.avatarView.bounds.size == CGSize(width: 40, height: 40))
+        #expect(fitRow.directionIconView.bounds.width <= 24)
+        #expect(fitRow.directionIconView.bounds.height <= 24)
+        #expect(abs(fittedRatio - iconRatio) < 0.01)
+        #expect(fillRow.imageView.bounds.width >= 40)
+        #expect(fillRow.imageView.bounds.height >= 40)
+        #expect(abs(filledRatio - fillImageRatio) < 0.01)
+    }
+
+    @Test func dynamicScrollDemoReservesItsActionInset() {
+        let viewController = DynamicScrollViewController()
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        viewController.view.setNeedsLayout()
+        viewController.view.layoutIfNeeded()
+
+        let buttonFrame = viewController.addButton.convert(
+            viewController.addButton.bounds,
+            to: viewController.view
+        )
+        let scrollFrame = viewController.scrollView.convert(
+            viewController.scrollView.bounds,
+            to: viewController.view
+        )
+
+        #expect(buttonFrame.maxY + 7 < scrollFrame.minY + 1)
+        #expect(scrollFrame.minX == 0)
+        #expect(scrollFrame.maxX == viewController.view.bounds.width)
+        #expect(
+            viewController.scrollView.contentInset
+                == UIEdgeInsets(top: 0, left: 16, bottom: 8, right: 16)
+        )
+        #expect(
+            viewController.scrollView.verticalScrollIndicatorInsets
+                == UIEdgeInsets(top: 0, left: 16, bottom: 8, right: 16)
+        )
+    }
+
+    @Test func scrollExamplesUseContentMargins() throws {
+        let examples: [(UIViewController, UIEdgeInsets)] = [
+            (
+                MainViewController(),
+                UIEdgeInsets(top: 16, left: 16, bottom: 24, right: 16)
+            ),
+            (
+                LocalizationOverviewViewController(),
+                UIEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
+            ),
+            (
+                ProfileViewController(),
+                UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
+            ),
+            (
+                ViewControllerRepresentableDemoViewController(),
+                UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
+            ),
+            (
+                ScrollViewWithKeyboardViewController(),
+                UIEdgeInsets(top: 20, left: 20, bottom: 10, right: 20)
+            ),
+            (
+                SemanticContentDemoViewController(),
+                UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
+            ),
+        ]
+
+        for (viewController, expectedInsets) in examples {
+            viewController.loadViewIfNeeded()
+            viewController.view.frame = CGRect(
+                x: 0,
+                y: 0,
+                width: 390,
+                height: 844
+            )
+            viewController.view.setNeedsLayout()
+            viewController.view.layoutIfNeeded()
+
+            let scrollView = try #require(
+                viewController.view
+                    .allSubviews(of: QuickLayoutScrollView.self)
+                    .first
+            )
+
+            #expect(scrollView.contentInset == expectedInsets)
+            #expect(scrollView.verticalScrollIndicatorInsets == expectedInsets)
+            #expect(scrollView.horizontalScrollIndicatorInsets == expectedInsets)
+        }
+    }
+
     @Test func keyboardContextParsesUIKitNotification() throws {
         let beginFrame = CGRect(x: 0, y: 844, width: 390, height: 0)
         let frame = CGRect(x: 0, y: 320, width: 390, height: 240)

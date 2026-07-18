@@ -53,13 +53,9 @@ final class LocalizationOverviewViewController: DemoQuickLayoutHostingController
                     }
                 }
             }
-            .padding(EdgeInsets(
-                top: view.quickLayoutSafeAreaInsets.top + 20,
-                leading: view.quickLayoutSafeAreaInsets.leading + 20,
-                bottom: view.quickLayoutSafeAreaInsets.bottom + 20,
-                trailing: view.quickLayoutSafeAreaInsets.trailing + 20
-            ))
         }
+        .contentMargins(20)
+        .safeAreaPadding(0)
     }
 
     override func reloadLocalizedContent() {

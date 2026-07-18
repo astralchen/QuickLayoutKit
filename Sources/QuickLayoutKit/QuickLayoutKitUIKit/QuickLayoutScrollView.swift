@@ -75,6 +75,8 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
     }
 
     private var pendingScroll: (edge: Edge, animated: Bool)?
+    private var needsContentMarginStartPosition = false
+    let quickLayoutContentMarginState = QuickLayoutContentMarginState()
 
     // MARK: - Initialization
 
@@ -150,22 +152,36 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
         super.layoutSubviews()
 
         let layoutProposal = proposedContentSize
-        let measuredContentSize = _QuickLayoutViewImplementation.sizeThatFits(
-            self,
-            size: layoutProposal
-        ) ?? .zero
+        let safeAreaRegionInsets = quickLayoutSafeAreaRegionInsets
+        let measuredContentSize = withQuickLayoutContainerSize(
+            bounds.size,
+            insets: safeAreaRegionInsets.container,
+            keyboardInsets: safeAreaRegionInsets.keyboard
+        ) {
+            _QuickLayoutViewImplementation.sizeThatFits(
+                self,
+                size: layoutProposal
+            ) ?? .zero
+        }
         let contentLayoutSize = resolvedContentLayoutSize(measuredContentSize)
 
-        body.applyFrame(
-            CGRect(origin: .zero, size: contentLayoutSize),
-            alignment: contentAlignment,
-            layoutDirection: quickLayoutDirection
-        )
+        withQuickLayoutContainerSize(
+            bounds.size,
+            insets: safeAreaRegionInsets.container,
+            keyboardInsets: safeAreaRegionInsets.keyboard
+        ) {
+            body.applyFrame(
+                CGRect(origin: .zero, size: contentLayoutSize),
+                alignment: contentAlignment,
+                layoutDirection: quickLayoutDirection
+            )
+        }
 
         if contentSize != contentLayoutSize {
             contentSize = contentLayoutSize
         }
 
+        applyContentMarginStartPositionIfPossible()
         applyPendingScrollIfPossible()
     }
 
@@ -179,25 +195,55 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
     }
 
     private var proposedContentSize: CGSize {
+        let viewportSize = contentMarginViewportSize
         switch axis {
         case .vertical:
-            return CGSize(width: bounds.width, height: .infinity)
+            return CGSize(width: viewportSize.width, height: .infinity)
         case .horizontal:
-            return CGSize(width: .infinity, height: bounds.height)
+            return CGSize(width: .infinity, height: viewportSize.height)
         }
     }
 
+    private var contentMarginViewportSize: CGSize {
+        let insets = quickLayoutAppliedContentMarginInsets
+        return CGSize(
+            width: max(0, bounds.width - insets.left - insets.right),
+            height: max(0, bounds.height - insets.top - insets.bottom)
+        )
+    }
+
+    private var quickLayoutSafeAreaRegionInsets: (
+        container: UIEdgeInsets,
+        keyboard: UIEdgeInsets
+    ) {
+        let keyboardDelta = max(0, quickLayoutKeyboardInsetDelta)
+        guard keyboardDelta > 0 else {
+            return (adjustedContentInset, .zero)
+        }
+
+        var containerInsets = adjustedContentInset
+        containerInsets.bottom = max(0, containerInsets.bottom - keyboardDelta)
+        let keyboardInsets = UIEdgeInsets(
+            top: 0,
+            left: 0,
+            bottom: adjustedContentInset.bottom,
+            right: 0
+        )
+        return (containerInsets, keyboardInsets)
+    }
+
     private func resolvedContentLayoutSize(_ measuredSize: CGSize) -> CGSize {
+        let viewportSize = contentMarginViewportSize
         switch axis {
         case .vertical:
             return CGSize(
-                width: max(bounds.width, measuredSize.width),
+                width: max(viewportSize.width, measuredSize.width),
                 height: measuredSize.height
             )
         case .horizontal:
             return CGSize(
                 width: measuredSize.width,
-                height: max(bounds.height, measuredSize.height)
+                height: max(viewportSize.height, measuredSize.height)
             )
         }
     }
@@ -232,9 +278,27 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
         showsIndicators: Bool,
         content: [Element]
     ) {
+        quickLayoutResetContentMargins()
         self.axis = axis
         self.showsIndicators = showsIndicators
         contentElements = content
+    }
+
+    func quickLayoutIsAtContentStart() -> Bool {
+        let edge: Edge = axis == .vertical ? .top : .leading
+        let target = targetOffset(for: edge)
+
+        switch axis {
+        case .vertical:
+            return abs(contentOffset.y - target.y) < 0.5
+        case .horizontal:
+            return abs(contentOffset.x - target.x) < 0.5
+        }
+    }
+
+    func quickLayoutKeepContentAtStartAfterMarginChange() {
+        needsContentMarginStartPosition = true
+        setNeedsLayout()
     }
 
     // MARK: - Private Helpers
@@ -248,6 +312,19 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
     private func configureIndicators() {
         showsVerticalScrollIndicator = showsIndicators && axis == .vertical
         showsHorizontalScrollIndicator = showsIndicators && axis == .horizontal
+    }
+
+    private func applyContentMarginStartPositionIfPossible() {
+        guard needsContentMarginStartPosition else { return }
+
+        let edge: Edge = axis == .vertical ? .top : .leading
+        guard canResolveScrollOffset(for: edge) else { return }
+
+        needsContentMarginStartPosition = false
+        setContentOffset(
+            targetOffset(for: edge),
+            requestedAnimated: false
+        )
     }
 
     private func applyPendingScrollIfPossible() {

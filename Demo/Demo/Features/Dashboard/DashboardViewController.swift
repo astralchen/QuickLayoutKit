@@ -17,6 +17,7 @@ class DashboardViewController: DemoQuickLayoutHostingController {
     let nameLabel = UILabel()
     let scoreLabel = UILabel()
     let achievementLabel = UILabel()
+    let pageBackgroundView = UIView()
     let statsView1 = UIView()
     let statsView2 = UIView()
     let statsView3 = UIView()
@@ -37,6 +38,8 @@ class DashboardViewController: DemoQuickLayoutHostingController {
 
         achievementLabel.font = .systemFont(ofSize: 12)
 
+        pageBackgroundView.backgroundColor = .systemGroupedBackground
+
         [statsView1, statsView2, statsView3].forEach {
             $0.backgroundColor = .systemGray6
             $0.layer.cornerRadius = 8
@@ -51,41 +54,47 @@ class DashboardViewController: DemoQuickLayoutHostingController {
     }
 
     override var body: Layout {
-        VStack(spacing: 24) {
-            // Header Card
-            HStack(spacing: 12) {
-                profileImageView
-                    .resizable()
-                    .frame(width: 50, height: 50)
+        ZStack {
+            pageBackgroundView
+                .resizable()
+                .containerRelativeFrame([.horizontal, .vertical])
+                .ignoresSafeArea(.container)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    nameLabel
-                    scoreLabel
-                    achievementLabel
+            VStack(spacing: 24) {
+                // Header Card
+                HStack(spacing: 12) {
+                    profileImageView
+                        .resizable()
+                        .aspectRatio(1, contentMode: .fit)
+                        .frame(width: 50)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        nameLabel
+                        scoreLabel
+                        achievementLabel
+                    }
+
+                    Spacer()
+                }
+                .padding(.all, 16)
+                .background {
+                    makeCardBackground()
+                }
+
+                // Stats Grid
+                HStack(spacing: 12) {
+                    statsView1
+                        .frame(height: 100)
+                    statsView2
+                        .frame(height: 100)
+                    statsView3
+                        .frame(height: 100)
                 }
 
                 Spacer()
             }
-            .padding(.all, 16)
-            .background {
-                makeCardBackground()
-            }
-
-            // Stats Grid
-            HStack(spacing: 12) {
-                statsView1
-                    .frame(height: 100)
-                statsView2
-                    .frame(height: 100)
-                statsView3
-                    .frame(height: 100)
-            }
-
-            Spacer()
+            .safeAreaPadding(16)
         }
-        .padding(.all, 16)
-        .padding(.horizontal, view.quickLayoutSafeAreaInsets.leading)
-        .padding(.top, view.safeAreaInsets.top)
     }
 
     private func makeCardBackground() -> UIView {

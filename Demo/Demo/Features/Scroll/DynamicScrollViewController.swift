@@ -30,10 +30,6 @@ class DynamicScrollViewController: DemoQuickLayoutHostingController {
 
     let scrollView: QuickLayoutScrollView = QuickLayoutScrollView()
 
-//    📌 最终工程级规范
-//    ① 顺序固定：上左下右
-//    ② 每个方向内部：设计值在前，安全区在后
-//    ③ 不混逻辑
     override var body: Layout {
         ScrollView(scrollView) {
             VStack(spacing: 12) {
@@ -42,21 +38,15 @@ class DynamicScrollViewController: DemoQuickLayoutHostingController {
                         .frame(height: 80)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.horizontal, view.quickLayoutSafeAreaInsets.maximumHorizontalInset)
-            .padding(.bottom, 8)
-            .padding(.bottom, view.quickLayoutSafeAreaInsets.bottom)
-
         }
-        .overlay(alignment: .topTrailing) {
+        .contentMargins(.horizontal, 16)
+        .contentMargins(.bottom, 8)
+        .safeAreaPadding(.horizontal, 0)
+        .safeAreaPadding(.bottom, 0)
+        .safeAreaInset(edge: .top, alignment: .trailing, spacing: 8) {
             addButton
-                .padding(.top, 8)
-                .padding(.top, view.quickLayoutSafeAreaInsets.top)
-                .padding(.trailing, 16)
-                .padding(.trailing, view.quickLayoutSafeAreaInsets.trailing)
-
+                .safeAreaPadding(.horizontal, 16)
         }
-
     }
 
     override func viewDidLoad() {

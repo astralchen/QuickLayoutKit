@@ -46,12 +46,16 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
     open override func layoutSubviews() {
         super.layoutSubviews()
         QuickLayoutDiagnostics.recordLayoutPass(for: String(describing: Self.self), measuredSize: bounds.size)
-        _QuickLayoutViewImplementation.layoutSubviews(self)
+        withQuickLayoutContainerSize(bounds.size) {
+            _QuickLayoutViewImplementation.layoutSubviews(self)
+        }
     }
 
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
         let proposedSize = quickLayoutSizeLimit(proposed: size)
-        return _QuickLayoutViewImplementation.sizeThatFits(self, size: proposedSize) ?? super.sizeThatFits(size)
+        return withQuickLayoutContainerSize(proposedSize) {
+            _QuickLayoutViewImplementation.sizeThatFits(self, size: proposedSize) ?? super.sizeThatFits(size)
+        }
     }
 
     open override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
@@ -124,11 +128,15 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
     open override func layoutSubviews() {
         super.layoutSubviews()
         QuickLayoutDiagnostics.recordLayoutPass(for: String(describing: Self.self), measuredSize: bounds.size)
-        _QuickLayoutViewImplementation.layoutSubviews(self)
+        withQuickLayoutContainerSize(bounds.size) {
+            _QuickLayoutViewImplementation.layoutSubviews(self)
+        }
     }
 
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
-        _QuickLayoutViewImplementation.sizeThatFits(self, size: size) ?? super.sizeThatFits(size)
+        withQuickLayoutContainerSize(size) {
+            _QuickLayoutViewImplementation.sizeThatFits(self, size: size) ?? super.sizeThatFits(size)
+        }
     }
 
     open func setNeedsQuickLayout() {
@@ -179,11 +187,15 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
     open override func layoutSubviews() {
         super.layoutSubviews()
         QuickLayoutDiagnostics.recordLayoutPass(for: String(describing: Self.self), measuredSize: bounds.size)
-        _QuickLayoutViewImplementation.layoutSubviews(self)
+        withQuickLayoutContainerSize(bounds.size) {
+            _QuickLayoutViewImplementation.layoutSubviews(self)
+        }
     }
 
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
-        _QuickLayoutViewImplementation.sizeThatFits(self, size: size) ?? super.sizeThatFits(size)
+        withQuickLayoutContainerSize(size) {
+            _QuickLayoutViewImplementation.sizeThatFits(self, size: size) ?? super.sizeThatFits(size)
+        }
     }
 
     open override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {

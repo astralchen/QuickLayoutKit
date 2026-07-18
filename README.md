@@ -139,6 +139,281 @@ let measured = hostedView.sizeThatFits(in: CGSize(width: 320, height: .infinity)
 You can also subclass `QuickLayoutView` and override `body` for reusable UIKit
 components.
 
+### Container-relative frames
+
+Use `containerRelativeFrame` to size an element from the nearest
+QuickLayoutKit container. `QuickLayoutView`, `QuickLayoutHostingController`,
+the list integration views, and `QuickLayoutScrollView` establish container
+sizes automatically. Regular hosts exclude safe-area insets; scroll views use
+their visible viewport after adjusted content insets.
+
+Make an element fill the container along selected axes:
+
+```swift
+heroView
+    .resizable()
+    .containerRelativeFrame(.horizontal, alignment: .leading)
+```
+
+Divide the container into equal sections and let an item span multiple
+sections:
+
+```swift
+ScrollView(scrollView, .horizontal) {
+    ForEach(cardViews) { cardView in
+        cardView
+            .resizable()
+            .containerRelativeFrame(
+                .horizontal,
+                count: 3,
+                span: 2,
+                spacing: 12
+            )
+    }
+}
+```
+
+Use the closure overload for custom sizing:
+
+```swift
+panelView
+    .resizable()
+    .containerRelativeFrame([.horizontal, .vertical]) { length, axis in
+        axis == .horizontal ? length * 0.8 : length / 2
+    }
+```
+
+When a layout is applied manually without a QuickLayoutKit host,
+`containerRelativeFrame` falls back to the size proposed by its immediate
+parent.
+
+### Flexible frame ideal size
+
+Use `idealWidth` and `idealHeight` to provide fallback dimensions when a
+flexible frame receives an unspecified proposal:
+
+```swift
+card
+    .resizable()
+    .frame(
+        minWidth: 160,
+        idealWidth: 240,
+        maxWidth: 320,
+        minHeight: 100,
+        idealHeight: 140,
+        maxHeight: 200,
+        alignment: .topLeading
+    )
+```
+
+A finite size proposed by the parent takes precedence over the ideal size.
+Minimum and maximum values are then applied to the resulting proposal.
+
+### Aspect ratio
+
+Pass a width-to-height ratio directly as a `CGFloat`:
+
+```swift
+videoView
+    .resizable()
+    .aspectRatio(16.0 / 9.0, contentMode: .fit)
+```
+
+`scaledToFit()` and `scaledToFill()` preserve the element's ideal aspect ratio
+and are aliases for `aspectRatio(nil, contentMode: .fit)` and
+`aspectRatio(nil, contentMode: .fill)` respectively.
+
+### Custom layout algorithms
+
+Conform a value type to `LayoutAlgorithm` when stacks, flows, and grids don't
+describe the geometry you need. A custom layout first chooses its container
+size from a `ProposedSize`, then places each `LayoutSubview` proxy:
+
+```swift
+private struct DiagonalLayout: LayoutAlgorithm {
+
+    let step: CGFloat
+
+    func sizeThatFits(
+        proposal: ProposedSize,
+        subviews: Subviews,
+        cache: inout Void
+    ) -> CGSize {
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        return CGSize(
+            width: (sizes.map(\.width).max() ?? 0)
+                + step * CGFloat(max(0, sizes.count - 1)),
+            height: (sizes.map(\.height).max() ?? 0)
+                + step * CGFloat(max(0, sizes.count - 1))
+        )
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal: ProposedSize,
+        subviews: Subviews,
+        cache: inout Void
+    ) {
+        for (index, subview) in subviews.enumerated() {
+            let size = subview.sizeThatFits(.unspecified)
+            subview.place(
+                at: CGPoint(
+                    x: bounds.minX + step * CGFloat(index),
+                    y: bounds.minY + step * CGFloat(index)
+                ),
+                proposal: ProposedSize(size)
+            )
+        }
+    }
+}
+
+let cards = DiagonalLayout(step: 20) {
+    firstCard.zIndex(0)
+    secondCard.zIndex(1)
+    thirdCard.zIndex(2)
+}
+```
+
+`ProposedSize.zero`, `.infinity`, and `.unspecified` query minimum, maximum,
+and ideal sizing behavior. A layout can cache repeated measurements by defining
+a `Cache` type and implementing `makeCache(subviews:)`; QuickLayoutKit passes
+the same cache to measurement and placement and calls `updateCache` before a
+later layout pass.
+
+Define a `LayoutValueKey` to attach application-specific metadata to direct
+children:
+
+```swift
+private enum RankKey: LayoutValueKey {
+    static let defaultValue = 0
+}
+
+card
+    .frame(width: 120, height: 80)
+    .layoutValue(key: RankKey.self, value: 2)
+```
+
+Read the value as `subview[RankKey.self]` inside the algorithm. Keep
+`layoutValue` after QuickLayout sizing modifiers so it remains attached to the
+direct child proxy.
+
+Use `position(_:)` or `position(x:y:)` to place an element's center at explicit
+parent coordinates. Use `zIndex(_:)` for overlapping content; larger values
+appear above smaller values, while equal values retain source order.
+
+### Content margins
+
+Use `contentMargins` to add space between a managed scroll view's viewport and
+its content without wrapping the content in `padding`:
+
+```swift
+ScrollView(scrollView, .horizontal) {
+    HStack(spacing: 16) {
+        ForEach(cards) { card in
+            card
+                .resizable()
+                .containerRelativeFrame(
+                    .horizontal,
+                    count: 3,
+                    span: 2,
+                    spacing: 16
+                )
+        }
+    }
+}
+.contentMargins(.horizontal, 16)
+```
+
+The default `.automatic` placement moves both scrollable content and scroll
+indicators. Use `.scrollContent` or `.scrollIndicators` to target one
+placement. Leading and trailing margins follow the scroll view's effective
+layout direction. A scroll view's `containerRelativeFrame` viewport excludes
+its content margins, so relative cards size from the remaining visible area.
+
+### Safe-area layout
+
+QuickLayoutKit hosts propagate container safe-area insets through the layout
+tree. Use `safeAreaPadding` to consume those insets and add optional spacing:
+
+```swift
+contentView
+    .safeAreaPadding(.horizontal, 20)
+    .safeAreaPadding(.vertical, 12)
+```
+
+The overloads mirror SwiftUI and accept selected edges, one value for all
+edges, or directional `EdgeInsets`. Calling `safeAreaPadding()` uses a default
+spacing of 16 points.
+
+Use `safeAreaInset` to place content beside a safe-area edge while reserving
+its measured size for the main content:
+
+```swift
+contentView.safeAreaInset(edge: .bottom, spacing: 8) {
+    actionBar
+        .resizable()
+        .frame(height: 52)
+}
+```
+
+Vertical edges accept a `HorizontalAlignment`; horizontal edges accept a
+`VerticalAlignment`. Use `ignoresSafeArea` to expand selected regions and
+edges:
+
+```swift
+backgroundView
+    .resizable()
+    .containerRelativeFrame([.horizontal, .vertical])
+    .ignoresSafeArea(.container, edges: .all)
+```
+
+`QuickLayoutKeyboardAvoider` publishes a keyboard safe-area region for a
+managed `QuickLayoutScrollView`, so `.ignoresSafeArea(.keyboard, edges:
+.bottom)` can opt a subtree out of keyboard avoidance.
+
+### Adaptive alternatives
+
+Use `ViewThatFits` to declare layouts in preference order. QuickLayoutKit
+selects the first alternative whose ideal size fits the proposed size on the
+requested axes, and uses the final alternative as a fallback:
+
+```swift
+ViewThatFits(in: .horizontal) {
+    HStack(spacing: 12) {
+        titleLabel
+        actionButton
+    }
+    VStack(alignment: .leading, spacing: 8) {
+        titleLabel
+        actionButton
+    }
+}
+```
+
+The default axis set is `[.horizontal, .vertical]`. Unselected UIKit views are
+collapsed to zero size when the chosen alternative changes.
+
+### Geometry changes
+
+Use `onGeometryChange` to derive an `Equatable` value from an element's applied
+geometry and react only when that value changes:
+
+```swift
+contentView
+    .resizable()
+    .onGeometryChange(for: CGSize.self) { geometry in
+        geometry.size
+    } action: { size in
+        print("Applied size:", size)
+    }
+```
+
+`GeometryProxy` exposes `size`, `safeAreaInsets`, and `frame(in:)` for the
+`.local`, `.global`, and nearest `.scrollView` coordinate spaces. Measurement
+with `sizeThatFits` has no callback side effects. An additional overload passes
+both the previous and current transformed values; its initial callback receives
+the initial value in both parameters.
+
 ### `QuickLayoutViewControllerRepresentable`
 
 `QuickLayoutViewControllerRepresentable` embeds a child `UIViewController`

@@ -88,13 +88,9 @@ final class ViewControllerRepresentableDemoViewController: DemoQuickLayoutHostin
                     .resizable()
                     .frame(height: 360)
             }
-            .padding(EdgeInsets(
-                top: view.quickLayoutSafeAreaInsets.top + 16,
-                leading: view.quickLayoutSafeAreaInsets.leading + 16,
-                bottom: view.quickLayoutSafeAreaInsets.bottom + 16,
-                trailing: view.quickLayoutSafeAreaInsets.trailing + 16
-            ))
         }
+        .contentMargins(16)
+        .safeAreaPadding(0)
     }
 }
 

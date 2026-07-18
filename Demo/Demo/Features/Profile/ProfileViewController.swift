@@ -118,12 +118,12 @@ class ProfileViewController: DemoQuickLayoutHostingController {
                 skillsSection
                 actionsSection
             }
-            .padding(.horizontal, 16)
-            .padding(.horizontal, view.quickLayoutSafeAreaInsets.maximumHorizontalInset)
-            .padding(.top, view.safeAreaInsets.top + 16)
-            .padding(.bottom, max(view.safeAreaInsets.bottom + 24, 32))
             .layoutDirection(view.quickLayoutDirection)
         }
+        .contentMargins(.horizontal, 16)
+        .safeAreaPadding(.horizontal, 0)
+        .safeAreaPadding(.top, 16)
+        .safeAreaPadding(.bottom, 24)
     }
 
     private var heroSection: Layout {
@@ -131,14 +131,18 @@ class ProfileViewController: DemoQuickLayoutHostingController {
             ZStack(alignment: .bottomTrailing) {
                 avatarContainerView
                     .resizable()
-                    .frame(width: 104, height: 104)
+                    .aspectRatio(1, contentMode: .fit)
+                    .frame(width: 104)
 
                 avatarImageView
                     .resizable()
-                    .frame(width: 88, height: 88)
+                    .aspectRatio(1, contentMode: .fit)
+                    .frame(width: 88)
 
                 statusDotView
-                    .frame(width: 18, height: 18)
+                    .resizable()
+                    .aspectRatio(1, contentMode: .fit)
+                    .frame(width: 18)
                     .padding(.trailing, 8)
                     .padding(.bottom, 8)
             }
@@ -150,6 +154,8 @@ class ProfileViewController: DemoQuickLayoutHostingController {
 
             HStack(spacing: 6) {
                 locationIconView
+                    .resizable()
+                    .scaledToFit()
                     .frame(width: 14, height: 14)
                 locationLabel
             }
@@ -169,16 +175,30 @@ class ProfileViewController: DemoQuickLayoutHostingController {
     }
 
     private var statsSection: Layout {
-        HStack(spacing: 10) {
-            projectsStatView
-                .resizable(axis: .horizontal)
-                .frame(height: 86)
-            followersStatView
-                .resizable(axis: .horizontal)
-                .frame(height: 86)
-            responseStatView
-                .resizable(axis: .horizontal)
-                .frame(height: 86)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                projectsStatView
+                    .resizable(axis: .horizontal)
+                    .frame(height: 86)
+                followersStatView
+                    .resizable(axis: .horizontal)
+                    .frame(height: 86)
+                responseStatView
+                    .resizable(axis: .horizontal)
+                    .frame(height: 86)
+            }
+
+            VStack(spacing: 10) {
+                projectsStatView
+                    .resizable(axis: .horizontal)
+                    .frame(height: 86)
+                followersStatView
+                    .resizable(axis: .horizontal)
+                    .frame(height: 86)
+                responseStatView
+                    .resizable(axis: .horizontal)
+                    .frame(height: 86)
+            }
         }
     }
 
@@ -200,7 +220,9 @@ class ProfileViewController: DemoQuickLayoutHostingController {
 
             HStack(spacing: 12) {
                 activityIconView
-                    .frame(width: 38, height: 38)
+                    .resizable()
+                    .aspectRatio(1, contentMode: .fit)
+                    .frame(width: 38)
 
                 VStack(alignment: .leading, spacing: 4) {
                     activityTitleValueLabel
@@ -230,14 +252,26 @@ class ProfileViewController: DemoQuickLayoutHostingController {
     }
 
     private var actionsSection: Layout {
-        HStack(spacing: 12) {
-            messageButton
-                .resizable(axis: .horizontal)
-                .frame(height: 50)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                messageButton
+                    .resizable(axis: .horizontal)
+                    .frame(height: 50)
 
-            portfolioButton
-                .resizable(axis: .horizontal)
-                .frame(height: 50)
+                portfolioButton
+                    .resizable(axis: .horizontal)
+                    .frame(height: 50)
+            }
+
+            VStack(spacing: 10) {
+                messageButton
+                    .resizable(axis: .horizontal)
+                    .frame(height: 50)
+
+                portfolioButton
+                    .resizable(axis: .horizontal)
+                    .frame(height: 50)
+            }
         }
     }
 

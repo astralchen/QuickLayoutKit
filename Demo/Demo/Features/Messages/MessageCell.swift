@@ -20,7 +20,8 @@ final class MessageCell: QuickLayoutCollectionViewCell {
 
             avatarView
                 .resizable()
-                .frame(width: 40, height: 40)
+                .aspectRatio(1, contentMode: .fit)
+                .frame(width: 40)
 
             VStack(alignment: .leading, spacing: 4) {
                 titleLabel

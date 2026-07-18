@@ -47,7 +47,7 @@ let package = Package(
         ),
         .testTarget(
             name: "QuickLayoutKitTests",
-            dependencies: ["QuickLayoutKitCore"]
+            dependencies: ["QuickLayoutKitCore", "QuickLayoutKitUIKit"]
         ),
     ]
 )

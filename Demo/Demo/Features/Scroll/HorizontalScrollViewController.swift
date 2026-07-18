@@ -33,17 +33,26 @@ class HorizontalScrollViewViewController: DemoQuickLayoutHostingController {
 
         ScrollView(scrollView, .horizontal) {
             HStack(spacing: 16) {
-                ForEach(views) { view in
-                    view
-                        .frame(width: 200)
-
+                ForEach(views) { cardView in
+                    cardView
+                        .resizable()
+                        .containerRelativeFrame(
+                            .horizontal,
+                            count: 3,
+                            span: 2,
+                            spacing: 16
+                        )
+                        .onGeometryChange(for: CGFloat.self) { geometry in
+                            min(24, max(12, geometry.size.width * 0.08))
+                        } action: { [weak cardView] cornerRadius in
+                            cardView?.layer.cornerRadius = cornerRadius
+                        }
                 }
             }
-            .padding(16)
-            .padding(view.quickLayoutSafeAreaInsets)
-
         }
-
+        .contentMargins(.horizontal, 16)
+        .safeAreaPadding(.horizontal, 0)
+        .safeAreaPadding(.vertical, 16)
     }
 
 

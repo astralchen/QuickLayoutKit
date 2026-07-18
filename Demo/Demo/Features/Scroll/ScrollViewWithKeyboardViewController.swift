@@ -96,6 +96,8 @@ class FormFieldView: UIView {
 
             HStack(spacing: 12) {
                 iconView
+                    .resizable()
+                    .scaledToFit()
                     .frame(width: 24, height: 24)
 
                 textField
@@ -214,11 +216,11 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
                 submitButton
                     .frame(height: 50)
             }
-            .padding(.horizontal, 20)
-            .padding(.horizontal, view.quickLayoutSafeAreaInsets.maximumHorizontalInset)
-            .padding(.top, view.safeAreaInsets.top + 20)
-            .padding(.bottom, max(view.safeAreaInsets.bottom, 10))
         }
+        .contentMargins(.horizontal, 20)
+        .contentMargins(.top, 20)
+        .contentMargins(.bottom, 10)
+        .safeAreaPadding(0)
     }
 
     override func viewDidLoad() {

@@ -49,14 +49,25 @@ class CounterViewController: DemoQuickLayoutHostingController {
 
             counterLabel
 
-            HStack(spacing: 16) {
-                decrementButton
-                incrementButton
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 16) {
+                    decrementButton
+                    incrementButton
+                }
+
+                VStack(spacing: 12) {
+                    decrementButton
+                        .resizable(axis: .horizontal)
+                        .frame(height: 44)
+                    incrementButton
+                        .resizable(axis: .horizontal)
+                        .frame(height: 44)
+                }
             }
 
             Spacer()
         }
-        .padding(.all, 24)
+        .safeAreaPadding(24)
     }
 
     @objc private func increment() {

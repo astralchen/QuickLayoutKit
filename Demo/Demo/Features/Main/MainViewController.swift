@@ -68,10 +68,6 @@ class MainViewController: DemoQuickLayoutHostingController {
                 self.menuElement(for: view)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.horizontal, self.view.quickLayoutSafeAreaInsets.leading)
-        .padding(.top, 16)
-        .padding(.bottom, 24)
         .layoutDirection(self.currentQuickLayoutDirection)
     }
 
@@ -80,6 +76,9 @@ class MainViewController: DemoQuickLayoutHostingController {
             menuContentView
                 .resizable(axis: .horizontal)
         }
+        .contentMargins(.horizontal, 16, for: .scrollContent)
+        .contentMargins(.top, 16, for: .scrollContent)
+        .contentMargins(.bottom, 24, for: .scrollContent)
     }
     
     override func viewDidLoad() {

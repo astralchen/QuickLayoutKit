@@ -72,11 +72,15 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         super.layoutSubviews()
         updateQuickLayoutEnvironment(explicitReason: [])
         QuickLayoutDiagnostics.recordLayoutPass(for: String(describing: Self.self), measuredSize: bounds.size)
-        _QuickLayoutViewImplementation.layoutSubviews(self)
+        withQuickLayoutContainerSize(bounds.size) {
+            _QuickLayoutViewImplementation.layoutSubviews(self)
+        }
     }
 
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
-        _QuickLayoutViewImplementation.sizeThatFits(self, size: size) ?? super.sizeThatFits(size)
+        withQuickLayoutContainerSize(size) {
+            _QuickLayoutViewImplementation.sizeThatFits(self, size: size) ?? super.sizeThatFits(size)
+        }
     }
 
     open override func quick_flexibility(for axis: Axis) -> Flexibility {
