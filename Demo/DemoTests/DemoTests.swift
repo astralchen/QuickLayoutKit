@@ -93,6 +93,66 @@ struct DemoTests {
         #expect(scrollView.contentSize.height == scrollView.bounds.height)
     }
 
+    @Test func directVerticalScrollViewStacksAndCentersMultipleRootElements() {
+        let first = UIView()
+        let second = UIView()
+        let scrollView = QuickLayoutScrollView(.vertical) {
+            first.frame(width: 30, height: 140)
+            second.frame(width: 50, height: 90)
+        }
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.contentInset = UIEdgeInsets(
+            top: 7,
+            left: 0,
+            bottom: 13,
+            right: 0
+        )
+        scrollView.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
+
+        scrollView.layoutIfNeeded()
+
+        #expect(first.frame.maxY == second.frame.minY)
+        #expect(first.frame.midX == scrollView.bounds.midX)
+        #expect(second.frame.midX == scrollView.bounds.midX)
+        #expect(scrollView.contentSize == CGSize(width: 100, height: 230))
+
+        scrollView.scrollTo(.top, animated: false)
+        #expect(scrollView.contentOffset.y == -7)
+
+        scrollView.scrollTo(.bottom, animated: false)
+        #expect(scrollView.contentOffset.y == 143)
+    }
+
+    @Test func directHorizontalScrollViewStacksAndCentersMultipleRootElements() {
+        let first = UIView()
+        let second = UIView()
+        let scrollView = QuickLayoutScrollView(.horizontal) {
+            first.frame(width: 140, height: 30)
+            second.frame(width: 90, height: 50)
+        }
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.contentInset = UIEdgeInsets(
+            top: 0,
+            left: 11,
+            bottom: 0,
+            right: 17
+        )
+        scrollView.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
+
+        scrollView.layoutIfNeeded()
+
+        #expect(first.frame.maxX == second.frame.minX)
+        #expect(first.frame.midY == scrollView.bounds.midY)
+        #expect(second.frame.midY == scrollView.bounds.midY)
+        #expect(scrollView.contentSize == CGSize(width: 230, height: 100))
+
+        scrollView.scrollTo(.leading, animated: false)
+        #expect(scrollView.contentOffset.x == -11)
+
+        scrollView.scrollTo(.trailing, animated: false)
+        #expect(scrollView.contentOffset.x == 147)
+    }
+
     @Test func scrollViewLayoutFunctionUpdatesExistingUIKitInstance() {
         let item = UIView()
         let scrollView = QuickLayoutScrollView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))

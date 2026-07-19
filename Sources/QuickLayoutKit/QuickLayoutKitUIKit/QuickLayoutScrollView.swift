@@ -104,7 +104,8 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
     /// - Parameters:
     ///   - axis: The single axis along which content scrolls.
     ///   - showsIndicators: Whether to show the indicator for that axis.
-    ///   - content: The elements to place in the scroll view.
+    ///   - content: The elements to place in the scroll view. Multiple root
+    ///     elements use a zero-spacing stack and center on the cross axis.
     public convenience init(
         _ axis: QuickLayout.Axis = .vertical,
         showsIndicators: Bool = true,
@@ -136,11 +137,11 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
     private var axisLayout: Layout {
         switch axis {
         case .vertical:
-            VStack {
+            VStack(alignment: .center, spacing: 0) {
                 ForEach(contentElements)
             }
         case .horizontal:
-            HStack {
+            HStack(alignment: .center, spacing: 0) {
                 ForEach(contentElements)
             }
         }
