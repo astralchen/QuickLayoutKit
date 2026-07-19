@@ -76,9 +76,9 @@ class MainViewController: DemoQuickLayoutHostingController {
             menuContentView
                 .resizable(axis: .horizontal)
         }
-        .contentMargins(.horizontal, 16, for: .scrollContent)
-        .contentMargins(.top, 16, for: .scrollContent)
-        .contentMargins(.bottom, 24, for: .scrollContent)
+        .contentMargins(.horizontal, 16)
+        .contentMargins(.top, 16)
+        .contentMargins(.bottom, 24)
     }
     
     override func viewDidLoad() {
