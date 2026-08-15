@@ -517,6 +517,98 @@
         }
       }
     },
+    "demo.tableMessages.footer" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يستخدم الرأس والتذييل أيضًا UIContentConfiguration."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The header and footer also use UIContentConfiguration."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "页眉和页脚同样使用 UIContentConfiguration。"
+          }
+        }
+      }
+    },
+    "demo.tableMessages.header" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رسائل ذاتية التحجيم"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Self-sizing Messages"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自适应消息"
+          }
+        }
+      }
+    },
+    "demo.tableMessages.header.detail" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تستضيف الخلايا QuickLayout باستخدام UIContentConfiguration."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cells host QuickLayout using UIContentConfiguration."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "单元格通过 UIContentConfiguration 承载 QuickLayout。"
+          }
+        }
+      }
+    },
+    "demo.tableMessages.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رسائل الجدول"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Table Messages"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表格消息列表"
+          }
+        }
+      }
+    },
     "demo.profile.title" : {
       "extractionState" : "stale",
       "localizations" : {

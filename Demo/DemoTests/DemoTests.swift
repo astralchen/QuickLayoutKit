@@ -343,12 +343,18 @@ struct DemoTests {
     }
 
     @Test func mediaExamplesPreserveTheirAspectRatios() throws {
-        let messageCell = MessageCell()
-        messageCell.configure(MessageModel.mockData[0])
-        messageCell.body.applyFrame(
-            CGRect(x: 0, y: 0, width: 320, height: 80),
-            alignment: .topLeading
+        let messageContentView = try #require(
+            MessageContentConfiguration(model: MessageModel.mockData[0])
+                .makeContentView() as? MessageContentView
         )
+        let messageSize = messageContentView.sizeThatFits(
+            CGSize(
+                width: 320,
+                height: CGFloat.greatestFiniteMagnitude
+            )
+        )
+        messageContentView.frame = CGRect(origin: .zero, size: messageSize)
+        messageContentView.layoutIfNeeded()
 
         let fitRow = ExampleRow2()
         fitRow.body.applyFrame(
@@ -370,13 +376,200 @@ struct DemoTests {
         let filledRatio = fillRow.imageView.bounds.width
             / fillRow.imageView.bounds.height
 
-        #expect(messageCell.avatarView.bounds.size == CGSize(width: 40, height: 40))
+        #expect(messageContentView.avatarView.bounds.size == CGSize(width: 40, height: 40))
         #expect(fitRow.directionIconView.bounds.width <= 24)
         #expect(fitRow.directionIconView.bounds.height <= 24)
         #expect(abs(fittedRatio - iconRatio) < 0.01)
         #expect(fillRow.imageView.bounds.width >= 40)
         #expect(fillRow.imageView.bounds.height >= 40)
         #expect(abs(filledRatio - fillImageRatio) < 0.01)
+    }
+
+    @Test func messageContentConfigurationUpdatesAndSelfSizes() throws {
+        let firstModel = MessageModel(
+            title: "First",
+            message: "Short message",
+            imageName: "sun.max.fill",
+            themeColor: .systemOrange
+        )
+        let contentView = try #require(
+            MessageContentConfiguration(model: firstModel)
+                .makeContentView() as? MessageContentView
+        )
+
+        #expect(contentView.titleLabel.text == firstModel.title)
+        #expect(contentView.messageLabel.text == firstModel.message)
+
+        let secondModel = MessageModel(
+            title: "Updated",
+            message: String(
+                repeating: "A longer message that should wrap. ",
+                count: 8
+            ),
+            imageName: "moon.stars.fill",
+            themeColor: .systemIndigo
+        )
+        contentView.configuration = MessageContentConfiguration(
+            model: secondModel
+        )
+
+        let wideSize = contentView.sizeThatFits(
+            CGSize(
+                width: 320,
+                height: CGFloat.greatestFiniteMagnitude
+            )
+        )
+        let narrowSize = contentView.sizeThatFits(
+            CGSize(
+                width: 180,
+                height: CGFloat.greatestFiniteMagnitude
+            )
+        )
+
+        #expect(contentView.titleLabel.text == secondModel.title)
+        #expect(contentView.messageLabel.text == secondModel.message)
+        #expect(narrowSize.height > wideSize.height)
+
+        var highlightedState = UICellConfigurationState(
+            traitCollection: .current
+        )
+        highlightedState.isHighlighted = true
+        contentView.configuration = MessageContentConfiguration(
+            model: secondModel
+        ).updated(for: highlightedState)
+        #expect(contentView.alpha < 1)
+
+        let cell = MessageCell(frame: .zero)
+        cell.configure(firstModel)
+        cell.updateConfiguration(using: cell.configurationState)
+        let initialCellContentView = try #require(
+            cell.contentView as? MessageContentView
+        )
+        #expect(initialCellContentView.titleLabel.text == firstModel.title)
+
+        cell.prepareForReuse()
+        #expect(cell.contentConfiguration == nil)
+
+        cell.configure(secondModel)
+        cell.updateConfiguration(using: cell.configurationState)
+        let reusedCellContentView = try #require(
+            cell.contentView as? MessageContentView
+        )
+        #expect(reusedCellContentView.titleLabel.text == secondModel.title)
+        #expect(reusedCellContentView.messageLabel.text == secondModel.message)
+
+        let attributes = UICollectionViewLayoutAttributes(
+            forCellWith: IndexPath(item: 0, section: 0)
+        )
+        attributes.size = CGSize(width: 180, height: 80)
+        let fittedAttributes = cell.preferredLayoutAttributesFitting(
+            attributes
+        )
+
+        #expect(cell.quickLayoutContentSource == .contentConfiguration)
+        #expect(fittedAttributes.size == narrowSize)
+    }
+
+    @Test func tableMessageControllerUsesConfiguredSelfSizingViews() throws {
+        let viewController = MessageTableViewController()
+        viewController.loadViewIfNeeded()
+        let tableView = try #require(viewController.tableView)
+        tableView.estimatedRowHeight = 1
+        tableView.estimatedSectionHeaderHeight = 1
+        tableView.estimatedSectionFooterHeight = 1
+        viewController.view.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: 320,
+            height: 640
+        )
+        viewController.view.setNeedsLayout()
+        viewController.view.layoutIfNeeded()
+
+        tableView.reloadData()
+        tableView.layoutIfNeeded()
+
+        #expect(tableView.numberOfRows(inSection: 0) == 12)
+        #expect(
+            tableView.rectForRow(
+                at: IndexPath(row: 0, section: 0)
+            ).height > 60
+        )
+        #expect(tableView.rectForHeader(inSection: 0).height > 44)
+
+        let cell = try #require(
+            tableView.cellForRow(at: IndexPath(row: 0, section: 0))
+                as? MessageTableCell
+        )
+        let cellContentView = try #require(
+            cell.contentView as? MessageContentView
+        )
+        #expect(cell.quickLayoutContentSource == .contentConfiguration)
+        #expect(cellContentView.titleLabel.text?.isEmpty == false)
+        let cellFittingSize = cell.systemLayoutSizeFitting(
+            CGSize(width: cell.bounds.width, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+        #expect(abs(cell.bounds.height - cellFittingSize.height) < 1)
+
+        let header = try #require(
+            tableView.headerView(forSection: 0)
+                as? MessageTableHeaderFooterView
+        )
+        #expect(header.quickLayoutContentSource == .contentConfiguration)
+        #expect(header.contentView is QuickLayoutView)
+        let headerFittingSize = header.systemLayoutSizeFitting(
+            CGSize(width: header.bounds.width, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+        #expect(abs(header.bounds.height - headerFittingSize.height) < 1)
+
+        tableView.scrollToRow(
+            at: IndexPath(row: 11, section: 0),
+            at: .top,
+            animated: false
+        )
+        tableView.layoutIfNeeded()
+        let footer = try #require(
+            tableView.footerView(forSection: 0)
+                as? MessageTableHeaderFooterView
+        )
+        let footerFittingSize = footer.systemLayoutSizeFitting(
+            CGSize(width: footer.bounds.width, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+        #expect(footer.quickLayoutContentSource == .contentConfiguration)
+        #expect(footer.bounds.height > 20)
+        #expect(abs(footer.bounds.height - footerFittingSize.height) < 1)
+    }
+
+    @Test func collectionMessageControllerReusesItsCellRegistration() throws {
+        let viewController = MesssageViewController()
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: 320,
+            height: 640
+        )
+        viewController.view.setNeedsLayout()
+        viewController.view.layoutIfNeeded()
+
+        let collectionView = try #require(
+            viewController.view.allSubviews(of: UICollectionView.self).first
+        )
+        collectionView.reloadData()
+        collectionView.layoutIfNeeded()
+
+        #expect(collectionView.numberOfItems(inSection: 0) == 4)
+        #expect(
+            collectionView.cellForItem(
+                at: IndexPath(item: 0, section: 0)
+            ) is MessageCell
+        )
     }
 
     @Test func dynamicScrollDemoReservesItsActionInset() {
@@ -1086,7 +1279,16 @@ struct DemoTests {
         let data = try Data(contentsOf: catalogURL)
         let catalog = try JSONDecoder().decode(TestStringCatalog.self, from: data)
 
-        for key in ["main.title", "demo.localizationOverview.title", "demo.uikitLocalization.title", "demo.swiftUIBridge.title"] {
+        for key in [
+            "main.title",
+            "demo.localizationOverview.title",
+            "demo.uikitLocalization.title",
+            "demo.swiftUIBridge.title",
+            "demo.tableMessages.title",
+            "demo.tableMessages.header",
+            "demo.tableMessages.header.detail",
+            "demo.tableMessages.footer",
+        ] {
             let localizations = try #require(catalog.strings[key]?.localizations)
             #expect(localizations["en"]?.stringUnit.value.isEmpty == false)
             #expect(localizations["zh-Hans"]?.stringUnit.value.isEmpty == false)

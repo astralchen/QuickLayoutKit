@@ -33,6 +33,7 @@ class MainViewController: DemoQuickLayoutHostingController {
                 DemoRoute(titleKey: "demo.dynamicScroll.title", viewControllerType: DynamicScrollViewController.self),
                 DemoRoute(titleKey: "demo.dashboard.title", viewControllerType: DashboardViewController.self),
                 DemoRoute(titleKey: "demo.messages.title", viewControllerType: MesssageViewController.self),
+                DemoRoute(titleKey: "demo.tableMessages.title", viewControllerType: MessageTableViewController.self),
                 DemoRoute(titleKey: "demo.keyboard.title", viewControllerType: KeyboardHandlingViewController.self),
                 DemoRoute(titleKey: "demo.form.title", viewControllerType: ScrollViewWithKeyboardViewController.self),
                 DemoRoute(titleKey: "demo.semantic.title", viewControllerType: SemanticContentDemoViewController.self)

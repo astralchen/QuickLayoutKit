@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		3B7A03D22FCE600100D7A01A /* AppLocalization in Frameworks */ = {isa = PBXBuildFile; productRef = 3B7A03D12FCE600100D7A01A /* AppLocalization */; };
 		3B7A03D32FCE600100D7A01A /* AppLocalization in Frameworks */ = {isa = PBXBuildFile; productRef = 3B7A03D12FCE600100D7A01A /* AppLocalization */; };
+		4C4B00032FD0000000000003 /* ListKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4C4B00022FD0000000000002 /* ListKit */; };
 		7714E9A22EFE2AB100F8BC60 /* QuickLayoutKit in Frameworks */ = {isa = PBXBuildFile; productRef = 7714E9A12EFE2AB100F8BC60 /* QuickLayoutKit */; };
 /* End PBXBuildFile section */
 
@@ -72,6 +73,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3B7A03D22FCE600100D7A01A /* AppLocalization in Frameworks */,
+				4C4B00032FD0000000000003 /* ListKit in Frameworks */,
 				7714E9A22EFE2AB100F8BC60 /* QuickLayoutKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -135,6 +137,7 @@
 			name = Demo;
 			packageProductDependencies = (
 				3B7A03D12FCE600100D7A01A /* AppLocalization */,
+				4C4B00022FD0000000000002 /* ListKit */,
 				7714E9A12EFE2AB100F8BC60 /* QuickLayoutKit */,
 			);
 			productName = Demo;
@@ -224,6 +227,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				3B7A03D02FCE600100D7A01A /* XCRemoteSwiftPackageReference "AppLocalization" */,
+				4C4B00012FD0000000000001 /* XCRemoteSwiftPackageReference "ListKit" */,
 				7714E9A02EFE2AB100F8BC60 /* XCLocalSwiftPackageReference ".." */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -622,6 +626,14 @@
 				revision = 696e0c32638bdd53d2b9451691f344353dcaafc0;
 			};
 		};
+		4C4B00012FD0000000000001 /* XCRemoteSwiftPackageReference "ListKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/astralchen/ListKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -629,6 +641,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 3B7A03D02FCE600100D7A01A /* XCRemoteSwiftPackageReference "AppLocalization" */;
 			productName = AppLocalization;
+		};
+		4C4B00022FD0000000000002 /* ListKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4C4B00012FD0000000000001 /* XCRemoteSwiftPackageReference "ListKit" */;
+			productName = ListKit;
 		};
 		7714E9A12EFE2AB100F8BC60 /* QuickLayoutKit */ = {
 			isa = XCSwiftPackageProductDependency;

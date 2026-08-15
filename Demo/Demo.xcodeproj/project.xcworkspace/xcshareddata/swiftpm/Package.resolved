@@ -1,5 +1,5 @@
 {
-  "originHash" : "6a57ba47a3a9f32677f166da3d045d5c33a2f489360f39548f628f14192d0cdf",
+  "originHash" : "f13ee65810ccb2fc9fc5588484133b348b3238a01c9a47e4aef3cced7e026491",
   "pins" : [
     {
       "identity" : "applocalization",
@@ -7,6 +7,15 @@
       "location" : "https://github.com/astralchen/AppLocalization.git",
       "state" : {
         "revision" : "696e0c32638bdd53d2b9451691f344353dcaafc0"
+      }
+    },
+    {
+      "identity" : "listkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/astralchen/ListKit.git",
+      "state" : {
+        "revision" : "a8933d0b6bd00c6a6d53db5ecca60d025b239e9b",
+        "version" : "1.0.0"
       }
     },
     {

@@ -7,6 +7,487 @@ import UIKit
 @Suite
 struct QuickLayoutKitTests {
 
+    @MainActor
+    @Test func collectionCellDefaultsToBodyContent() {
+        let cell = CollectionCellBodyProbe()
+        cell.quickLayoutHorizontalFlexibility = .fixedSize
+        cell.quickLayoutVerticalFlexibility = .fullyFlexible
+
+        let size = cell.sizeThatFits(CGSize(width: 180, height: 44))
+        cell.frame = CGRect(origin: .zero, size: size)
+        cell.layoutIfNeeded()
+
+        #expect(cell.quickLayoutContentSource == .body)
+        #expect(size == CGSize(width: 180, height: 37))
+        #expect(cell.bodyView.superview === cell.contentView)
+    }
+
+    @MainActor
+    @Test func collectionCellMeasuresConfiguredQuickLayoutContent() throws {
+        let cell = CollectionCellBodyProbe(
+            contentSource: .contentConfiguration
+        )
+        cell.quickLayoutHorizontalFlexibility = .fixedSize
+        cell.quickLayoutVerticalFlexibility = .fullyFlexible
+        cell.contentConfiguration = ListTestConfiguration(
+            size: CGSize(width: 180, height: 91)
+        )
+        let contentView = try #require(
+            cell.contentView as? ListTestContentView
+        )
+
+        let proposedSize = CGSize(width: 180, height: 44)
+        let size = cell.sizeThatFits(proposedSize)
+        let directSizingProposal = contentView.sizingProposals.last
+        let preferredSizingProposalIndex = contentView.sizingProposals.endIndex
+        let layoutAttributes = UICollectionViewLayoutAttributes(
+            forCellWith: IndexPath(item: 0, section: 0)
+        )
+        layoutAttributes.size = proposedSize
+        let fittedAttributes = cell.preferredLayoutAttributesFitting(
+            layoutAttributes
+        )
+
+        #expect(cell.quickLayoutContentSource == .contentConfiguration)
+        #expect(size == CGSize(width: 180, height: 91))
+        #expect(fittedAttributes.size == size)
+        #expect(directSizingProposal?.width == 180)
+        #expect(directSizingProposal?.height.isInfinite == true)
+        #expect(
+            contentView.sizingProposals.count
+                > preferredSizingProposalIndex
+        )
+        #expect(contentView.sizingProposals.last?.width == 180)
+        #expect(contentView.sizingProposals.last?.height.isInfinite == true)
+
+        let invalidationCount = contentView.invalidationCount
+        cell.setNeedsQuickLayout()
+        #expect(contentView.invalidationCount == invalidationCount + 1)
+
+        let immediateLayoutCount = contentView.immediateLayoutCount
+        cell.frame = CGRect(origin: .zero, size: size)
+        cell.quickLayoutIfNeeded()
+        #expect(contentView.immediateLayoutCount == immediateLayoutCount + 1)
+        #expect(contentView.frame == cell.bounds)
+        #expect(contentView.measuredView.superview === contentView)
+        #expect(cell.bodyView.superview == nil)
+    }
+
+    @MainActor
+    @Test func collectionCellConfigurationSourceSurvivesConfigurationReuse() throws {
+        let proposedSize = CGSize(width: 180, height: 44)
+        let baselineCell = UICollectionViewCell()
+        let baselineSize = baselineCell.sizeThatFits(proposedSize)
+        let cell = CollectionCellBodyProbe(
+            contentSource: .contentConfiguration
+        )
+        cell.quickLayoutHorizontalFlexibility = .fixedSize
+        cell.quickLayoutVerticalFlexibility = .fullyFlexible
+
+        #expect(cell.quickLayoutContentSource == .contentConfiguration)
+        #expect(cell.sizeThatFits(proposedSize) == baselineSize)
+
+        cell.contentConfiguration = ListTestConfiguration(
+            size: CGSize(width: 180, height: 61)
+        )
+        let firstContentView = try #require(
+            cell.contentView as? ListTestContentView
+        )
+        #expect(
+            cell.sizeThatFits(proposedSize)
+                == CGSize(width: 180, height: 61)
+        )
+
+        cell.contentConfiguration = nil
+        #expect(cell.quickLayoutContentSource == .contentConfiguration)
+        #expect(cell.contentView !== firstContentView)
+        #expect(cell.sizeThatFits(proposedSize) == baselineSize)
+
+        cell.contentConfiguration = ListTestConfiguration(
+            size: CGSize(width: 180, height: 117)
+        )
+        let reusedContentView = try #require(
+            cell.contentView as? ListTestContentView
+        )
+        let reusedSize = cell.sizeThatFits(proposedSize)
+        cell.frame = CGRect(origin: .zero, size: reusedSize)
+        cell.layoutIfNeeded()
+
+        #expect(reusedContentView !== firstContentView)
+        #expect(reusedSize == CGSize(width: 180, height: 117))
+        #expect(reusedContentView.frame == cell.bounds)
+        #expect(cell.bodyView.superview == nil)
+    }
+
+    @MainActor
+    @Test func collectionCellLeavesNonQuickLayoutConfigurationsToUIKit() {
+        var configuration = UIListContentConfiguration.cell()
+        configuration.text = "UIKit content"
+
+        let baselineCell = UICollectionViewCell()
+        baselineCell.contentConfiguration = configuration
+
+        let cell = CollectionCellBodyProbe(
+            contentSource: .contentConfiguration
+        )
+        cell.contentConfiguration = configuration
+
+        let proposedSize = CGSize(width: 180, height: 44)
+        #expect(
+            cell.sizeThatFits(proposedSize)
+                == baselineCell.sizeThatFits(proposedSize)
+        )
+
+        let baselineAttributes = UICollectionViewLayoutAttributes(
+            forCellWith: IndexPath(item: 0, section: 0)
+        )
+        baselineAttributes.size = proposedSize
+        let cellAttributes = UICollectionViewLayoutAttributes(
+            forCellWith: IndexPath(item: 0, section: 0)
+        )
+        cellAttributes.size = proposedSize
+
+        #expect(
+            cell.preferredLayoutAttributesFitting(cellAttributes).size
+                == baselineCell.preferredLayoutAttributesFitting(
+                    baselineAttributes
+                ).size
+        )
+        #expect(cell.bodyView.superview == nil)
+    }
+
+    @MainActor
+    @Test func tableCellDefaultsToBodyContent() {
+        let bodyView = IntrinsicTestView(
+            size: CGSize(width: 180, height: 37)
+        )
+        let cell = QuickLayoutTableViewCell(
+            style: .default,
+            reuseIdentifier: nil
+        ) {
+            bodyView
+        }
+
+        let size = cell.sizeThatFits(CGSize(width: 180, height: 44))
+        let systemFittingSize = cell.systemLayoutSizeFitting(
+            CGSize(width: 180, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+        cell.frame = CGRect(origin: .zero, size: size)
+        cell.layoutIfNeeded()
+
+        #expect(cell.quickLayoutContentSource == .body)
+        #expect(size == CGSize(width: 180, height: 37))
+        #expect(systemFittingSize == size)
+        #expect(bodyView.superview === cell.contentView)
+    }
+
+    @MainActor
+    @Test func tableCellMeasuresConfiguredQuickLayoutContent() throws {
+        let cell = TableCellBodyProbe(
+            contentSource: .contentConfiguration
+        )
+        cell.contentConfiguration = ListTestConfiguration(
+            size: CGSize(width: 240, height: 91)
+        )
+        let contentView = try #require(
+            cell.contentView as? ListTestContentView
+        )
+        let proposedSize = CGSize(width: 180, height: CGFloat.infinity)
+
+        let size = cell.sizeThatFits(proposedSize)
+        let systemFittingProposalIndex = contentView.sizingProposals.endIndex
+        let systemFittingSize = cell.systemLayoutSizeFitting(
+            CGSize(width: 180, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+
+        #expect(cell.quickLayoutContentSource == .contentConfiguration)
+        #expect(size == CGSize(width: 240, height: 91))
+        #expect(systemFittingSize == CGSize(width: 180, height: 91))
+        #expect(
+            contentView.sizingProposals.count
+                > systemFittingProposalIndex
+        )
+        #expect(contentView.sizingProposals.last == proposedSize)
+
+        let invalidationCount = contentView.invalidationCount
+        cell.setNeedsQuickLayout()
+        #expect(contentView.invalidationCount == invalidationCount + 1)
+
+        let immediateLayoutCount = contentView.immediateLayoutCount
+        cell.frame = CGRect(origin: .zero, size: size)
+        cell.quickLayoutIfNeeded()
+        #expect(contentView.immediateLayoutCount == immediateLayoutCount + 1)
+        #expect(contentView.measuredView.superview === contentView)
+        #expect(cell.bodyView.superview == nil)
+    }
+
+    @MainActor
+    @Test func tableCellConfigurationSourceSurvivesConfigurationReuse() throws {
+        let fallbackProposal = CGSize(width: 180, height: 44)
+        let sizingProposal = CGSize(width: 180, height: CGFloat.infinity)
+        let baselineCell = UITableViewCell(
+            style: .default,
+            reuseIdentifier: nil
+        )
+        let baselineSize = baselineCell.sizeThatFits(fallbackProposal)
+        let cell = TableCellBodyProbe(
+            contentSource: .contentConfiguration
+        )
+
+        #expect(cell.quickLayoutContentSource == .contentConfiguration)
+        #expect(cell.sizeThatFits(fallbackProposal) == baselineSize)
+
+        cell.contentConfiguration = ListTestConfiguration(
+            size: CGSize(width: 180, height: 61)
+        )
+        let firstContentView = try #require(
+            cell.contentView as? ListTestContentView
+        )
+        #expect(
+            cell.sizeThatFits(sizingProposal)
+                == CGSize(width: 180, height: 61)
+        )
+
+        cell.contentConfiguration = ListTestConfiguration(
+            size: CGSize(width: 180, height: 89)
+        )
+        #expect(cell.contentView === firstContentView)
+        #expect(
+            cell.sizeThatFits(sizingProposal)
+                == CGSize(width: 180, height: 89)
+        )
+
+        cell.contentConfiguration = nil
+        #expect(cell.quickLayoutContentSource == .contentConfiguration)
+        #expect(cell.contentView !== firstContentView)
+        #expect(cell.sizeThatFits(fallbackProposal) == baselineSize)
+
+        cell.contentConfiguration = ListTestConfiguration(
+            size: CGSize(width: 180, height: 117)
+        )
+        let reusedContentView = try #require(
+            cell.contentView as? ListTestContentView
+        )
+        let reusedSize = cell.sizeThatFits(sizingProposal)
+        cell.frame = CGRect(origin: .zero, size: reusedSize)
+        cell.layoutIfNeeded()
+
+        #expect(reusedContentView !== firstContentView)
+        #expect(reusedSize == CGSize(width: 180, height: 117))
+        #expect(cell.bodyView.superview == nil)
+    }
+
+    @MainActor
+    @Test func tableHeaderFooterDefaultsToBodyContent() {
+        let bodyView = IntrinsicTestView(
+            size: CGSize(width: 180, height: 37)
+        )
+        let reusableView = QuickLayoutTableViewHeaderFooterView(
+            reuseIdentifier: nil
+        ) {
+            bodyView
+        }
+
+        let size = reusableView.sizeThatFits(
+            CGSize(width: 180, height: 44)
+        )
+        let systemFittingSize = reusableView.systemLayoutSizeFitting(
+            CGSize(width: 180, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+        reusableView.frame = CGRect(origin: .zero, size: size)
+        reusableView.layoutIfNeeded()
+
+        #expect(reusableView.quickLayoutContentSource == .body)
+        #expect(size == CGSize(width: 180, height: 37))
+        #expect(systemFittingSize == size)
+        #expect(bodyView.superview === reusableView.contentView)
+    }
+
+    @MainActor
+    @Test func tableHeaderFooterMeasuresConfiguredQuickLayoutContent() throws {
+        let reusableView = TableHeaderFooterBodyProbe(
+            contentSource: .contentConfiguration
+        )
+        reusableView.contentConfiguration = ListTestConfiguration(
+            size: CGSize(width: 240, height: 73)
+        )
+        let contentView = try #require(
+            reusableView.contentView as? ListTestContentView
+        )
+        let proposedSize = CGSize(width: 180, height: CGFloat.infinity)
+
+        let size = reusableView.sizeThatFits(proposedSize)
+        let systemFittingProposalIndex = contentView.sizingProposals.endIndex
+        let systemFittingSize = reusableView.systemLayoutSizeFitting(
+            CGSize(width: 180, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+
+        #expect(
+            reusableView.quickLayoutContentSource
+                == .contentConfiguration
+        )
+        #expect(size == CGSize(width: 240, height: 73))
+        #expect(systemFittingSize == CGSize(width: 180, height: 73))
+        #expect(
+            contentView.sizingProposals.count
+                > systemFittingProposalIndex
+        )
+        #expect(contentView.sizingProposals.last == proposedSize)
+
+        let invalidationCount = contentView.invalidationCount
+        reusableView.setNeedsQuickLayout()
+        #expect(contentView.invalidationCount == invalidationCount + 1)
+
+        let immediateLayoutCount = contentView.immediateLayoutCount
+        reusableView.frame = CGRect(origin: .zero, size: size)
+        reusableView.quickLayoutIfNeeded()
+        #expect(
+            contentView.immediateLayoutCount
+                == immediateLayoutCount + 1
+        )
+        #expect(contentView.measuredView.superview === contentView)
+        #expect(reusableView.bodyView.superview == nil)
+    }
+
+    @MainActor
+    @Test func tableHeaderFooterSourceSurvivesConfigurationReuse() throws {
+        let fallbackProposal = CGSize(width: 180, height: 44)
+        let sizingProposal = CGSize(width: 180, height: CGFloat.infinity)
+        let baselineView = UITableViewHeaderFooterView(
+            reuseIdentifier: nil
+        )
+        let baselineSize = baselineView.sizeThatFits(fallbackProposal)
+        let reusableView = TableHeaderFooterBodyProbe(
+            contentSource: .contentConfiguration
+        )
+
+        #expect(
+            reusableView.sizeThatFits(fallbackProposal) == baselineSize
+        )
+
+        reusableView.contentConfiguration = ListTestConfiguration(
+            size: CGSize(width: 180, height: 61)
+        )
+        let firstContentView = try #require(
+            reusableView.contentView as? ListTestContentView
+        )
+        #expect(
+            reusableView.sizeThatFits(sizingProposal)
+                == CGSize(width: 180, height: 61)
+        )
+
+        reusableView.contentConfiguration = ListTestConfiguration(
+            size: CGSize(width: 180, height: 89)
+        )
+        #expect(reusableView.contentView === firstContentView)
+        #expect(
+            reusableView.sizeThatFits(sizingProposal)
+                == CGSize(width: 180, height: 89)
+        )
+
+        reusableView.contentConfiguration = nil
+        #expect(
+            reusableView.quickLayoutContentSource
+                == .contentConfiguration
+        )
+        #expect(reusableView.contentView !== firstContentView)
+        #expect(
+            reusableView.sizeThatFits(fallbackProposal) == baselineSize
+        )
+
+        reusableView.contentConfiguration = ListTestConfiguration(
+            size: CGSize(width: 180, height: 117)
+        )
+        let reusedContentView = try #require(
+            reusableView.contentView as? ListTestContentView
+        )
+        #expect(reusedContentView !== firstContentView)
+        #expect(
+            reusableView.sizeThatFits(sizingProposal)
+                == CGSize(width: 180, height: 117)
+        )
+        #expect(reusableView.bodyView.superview == nil)
+    }
+
+    @MainActor
+    @Test func tableHeaderFooterLeavesUIKitConfigurationsToUIKit() {
+        let baselineView = UITableViewHeaderFooterView(
+            reuseIdentifier: nil
+        )
+        var configuration = baselineView.defaultContentConfiguration()
+        configuration.text = "UIKit content"
+        baselineView.contentConfiguration = configuration
+
+        let reusableView = TableHeaderFooterBodyProbe(
+            contentSource: .contentConfiguration
+        )
+        reusableView.contentConfiguration = configuration
+
+        let proposedSize = CGSize(width: 180, height: 44)
+        #expect(
+            reusableView.sizeThatFits(proposedSize)
+                == baselineView.sizeThatFits(proposedSize)
+        )
+
+        let targetSize = CGSize(width: 180, height: 0)
+        #expect(
+            reusableView.systemLayoutSizeFitting(
+                targetSize,
+                withHorizontalFittingPriority: .required,
+                verticalFittingPriority: .fittingSizeLevel
+            ) == baselineView.systemLayoutSizeFitting(
+                targetSize,
+                withHorizontalFittingPriority: .required,
+                verticalFittingPriority: .fittingSizeLevel
+            )
+        )
+        #expect(reusableView.bodyView.superview == nil)
+    }
+
+    @MainActor
+    @Test func tableCellLeavesNonQuickLayoutConfigurationsToUIKit() {
+        var configuration = UIListContentConfiguration.cell()
+        configuration.text = "UIKit content"
+
+        let baselineCell = UITableViewCell(
+            style: .default,
+            reuseIdentifier: nil
+        )
+        baselineCell.contentConfiguration = configuration
+
+        let cell = TableCellBodyProbe(
+            contentSource: .contentConfiguration
+        )
+        cell.contentConfiguration = configuration
+
+        let proposedSize = CGSize(width: 180, height: 44)
+        #expect(
+            cell.sizeThatFits(proposedSize)
+                == baselineCell.sizeThatFits(proposedSize)
+        )
+        let targetSize = CGSize(width: 180, height: 0)
+        #expect(
+            cell.systemLayoutSizeFitting(
+                targetSize,
+                withHorizontalFittingPriority: .required,
+                verticalFittingPriority: .fittingSizeLevel
+            ) == baselineCell.systemLayoutSizeFitting(
+                targetSize,
+                withHorizontalFittingPriority: .required,
+                verticalFittingPriority: .fittingSizeLevel
+            )
+        )
+        #expect(cell.bodyView.superview == nil)
+    }
+
     @Test func maximumInsetsUseLargestDirectionalValue() {
         let insets = EdgeInsets(top: 4, leading: 12, bottom: 18, trailing: 8)
 
@@ -910,6 +1391,147 @@ struct QuickLayoutKitTests {
         #expect(views == [low, high])
         #expect(low.layer.zPosition == -2)
         #expect(high.layer.zPosition == 10)
+    }
+}
+
+@MainActor
+private final class CollectionCellBodyProbe: QuickLayoutCollectionViewCell {
+
+    let bodyView = IntrinsicTestView(
+        size: CGSize(width: 180, height: 37)
+    )
+
+    @LayoutBuilder
+    override var body: Layout {
+        bodyView
+    }
+
+    init(contentSource: ContentSource = .body) {
+        super.init(frame: .zero, contentSource: contentSource)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+@MainActor
+private final class TableCellBodyProbe: QuickLayoutTableViewCell {
+
+    let bodyView = IntrinsicTestView(
+        size: CGSize(width: 180, height: 37)
+    )
+
+    @LayoutBuilder
+    override var body: Layout {
+        bodyView
+    }
+
+    init(contentSource: ContentSource) {
+        super.init(
+            style: .default,
+            reuseIdentifier: nil,
+            contentSource: contentSource
+        )
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+@MainActor
+private final class TableHeaderFooterBodyProbe: QuickLayoutTableViewHeaderFooterView {
+
+    let bodyView = IntrinsicTestView(
+        size: CGSize(width: 180, height: 37)
+    )
+
+    @LayoutBuilder
+    override var body: Layout {
+        bodyView
+    }
+
+    init(contentSource: ContentSource) {
+        super.init(
+            reuseIdentifier: nil,
+            contentSource: contentSource
+        )
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+private struct ListTestConfiguration: UIContentConfiguration {
+
+    let size: CGSize
+
+    @MainActor
+    func makeContentView() -> UIView & UIContentView {
+        ListTestContentView(configuration: self)
+    }
+
+    func updated(
+        for state: any UIConfigurationState
+    ) -> ListTestConfiguration {
+        self
+    }
+}
+
+@MainActor
+private final class ListTestContentView: QuickLayoutView, UIContentView {
+
+    private var testConfiguration: ListTestConfiguration
+    private(set) var measuredView: IntrinsicTestView
+    private(set) var sizingProposals: [CGSize] = []
+    private(set) var invalidationCount = 0
+    private(set) var immediateLayoutCount = 0
+
+    var configuration: any UIContentConfiguration {
+        get { testConfiguration }
+        set {
+            guard
+                let configuration = newValue
+                    as? ListTestConfiguration
+            else {
+                return
+            }
+            testConfiguration = configuration
+            measuredView = IntrinsicTestView(size: configuration.size)
+            setNeedsQuickLayout()
+        }
+    }
+
+    @LayoutBuilder
+    override var body: Layout {
+        measuredView
+    }
+
+    init(configuration: ListTestConfiguration) {
+        self.testConfiguration = configuration
+        self.measuredView = IntrinsicTestView(size: configuration.size)
+        super.init(frame: .zero)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func sizeThatFits(_ size: CGSize) -> CGSize {
+        sizingProposals.append(size)
+        return super.sizeThatFits(size)
+    }
+
+    override func setNeedsQuickLayout() {
+        invalidationCount += 1
+        super.setNeedsQuickLayout()
+    }
+
+    override func quickLayoutIfNeeded() {
+        immediateLayoutCount += 1
+        super.quickLayoutIfNeeded()
     }
 }
 

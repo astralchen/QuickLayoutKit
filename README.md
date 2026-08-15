@@ -670,11 +670,12 @@ area, margin, and window changes, then calls
 `quickLayoutEnvironmentDidChange(_:reason:)`. Override that hook for reusable
 views that need to refresh cached UIKit content before QuickLayout runs again.
 
-### Collection view sizing helpers
+### Reusable list sizing helpers
 
 Use `QuickLayoutCollectionViewCell`, `QuickLayoutTableViewCell`, and
-`QuickLayoutCollectionReusableView` when your reusable views are fully described
-by QuickLayout.
+`QuickLayoutTableViewHeaderFooterView` when UIKit list content is described by
+QuickLayout. `QuickLayoutCollectionReusableView` covers collection supplementary
+views that use the traditional body model.
 
 ```swift
 final class MessageCell: QuickLayoutCollectionViewCell {
@@ -701,6 +702,90 @@ final class MessageCell: QuickLayoutCollectionViewCell {
     }
 }
 ```
+
+Collection cells, table cells, and table header/footer views default to the
+`.body` source, preserving the traditional subclassing model above. When a
+`UIContentConfiguration` creates a `QuickLayoutView` that also conforms to
+`UIContentView`, select `.contentConfiguration` when the reusable view is
+initialized:
+
+```swift
+final class ConfiguredMessageCell: QuickLayoutCollectionViewCell {
+
+    private var model: MessageModel?
+
+    override init(frame: CGRect) {
+        super.init(
+            frame: frame,
+            contentSource: .contentConfiguration
+        )
+        automaticallyUpdatesContentConfiguration = false
+        quickLayoutHorizontalFlexibility = .fixedSize
+        quickLayoutVerticalFlexibility = .fullyFlexible
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError()
+    }
+
+    override func updateConfiguration(
+        using state: UICellConfigurationState
+    ) {
+        guard let model else {
+            contentConfiguration = nil
+            return
+        }
+        contentConfiguration = MessageConfiguration(model: model)
+            .updated(for: state)
+    }
+}
+```
+
+Table cells and section views use the corresponding initializers:
+
+```swift
+final class ConfiguredMessageTableCell: QuickLayoutTableViewCell {
+    override init(
+        style: UITableViewCell.CellStyle,
+        reuseIdentifier: String?
+    ) {
+        super.init(
+            style: style,
+            reuseIdentifier: reuseIdentifier,
+            contentSource: .contentConfiguration
+        )
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError()
+    }
+}
+
+final class ConfiguredSectionView: QuickLayoutTableViewHeaderFooterView {
+    override init(reuseIdentifier: String?) {
+        super.init(
+            reuseIdentifier: reuseIdentifier,
+            contentSource: .contentConfiguration
+        )
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError()
+    }
+}
+```
+
+Leave `automaticallyUpdatesContentConfiguration` enabled when the configuration
+itself handles state through `updated(for:)`. Set it to `false` only when the
+subclass overrides `updateConfiguration(using:)` and manually installs a
+state-updated configuration, as in the collection example above.
+
+Use `UITableView.automaticDimension` for rows, headers, and footers. Their
+QuickLayout content participates in UIKit fitting while non-QuickLayout content
+configurations continue through UIKit's default sizing path.
+
+The selected source is fixed for each reusable view's lifetime because setting
+a UIKit content configuration replaces its `contentView`.
 
 For custom cell subclasses that cannot inherit from QuickLayoutKit's base
 classes, keep using `quickLayoutSizeLimit(proposed:)` and

@@ -7,13 +7,17 @@
 
 import UIKit
 import AppLocalization
+import ListKit
 
 final class MesssageViewController: DemoViewController {
 
     override var localizedTitleKey: String? { "demo.messages.title" }
 
     private var collectionView: UICollectionView!
-    private var data: [MessageModel] = MessageModel.mockData
+    private var data = MessageListFactory.localizedItems()
+    private lazy var adapter = CollectionListAdapter<MessageListSection>(
+        collectionView: collectionView
+    )
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -26,8 +30,9 @@ final class MesssageViewController: DemoViewController {
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        data = MessageModel.localizedMockData()
-        collectionView?.reloadData()
+        data = MessageListFactory.localizedItems()
+        guard collectionView != nil else { return }
+        render()
     }
 
     override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
@@ -41,71 +46,39 @@ final class MesssageViewController: DemoViewController {
     private func setupCollectionView() {
         collectionView = UICollectionView(
             frame: view.bounds,
-            collectionViewLayout: makeLayout()
+            collectionViewLayout: UICollectionViewFlowLayout()
         )
 
         collectionView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         collectionView.backgroundColor = .systemGroupedBackground
-
-        collectionView.register(
-            MessageCell.self,
-            forCellWithReuseIdentifier: "MessageCell"
-        )
-
-        collectionView.dataSource = self
         view.addSubview(collectionView)
+        collectionView.collectionViewLayout = adapter.makeCompositionalLayout()
     }
 
-    private func makeLayout() -> UICollectionViewLayout {
-        UICollectionViewCompositionalLayout { _, _ in
-
-            let itemSize = NSCollectionLayoutSize(
-                widthDimension: .fractionalWidth(1.0),
-                heightDimension: .estimated(80)
+    private func render() {
+        adapter.apply(transaction: .disabled) {
+            ListSection(.messages) {
+                ForEach(data, id: \.id) { item in
+                    Row(model: item.model, cell: MessageCell.self) {
+                        cell, message, _ in
+                        cell.configure(message)
+                    }
+                }
+            }
+            .selectionMode(.single)
+            .layout(
+                .list(
+                    itemHeight: .estimated(80),
+                    spacing: 8,
+                    contentInsets: .init(
+                        top: 8,
+                        leading: 12,
+                        bottom: 8,
+                        trailing: 12
+                    )
+                )
             )
-
-            let item = NSCollectionLayoutItem(layoutSize: itemSize)
-
-            let groupSize = NSCollectionLayoutSize(
-                widthDimension: .fractionalWidth(1.0),
-                heightDimension: .estimated(80)
-            )
-
-            let group = NSCollectionLayoutGroup.vertical(
-                layoutSize: groupSize,
-                subitems: [item]
-            )
-
-            let section = NSCollectionLayoutSection(group: group)
-            section.interGroupSpacing = 8
-            section.contentInsets = .init(top: 8, leading: 12, bottom: 8, trailing: 12)
-
-            return section
         }
-    }
-}
-
-extension MesssageViewController: UICollectionViewDataSource {
-
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        data.count
-    }
-
-    func collectionView(
-        _ collectionView: UICollectionView,
-        cellForItemAt indexPath: IndexPath
-    ) -> UICollectionViewCell {
-
-        let cell = collectionView.dequeueReusableCell(
-            withReuseIdentifier: "MessageCell",
-            for: indexPath
-        ) as! MessageCell
-
-        cell.configure(data[indexPath.item])
-        cell.backgroundColor = .secondarySystemGroupedBackground
-        cell.layer.cornerRadius = 8
-
-        return cell
     }
 }
 
