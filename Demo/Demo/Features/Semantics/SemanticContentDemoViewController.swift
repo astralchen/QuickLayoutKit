@@ -6,36 +6,20 @@
 //
 
 import UIKit
+import AppLocalization
 import QuickLayoutKit
 import QuickLayout
 /*
-UIKit semanticContentAttribute 行为整理（实战版）
+UIKit / QuickLayout 方向适配原则：
 
-一、三个层级，先记住这张心智模型 🧠
+1. Scene 或 controller root 建立 semanticContentAttribute 边界。
+2. 每个 QuickLayout host 从 effectiveUserInterfaceLayoutDirection 取方向，
+   普通布局无需再加同值的 layoutDirection modifier。
+3. 缓存、复用或独立 host 在语言切换时同步 semantic 并失效布局。
+4. UIButton 使用 iOS 15 Configuration 的 leading / trailing placement；
+   运行时切换 semantic 后重新应用 configuration，刷新内部图文排列。
 
-1️⃣ 系统方向
-    •    UIApplication.shared.userInterfaceLayoutDirection
-    •    由系统语言决定（中文 / 英文 = LTR）
-
-⸻
-
-2️⃣ View 语义
-    •    UIView.semanticContentAttribute
-    •    作用于：
-    •    Auto Layout 的 leading / trailing
-    •    StackView 排列
-    •    部分控件内部布局
-
-⚠️ 不是所有子控件都会完全继承
-
-⸻
-
-3️⃣ 控件内部子布局（坑最多）
-    •    UIButton 的 image / title
-    •    UITextField 的 leftView / rightView
-    •    UICollectionViewCell 的内部 subviews
-
-👉 很多都是“必须自己 force”
+只有明确要与页面方向不同的局部示例才使用 forceLeftToRight / forceRightToLeft。
 */
 
 // MARK: - Main Demo Controller
@@ -83,6 +67,25 @@ class SemanticContentDemoViewController: DemoQuickLayoutHostingController {
         unspecifiedSection.reloadLocalizedContent()
         ltrSection.reloadLocalizedContent()
         rtlSection.reloadLocalizedContent()
+    }
+
+    override func reloadLayoutDirection(
+        _ direction: UIUserInterfaceLayoutDirection
+    ) {
+        super.reloadLayoutDirection(direction)
+
+        let attribute = direction.appLayoutDirection.semanticContentAttribute
+        scrollView.semanticContentAttribute = attribute
+        [titleLabel, descLabel].forEach {
+            $0.semanticContentAttribute = attribute
+        }
+
+        // The unspecified section inherits from the scroll view. The explicit
+        // LTR and RTL sections keep their forced semantic boundaries.
+        unspecifiedSection.invalidateLayoutDirection()
+        ltrSection.invalidateLayoutDirection()
+        rtlSection.invalidateLayoutDirection()
+        setNeedsQuickLayout()
     }
 
     override var body: Layout {
@@ -155,7 +158,7 @@ class DemoSection: UIView {
         example1.semanticContentAttribute = semantic
         example2.semanticContentAttribute = semantic
         example3.semanticContentAttribute = semantic
-        example4.semanticContentAttribute = semantic
+        example4.applySemanticContentAttribute(semantic)
         example5.semanticContentAttribute = semantic
         reloadLocalizedContent()
     }
@@ -166,6 +169,16 @@ class DemoSection: UIView {
         example2.reloadLocalizedContent()
         example3.reloadLocalizedContent()
         example4.reloadLocalizedContent()
+        setNeedsLayout()
+    }
+
+    func invalidateLayoutDirection() {
+        semanticContentAttribute = semantic
+        [example1, example2, example3, example5].forEach {
+            $0.semanticContentAttribute = semantic
+            $0.setNeedsLayout()
+        }
+        example4.applySemanticContentAttribute(semantic)
         setNeedsLayout()
     }
 
@@ -344,38 +357,25 @@ class ExampleRow3: UIView {
 
 @QuickLayout
 class ExampleRow4: UIView {
-    let button = RTLAwareButton(type: .system)
+    let button: UIButton = {
+        var configuration = UIButton.Configuration.filled()
+        configuration.title = DemoLocalization.text("semantic.next")
+        configuration.image = UIImage(systemName: "arrow.right")
+        configuration.imagePlacement = .leading
+        configuration.imagePadding = 8
+        configuration.baseBackgroundColor = .systemBlue
+        configuration.baseForegroundColor = .white
+        configuration.cornerStyle = .medium
+        return UIButton(configuration: configuration)
+    }()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .systemBackground
         layer.cornerRadius = 8
 
-        button.setImage(UIImage(systemName: "arrow.right"), for: .normal)
-        button.backgroundColor = .systemBlue
-        button.tintColor = .white
-        button.setTitleColor(.white, for: .normal)
-        button.layer.cornerRadius = 8
         reloadLocalizedContent()
     }
-
-//    override var semanticContentAttribute: UISemanticContentAttribute {
-//        didSet {
-//            /*
-//            ❓为什么 Apple 要这么设计？
-//
-//            这是一个历史包袱：
-//                •    UIButton 早于 RTL 支持很多年
-//                •    image/title 排列是早期“固定逻辑”
-//                •    为了兼容老 App：
-//                •    ❌ 不敢自动跟随父 view RTL
-//                •    ✅ 只能在按钮自身 force
-//
-//            📌 所以这不是 bug，是“为了不破坏老 UI”。
-//             */
-//            button.semanticContentAttribute = semanticContentAttribute
-//        }
-//    }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
@@ -388,45 +388,22 @@ class ExampleRow4: UIView {
     }
 
     func reloadLocalizedContent() {
-        button.setTitle(" \(DemoLocalization.text("semantic.next"))", for: .normal)
+        if var configuration = button.configuration {
+            configuration.title = DemoLocalization.text("semantic.next")
+            button.configuration = configuration
+        } else {
+            assertionFailure("Semantic demo button requires UIButton.Configuration")
+        }
         setNeedsLayout()
     }
-}
 
-//superview.semanticContentAttribute 默认就是 .unspecified，父容器并不是通过自身的 semanticContentAttribute 来表达 RTL 的，而是通过 effectiveUserInterfaceLayoutDirection 来体现最终方向。
-//所以读 superview.semanticContentAttribute 拿到的还是 .unspecified，同步过去没有任何效果。
-
-class RTLAwareButton: UIButton {
-//    effectiveUserInterfaceLayoutDirection 在 didMoveToSuperview 时不一定已经稳定（父容器自身可能还没完成布局），更安全的时机是：
-
-//    override func didMoveToSuperview() {
-//        super.didMoveToSuperview()
-//        syncDirection()
-//    }
-//
-//    private func syncDirection() {
-//        guard let superview else { return }
-//        switch superview.effectiveUserInterfaceLayoutDirection {
-//        case .rightToLeft:
-//            semanticContentAttribute = .forceRightToLeft
-//        case .leftToRight:
-//            semanticContentAttribute = .forceLeftToRight
-//        @unknown default:
-//            break
-//        }
-//        
-//    }
-    
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        // 只在需要时更新，避免死循环
-        let needed: UISemanticContentAttribute =
-            (superview?.effectiveUserInterfaceLayoutDirection == .rightToLeft)
-            ? .forceRightToLeft : .forceLeftToRight
-        
-        if semanticContentAttribute != needed {
-            semanticContentAttribute = needed
-        }
+    func applySemanticContentAttribute(
+        _ semanticContentAttribute: UISemanticContentAttribute
+    ) {
+        self.semanticContentAttribute = semanticContentAttribute
+        button.semanticContentAttribute = semanticContentAttribute
+        button.configuration = button.configuration
+        setNeedsLayout()
     }
 }
 
@@ -461,10 +438,14 @@ class ExampleRow5: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         // Progress fill takes 75% of progress bar width
+        let fillWidth = progressBar.bounds.width * 0.75
+        let fillOriginX = effectiveUserInterfaceLayoutDirection == .rightToLeft
+            ? progressBar.bounds.width - fillWidth
+            : 0
         progressFill.frame = CGRect(
-            x: 0,
+            x: fillOriginX,
             y: 0,
-            width: progressBar.bounds.width * 0.75,
+            width: fillWidth,
             height: progressBar.bounds.height
         )
     }

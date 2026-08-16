@@ -26,6 +26,14 @@ class KeyboardHandlingViewController: DemoQuickLayoutHostingController {
         keyboardView.reloadLocalizedContent()
     }
 
+    override func reloadLayoutDirection(
+        _ direction: UIUserInterfaceLayoutDirection
+    ) {
+        super.reloadLayoutDirection(direction)
+        keyboardView.applyLayoutDirection(direction)
+        setNeedsQuickLayout()
+    }
+
 }
 
 

@@ -14,7 +14,11 @@ import Combine
 class AnimatedKeyboardResponsiveView: UIView {
 
     let textField = UITextField()
-    let submitButton = UIButton(type: .system)
+    let submitButton: UIButton = {
+        var configuration = UIButton.Configuration.filled()
+        configuration.cornerStyle = .capsule
+        return UIButton(configuration: configuration)
+    }()
     let diagnosticsBackgroundView = UIView()
     let diagnosticsLabel = UILabel()
 
@@ -56,17 +60,39 @@ class AnimatedKeyboardResponsiveView: UIView {
         diagnosticsBackgroundView.layer.cornerRadius = 12
         diagnosticsBackgroundView.layer.masksToBounds = true
 
-        var config = UIButton.Configuration.filled()
-        config.cornerStyle = .capsule     // ✅ 胶囊
-        submitButton.configuration = config
         submitButton.addTarget(self, action: #selector(dismissKeyboard), for: .touchUpInside)
         reloadLocalizedContent()
     }
 
     func reloadLocalizedContent() {
         textField.placeholder = DemoLocalization.text("keyboard.placeholder")
-        submitButton.configuration?.title = DemoLocalization.text("common.submit")
+        if var configuration = submitButton.configuration {
+            configuration.title = DemoLocalization.text("common.submit")
+            submitButton.configuration = configuration
+        }
         updateKeyboardDiagnostics()
+        setNeedsLayout()
+    }
+
+    func applyLayoutDirection(
+        _ direction: UIUserInterfaceLayoutDirection
+    ) {
+        let attribute: UISemanticContentAttribute = direction == .rightToLeft
+            ? .forceRightToLeft
+            : .forceLeftToRight
+        semanticContentAttribute = attribute
+        [
+            diagnosticsBackgroundView,
+            diagnosticsLabel,
+            textField,
+            submitButton,
+        ].forEach {
+            $0.semanticContentAttribute = attribute
+        }
+        if let configuration = submitButton.configuration {
+            submitButton.configuration = configuration
+        }
+        textField.textAlignment = direction == .rightToLeft ? .right : .left
         setNeedsLayout()
     }
 
@@ -97,13 +123,25 @@ class AnimatedKeyboardResponsiveView: UIView {
 
     private func updateKeyboardDiagnostics() {
         let resolved = keyboardContext.resolved(in: self)
-        diagnosticsLabel.text = """
-        \(DemoLocalization.text("keyboard.diagnostics.title"))
-        event: \(keyboardContext.event.demoDescription)
-        raw: \(keyboardContext.endFrame.demoDescription)
-        intersection: \(resolved.intersection.demoDescription)
-        height: \(Int(resolved.height))
-        """
+        diagnosticsLabel.text = [
+            DemoLocalization.text("keyboard.diagnostics.title"),
+            DemoLocalization.text(
+                "keyboard.diagnostics.event",
+                keyboardContext.event.demoDescription
+            ),
+            DemoLocalization.text(
+                "keyboard.diagnostics.rawFrame",
+                keyboardContext.endFrame.demoDescription
+            ),
+            DemoLocalization.text(
+                "keyboard.diagnostics.intersection",
+                resolved.intersection.demoDescription
+            ),
+            DemoLocalization.text(
+                "keyboard.diagnostics.height",
+                Int64(resolved.height)
+            ),
+        ].joined(separator: "\n")
     }
 
     var body: Layout {

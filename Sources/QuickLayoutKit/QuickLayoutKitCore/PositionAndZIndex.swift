@@ -133,15 +133,34 @@ private func positionedPositionElement(
         horizontalOffset = origin.x
     }
 
-    return FixedFrameElement(
-        child: OffsetElement(
-            child: PositionPrecomputedLayoutElement(layout: layout),
-            offset: CGPoint(x: horizontalOffset, y: origin.y)
-        ),
+    let offsetChild = OffsetElement(
+        child: PositionPrecomputedLayoutElement(layout: layout),
+        offset: CGPoint(x: horizontalOffset, y: origin.y)
+    )
+        // Keep child guides from changing this physical placement when the
+        // enclosing fixed frame resolves its top-leading alignment.
+        .alignmentGuide(HorizontalAlignment.leading) { dimensions in
+            dimensions[HorizontalAlignment.leading]
+        }
+        .alignmentGuide(VerticalAlignment.top) { dimensions in
+            dimensions[VerticalAlignment.top]
+        }
+
+    let positionedChild = FixedFrameElement(
+        child: offsetChild,
         width: containerSize.width,
         height: containerSize.height,
         alignment: .topLeading
     )
+    return positionedChild
+        // Resolve the wrapper's guides in its parent's direction so a local
+        // layout-direction override can't leak its physical compensation out.
+        .alignmentGuide(HorizontalAlignment.leading) { dimensions in
+            dimensions[HorizontalAlignment.leading]
+        }
+        .alignmentGuide(VerticalAlignment.top) { dimensions in
+            dimensions[VerticalAlignment.top]
+        }
 }
 
 private func finite(_ value: CGFloat) -> CGFloat {

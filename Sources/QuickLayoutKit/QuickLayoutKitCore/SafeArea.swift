@@ -40,8 +40,36 @@ public enum HorizontalEdge: Sendable {
 package struct QuickLayoutSafeAreaValues: Sendable {
 
     package var containerSize: CGSize
-    package var containerInsets: EdgeInsets
-    package var keyboardInsets: EdgeInsets
+    private var physicalContainerInsets: QuickLayoutPhysicalInsets
+    private var physicalKeyboardInsets: QuickLayoutPhysicalInsets
+
+    package var containerInsets: EdgeInsets {
+        get {
+            physicalContainerInsets.directional(
+                for: LayoutContext.layoutDirection
+            )
+        }
+        set {
+            physicalContainerInsets = QuickLayoutPhysicalInsets(
+                newValue,
+                layoutDirection: LayoutContext.layoutDirection
+            )
+        }
+    }
+
+    package var keyboardInsets: EdgeInsets {
+        get {
+            physicalKeyboardInsets.directional(
+                for: LayoutContext.layoutDirection
+            )
+        }
+        set {
+            physicalKeyboardInsets = QuickLayoutPhysicalInsets(
+                newValue,
+                layoutDirection: LayoutContext.layoutDirection
+            )
+        }
+    }
 
     package init(
         containerSize: CGSize,
@@ -49,8 +77,28 @@ package struct QuickLayoutSafeAreaValues: Sendable {
         keyboardInsets: EdgeInsets = .zero
     ) {
         self.containerSize = containerSize
-        self.containerInsets = containerInsets.sanitized
-        self.keyboardInsets = keyboardInsets.sanitized
+        physicalContainerInsets = QuickLayoutPhysicalInsets(
+            containerInsets,
+            layoutDirection: LayoutContext.layoutDirection
+        )
+        physicalKeyboardInsets = QuickLayoutPhysicalInsets(
+            keyboardInsets,
+            layoutDirection: LayoutContext.layoutDirection
+        )
+    }
+
+    package init(
+        containerSize: CGSize,
+        physicalContainerInsets: UIEdgeInsets,
+        physicalKeyboardInsets: UIEdgeInsets = .zero
+    ) {
+        self.containerSize = containerSize
+        self.physicalContainerInsets = QuickLayoutPhysicalInsets(
+            physicalContainerInsets
+        )
+        self.physicalKeyboardInsets = QuickLayoutPhysicalInsets(
+            physicalKeyboardInsets
+        )
     }
 
     package var resolvedContainerSize: CGSize {
@@ -70,12 +118,9 @@ package struct QuickLayoutSafeAreaValues: Sendable {
     }
 
     fileprivate var effectiveInsets: EdgeInsets {
-        EdgeInsets(
-            top: max(containerInsets.top, keyboardInsets.top),
-            leading: max(containerInsets.leading, keyboardInsets.leading),
-            bottom: max(containerInsets.bottom, keyboardInsets.bottom),
-            trailing: max(containerInsets.trailing, keyboardInsets.trailing)
-        )
+        physicalContainerInsets
+            .combined(with: physicalKeyboardInsets)
+            .directional(for: LayoutContext.layoutDirection)
     }
 
     fileprivate func ignoring(
@@ -84,19 +129,111 @@ package struct QuickLayoutSafeAreaValues: Sendable {
     ) -> QuickLayoutSafeAreaValues {
         var values = self
         if regions.contains(.container) {
-            values.containerInsets.clear(edges)
+            values.physicalContainerInsets.clear(
+                edges,
+                layoutDirection: LayoutContext.layoutDirection
+            )
         }
         if regions.contains(.keyboard) {
-            values.keyboardInsets.clear(edges)
+            values.physicalKeyboardInsets.clear(
+                edges,
+                layoutDirection: LayoutContext.layoutDirection
+            )
         }
         return values
     }
 
     fileprivate func consuming(_ edges: EdgeSet) -> QuickLayoutSafeAreaValues {
         var values = self
-        values.containerInsets.clear(edges)
-        values.keyboardInsets.clear(edges)
+        values.physicalContainerInsets.clear(
+            edges,
+            layoutDirection: LayoutContext.layoutDirection
+        )
+        values.physicalKeyboardInsets.clear(
+            edges,
+            layoutDirection: LayoutContext.layoutDirection
+        )
         return values
+    }
+}
+
+private struct QuickLayoutPhysicalInsets: Sendable {
+
+    var top: CGFloat
+    var left: CGFloat
+    var bottom: CGFloat
+    var right: CGFloat
+
+    init(_ insets: UIEdgeInsets) {
+        top = sanitizedSafeAreaValue(insets.top)
+        left = sanitizedSafeAreaValue(insets.left)
+        bottom = sanitizedSafeAreaValue(insets.bottom)
+        right = sanitizedSafeAreaValue(insets.right)
+    }
+
+    init(
+        _ insets: EdgeInsets,
+        layoutDirection: LayoutDirection
+    ) {
+        let insets = insets.sanitized
+        top = insets.top
+        bottom = insets.bottom
+
+        switch layoutDirection {
+        case .leftToRight:
+            left = insets.leading
+            right = insets.trailing
+        case .rightToLeft:
+            left = insets.trailing
+            right = insets.leading
+        }
+    }
+
+    func combined(with other: QuickLayoutPhysicalInsets) -> Self {
+        Self(
+            UIEdgeInsets(
+                top: max(top, other.top),
+                left: max(left, other.left),
+                bottom: max(bottom, other.bottom),
+                right: max(right, other.right)
+            )
+        )
+    }
+
+    func directional(for layoutDirection: LayoutDirection) -> EdgeInsets {
+        switch layoutDirection {
+        case .leftToRight:
+            EdgeInsets(
+                top: top,
+                leading: left,
+                bottom: bottom,
+                trailing: right
+            )
+        case .rightToLeft:
+            EdgeInsets(
+                top: top,
+                leading: right,
+                bottom: bottom,
+                trailing: left
+            )
+        }
+    }
+
+    mutating func clear(
+        _ edges: EdgeSet,
+        layoutDirection: LayoutDirection
+    ) {
+        if edges.contains(.top) { top = 0 }
+        if edges.contains(.bottom) { bottom = 0 }
+
+        switch layoutDirection {
+        case .leftToRight:
+            if edges.contains(.leading) { left = 0 }
+            if edges.contains(.trailing) { right = 0 }
+        case .rightToLeft:
+            if edges.contains(.leading) { right = 0 }
+            if edges.contains(.trailing) { left = 0 }
+        }
     }
 }
 
@@ -415,13 +552,6 @@ private extension EdgeInsets {
             bottom: sanitizedSafeAreaValue(bottom),
             trailing: sanitizedSafeAreaValue(trailing)
         )
-    }
-
-    mutating func clear(_ edges: EdgeSet) {
-        if edges.contains(.top) { top = 0 }
-        if edges.contains(.leading) { leading = 0 }
-        if edges.contains(.bottom) { bottom = 0 }
-        if edges.contains(.trailing) { trailing = 0 }
     }
 
     func value(for edge: Edge) -> CGFloat {

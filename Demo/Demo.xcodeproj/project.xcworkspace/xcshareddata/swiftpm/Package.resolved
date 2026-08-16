@@ -6,7 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/astralchen/AppLocalization.git",
       "state" : {
-        "revision" : "696e0c32638bdd53d2b9451691f344353dcaafc0"
+        "branch" : "main",
+        "revision" : "0d477915f955a5cdfd95ff0fcd31c7cd48510771"
       }
     },
     {
@@ -24,7 +25,7 @@
       "location" : "https://github.com/facebookincubator/QuickLayout",
       "state" : {
         "branch" : "main",
-        "revision" : "b6039ce36c233d096a9b6d3d597d3f9f3d90d2f3"
+        "revision" : "38020f2c293bbd24e20b651d4214169fbe69965b"
       }
     },
     {

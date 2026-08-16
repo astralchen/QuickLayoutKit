@@ -343,10 +343,8 @@ struct DemoTests {
     }
 
     @Test func mediaExamplesPreserveTheirAspectRatios() throws {
-        let messageContentView = try #require(
-            MessageContentConfiguration(model: MessageModel.mockData[0])
-                .makeContentView() as? MessageContentView
-        )
+        let messageContentView = MessageContentView(frame: .zero)
+        messageContentView.configure(MessageModel.mockData[0])
         let messageSize = messageContentView.sizeThatFits(
             CGSize(
                 width: 320,
@@ -385,17 +383,15 @@ struct DemoTests {
         #expect(abs(filledRatio - fillImageRatio) < 0.01)
     }
 
-    @Test func messageContentConfigurationUpdatesAndSelfSizes() throws {
+    @Test func messageContentViewUpdatesAndSelfSizes() {
         let firstModel = MessageModel(
             title: "First",
             message: "Short message",
             imageName: "sun.max.fill",
             themeColor: .systemOrange
         )
-        let contentView = try #require(
-            MessageContentConfiguration(model: firstModel)
-                .makeContentView() as? MessageContentView
-        )
+        let contentView = MessageContentView(frame: .zero)
+        contentView.configure(firstModel)
 
         #expect(contentView.titleLabel.text == firstModel.title)
         #expect(contentView.messageLabel.text == firstModel.message)
@@ -409,9 +405,7 @@ struct DemoTests {
             imageName: "moon.stars.fill",
             themeColor: .systemIndigo
         )
-        contentView.configuration = MessageContentConfiguration(
-            model: secondModel
-        )
+        contentView.configure(secondModel)
 
         let wideSize = contentView.sizeThatFits(
             CGSize(
@@ -430,31 +424,21 @@ struct DemoTests {
         #expect(contentView.messageLabel.text == secondModel.message)
         #expect(narrowSize.height > wideSize.height)
 
-        var highlightedState = UICellConfigurationState(
-            traitCollection: .current
-        )
-        highlightedState.isHighlighted = true
-        contentView.configuration = MessageContentConfiguration(
-            model: secondModel
-        ).updated(for: highlightedState)
-        #expect(contentView.alpha < 1)
-
         let cell = MessageCell(frame: .zero)
         cell.configure(firstModel)
-        cell.updateConfiguration(using: cell.configurationState)
-        let initialCellContentView = try #require(
-            cell.contentView as? MessageContentView
-        )
+        let initialCellContentView = cell.messageContentView
         #expect(initialCellContentView.titleLabel.text == firstModel.title)
+        cell.isHighlighted = true
+        #expect(initialCellContentView.alpha < 1)
 
         cell.prepareForReuse()
-        #expect(cell.contentConfiguration == nil)
+        #expect(initialCellContentView.titleLabel.text == nil)
+        #expect(initialCellContentView.messageLabel.text == nil)
+        #expect(initialCellContentView.alpha == 1)
 
         cell.configure(secondModel)
-        cell.updateConfiguration(using: cell.configurationState)
-        let reusedCellContentView = try #require(
-            cell.contentView as? MessageContentView
-        )
+        let reusedCellContentView = cell.messageContentView
+        #expect(reusedCellContentView === initialCellContentView)
         #expect(reusedCellContentView.titleLabel.text == secondModel.title)
         #expect(reusedCellContentView.messageLabel.text == secondModel.message)
 
@@ -466,11 +450,11 @@ struct DemoTests {
             attributes
         )
 
-        #expect(cell.quickLayoutContentSource == .contentConfiguration)
         #expect(fittedAttributes.size == narrowSize)
     }
 
-    @Test func tableMessageControllerUsesConfiguredSelfSizingViews() throws {
+    @Test func tableMessageControllerUsesSelfSizingViews() throws {
+        let fittingTolerance: CGFloat = 1.01
         let viewController = MessageTableViewController()
         viewController.loadViewIfNeeded()
         let tableView = try #require(viewController.tableView)
@@ -501,30 +485,32 @@ struct DemoTests {
             tableView.cellForRow(at: IndexPath(row: 0, section: 0))
                 as? MessageTableCell
         )
-        let cellContentView = try #require(
-            cell.contentView as? MessageContentView
-        )
-        #expect(cell.quickLayoutContentSource == .contentConfiguration)
+        let cellContentView = cell.messageContentView
         #expect(cellContentView.titleLabel.text?.isEmpty == false)
         let cellFittingSize = cell.systemLayoutSizeFitting(
             CGSize(width: cell.bounds.width, height: 0),
             withHorizontalFittingPriority: .required,
             verticalFittingPriority: .fittingSizeLevel
         )
-        #expect(abs(cell.bounds.height - cellFittingSize.height) < 1)
+        #expect(
+            abs(cell.bounds.height - cellFittingSize.height)
+                <= fittingTolerance
+        )
 
         let header = try #require(
             tableView.headerView(forSection: 0)
                 as? MessageTableHeaderFooterView
         )
-        #expect(header.quickLayoutContentSource == .contentConfiguration)
-        #expect(header.contentView is QuickLayoutView)
+        #expect(header.sectionContentView.titleLabel.text?.isEmpty == false)
         let headerFittingSize = header.systemLayoutSizeFitting(
             CGSize(width: header.bounds.width, height: 0),
             withHorizontalFittingPriority: .required,
             verticalFittingPriority: .fittingSizeLevel
         )
-        #expect(abs(header.bounds.height - headerFittingSize.height) < 1)
+        #expect(
+            abs(header.bounds.height - headerFittingSize.height)
+                <= fittingTolerance
+        )
 
         tableView.scrollToRow(
             at: IndexPath(row: 11, section: 0),
@@ -541,9 +527,368 @@ struct DemoTests {
             withHorizontalFittingPriority: .required,
             verticalFittingPriority: .fittingSizeLevel
         )
-        #expect(footer.quickLayoutContentSource == .contentConfiguration)
+        #expect(footer.sectionContentView.titleLabel.text?.isEmpty == false)
         #expect(footer.bounds.height > 20)
-        #expect(abs(footer.bounds.height - footerFittingSize.height) < 1)
+        #expect(
+            abs(footer.bounds.height - footerFittingSize.height)
+                <= fittingTolerance
+        )
+    }
+
+    @Test func tableMessageSupplementariesStartRTLOnFirstAppearance() async throws {
+        let edgePadding: CGFloat = 16
+        let tolerance: CGFloat = 1.01
+        let listView = MessageTableListView()
+
+        let model = MessageModel(
+            title: "رسالة",
+            message: "محتوى الرسالة",
+            imageName: "moon.stars.fill",
+            themeColor: .systemIndigo
+        )
+        let items = [
+            MessageListItem(
+                id: MessageListItemID(group: 0, message: model.imageName),
+                model: model
+            )
+        ]
+        let headerText = "رسائل ذاتية التحجيم عند الظهور الأول"
+        let detailText = "يجب أن يبدأ هذا الرأس من الحافة اليمنى مباشرة."
+        let footerText = "يظهر هذا التذييل باتجاه صحيح وارتفاع مناسب من المرة الأولى."
+
+        await withCheckedContinuation { continuation in
+            listView.render(
+                items: items,
+                headerTitle: headerText,
+                headerDetail: detailText,
+                footerTitle: footerText,
+                completion: { continuation.resume() }
+            )
+        }
+
+        #expect(listView.bounds == .zero)
+        #expect(listView.tableView.bounds == .zero)
+        #expect(listView.window == nil)
+        #expect(listView.tableView.headerView(forSection: 0) == nil)
+        #expect(listView.tableView.footerView(forSection: 0) == nil)
+        #expect(
+            listView.tableView.semanticContentAttribute == .unspecified
+        )
+
+        let viewController = UIViewController()
+        viewController.view = listView
+        let window = try makeVisibleTestWindow(
+            rootViewController: viewController,
+            size: CGSize(width: 320, height: 640),
+            semanticContentAttribute: .forceRightToLeft
+        )
+        defer { window.isHidden = true }
+        listView.tableView.layoutIfNeeded()
+
+        let header = try #require(
+            listView.tableView.headerView(forSection: 0)
+                as? MessageTableHeaderFooterView
+        )
+        let footer = try #require(
+            listView.tableView.footerView(forSection: 0)
+                as? MessageTableHeaderFooterView
+        )
+        let headerContent = header.sectionContentView
+        let footerContent = footer.sectionContentView
+        headerContent.layoutIfNeeded()
+        footerContent.layoutIfNeeded()
+
+        let headerTitle = headerContent.titleLabel
+        let headerDetail = headerContent.detailLabel
+        let footerTitle = footerContent.titleLabel
+        #expect(headerTitle.text == headerText)
+        #expect(headerDetail.text == detailText)
+        #expect(footerTitle.text == footerText)
+        let headerTitleFrame = headerTitle.convert(
+            headerTitle.bounds,
+            to: headerContent
+        )
+        let headerDetailFrame = headerDetail.convert(
+            headerDetail.bounds,
+            to: headerContent
+        )
+        let footerTitleFrame = footerTitle.convert(
+            footerTitle.bounds,
+            to: footerContent
+        )
+        let headerFittingSize = header.systemLayoutSizeFitting(
+            CGSize(width: header.bounds.width, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+        let footerFittingSize = footer.systemLayoutSizeFitting(
+            CGSize(width: footer.bounds.width, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+
+        #expect(window.semanticContentAttribute == .forceRightToLeft)
+        #expect(listView.semanticContentAttribute == .unspecified)
+        #expect(
+            listView.effectiveUserInterfaceLayoutDirection == .rightToLeft
+        )
+        #expect(
+            listView.tableView.semanticContentAttribute == .unspecified
+        )
+        #expect(
+            listView.tableView.effectiveUserInterfaceLayoutDirection
+                == .rightToLeft
+        )
+        #expect(
+            header.effectiveUserInterfaceLayoutDirection
+                == listView.tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            footer.effectiveUserInterfaceLayoutDirection
+                == listView.tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(header.semanticContentAttribute == .unspecified)
+        #expect(footer.semanticContentAttribute == .unspecified)
+        #expect(
+            headerContent.semanticContentAttribute == .unspecified
+        )
+        #expect(
+            footerContent.semanticContentAttribute == .unspecified
+        )
+        #expect(headerTitle.semanticContentAttribute == .unspecified)
+        #expect(headerDetail.semanticContentAttribute == .unspecified)
+        #expect(footerTitle.semanticContentAttribute == .unspecified)
+        #expect(
+            headerContent.effectiveUserInterfaceLayoutDirection
+                == listView.tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            footerContent.effectiveUserInterfaceLayoutDirection
+                == listView.tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            abs(
+                headerTitleFrame.maxX
+                    - (headerContent.bounds.maxX - edgePadding)
+            ) <= tolerance
+        )
+        #expect(
+            abs(
+                headerDetailFrame.maxX
+                    - (headerContent.bounds.maxX - edgePadding)
+            ) <= tolerance
+        )
+        #expect(
+            abs(
+                footerTitleFrame.maxX
+                    - (footerContent.bounds.maxX - edgePadding)
+            ) <= tolerance
+        )
+        #expect(
+            abs(header.bounds.height - headerFittingSize.height)
+                <= tolerance
+        )
+        #expect(
+            abs(footer.bounds.height - footerFittingSize.height)
+                <= tolerance
+        )
+        #expect(
+            abs(
+                listView.tableView.rectForHeader(inSection: 0).height
+                    - header.bounds.height
+            ) <= tolerance
+        )
+        #expect(
+            abs(
+                listView.tableView.rectForFooter(inSection: 0).height
+                    - footer.bounds.height
+            ) <= tolerance
+        )
+        #expect(
+            abs(
+                listView.tableView.contentOffset.y
+                    + listView.tableView.adjustedContentInset.top
+            ) <= tolerance
+        )
+    }
+
+    @Test func tableMessageSupplementariesRelayoutImmediatelyAfterLocalizationAndDirectionChange() async throws {
+        let edgePadding: CGFloat = 16
+        let tolerance: CGFloat = 1.01
+        let listView = MessageTableListView()
+        let viewController = UIViewController()
+        viewController.view = listView
+        let window = try makeVisibleTestWindow(
+            rootViewController: viewController,
+            size: CGSize(width: 320, height: 640)
+        )
+        defer { window.isHidden = true }
+
+        let model = MessageModel(
+            title: "Message",
+            message: "Body",
+            imageName: "moon.stars.fill",
+            themeColor: .systemIndigo
+        )
+        let items = [
+            MessageListItem(
+                id: MessageListItemID(group: 0, message: model.imageName),
+                model: model
+            )
+        ]
+
+        listView.applyLayoutDirection(.leftToRight)
+        await withCheckedContinuation { continuation in
+            listView.render(
+                items: items,
+                headerTitle: "Header",
+                headerDetail: "Detail",
+                footerTitle: "Footer",
+                completion: { continuation.resume() }
+            )
+        }
+        listView.tableView.layoutIfNeeded()
+
+        let initialHeader = try #require(
+            listView.tableView.headerView(forSection: 0)
+                as? MessageTableHeaderFooterView
+        )
+        let initialFooter = try #require(
+            listView.tableView.footerView(forSection: 0)
+                as? MessageTableHeaderFooterView
+        )
+        let initialHeaderHeight = listView.tableView.rectForHeader(
+            inSection: 0
+        ).height
+        let initialFooterHeight = listView.tableView.rectForFooter(
+            inSection: 0
+        ).height
+        let initialContentOffset = listView.tableView.contentOffset
+
+        let arabicHeader = "رسائل ذاتية التحجيم طويلة لاختبار الارتفاع"
+        let arabicDetail = "يجب أن يتغير اتجاه هذا الرأس وارتفاعه فورًا من دون تمرير القائمة."
+        let arabicFooter = "يجب أن يحدّث الرأس والتذييل الارتفاع مباشرة."
+
+        await withCheckedContinuation { continuation in
+            listView.render(
+                items: items,
+                headerTitle: arabicHeader,
+                headerDetail: arabicDetail,
+                footerTitle: arabicFooter,
+                completion: { continuation.resume() }
+            )
+            // Match production ordering: localized content starts an
+            // asynchronous ListKit apply before direction is updated.
+            listView.applyLayoutDirection(.rightToLeft)
+        }
+
+        let updatedHeader = try #require(
+            listView.tableView.headerView(forSection: 0)
+                as? MessageTableHeaderFooterView
+        )
+        let updatedFooter = try #require(
+            listView.tableView.footerView(forSection: 0)
+                as? MessageTableHeaderFooterView
+        )
+        let headerContent = updatedHeader.sectionContentView
+        let footerContent = updatedFooter.sectionContentView
+
+        let headerTitle = headerContent.titleLabel
+        let headerDetail = headerContent.detailLabel
+        let footerTitle = footerContent.titleLabel
+        #expect(headerTitle.text == arabicHeader)
+        #expect(headerDetail.text == arabicDetail)
+        #expect(footerTitle.text == arabicFooter)
+        let headerTitleFrame = headerTitle.convert(
+            headerTitle.bounds,
+            to: headerContent
+        )
+        let headerDetailFrame = headerDetail.convert(
+            headerDetail.bounds,
+            to: headerContent
+        )
+        let footerTitleFrame = footerTitle.convert(
+            footerTitle.bounds,
+            to: footerContent
+        )
+
+        #expect(updatedHeader === initialHeader)
+        #expect(updatedFooter === initialFooter)
+        #expect(
+            listView.tableView.semanticContentAttribute == .forceRightToLeft
+        )
+        #expect(updatedHeader.semanticContentAttribute == .unspecified)
+        #expect(updatedFooter.semanticContentAttribute == .unspecified)
+        #expect(headerContent.semanticContentAttribute == .unspecified)
+        #expect(footerContent.semanticContentAttribute == .unspecified)
+        #expect(headerTitle.semanticContentAttribute == .unspecified)
+        #expect(headerDetail.semanticContentAttribute == .unspecified)
+        #expect(footerTitle.semanticContentAttribute == .unspecified)
+        #expect(
+            updatedHeader.effectiveUserInterfaceLayoutDirection
+                == listView.tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            updatedFooter.effectiveUserInterfaceLayoutDirection
+                == listView.tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            headerContent.effectiveUserInterfaceLayoutDirection
+                == listView.tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            footerContent.effectiveUserInterfaceLayoutDirection
+                == listView.tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            abs(
+                headerTitleFrame.maxX
+                    - (headerContent.bounds.maxX - edgePadding)
+            ) <= tolerance
+        )
+        #expect(
+            abs(
+                headerDetailFrame.maxX
+                    - (headerContent.bounds.maxX - edgePadding)
+            ) <= tolerance
+        )
+        #expect(
+            abs(
+                footerTitleFrame.maxX
+                    - (footerContent.bounds.maxX - edgePadding)
+            ) <= tolerance
+        )
+        #expect(
+            listView.tableView.rectForHeader(inSection: 0).height
+                > initialHeaderHeight
+        )
+        #expect(
+            listView.tableView.rectForFooter(inSection: 0).height
+                > initialFooterHeight
+        )
+
+        let headerFittingSize = updatedHeader.systemLayoutSizeFitting(
+            CGSize(width: updatedHeader.bounds.width, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+        let footerFittingSize = updatedFooter.systemLayoutSizeFitting(
+            CGSize(width: updatedFooter.bounds.width, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+        #expect(
+            abs(updatedHeader.bounds.height - headerFittingSize.height)
+                <= tolerance
+        )
+        #expect(
+            abs(updatedFooter.bounds.height - footerFittingSize.height)
+                <= tolerance
+        )
+        #expect(
+            abs(listView.tableView.contentOffset.y - initialContentOffset.y)
+                <= tolerance
+        )
     }
 
     @Test func collectionMessageControllerReusesItsCellRegistration() throws {
@@ -572,7 +917,7 @@ struct DemoTests {
         )
     }
 
-    @Test func dynamicScrollDemoReservesItsActionInset() {
+    @Test func dynamicScrollDemoFillsScreenAndProtectsItsOverlayAction() {
         let viewController = DynamicScrollViewController()
         viewController.loadViewIfNeeded()
         viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
@@ -588,48 +933,452 @@ struct DemoTests {
             to: viewController.view
         )
 
-        #expect(buttonFrame.maxY + 7 < scrollFrame.minY + 1)
-        #expect(scrollFrame.minX == 0)
-        #expect(scrollFrame.maxX == viewController.view.bounds.width)
+        #expect(abs(scrollFrame.minX - viewController.view.bounds.minX) < 1)
+        #expect(abs(scrollFrame.minY - viewController.view.bounds.minY) < 1)
+        #expect(abs(scrollFrame.maxX - viewController.view.bounds.maxX) < 1)
+        #expect(abs(scrollFrame.maxY - viewController.view.bounds.maxY) < 1)
         #expect(
-            viewController.scrollView.contentInset
-                == UIEdgeInsets(top: 0, left: 16, bottom: 8, right: 16)
+            abs(buttonFrame.minY - viewController.view.safeAreaInsets.top) < 1
         )
         #expect(
-            viewController.scrollView.verticalScrollIndicatorInsets
-                == UIEdgeInsets(top: 0, left: 16, bottom: 8, right: 16)
+            abs(
+                buttonFrame.maxX
+                    - viewController.view.bounds.maxX
+                    + viewController.view.safeAreaInsets.right
+                    + 16
+            ) < 1
+        )
+        #expect(
+            viewController.scrollView.adjustedContentInset.top
+                >= buttonFrame.maxY - scrollFrame.minY + 7
+        )
+        #expect(viewController.scrollView.contentInset.left == 16)
+        #expect(viewController.scrollView.contentInset.bottom == 8)
+        #expect(viewController.scrollView.contentInset.right == 16)
+        let indicatorInsets = viewController.scrollView
+            .verticalScrollIndicatorInsets
+        #expect(
+            abs(
+                indicatorInsets.top
+                    - viewController.scrollView.contentInset.top
+            ) < 1
+        )
+        #expect(
+            abs(
+                indicatorInsets.bottom
+                    - viewController.scrollView.contentInset.bottom
+            ) < 1
+        )
+    }
+
+    @Test func dynamicScrollCardsExposeLocalizedDeletionAffordance() throws {
+        let localizer = DemoLocalizer { key, arguments in
+            guard !arguments.isEmpty else { return key }
+            return key + ": "
+                + arguments.map { String(describing: $0) }
+                    .joined(separator: " | ")
+        }
+        let viewController = DynamicScrollViewController(
+            viewModel: DynamicScrollViewModel(
+                initialItemCount: 2,
+                localizer: localizer
+            )
+        )
+        viewController.loadViewIfNeeded()
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        viewController.view.setNeedsLayout()
+        viewController.view.layoutIfNeeded()
+
+        let card = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "dynamic.item.0"
+            }
+        )
+        let titleLabel = try #require(
+            card.allSubviews(of: UILabel.self).first {
+                $0.accessibilityIdentifier == "dynamic.item.0.title"
+            }
+        )
+        let hintLabel = try #require(
+            card.allSubviews(of: UILabel.self).first {
+                $0.accessibilityIdentifier == "dynamic.item.0.hint"
+            }
+        )
+        let accentIcon = try #require(
+            card.allSubviews(of: UIImageView.self).first {
+                $0.accessibilityIdentifier == "dynamic.item.0.icon"
+            }
+        )
+        let deleteButton = try #require(
+            card.allSubviews(of: UIButton.self).first {
+                $0.accessibilityIdentifier
+                    == "dynamic.item.0.deleteButton"
+            }
+        )
+        let titleFrame = titleLabel.convert(titleLabel.bounds, to: card)
+        let hintFrame = hintLabel.convert(hintLabel.bounds, to: card)
+        let accentFrame = accentIcon.convert(accentIcon.bounds, to: card)
+        let deleteFrame = deleteButton.convert(deleteButton.bounds, to: card)
+        let titleCenter = titleLabel.convert(
+            CGPoint(x: titleLabel.bounds.midX, y: titleLabel.bounds.midY),
+            to: card
+        )
+
+        #expect(titleLabel.text == "dynamic.item.title: 1")
+        #expect(hintLabel.text == "dynamic.item.deleteHint")
+        #expect(accentIcon.image != nil)
+        #expect(deleteButton.configuration?.image != nil)
+        #expect(deleteButton.configuration?.cornerStyle == .capsule)
+        #expect(card.bounds.height >= 80)
+        #expect(deleteButton.bounds.width >= 44)
+        #expect(deleteButton.bounds.height >= 44)
+        #expect(card.bounds.contains(titleFrame))
+        #expect(card.bounds.contains(hintFrame))
+        #expect(card.bounds.contains(accentFrame))
+        #expect(card.bounds.contains(deleteFrame))
+        #expect(accentFrame.maxX <= min(titleFrame.minX, hintFrame.minX))
+        #expect(max(titleFrame.maxX, hintFrame.maxX) <= deleteFrame.minX)
+
+        #expect(!(card is UIControl))
+        #expect(card.gestureRecognizers?.isEmpty ?? true)
+        #expect(card.hitTest(titleCenter, with: nil) !== deleteButton)
+        #expect(!card.isAccessibilityElement)
+        #expect(titleLabel.isAccessibilityElement)
+        #expect(titleLabel.accessibilityTraits.contains(.staticText))
+        #expect(titleLabel.accessibilityLabel == "dynamic.item.title: 1")
+        #expect(!hintLabel.isAccessibilityElement)
+        #expect(!accentIcon.isAccessibilityElement)
+        #expect(deleteButton.isAccessibilityElement)
+        #expect(deleteButton.accessibilityTraits.contains(.button))
+        #expect(
+            deleteButton.accessibilityLabel
+                == "dynamic.item.deleteButton: 1"
+        )
+        #expect(
+            deleteButton.accessibilityHint
+                == "dynamic.item.deleteAccessibilityHint"
+        )
+    }
+
+    @Test func dynamicScrollCachedCardMirrorsAndRelocalizesFromLTRToRTL() throws {
+        var prefix = "ltr."
+        let localizer = DemoLocalizer { key, arguments in
+            let suffix = arguments.isEmpty
+                ? ""
+                : ": " + arguments.map { String(describing: $0) }
+                    .joined(separator: " | ")
+            return prefix + key + suffix
+        }
+        let viewController = DynamicScrollViewController(
+            viewModel: DynamicScrollViewModel(
+                initialItemCount: 1,
+                localizer: localizer
+            )
+        )
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: 390,
+            height: 844
+        )
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.setNeedsLayout()
+        viewController.view.layoutIfNeeded()
+
+        let card = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "dynamic.item.0"
+            }
+        )
+        let icon = try #require(
+            card.allSubviews(of: UIImageView.self).first {
+                $0.accessibilityIdentifier == "dynamic.item.0.icon"
+            }
+        )
+        let title = try #require(
+            card.allSubviews(of: UILabel.self).first {
+                $0.accessibilityIdentifier == "dynamic.item.0.title"
+            }
+        )
+        let hint = try #require(
+            card.allSubviews(of: UILabel.self).first {
+                $0.accessibilityIdentifier == "dynamic.item.0.hint"
+            }
+        )
+        let deleteButton = try #require(
+            card.allSubviews(of: UIButton.self).first {
+                $0.accessibilityIdentifier
+                    == "dynamic.item.0.deleteButton"
+            }
+        )
+        card.layoutIfNeeded()
+
+        let ltrCardWidth = card.bounds.width
+        let ltrIconFrame = icon.convert(icon.bounds, to: card)
+        let ltrDeleteFrame = deleteButton.convert(deleteButton.bounds, to: card)
+
+        #expect(ltrIconFrame.midX < ltrDeleteFrame.midX)
+        #expect(title.text == "ltr.dynamic.item.title: 1")
+
+        prefix = "rtl."
+        viewController.reloadLocalizedContent()
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.setNeedsLayout()
+        viewController.view.layoutIfNeeded()
+        viewController.scrollView.layoutIfNeeded()
+        card.layoutIfNeeded()
+
+        let updatedCard = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "dynamic.item.0"
+            }
+        )
+        let updatedIcon = try #require(
+            updatedCard.allSubviews(of: UIImageView.self).first {
+                $0.accessibilityIdentifier == "dynamic.item.0.icon"
+            }
+        )
+        let updatedDeleteButton = try #require(
+            updatedCard.allSubviews(of: UIButton.self).first {
+                $0.accessibilityIdentifier
+                    == "dynamic.item.0.deleteButton"
+            }
+        )
+        let rtlIconFrame = updatedIcon.convert(updatedIcon.bounds, to: updatedCard)
+        let rtlDeleteFrame = updatedDeleteButton.convert(
+            updatedDeleteButton.bounds,
+            to: updatedCard
+        )
+        let mirroredIconMidX = updatedCard.bounds.minX
+            + updatedCard.bounds.maxX
+            - ltrIconFrame.midX
+        let mirroredDeleteMidX = updatedCard.bounds.minX
+            + updatedCard.bounds.maxX
+            - ltrDeleteFrame.midX
+
+        #expect(updatedCard === card)
+        #expect(updatedIcon === icon)
+        #expect(updatedDeleteButton === deleteButton)
+        #expect(updatedCard.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(rtlIconFrame.midX > rtlDeleteFrame.midX)
+        #expect(abs(rtlIconFrame.midX - mirroredIconMidX) < 1)
+        #expect(abs(rtlDeleteFrame.midX - mirroredDeleteMidX) < 1)
+        #expect(abs(updatedCard.bounds.width - ltrCardWidth) < 0.001)
+        #expect(
+            abs(rtlIconFrame.width - ltrIconFrame.width) < 0.001
+                && abs(rtlIconFrame.height - ltrIconFrame.height) < 0.001
+        )
+        #expect(
+            abs(rtlDeleteFrame.width - ltrDeleteFrame.width) < 0.001
+                && abs(rtlDeleteFrame.height - ltrDeleteFrame.height) < 0.001
+        )
+        #expect(title.text == "rtl.dynamic.item.title: 1")
+        #expect(hint.text == "rtl.dynamic.item.deleteHint")
+        #expect(
+            deleteButton.accessibilityLabel
+                == "rtl.dynamic.item.deleteButton: 1"
+        )
+        #expect(
+            deleteButton.accessibilityHint
+                == "rtl.dynamic.item.deleteAccessibilityHint"
+        )
+    }
+
+    @Test func dynamicScrollAdditionsFinishAtTheNewBottom() throws {
+        let viewController = DynamicScrollViewController()
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        viewController.view.setNeedsLayout()
+        viewController.view.layoutIfNeeded()
+
+        let initialLastItem = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "dynamic.item.9"
+            }
+        )
+        let initialLastFrame = initialLastItem.convert(
+            initialLastItem.bounds,
+            to: viewController.scrollView
+        )
+        let initialContentHeight = viewController.scrollView.contentSize.height
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        viewController.addButton.sendActions(for: .touchUpInside)
+        viewController.addButton.sendActions(for: .touchUpInside)
+
+        let scrollView = viewController.scrollView
+        let newLastItem = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "dynamic.item.11"
+            }
+        )
+        let newLastFrame = newLastItem.convert(
+            newLastItem.bounds,
+            to: scrollView
+        )
+        let expectedHeightIncrease = newLastFrame.maxY - initialLastFrame.maxY
+        let inset = scrollView.adjustedContentInset
+        let expectedBottomOffset = max(
+            -inset.top,
+            scrollView.contentSize.height
+                - scrollView.bounds.height
+                + inset.bottom
+        )
+
+        #expect(expectedHeightIncrease > 0)
+        #expect(
+            abs(
+                scrollView.contentSize.height
+                    - initialContentHeight
+                    - expectedHeightIncrease
+            ) < 1
+        )
+        #expect(abs(scrollView.contentOffset.y - expectedBottomOffset) < 1)
+    }
+
+    @Test func dynamicScrollDeleteButtonRemovesAndClampsAtTheBottom() throws {
+        let viewController = DynamicScrollViewController()
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        viewController.view.setNeedsLayout()
+        viewController.view.layoutIfNeeded()
+
+        let scrollView = viewController.scrollView
+        scrollView.scrollTo(.bottom, animated: false)
+
+        let itemViews = viewController.view.allSubviews(of: UIView.self)
+        let previousItem = try #require(
+            itemViews.first {
+                $0.accessibilityIdentifier == "dynamic.item.3"
+            }
+        )
+        let removedItem = try #require(
+            itemViews.first {
+                $0.accessibilityIdentifier == "dynamic.item.4"
+            }
+        )
+        let followingItem = try #require(
+            itemViews.first {
+                $0.accessibilityIdentifier == "dynamic.item.5"
+            }
+        )
+        let deleteButton = try #require(
+            removedItem.allSubviews(of: UIButton.self).first {
+                $0.accessibilityIdentifier
+                    == "dynamic.item.4.deleteButton"
+            }
+        )
+        let previousFrame = previousItem.convert(previousItem.bounds, to: scrollView)
+        let removedFrame = removedItem.convert(removedItem.bounds, to: scrollView)
+        let followingFrame = followingItem.convert(followingItem.bounds, to: scrollView)
+        let removedStride = followingFrame.minY - removedFrame.minY
+        let initialContentHeight = scrollView.contentSize.height
+
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        deleteButton.sendActions(for: .touchUpInside)
+
+        let survivingPreviousItem = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "dynamic.item.3"
+            }
+        )
+        let survivingFollowingItem = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "dynamic.item.5"
+            }
+        )
+        let updatedPreviousFrame = survivingPreviousItem.convert(
+            survivingPreviousItem.bounds,
+            to: scrollView
+        )
+        let updatedFollowingFrame = survivingFollowingItem.convert(
+            survivingFollowingItem.bounds,
+            to: scrollView
+        )
+        let inset = scrollView.adjustedContentInset
+        let expectedBottomOffset = max(
+            -inset.top,
+            scrollView.contentSize.height
+                - scrollView.bounds.height
+                + inset.bottom
+        )
+
+        #expect(removedItem.superview == nil)
+        #expect(survivingPreviousItem === previousItem)
+        #expect(survivingFollowingItem === followingItem)
+        #expect(removedFrame.height >= 80)
+        #expect(removedStride > removedFrame.height)
+        #expect(
+            abs(
+                scrollView.contentSize.height
+                    - initialContentHeight
+                    + removedStride
+            ) < 1
+        )
+        #expect(abs(updatedPreviousFrame.minY - previousFrame.minY) < 1)
+        #expect(
+            abs(
+                updatedFollowingFrame.minY
+                    - followingFrame.minY
+                    + removedStride
+            ) < 1
+        )
+        #expect(abs(scrollView.contentOffset.y - expectedBottomOffset) < 1)
+
+        let contentHeightAfterDeletion = scrollView.contentSize.height
+        deleteButton.sendActions(for: .touchUpInside)
+        #expect(
+            abs(scrollView.contentSize.height - contentHeightAfterDeletion) < 1
         )
     }
 
     @Test func scrollExamplesUseContentMargins() throws {
-        let examples: [(UIViewController, UIEdgeInsets)] = [
+        let examples: [(
+            viewController: UIViewController,
+            contentInsets: UIEdgeInsets,
+            indicatorInsets: UIEdgeInsets
+        )] = [
             (
                 MainViewController(),
-                UIEdgeInsets(top: 16, left: 16, bottom: 24, right: 16)
+                UIEdgeInsets(top: 16, left: 16, bottom: 24, right: 16),
+                UIEdgeInsets(top: 16, left: 0, bottom: 24, right: 0)
             ),
             (
                 LocalizationOverviewViewController(),
+                UIEdgeInsets(top: 20, left: 20, bottom: 20, right: 20),
                 UIEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
             ),
             (
                 ProfileViewController(),
+                UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 16),
                 UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
             ),
             (
                 ViewControllerRepresentableDemoViewController(),
+                UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16),
                 UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
             ),
             (
                 ScrollViewWithKeyboardViewController(),
+                UIEdgeInsets(top: 20, left: 20, bottom: 10, right: 20),
                 UIEdgeInsets(top: 20, left: 20, bottom: 10, right: 20)
             ),
             (
                 SemanticContentDemoViewController(),
+                UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16),
                 UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
             ),
         ]
 
-        for (viewController, expectedInsets) in examples {
+        for example in examples {
+            let viewController = example.viewController
             viewController.loadViewIfNeeded()
             viewController.view.frame = CGRect(
                 x: 0,
@@ -646,9 +1395,15 @@ struct DemoTests {
                     .first
             )
 
-            #expect(scrollView.contentInset == expectedInsets)
-            #expect(scrollView.verticalScrollIndicatorInsets == expectedInsets)
-            #expect(scrollView.horizontalScrollIndicatorInsets == expectedInsets)
+            #expect(scrollView.contentInset == example.contentInsets)
+            #expect(
+                scrollView.verticalScrollIndicatorInsets
+                    == example.indicatorInsets
+            )
+            #expect(
+                scrollView.horizontalScrollIndicatorInsets
+                    == example.indicatorInsets
+            )
         }
     }
 
@@ -1246,9 +2001,85 @@ struct DemoTests {
 
         DemoLocalization.setLocale(identifier: "ar")
         #expect(DemoLocalization.text("main.title") == "الأمثلة")
+        #expect(DemoLocalization.text("profile.section.about") == "نبذة")
+        #expect(
+            DemoLocalization.text("profile.skill.localization")
+                == "التوطين"
+        )
+        #expect(
+            DemoLocalization.text("profile.action.portfolio")
+                == "معرض الأعمال"
+        )
+        #expect(
+            DemoLocalization.text("uikit.showModal")
+                == "عرض نافذة مشروطة"
+        )
+        #expect(
+            DemoLocalization.text("boundary.recreateAlert")
+                == "إعادة إنشاء التنبيه"
+        )
+        #expect(DemoLocalization.text("navigation.leading") == "عنصر البداية")
+        #expect(DemoLocalization.text("navigation.trailing") == "عنصر النهاية")
+        #expect(
+            DemoLocalization.text(
+                "navigation.edge.summary",
+                DemoLocalization.text("navigation.edge.right"),
+                "chevron.right"
+            ) == "حافة الرجوع: اليمين، علامة الاتجاه: chevron.right"
+        )
+        #expect(
+            DemoLocalization.text("gesture.translation", Int64(0))
+                == "الإزاحة الأفقية: 0"
+        )
+        #expect(
+            DemoLocalization.text(
+                "gesture.backSwipe",
+                DemoLocalization.text("common.boolean.false")
+            ) == "إيماءة الرجوع: لا"
+        )
         #expect(DemoLocalization.currentLayoutDirection == .rightToLeft)
 
         DemoLocalization.setLocale(identifier: "en-US")
+    }
+
+    @Test func arabicDiagnosticScreensRenderLocalizedText() throws {
+        DemoLocalization.setLocale(identifier: "ar")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let navigation = DirectionalNavigationDemoViewController()
+        navigation.loadViewIfNeeded()
+        let navigationTexts = navigation.view
+            .allSubviews(of: UILabel.self)
+            .compactMap(\.text)
+        #expect(
+            navigationTexts.contains(
+                "حافة الرجوع: اليمين، علامة الاتجاه: chevron.right"
+            )
+        )
+
+        let gesture = SemanticGestureDemoViewController()
+        gesture.loadViewIfNeeded()
+        let gestureTexts = gesture.view
+            .allSubviews(of: UILabel.self)
+            .compactMap(\.text)
+        #expect(
+            gestureTexts.contains(
+                "لم يتم السحب\nالإزاحة الأفقية: 0\nإيماءة الرجوع: لا"
+            )
+        )
+
+        let keyboardView = AnimatedKeyboardResponsiveView()
+        let keyboardDiagnostics = try #require(
+            keyboardView.diagnosticsLabel.text
+        )
+        #expect(keyboardDiagnostics.contains("الحدث:"))
+        #expect(keyboardDiagnostics.contains("الإطار الأصلي:"))
+        #expect(keyboardDiagnostics.contains("منطقة التقاطع:"))
+        #expect(keyboardDiagnostics.contains("الارتفاع:"))
+        #expect(!keyboardDiagnostics.contains("event:"))
+        #expect(!keyboardDiagnostics.contains("raw:"))
+        #expect(!keyboardDiagnostics.contains("intersection:"))
+        #expect(!keyboardDiagnostics.contains("height:"))
     }
 
     @Test func rootRebuildIsSkippedWhenPresentedControllerExists() {
@@ -1288,12 +2119,55 @@ struct DemoTests {
             "demo.tableMessages.header",
             "demo.tableMessages.header.detail",
             "demo.tableMessages.footer",
+            "dynamic.item.title",
+            "dynamic.item.deleteHint",
+            "dynamic.item.deleteButton",
+            "dynamic.item.deleteAccessibilityHint",
+            "common.boolean.false",
+            "common.boolean.true",
+            "gesture.translation",
+            "keyboard.diagnostics.event",
+            "keyboard.diagnostics.height",
+            "keyboard.diagnostics.intersection",
+            "keyboard.diagnostics.rawFrame",
+            "navigation.edge.left",
+            "navigation.edge.right",
+            "navigation.edge.summary",
         ] {
             let localizations = try #require(catalog.strings[key]?.localizations)
             #expect(localizations["en"]?.stringUnit.value.isEmpty == false)
             #expect(localizations["zh-Hans"]?.stringUnit.value.isEmpty == false)
             #expect(localizations["ar"]?.stringUnit.value.isEmpty == false)
         }
+    }
+
+    @Test func arabicLocalizationsDoNotContainHanCharacters() throws {
+        let testFileURL = URL(fileURLWithPath: #filePath)
+        let catalogURL = testFileURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Demo")
+            .appendingPathComponent("Localizable.xcstrings")
+        let data = try Data(contentsOf: catalogURL)
+        let catalog = try JSONDecoder().decode(TestStringCatalog.self, from: data)
+
+        let keysContainingHan: [String] = catalog.strings.compactMap {
+            key, entry -> String? in
+            guard let value = entry.localizations?["ar"]?.stringUnit.value else {
+                return nil
+            }
+            let containsHan = value.unicodeScalars.contains { scalar in
+                switch scalar.value {
+                case 0x3400...0x4DBF, 0x4E00...0x9FFF, 0xF900...0xFAFF:
+                    return true
+                default:
+                    return false
+                }
+            }
+            return containsHan ? key : nil
+        }
+
+        #expect(keysContainingHan.isEmpty)
     }
 
     @Test func infoPlistStringCatalogContainsDisplayName() throws {
@@ -1320,13 +2194,73 @@ struct DemoTests {
         main.view.setNeedsLayout()
         main.view.layoutIfNeeded()
 
-        let buttonTitles = main.view.allSubviews(of: UIButton.self).compactMap { $0.configuration?.title ?? $0.title(for: .normal) }
+        let buttonTitles = main.view
+            .allSubviews(of: UIButton.self)
+            .compactMap { $0.configuration?.title }
 
         #expect(buttonTitles.contains("语言中心"))
         #expect(buttonTitles.contains("UIKit 本地化"))
         #expect(buttonTitles.contains("SwiftUI 桥接"))
 
         DemoLocalization.setLocale(identifier: "en-US")
+    }
+
+    @Test func allLoadedUIKitDemoButtonsUseConfigurations() throws {
+        DemoLocalization.setLocale(identifier: "en-US")
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer {
+            UIView.setAnimationsEnabled(animationsWereEnabled)
+            DemoLocalization.setLocale(identifier: "en-US")
+        }
+
+        let source = UIViewController()
+        let navigationController = UINavigationController(
+            rootViewController: source
+        )
+        let testWindow = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { testWindow.isHidden = true }
+
+        let router = DemoRouter()
+        var inspectedButtonCount = 0
+
+        // SwiftUI owns the implementation behind SwiftUI.Button; this guard
+        // covers the UIKit buttons authored by the Demo target.
+        for route in DemoRoute.allCases where route != .swiftUIBridge {
+            router.navigate(to: route, from: source)
+            let destination = try #require(
+                navigationController.topViewController
+            )
+            destination.view.frame = navigationController.view.bounds
+            destination.view.setNeedsLayout()
+            navigationController.view.layoutIfNeeded()
+            destination.view.layoutIfNeeded()
+
+            let buttons = destination.view.allSubviews(of: UIButton.self)
+            inspectedButtonCount += buttons.count
+            for button in buttons {
+                #expect(
+                    button.configuration != nil,
+                    "\(route) contains a legacy UIButton"
+                )
+            }
+
+            navigationController.popViewController(animated: false)
+        }
+
+        let main = MainViewController()
+        main.loadViewIfNeeded()
+        main.view.frame = testWindow.bounds
+        main.view.setNeedsLayout()
+        main.view.layoutIfNeeded()
+        let mainButtons = main.view.allSubviews(of: UIButton.self)
+        inspectedButtonCount += mainButtons.count
+
+        #expect(mainButtons.allSatisfy { $0.configuration != nil })
+        #expect(inspectedButtonCount > 0)
     }
 
     @Test func mainMenuSectionHeadersFollowQuickLayoutDirection() throws {
@@ -1363,6 +2297,155 @@ struct DemoTests {
         DemoLocalization.setLocale(identifier: "en-US")
     }
 
+    @Test func mainMenuReusesAndMirrorsItsQuickLayoutContentRoundTrip() throws {
+        let main = MainViewController()
+        let testWindow = try makeVisibleTestWindow(
+            rootViewController: main,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { testWindow.isHidden = true }
+        main.reloadLayoutDirection(.leftToRight)
+        main.view.layoutIfNeeded()
+        main.scrollView.layoutIfNeeded()
+
+        let header = try #require(
+            main.view.allSubviews(of: UILabel.self).first {
+                $0.accessibilityIdentifier == "main.section.quicklayout"
+            }
+        )
+        let ltrFrame = header.convert(header.bounds, to: main.scrollView)
+
+        main.reloadLayoutDirection(.rightToLeft)
+        main.view.layoutIfNeeded()
+        main.scrollView.layoutIfNeeded()
+        let rtlHeader = try #require(
+            main.view.allSubviews(of: UILabel.self).first {
+                $0.accessibilityIdentifier == "main.section.quicklayout"
+            }
+        )
+        let rtlFrame = rtlHeader.convert(rtlHeader.bounds, to: main.scrollView)
+
+        #expect(rtlHeader === header)
+        #expect(main.scrollView.semanticContentAttribute == .forceRightToLeft)
+        #expect(header.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(rtlFrame.minX > ltrFrame.minX)
+        #expect(
+            isHorizontalMirror(
+                rtlFrame,
+                of: ltrFrame,
+                in: main.scrollView.contentSize.width
+            )
+        )
+
+        main.reloadLayoutDirection(.leftToRight)
+        main.view.layoutIfNeeded()
+        main.scrollView.layoutIfNeeded()
+
+        #expect(header.effectiveUserInterfaceLayoutDirection == .leftToRight)
+        #expect(
+            header.convert(header.bounds, to: main.scrollView)
+                .approximatelyEquals(ltrFrame)
+        )
+    }
+
+    @Test func unspecifiedSubviewsInheritTheWindowDirectionRoundTrip() throws {
+        let rootViewController = UIViewController()
+        let window = try makeVisibleTestWindow(
+            rootViewController: rootViewController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+        let inheritedContainer = UIView()
+        let inheritedLabel = UILabel()
+        inheritedContainer.addSubview(inheritedLabel)
+        rootViewController.view.addSubview(inheritedContainer)
+        window.semanticContentAttribute = .forceRightToLeft
+        window.layoutIfNeeded()
+
+        #expect(window.semanticContentAttribute == .forceRightToLeft)
+        #expect(rootViewController.view.semanticContentAttribute == .unspecified)
+        #expect(inheritedContainer.semanticContentAttribute == .unspecified)
+        #expect(inheritedLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            inheritedLabel.effectiveUserInterfaceLayoutDirection
+                == .rightToLeft
+        )
+
+        window.semanticContentAttribute = .forceLeftToRight
+        window.layoutIfNeeded()
+
+        #expect(window.semanticContentAttribute == .forceLeftToRight)
+        #expect(inheritedContainer.semanticContentAttribute == .unspecified)
+        #expect(inheritedLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            inheritedLabel.effectiveUserInterfaceLayoutDirection
+                == .leftToRight
+        )
+    }
+
+    @Test func profileSkillFlowReusesAndMirrorsItsFirstChipRoundTrip() throws {
+        let firstSkillTitle = DemoLocalization.text("profile.skill.uikit")
+        let viewController = ProfileViewController()
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: 390,
+            height: 1200
+        )
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+
+        let scrollView = try #require(
+            viewController.view
+                .allSubviews(of: QuickLayoutScrollView.self)
+                .first
+        )
+        scrollView.layoutIfNeeded()
+        let skillLabel = try #require(
+            viewController.view.allSubviews(of: UILabel.self).first {
+                $0.text == firstSkillTitle
+            }
+        )
+        let chip = try #require(skillLabel.superview)
+        let skillCloud = try #require(chip.superview)
+        skillCloud.layoutIfNeeded()
+        chip.layoutIfNeeded()
+        let ltrChipFrame = chip.convert(chip.bounds, to: skillCloud)
+
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.layoutIfNeeded()
+        scrollView.layoutIfNeeded()
+        skillCloud.layoutIfNeeded()
+        chip.layoutIfNeeded()
+        let rtlChipFrame = chip.convert(chip.bounds, to: skillCloud)
+
+        #expect(skillLabel.superview === chip)
+        #expect(scrollView.semanticContentAttribute == .forceRightToLeft)
+        #expect(chip.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(skillCloud.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(rtlChipFrame.minX > ltrChipFrame.minX)
+        #expect(
+            isHorizontalMirror(
+                rtlChipFrame,
+                of: ltrChipFrame,
+                in: skillCloud.bounds.width
+            )
+        )
+
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+        scrollView.layoutIfNeeded()
+        skillCloud.layoutIfNeeded()
+        chip.layoutIfNeeded()
+
+        #expect(chip.effectiveUserInterfaceLayoutDirection == .leftToRight)
+        #expect(
+            chip.convert(chip.bounds, to: skillCloud)
+                .approximatelyEquals(ltrChipFrame)
+        )
+    }
+
     @Test func overviewPageReflectsArabicDirection() {
         DemoLocalization.setLocale(identifier: "ar")
         let viewController = LocalizationOverviewViewController()
@@ -1392,6 +2475,1386 @@ struct DemoTests {
         #expect(collectionView.semanticContentAttribute == .forceRightToLeft)
 
         DemoLocalization.setLocale(identifier: "en-US")
+    }
+
+    @Test func localizationOverviewMirrorsItsReusedLeadingContent() throws {
+        var usesRightToLeftLayout = false
+        let localizer = DemoLocalizer { key, _ in key }
+        let languageIdentifier = "test.system"
+        let service = LocalizationOverviewService(
+            snapshot: {
+                LocalizationOverviewService.Snapshot(
+                    currentLanguageSummary: "System",
+                    usesRightToLeftLayout: usesRightToLeftLayout,
+                    selectedIdentifier: languageIdentifier,
+                    languages: [
+                        LocalizationOverviewService.Language(
+                            identifier: languageIdentifier,
+                            nativeName: "",
+                            localizedName: "System",
+                            isFollowSystemOption: true
+                        )
+                    ]
+                )
+            },
+            selectLanguage: { _ in }
+        )
+        let viewController = LocalizationOverviewViewController(
+            viewModel: LocalizationOverviewViewModel(
+                localizer: localizer,
+                service: service
+            )
+        )
+        let testWindow = try makeVisibleTestWindow(
+            rootViewController: viewController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { testWindow.isHidden = true }
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+
+        let scrollView = try #require(
+            viewController.view
+                .allSubviews(of: QuickLayoutScrollView.self)
+                .first
+        )
+        let bodyLabel = try #require(
+            viewController.view.allSubviews(of: UILabel.self).first {
+                $0.text == "localization.overview.body"
+            }
+        )
+        let languageButton = try #require(
+            viewController.view.allSubviews(of: UIButton.self).first {
+                $0.accessibilityIdentifier == languageIdentifier
+            }
+        )
+        let ltrBodyFrame = bodyLabel.convert(bodyLabel.bounds, to: scrollView)
+        let ltrButtonTitleFrame = try #require(languageButton.titleLabel).convert(
+            languageButton.titleLabel!.bounds,
+            to: languageButton
+        )
+        let ltrButtonImageFrame = try #require(languageButton.imageView).convert(
+            languageButton.imageView!.bounds,
+            to: languageButton
+        )
+        let ltrConfiguration = try #require(languageButton.configuration)
+        let expectedTitle = try #require(ltrConfiguration.title)
+
+        #expect(ltrConfiguration.image != nil)
+        #expect(languageButton.titleLabel?.text == expectedTitle)
+        #expect(languageButton.imageView?.image != nil)
+        #expect(ltrButtonTitleFrame.midX < ltrButtonImageFrame.midX)
+        #expect(bodyLabel.effectiveUserInterfaceLayoutDirection == .leftToRight)
+
+        usesRightToLeftLayout = true
+        viewController.reloadLocalizedContent()
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.layoutIfNeeded()
+        scrollView.layoutIfNeeded()
+        languageButton.layoutIfNeeded()
+
+        let updatedButton = try #require(
+            viewController.view.allSubviews(of: UIButton.self).first {
+                $0.accessibilityIdentifier == languageIdentifier
+            }
+        )
+        let rtlBodyFrame = bodyLabel.convert(bodyLabel.bounds, to: scrollView)
+        let rtlButtonTitleFrame = try #require(updatedButton.titleLabel).convert(
+            updatedButton.titleLabel!.bounds,
+            to: updatedButton
+        )
+        let rtlButtonImageFrame = try #require(updatedButton.imageView).convert(
+            updatedButton.imageView!.bounds,
+            to: updatedButton
+        )
+        let rtlConfiguration = try #require(updatedButton.configuration)
+
+        #expect(updatedButton === languageButton)
+        #expect(rtlConfiguration.title == expectedTitle)
+        #expect(rtlConfiguration.image != nil)
+        #expect(updatedButton.titleLabel?.text == expectedTitle)
+        #expect(updatedButton.imageView?.image != nil)
+        #expect(scrollView.semanticContentAttribute == .forceRightToLeft)
+        #expect(bodyLabel.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(updatedButton.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(rtlButtonTitleFrame.midX > rtlButtonImageFrame.midX)
+        #expect(
+            isHorizontalMirror(
+                rtlBodyFrame,
+                of: ltrBodyFrame,
+                in: scrollView.contentSize.width
+            )
+        )
+        #expect(
+            isHorizontalMirror(
+                rtlButtonTitleFrame,
+                of: ltrButtonTitleFrame,
+                in: updatedButton.bounds.width
+            )
+        )
+        #expect(
+            isHorizontalMirror(
+                rtlButtonImageFrame,
+                of: ltrButtonImageFrame,
+                in: updatedButton.bounds.width
+            )
+        )
+        #expect(
+            viewController.view.allSubviews(of: UILabel.self).contains {
+                $0.text == "language.direction: RTL"
+            }
+        )
+
+        usesRightToLeftLayout = false
+        viewController.reloadLocalizedContent()
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+        scrollView.layoutIfNeeded()
+        languageButton.layoutIfNeeded()
+
+        let returnedBodyFrame = bodyLabel.convert(bodyLabel.bounds, to: scrollView)
+        let returnedButtonTitleFrame = try #require(languageButton.titleLabel)
+            .convert(languageButton.titleLabel!.bounds, to: languageButton)
+        let returnedButtonImageFrame = try #require(languageButton.imageView)
+            .convert(languageButton.imageView!.bounds, to: languageButton)
+
+        #expect(languageButton.effectiveUserInterfaceLayoutDirection == .leftToRight)
+        #expect(returnedBodyFrame.approximatelyEquals(ltrBodyFrame))
+        #expect(returnedButtonTitleFrame.approximatelyEquals(ltrButtonTitleFrame))
+        #expect(returnedButtonImageFrame.approximatelyEquals(ltrButtonImageFrame))
+    }
+
+    @Test func formFieldMirrorsTheSameIconAndTextFieldAcrossDirectionChanges() {
+        let viewController = ScrollViewWithKeyboardViewController()
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: 390,
+            height: 844
+        )
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+        viewController.scrollView.layoutIfNeeded()
+
+        let fieldView = viewController.nameFieldView
+        let iconView = fieldView.iconView
+        let textField = fieldView.textField
+        fieldView.layoutIfNeeded()
+        let ltrIconFrame = iconView.convert(iconView.bounds, to: fieldView)
+        let ltrTextFieldFrame = textField.convert(textField.bounds, to: fieldView)
+
+        #expect(ltrIconFrame.midX < ltrTextFieldFrame.midX)
+
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.layoutIfNeeded()
+        viewController.scrollView.layoutIfNeeded()
+        fieldView.layoutIfNeeded()
+
+        let rtlIconFrame = iconView.convert(iconView.bounds, to: fieldView)
+        let rtlTextFieldFrame = textField.convert(textField.bounds, to: fieldView)
+
+        #expect(fieldView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(fieldView.semanticContentAttribute == .forceRightToLeft)
+        #expect(iconView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(textField.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(rtlIconFrame.midX > rtlTextFieldFrame.midX)
+        #expect(
+            isHorizontalMirror(
+                rtlIconFrame,
+                of: ltrIconFrame,
+                in: fieldView.bounds.width
+            )
+        )
+        #expect(
+            isHorizontalMirror(
+                rtlTextFieldFrame,
+                of: ltrTextFieldFrame,
+                in: fieldView.bounds.width
+            )
+        )
+
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+        viewController.scrollView.layoutIfNeeded()
+        fieldView.layoutIfNeeded()
+
+        #expect(fieldView.effectiveUserInterfaceLayoutDirection == .leftToRight)
+        #expect(
+            iconView.convert(iconView.bounds, to: fieldView)
+                .approximatelyEquals(ltrIconFrame)
+        )
+        #expect(
+            textField.convert(textField.bounds, to: fieldView)
+                .approximatelyEquals(ltrTextFieldFrame)
+        )
+    }
+
+    @Test func semanticSectionsMirrorOnlyTheUnspecifiedQuickLayoutRows() throws {
+        let viewController = SemanticContentDemoViewController()
+        let testWindow = try makeVisibleTestWindow(
+            rootViewController: viewController,
+            size: CGSize(width: 390, height: 1600)
+        )
+        defer { testWindow.isHidden = true }
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+        viewController.scrollView.layoutIfNeeded()
+
+        let unspecifiedRow = viewController.unspecifiedSection.example2
+        let forcedLTRRow = viewController.ltrSection.example2
+        let forcedRTLRow = viewController.rtlSection.example2
+        [unspecifiedRow, forcedLTRRow, forcedRTLRow].forEach {
+            $0.layoutIfNeeded()
+        }
+
+        let unspecifiedLeading = unspecifiedRow.leadingBackgroundView
+        let forcedLTRLeading = forcedLTRRow.leadingBackgroundView
+        let forcedRTLLeading = forcedRTLRow.leadingBackgroundView
+        let ltrUnspecifiedFrame = unspecifiedLeading.convert(
+            unspecifiedLeading.bounds,
+            to: unspecifiedRow
+        )
+        let ltrForcedLTRFrame = forcedLTRLeading.convert(
+            forcedLTRLeading.bounds,
+            to: forcedLTRRow
+        )
+        let ltrForcedRTLFrame = forcedRTLLeading.convert(
+            forcedRTLLeading.bounds,
+            to: forcedRTLRow
+        )
+
+        #expect(
+            ltrUnspecifiedFrame.midX
+                < unspecifiedRow.trailingBackgroundView.frame.midX
+        )
+        #expect(
+            ltrForcedLTRFrame.midX
+                < forcedLTRRow.trailingBackgroundView.frame.midX
+        )
+        #expect(
+            ltrForcedRTLFrame.midX
+                > forcedRTLRow.trailingBackgroundView.frame.midX
+        )
+
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.layoutIfNeeded()
+        viewController.scrollView.layoutIfNeeded()
+        [unspecifiedRow, forcedLTRRow, forcedRTLRow].forEach {
+            $0.layoutIfNeeded()
+        }
+
+        let rtlUnspecifiedFrame = unspecifiedLeading.convert(
+            unspecifiedLeading.bounds,
+            to: unspecifiedRow
+        )
+        let rtlForcedLTRFrame = forcedLTRLeading.convert(
+            forcedLTRLeading.bounds,
+            to: forcedLTRRow
+        )
+        let rtlForcedRTLFrame = forcedRTLLeading.convert(
+            forcedRTLLeading.bounds,
+            to: forcedRTLRow
+        )
+
+        #expect(unspecifiedRow.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(unspecifiedRow.semanticContentAttribute == .unspecified)
+        #expect(forcedLTRRow.effectiveUserInterfaceLayoutDirection == .leftToRight)
+        #expect(forcedRTLRow.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(
+            rtlUnspecifiedFrame.midX
+                > unspecifiedRow.trailingBackgroundView.frame.midX
+        )
+        #expect(
+            rtlForcedLTRFrame.midX
+                < forcedLTRRow.trailingBackgroundView.frame.midX
+        )
+        #expect(
+            rtlForcedRTLFrame.midX
+                > forcedRTLRow.trailingBackgroundView.frame.midX
+        )
+        #expect(
+            isHorizontalMirror(
+                rtlUnspecifiedFrame,
+                of: ltrUnspecifiedFrame,
+                in: unspecifiedRow.bounds.width
+            )
+        )
+        #expect(rtlForcedLTRFrame.approximatelyEquals(ltrForcedLTRFrame))
+        #expect(rtlForcedRTLFrame.approximatelyEquals(ltrForcedRTLFrame))
+
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+        viewController.scrollView.layoutIfNeeded()
+        unspecifiedRow.layoutIfNeeded()
+
+        #expect(unspecifiedRow.effectiveUserInterfaceLayoutDirection == .leftToRight)
+        #expect(
+            unspecifiedLeading.convert(unspecifiedLeading.bounds, to: unspecifiedRow)
+                .approximatelyEquals(ltrUnspecifiedFrame)
+        )
+    }
+
+    @Test func representableParentRelaysDirectionToItsExistingChild() throws {
+        let viewController = ViewControllerRepresentableDemoViewController()
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: 390,
+            height: 844
+        )
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+
+        let scrollView = try #require(
+            viewController.view
+                .allSubviews(of: QuickLayoutScrollView.self)
+                .first
+        )
+        let stateLabel = try #require(
+            viewController.view.allSubviews(of: UILabel.self).first {
+                $0.text?.contains("LazyView isLoaded") == true
+            }
+        )
+        let showButton = try #require(
+            viewController.view.allSubviews(of: UIButton.self).first
+        )
+        let ltrStateFrame = stateLabel.convert(stateLabel.bounds, to: scrollView)
+
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.layoutIfNeeded()
+        scrollView.layoutIfNeeded()
+        let rtlStateFrame = stateLabel.convert(stateLabel.bounds, to: scrollView)
+
+        #expect(stateLabel.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(scrollView.semanticContentAttribute == .forceRightToLeft)
+        #expect(
+            isHorizontalMirror(
+                rtlStateFrame,
+                of: ltrStateFrame,
+                in: scrollView.contentSize.width
+            )
+        )
+
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+        scrollView.layoutIfNeeded()
+        #expect(
+            stateLabel.convert(stateLabel.bounds, to: scrollView)
+                .approximatelyEquals(ltrStateFrame)
+        )
+
+        showButton.sendActions(for: .touchUpInside)
+        viewController.view.layoutIfNeeded()
+        scrollView.layoutIfNeeded()
+
+        let child = try #require(viewController.children.first)
+        let childView = child.view!
+        let childIdentity = ObjectIdentifier(child)
+        #expect(childView.effectiveUserInterfaceLayoutDirection == .leftToRight)
+
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.layoutIfNeeded()
+        scrollView.layoutIfNeeded()
+        childView.layoutIfNeeded()
+
+        #expect(viewController.children.first === child)
+        #expect(ObjectIdentifier(viewController.children[0]) == childIdentity)
+        #expect(childView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        let childLabels = childView.subviews.compactMap { $0 as? UILabel }
+        let childButtons = childView.subviews.compactMap { $0 as? UIButton }
+        #expect(childLabels.count == 2)
+        #expect(childButtons.count == 1)
+        #expect(childButtons.allSatisfy { $0.configuration != nil })
+        #expect(
+            childLabels.allSatisfy {
+                $0.effectiveUserInterfaceLayoutDirection == .rightToLeft
+            }
+        )
+        #expect(
+            childButtons.allSatisfy {
+                $0.effectiveUserInterfaceLayoutDirection == .rightToLeft
+            }
+        )
+
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+        scrollView.layoutIfNeeded()
+        childView.layoutIfNeeded()
+
+        #expect(viewController.children.first === child)
+        #expect(childView.effectiveUserInterfaceLayoutDirection == .leftToRight)
+    }
+
+    @Test func keyboardControllerUpdatesItsNestedViewWithoutMovingVerticalContent() throws {
+        let viewController = KeyboardHandlingViewController()
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: 390,
+            height: 844
+        )
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+
+        let keyboardView = try #require(
+            viewController.view
+                .allSubviews(of: AnimatedKeyboardResponsiveView.self)
+                .first
+        )
+        keyboardView.layoutIfNeeded()
+        let textField = keyboardView.textField
+        let submitButton = keyboardView.submitButton
+        let ltrTextFieldFrame = textField.convert(textField.bounds, to: keyboardView)
+        let ltrSubmitFrame = submitButton.convert(
+            submitButton.bounds,
+            to: keyboardView
+        )
+
+        #expect(ltrTextFieldFrame.maxY < ltrSubmitFrame.minY)
+        #expect(textField.textAlignment == .left)
+
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.layoutIfNeeded()
+        keyboardView.layoutIfNeeded()
+
+        #expect(keyboardView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(keyboardView.semanticContentAttribute == .forceRightToLeft)
+        #expect(textField.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(submitButton.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(textField.textAlignment == .right)
+        #expect(
+            textField.convert(textField.bounds, to: keyboardView)
+                .approximatelyEquals(ltrTextFieldFrame)
+        )
+        #expect(
+            submitButton.convert(submitButton.bounds, to: keyboardView)
+                .approximatelyEquals(ltrSubmitFrame)
+        )
+
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+        keyboardView.layoutIfNeeded()
+
+        #expect(keyboardView.effectiveUserInterfaceLayoutDirection == .leftToRight)
+        #expect(textField.textAlignment == .left)
+        #expect(
+            textField.convert(textField.bounds, to: keyboardView)
+                .approximatelyEquals(ltrTextFieldFrame)
+        )
+        #expect(
+            submitButton.convert(submitButton.bounds, to: keyboardView)
+                .approximatelyEquals(ltrSubmitFrame)
+        )
+    }
+
+    @Test func collectionMessagesInheritDirectionForVisibleAndNewContent() throws {
+        var prefix = "ltr."
+        let localizer = DemoLocalizer { key, _ in prefix + key }
+        let viewController = MesssageViewController(
+            viewModel: MessageListViewModel(
+                configuration: .collection,
+                localizer: localizer
+            )
+        )
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: 320,
+            height: 220
+        )
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+
+        let collectionView = try #require(
+            viewController.view.allSubviews(of: UICollectionView.self).first
+        )
+        collectionView.reloadData()
+        collectionView.layoutIfNeeded()
+        #expect(
+            !collectionView.indexPathsForVisibleItems.contains(
+                IndexPath(item: 3, section: 0)
+            )
+        )
+
+        let cell = try #require(
+            collectionView.cellForItem(
+                at: IndexPath(item: 0, section: 0)
+            ) as? MessageCell
+        )
+        let contentView = cell.messageContentView
+        contentView.layoutIfNeeded()
+        let avatarView = contentView.avatarView
+        let titleLabel = contentView.titleLabel
+        let ltrAvatarFrame = avatarView.convert(avatarView.bounds, to: contentView)
+        let ltrTitleFrame = titleLabel.convert(titleLabel.bounds, to: contentView)
+
+        #expect(titleLabel.text == "ltr.messages.title.1")
+        #expect(collectionView.semanticContentAttribute == .forceLeftToRight)
+        #expect(
+            collectionView.effectiveUserInterfaceLayoutDirection
+                == .leftToRight
+        )
+        #expect(cell.semanticContentAttribute == .unspecified)
+        #expect(contentView.semanticContentAttribute == .unspecified)
+        #expect(avatarView.semanticContentAttribute == .unspecified)
+        #expect(titleLabel.semanticContentAttribute == .unspecified)
+        #expect(contentView.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            cell.effectiveUserInterfaceLayoutDirection
+                == collectionView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            contentView.effectiveUserInterfaceLayoutDirection
+                == collectionView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(ltrAvatarFrame.midX < ltrTitleFrame.midX)
+
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.layoutIfNeeded()
+        collectionView.layoutIfNeeded()
+
+        let rtlCell = try #require(
+            collectionView.cellForItem(
+                at: IndexPath(item: 0, section: 0)
+            ) as? MessageCell
+        )
+        let rtlContentView = rtlCell.messageContentView
+        rtlContentView.layoutIfNeeded()
+        let rtlAvatarFrame = rtlContentView.avatarView.convert(
+            rtlContentView.avatarView.bounds,
+            to: rtlContentView
+        )
+        let rtlTitleFrame = rtlContentView.titleLabel.convert(
+            rtlContentView.titleLabel.bounds,
+            to: rtlContentView
+        )
+
+        #expect(collectionView.semanticContentAttribute == .forceRightToLeft)
+        #expect(
+            collectionView.effectiveUserInterfaceLayoutDirection
+                == .rightToLeft
+        )
+        #expect(rtlCell.semanticContentAttribute == .unspecified)
+        #expect(rtlContentView.semanticContentAttribute == .unspecified)
+        #expect(rtlContentView.avatarView.semanticContentAttribute == .unspecified)
+        #expect(rtlContentView.titleLabel.semanticContentAttribute == .unspecified)
+        #expect(rtlContentView.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            rtlCell.effectiveUserInterfaceLayoutDirection
+                == collectionView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            rtlContentView.effectiveUserInterfaceLayoutDirection
+                == collectionView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(rtlAvatarFrame.midX > rtlTitleFrame.midX)
+        #expect(
+            isHorizontalMirror(
+                rtlAvatarFrame,
+                of: ltrAvatarFrame,
+                in: rtlContentView.bounds.width
+            )
+        )
+        #expect(
+            isHorizontalMirror(
+                rtlTitleFrame,
+                of: ltrTitleFrame,
+                in: rtlContentView.bounds.width
+            )
+        )
+
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+        collectionView.layoutIfNeeded()
+        let returnedCell = try #require(
+            collectionView.cellForItem(
+                at: IndexPath(item: 0, section: 0)
+            ) as? MessageCell
+        )
+        let returnedContent = returnedCell.messageContentView
+        returnedContent.layoutIfNeeded()
+
+        #expect(collectionView.semanticContentAttribute == .forceLeftToRight)
+        #expect(
+            collectionView.effectiveUserInterfaceLayoutDirection
+                == .leftToRight
+        )
+        #expect(returnedCell.semanticContentAttribute == .unspecified)
+        #expect(returnedContent.semanticContentAttribute == .unspecified)
+        #expect(returnedContent.avatarView.semanticContentAttribute == .unspecified)
+        #expect(returnedContent.titleLabel.semanticContentAttribute == .unspecified)
+        #expect(returnedContent.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            returnedCell.effectiveUserInterfaceLayoutDirection
+                == collectionView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            returnedContent.effectiveUserInterfaceLayoutDirection
+                == collectionView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            returnedContent.avatarView.convert(
+                returnedContent.avatarView.bounds,
+                to: returnedContent
+            )
+                .approximatelyEquals(ltrAvatarFrame)
+        )
+        #expect(
+            returnedContent.titleLabel.convert(
+                returnedContent.titleLabel.bounds,
+                to: returnedContent
+            )
+                .approximatelyEquals(ltrTitleFrame)
+        )
+
+        prefix = "rtl."
+        viewController.reloadLocalizedContent()
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.layoutIfNeeded()
+        collectionView.layoutIfNeeded()
+        let localizedCell = try #require(
+            collectionView.cellForItem(
+                at: IndexPath(item: 0, section: 0)
+            ) as? MessageCell
+        )
+        let localizedContent = localizedCell.messageContentView
+        localizedContent.layoutIfNeeded()
+        #expect(localizedContent.titleLabel.text == "rtl.messages.title.1")
+        #expect(collectionView.semanticContentAttribute == .forceRightToLeft)
+        #expect(
+            collectionView.effectiveUserInterfaceLayoutDirection
+                == .rightToLeft
+        )
+        #expect(localizedCell.semanticContentAttribute == .unspecified)
+        #expect(localizedContent.semanticContentAttribute == .unspecified)
+        #expect(localizedContent.avatarView.semanticContentAttribute == .unspecified)
+        #expect(localizedContent.titleLabel.semanticContentAttribute == .unspecified)
+        #expect(localizedContent.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            localizedCell.effectiveUserInterfaceLayoutDirection
+                == collectionView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            localizedContent.effectiveUserInterfaceLayoutDirection
+                == collectionView.effectiveUserInterfaceLayoutDirection
+        )
+
+        collectionView.scrollToItem(
+            at: IndexPath(item: 3, section: 0),
+            at: .bottom,
+            animated: false
+        )
+        collectionView.layoutIfNeeded()
+
+        let newlyVisibleCell = try #require(
+            collectionView.cellForItem(
+                at: IndexPath(item: 3, section: 0)
+            ) as? MessageCell
+        )
+        let newlyVisibleContent = newlyVisibleCell.messageContentView
+        newlyVisibleCell.layoutIfNeeded()
+        newlyVisibleContent.layoutIfNeeded()
+        let newAvatarFrame = newlyVisibleContent.avatarView.convert(
+            newlyVisibleContent.avatarView.bounds,
+            to: newlyVisibleContent
+        )
+        let newTitleFrame = newlyVisibleContent.titleLabel.convert(
+            newlyVisibleContent.titleLabel.bounds,
+            to: newlyVisibleContent
+        )
+
+        #expect(
+            collectionView.indexPathsForVisibleItems.contains(
+                IndexPath(item: 3, section: 0)
+            )
+        )
+        #expect(newlyVisibleContent.titleLabel.text == "rtl.messages.title.4")
+        #expect(newlyVisibleCell.semanticContentAttribute == .unspecified)
+        #expect(newlyVisibleContent.semanticContentAttribute == .unspecified)
+        #expect(newlyVisibleContent.avatarView.semanticContentAttribute == .unspecified)
+        #expect(newlyVisibleContent.titleLabel.semanticContentAttribute == .unspecified)
+        #expect(newlyVisibleContent.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            newlyVisibleCell.effectiveUserInterfaceLayoutDirection
+                == collectionView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            newlyVisibleContent.effectiveUserInterfaceLayoutDirection
+                == collectionView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(newAvatarFrame.midX > newTitleFrame.midX)
+    }
+
+    @Test func tableMessagesInheritDirectionForVisibleAndNewContent() throws {
+        let sectionHorizontalPadding: CGFloat = 16
+        let sectionEdgeTolerance: CGFloat = 1
+        let sectionSizingTolerance: CGFloat = 1.01
+        var prefix = "ltr."
+        let localizer = DemoLocalizer { key, _ in prefix + key }
+        let viewController = MessageTableViewController(
+            viewModel: MessageListViewModel(
+                configuration: .table,
+                localizer: localizer
+            )
+        )
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: 320,
+            height: 260
+        )
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+
+        let tableView = try #require(viewController.tableView)
+        tableView.reloadData()
+        tableView.layoutIfNeeded()
+        #expect(
+            tableView.cellForRow(
+                at: IndexPath(row: 11, section: 0)
+            ) == nil
+        )
+
+        let cell = try #require(
+            tableView.cellForRow(
+                at: IndexPath(row: 0, section: 0)
+            ) as? MessageTableCell
+        )
+        let contentView = cell.messageContentView
+        contentView.layoutIfNeeded()
+        let avatarView = contentView.avatarView
+        let titleLabel = contentView.titleLabel
+        let ltrAvatarFrame = avatarView.convert(avatarView.bounds, to: contentView)
+        let ltrTitleFrame = titleLabel.convert(titleLabel.bounds, to: contentView)
+
+        let header = try #require(
+            tableView.headerView(forSection: 0)
+                as? MessageTableHeaderFooterView
+        )
+        let headerContent = header.sectionContentView
+        headerContent.layoutIfNeeded()
+        let headerTitleLabel = headerContent.titleLabel
+        let headerDetailLabel = headerContent.detailLabel
+        #expect(headerTitleLabel.text == "ltr.demo.tableMessages.header")
+        #expect(
+            headerDetailLabel.text
+                == "ltr.demo.tableMessages.header.detail"
+        )
+        let ltrHeaderTitleFrame = headerTitleLabel.convert(
+            headerTitleLabel.bounds,
+            to: headerContent
+        )
+        let ltrHeaderDetailFrame = headerDetailLabel.convert(
+            headerDetailLabel.bounds,
+            to: headerContent
+        )
+
+        #expect(titleLabel.text == "ltr.messages.title.1")
+        #expect(tableView.semanticContentAttribute == .forceLeftToRight)
+        #expect(
+            tableView.effectiveUserInterfaceLayoutDirection == .leftToRight
+        )
+        #expect(cell.semanticContentAttribute == .unspecified)
+        #expect(contentView.semanticContentAttribute == .unspecified)
+        #expect(avatarView.semanticContentAttribute == .unspecified)
+        #expect(titleLabel.semanticContentAttribute == .unspecified)
+        #expect(contentView.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            cell.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            contentView.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(ltrAvatarFrame.midX < ltrTitleFrame.midX)
+        #expect(header.semanticContentAttribute == .unspecified)
+        #expect(headerContent.semanticContentAttribute == .unspecified)
+        #expect(headerTitleLabel.semanticContentAttribute == .unspecified)
+        #expect(headerDetailLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            header.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            headerContent.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            headerTitleLabel.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            headerDetailLabel.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            abs(
+                ltrHeaderTitleFrame.minX
+                    - (headerContent.bounds.minX + sectionHorizontalPadding)
+            ) <= sectionEdgeTolerance
+        )
+        #expect(
+            abs(
+                ltrHeaderDetailFrame.minX
+                    - (headerContent.bounds.minX + sectionHorizontalPadding)
+            ) <= sectionEdgeTolerance
+        )
+
+        tableView.scrollToRow(
+            at: IndexPath(row: 11, section: 0),
+            at: .top,
+            animated: false
+        )
+        tableView.layoutIfNeeded()
+        let footer = try #require(
+            tableView.footerView(forSection: 0)
+                as? MessageTableHeaderFooterView
+        )
+        let footerContent = footer.sectionContentView
+        footerContent.layoutIfNeeded()
+        let footerTitleLabel = footerContent.titleLabel
+        let footerDetailLabel = footerContent.detailLabel
+        #expect(footerTitleLabel.text == "ltr.demo.tableMessages.footer")
+        #expect(footerDetailLabel.text == nil)
+        let ltrFooterTitleFrame = footerTitleLabel.convert(
+            footerTitleLabel.bounds,
+            to: footerContent
+        )
+
+        #expect(footer.semanticContentAttribute == .unspecified)
+        #expect(footerContent.semanticContentAttribute == .unspecified)
+        #expect(footerTitleLabel.semanticContentAttribute == .unspecified)
+        #expect(footerDetailLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            footer.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            footerContent.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            footerTitleLabel.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            footerDetailLabel.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            abs(
+                ltrFooterTitleFrame.minX
+                    - (footerContent.bounds.minX + sectionHorizontalPadding)
+            ) <= sectionEdgeTolerance
+        )
+
+        tableView.scrollToRow(
+            at: IndexPath(row: 0, section: 0),
+            at: .top,
+            animated: false
+        )
+        tableView.layoutIfNeeded()
+
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.layoutIfNeeded()
+        tableView.layoutIfNeeded()
+
+        let rtlCell = try #require(
+            tableView.cellForRow(
+                at: IndexPath(row: 0, section: 0)
+            ) as? MessageTableCell
+        )
+        let rtlContentView = rtlCell.messageContentView
+        rtlContentView.layoutIfNeeded()
+        let rtlAvatarFrame = rtlContentView.avatarView.convert(
+            rtlContentView.avatarView.bounds,
+            to: rtlContentView
+        )
+        let rtlTitleFrame = rtlContentView.titleLabel.convert(
+            rtlContentView.titleLabel.bounds,
+            to: rtlContentView
+        )
+        let rtlHeader = try #require(
+            tableView.headerView(forSection: 0)
+                as? MessageTableHeaderFooterView
+        )
+        let rtlHeaderContent = rtlHeader.sectionContentView
+        rtlHeaderContent.layoutIfNeeded()
+        let rtlHeaderTitleLabel = rtlHeaderContent.titleLabel
+        let rtlHeaderDetailLabel = rtlHeaderContent.detailLabel
+        #expect(rtlHeaderTitleLabel.text == "ltr.demo.tableMessages.header")
+        #expect(
+            rtlHeaderDetailLabel.text
+                == "ltr.demo.tableMessages.header.detail"
+        )
+        let rtlHeaderTitleFrame = rtlHeaderTitleLabel.convert(
+            rtlHeaderTitleLabel.bounds,
+            to: rtlHeaderContent
+        )
+        let rtlHeaderDetailFrame = rtlHeaderDetailLabel.convert(
+            rtlHeaderDetailLabel.bounds,
+            to: rtlHeaderContent
+        )
+
+        #expect(tableView.semanticContentAttribute == .forceRightToLeft)
+        #expect(
+            tableView.effectiveUserInterfaceLayoutDirection == .rightToLeft
+        )
+        #expect(rtlCell.semanticContentAttribute == .unspecified)
+        #expect(rtlContentView.semanticContentAttribute == .unspecified)
+        #expect(rtlContentView.avatarView.semanticContentAttribute == .unspecified)
+        #expect(rtlContentView.titleLabel.semanticContentAttribute == .unspecified)
+        #expect(rtlContentView.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            rtlCell.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            rtlContentView.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(rtlAvatarFrame.midX > rtlTitleFrame.midX)
+        #expect(
+            isHorizontalMirror(
+                rtlAvatarFrame,
+                of: ltrAvatarFrame,
+                in: rtlContentView.bounds.width
+            )
+        )
+        #expect(
+            isHorizontalMirror(
+                rtlTitleFrame,
+                of: ltrTitleFrame,
+                in: rtlContentView.bounds.width
+            )
+        )
+        #expect(rtlHeader.semanticContentAttribute == .unspecified)
+        #expect(rtlHeaderContent.semanticContentAttribute == .unspecified)
+        #expect(rtlHeaderTitleLabel.semanticContentAttribute == .unspecified)
+        #expect(rtlHeaderDetailLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            rtlHeader.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            rtlHeaderContent.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            rtlHeaderTitleLabel.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            rtlHeaderDetailLabel.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            abs(
+                rtlHeaderTitleFrame.maxX
+                    - (rtlHeaderContent.bounds.maxX - sectionHorizontalPadding)
+            ) <= sectionEdgeTolerance
+        )
+        #expect(
+            abs(
+                rtlHeaderDetailFrame.maxX
+                    - (rtlHeaderContent.bounds.maxX - sectionHorizontalPadding)
+            ) <= sectionEdgeTolerance
+        )
+        #expect(
+            isHorizontalMirror(
+                rtlHeaderTitleFrame,
+                of: ltrHeaderTitleFrame,
+                in: rtlHeaderContent.bounds.width
+            )
+        )
+        #expect(
+            isHorizontalMirror(
+                rtlHeaderDetailFrame,
+                of: ltrHeaderDetailFrame,
+                in: rtlHeaderContent.bounds.width
+            )
+        )
+
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+        tableView.layoutIfNeeded()
+        let returnedCell = try #require(
+            tableView.cellForRow(
+                at: IndexPath(row: 0, section: 0)
+            ) as? MessageTableCell
+        )
+        let returnedContent = returnedCell.messageContentView
+        returnedContent.layoutIfNeeded()
+        let returnedHeader = try #require(
+            tableView.headerView(forSection: 0)
+                as? MessageTableHeaderFooterView
+        )
+        let returnedHeaderContent = returnedHeader.sectionContentView
+        returnedHeaderContent.layoutIfNeeded()
+        let returnedHeaderTitleLabel = returnedHeaderContent.titleLabel
+        let returnedHeaderDetailLabel = returnedHeaderContent.detailLabel
+        #expect(
+            returnedHeaderTitleLabel.text
+                == "ltr.demo.tableMessages.header"
+        )
+        #expect(
+            returnedHeaderDetailLabel.text
+                == "ltr.demo.tableMessages.header.detail"
+        )
+        let returnedHeaderTitleFrame = returnedHeaderTitleLabel.convert(
+            returnedHeaderTitleLabel.bounds,
+            to: returnedHeaderContent
+        )
+        let returnedHeaderDetailFrame = returnedHeaderDetailLabel.convert(
+            returnedHeaderDetailLabel.bounds,
+            to: returnedHeaderContent
+        )
+
+        #expect(tableView.semanticContentAttribute == .forceLeftToRight)
+        #expect(
+            tableView.effectiveUserInterfaceLayoutDirection == .leftToRight
+        )
+        #expect(returnedCell.semanticContentAttribute == .unspecified)
+        #expect(returnedContent.semanticContentAttribute == .unspecified)
+        #expect(returnedContent.avatarView.semanticContentAttribute == .unspecified)
+        #expect(returnedContent.titleLabel.semanticContentAttribute == .unspecified)
+        #expect(returnedContent.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            returnedCell.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            returnedContent.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(returnedHeader.semanticContentAttribute == .unspecified)
+        #expect(returnedHeaderContent.semanticContentAttribute == .unspecified)
+        #expect(
+            returnedHeader.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            returnedHeaderContent.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            abs(
+                returnedHeaderTitleFrame.minX
+                    - (returnedHeaderContent.bounds.minX
+                        + sectionHorizontalPadding)
+            ) <= sectionEdgeTolerance
+        )
+        #expect(
+            abs(
+                returnedHeaderDetailFrame.minX
+                    - (returnedHeaderContent.bounds.minX
+                        + sectionHorizontalPadding)
+            ) <= sectionEdgeTolerance
+        )
+        #expect(
+            returnedContent.avatarView.convert(
+                returnedContent.avatarView.bounds,
+                to: returnedContent
+            )
+                .approximatelyEquals(ltrAvatarFrame)
+        )
+        #expect(
+            returnedContent.titleLabel.convert(
+                returnedContent.titleLabel.bounds,
+                to: returnedContent
+            )
+                .approximatelyEquals(ltrTitleFrame)
+        )
+
+        prefix = "rtl."
+        viewController.reloadLocalizedContent()
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.layoutIfNeeded()
+        tableView.layoutIfNeeded()
+        let localizedCell = try #require(
+            tableView.cellForRow(
+                at: IndexPath(row: 0, section: 0)
+            ) as? MessageTableCell
+        )
+        let localizedContent = localizedCell.messageContentView
+        localizedContent.layoutIfNeeded()
+        let localizedHeader = try #require(
+            tableView.headerView(forSection: 0)
+                as? MessageTableHeaderFooterView
+        )
+        let localizedHeaderContent = localizedHeader.sectionContentView
+        localizedHeaderContent.layoutIfNeeded()
+        let localizedHeaderTitleLabel = localizedHeaderContent.titleLabel
+        let localizedHeaderDetailLabel = localizedHeaderContent.detailLabel
+        #expect(
+            localizedHeaderTitleLabel.text
+                == "rtl.demo.tableMessages.header"
+        )
+        #expect(
+            localizedHeaderDetailLabel.text
+                == "rtl.demo.tableMessages.header.detail"
+        )
+        let localizedHeaderTitleFrame = localizedHeaderTitleLabel.convert(
+            localizedHeaderTitleLabel.bounds,
+            to: localizedHeaderContent
+        )
+        let localizedHeaderDetailFrame = localizedHeaderDetailLabel.convert(
+            localizedHeaderDetailLabel.bounds,
+            to: localizedHeaderContent
+        )
+
+        #expect(localizedContent.titleLabel.text == "rtl.messages.title.1")
+        #expect(tableView.semanticContentAttribute == .forceRightToLeft)
+        #expect(
+            tableView.effectiveUserInterfaceLayoutDirection == .rightToLeft
+        )
+        #expect(localizedCell.semanticContentAttribute == .unspecified)
+        #expect(localizedContent.semanticContentAttribute == .unspecified)
+        #expect(localizedContent.avatarView.semanticContentAttribute == .unspecified)
+        #expect(localizedContent.titleLabel.semanticContentAttribute == .unspecified)
+        #expect(localizedContent.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            localizedCell.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            localizedContent.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(localizedHeader.semanticContentAttribute == .unspecified)
+        #expect(localizedHeaderContent.semanticContentAttribute == .unspecified)
+        #expect(localizedHeaderTitleLabel.semanticContentAttribute == .unspecified)
+        #expect(localizedHeaderDetailLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            localizedHeader.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            localizedHeaderContent.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            localizedHeaderTitleLabel.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            localizedHeaderDetailLabel.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            abs(
+                localizedHeaderTitleFrame.maxX
+                    - (localizedHeaderContent.bounds.maxX
+                        - sectionHorizontalPadding)
+            ) <= sectionEdgeTolerance
+        )
+        #expect(
+            abs(
+                localizedHeaderDetailFrame.maxX
+                    - (localizedHeaderContent.bounds.maxX
+                        - sectionHorizontalPadding)
+            ) <= sectionEdgeTolerance
+        )
+
+        tableView.scrollToRow(
+            at: IndexPath(row: 11, section: 0),
+            at: .top,
+            animated: false
+        )
+        tableView.layoutIfNeeded()
+        #expect(tableView.headerView(forSection: 0) == nil)
+
+        let newlyVisibleCell = try #require(
+            tableView.cellForRow(
+                at: IndexPath(row: 11, section: 0)
+            ) as? MessageTableCell
+        )
+        let newlyVisibleContent = newlyVisibleCell.messageContentView
+        newlyVisibleCell.layoutIfNeeded()
+        newlyVisibleContent.layoutIfNeeded()
+        let newAvatarFrame = newlyVisibleContent.avatarView.convert(
+            newlyVisibleContent.avatarView.bounds,
+            to: newlyVisibleContent
+        )
+        let newTitleFrame = newlyVisibleContent.titleLabel.convert(
+            newlyVisibleContent.titleLabel.bounds,
+            to: newlyVisibleContent
+        )
+        let rtlFooter = try #require(
+            tableView.footerView(forSection: 0)
+                as? MessageTableHeaderFooterView
+        )
+        let rtlFooterContent = rtlFooter.sectionContentView
+        rtlFooterContent.layoutIfNeeded()
+        let rtlFooterTitleLabel = rtlFooterContent.titleLabel
+        let rtlFooterDetailLabel = rtlFooterContent.detailLabel
+        #expect(rtlFooterTitleLabel.text == "rtl.demo.tableMessages.footer")
+        #expect(rtlFooterDetailLabel.text == nil)
+        let rtlFooterTitleFrame = rtlFooterTitleLabel.convert(
+            rtlFooterTitleLabel.bounds,
+            to: rtlFooterContent
+        )
+
+        #expect(newlyVisibleContent.titleLabel.text == "rtl.messages.title.4")
+        #expect(newlyVisibleCell.semanticContentAttribute == .unspecified)
+        #expect(newlyVisibleContent.semanticContentAttribute == .unspecified)
+        #expect(newlyVisibleContent.avatarView.semanticContentAttribute == .unspecified)
+        #expect(newlyVisibleContent.titleLabel.semanticContentAttribute == .unspecified)
+        #expect(newlyVisibleContent.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            newlyVisibleCell.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            newlyVisibleContent.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(newAvatarFrame.midX > newTitleFrame.midX)
+        #expect(rtlFooter.semanticContentAttribute == .unspecified)
+        #expect(rtlFooterContent.semanticContentAttribute == .unspecified)
+        #expect(rtlFooterTitleLabel.semanticContentAttribute == .unspecified)
+        #expect(rtlFooterDetailLabel.semanticContentAttribute == .unspecified)
+        #expect(
+            rtlFooter.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            rtlFooterContent.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            rtlFooterTitleLabel.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            rtlFooterDetailLabel.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            abs(
+                rtlFooterTitleFrame.maxX
+                    - (rtlFooterContent.bounds.maxX - sectionHorizontalPadding)
+            ) <= sectionEdgeTolerance
+        )
+        let rtlFooterFittingSize = rtlFooter.systemLayoutSizeFitting(
+            CGSize(width: rtlFooter.bounds.width, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+        #expect(
+            abs(rtlFooter.bounds.height - rtlFooterFittingSize.height)
+                <= sectionSizingTolerance
+        )
+        #expect(
+            abs(
+                tableView.rectForFooter(inSection: 0).height
+                    - rtlFooter.bounds.height
+            ) <= sectionSizingTolerance
+        )
+
+        tableView.setContentOffset(
+            CGPoint(
+                x: tableView.contentOffset.x,
+                y: -tableView.adjustedContentInset.top
+            ),
+            animated: false
+        )
+        tableView.layoutIfNeeded()
+        #expect(tableView.footerView(forSection: 0) == nil)
+
+        let returnedRTLHeader = try #require(
+            tableView.headerView(forSection: 0)
+                as? MessageTableHeaderFooterView
+        )
+        let returnedRTLHeaderContent = returnedRTLHeader.sectionContentView
+        returnedRTLHeaderContent.layoutIfNeeded()
+        let returnedRTLHeaderTitleLabel = returnedRTLHeaderContent.titleLabel
+        let returnedRTLHeaderDetailLabel = returnedRTLHeaderContent.detailLabel
+        #expect(
+            returnedRTLHeaderTitleLabel.text
+                == "rtl.demo.tableMessages.header"
+        )
+        #expect(
+            returnedRTLHeaderDetailLabel.text
+                == "rtl.demo.tableMessages.header.detail"
+        )
+        let returnedRTLHeaderTitleFrame = returnedRTLHeaderTitleLabel.convert(
+            returnedRTLHeaderTitleLabel.bounds,
+            to: returnedRTLHeaderContent
+        )
+        let returnedRTLHeaderDetailFrame = returnedRTLHeaderDetailLabel.convert(
+            returnedRTLHeaderDetailLabel.bounds,
+            to: returnedRTLHeaderContent
+        )
+        let returnedRTLHeaderFittingSize = returnedRTLHeader
+            .systemLayoutSizeFitting(
+                CGSize(width: returnedRTLHeader.bounds.width, height: 0),
+                withHorizontalFittingPriority: .required,
+                verticalFittingPriority: .fittingSizeLevel
+            )
+
+        #expect(tableView.semanticContentAttribute == .forceRightToLeft)
+        #expect(returnedRTLHeader.semanticContentAttribute == .unspecified)
+        #expect(
+            returnedRTLHeaderContent.semanticContentAttribute
+                == .unspecified
+        )
+        #expect(
+            returnedRTLHeaderTitleLabel.semanticContentAttribute
+                == .unspecified
+        )
+        #expect(
+            returnedRTLHeaderDetailLabel.semanticContentAttribute
+                == .unspecified
+        )
+        #expect(
+            returnedRTLHeader.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            returnedRTLHeaderContent.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            returnedRTLHeaderTitleLabel.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            returnedRTLHeaderDetailLabel.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            abs(
+                returnedRTLHeaderTitleFrame.maxX
+                    - (returnedRTLHeaderContent.bounds.maxX
+                        - sectionHorizontalPadding)
+            ) <= sectionEdgeTolerance
+        )
+        #expect(
+            abs(
+                returnedRTLHeaderDetailFrame.maxX
+                    - (returnedRTLHeaderContent.bounds.maxX
+                        - sectionHorizontalPadding)
+            ) <= sectionEdgeTolerance
+        )
+        #expect(
+            abs(
+                returnedRTLHeader.bounds.height
+                    - returnedRTLHeaderFittingSize.height
+            ) <= sectionSizingTolerance
+        )
+        #expect(
+            abs(
+                tableView.rectForHeader(inSection: 0).height
+                    - returnedRTLHeader.bounds.height
+            ) <= sectionSizingTolerance
+        )
     }
 
     @Test func semanticGestureUsesDirectionalLayout() {
@@ -1427,6 +3890,52 @@ private struct TestStringLocalization: Decodable {
 
 private struct TestStringUnit: Decodable {
     let value: String
+}
+
+@MainActor
+private func makeVisibleTestWindow(
+    rootViewController: UIViewController,
+    size: CGSize,
+    semanticContentAttribute: UISemanticContentAttribute = .unspecified
+) throws -> UIWindow {
+    let windowScene = try #require(
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first
+    )
+    let window = UIWindow(windowScene: windowScene)
+    window.frame = CGRect(origin: .zero, size: size)
+    window.semanticContentAttribute = semanticContentAttribute
+    window.rootViewController = rootViewController
+    window.isHidden = false
+    rootViewController.view.frame = window.bounds
+    rootViewController.view.setNeedsLayout()
+    rootViewController.view.layoutIfNeeded()
+    return window
+}
+
+private func isHorizontalMirror(
+    _ frame: CGRect,
+    of originalFrame: CGRect,
+    in containerWidth: CGFloat,
+    tolerance: CGFloat = 1
+) -> Bool {
+    abs(frame.midX - (containerWidth - originalFrame.midX)) < tolerance
+        && abs(frame.midY - originalFrame.midY) < tolerance
+        && abs(frame.width - originalFrame.width) < tolerance
+        && abs(frame.height - originalFrame.height) < tolerance
+}
+
+private extension CGRect {
+    func approximatelyEquals(
+        _ other: CGRect,
+        tolerance: CGFloat = 1
+    ) -> Bool {
+        abs(minX - other.minX) < tolerance
+            && abs(minY - other.minY) < tolerance
+            && abs(width - other.width) < tolerance
+            && abs(height - other.height) < tolerance
+    }
 }
 
 private extension UIView {

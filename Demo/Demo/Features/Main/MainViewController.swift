@@ -11,65 +11,46 @@ import QuickLayoutKit
 
 class MainViewController: DemoQuickLayoutHostingController {
 
-    struct DemoRoute {
-        let titleKey: String
-        let viewControllerType: UIViewController.Type
-    }
-
-    struct DemoSection {
-        let titleKey: String
-        let routes: [DemoRoute]
-    }
-
     override var localizedTitleKey: String? { "main.title" }
 
-    let sections: [DemoSection] = [
-        DemoSection(
-            titleKey: "main.section.quicklayout",
-            routes: [
-                DemoRoute(titleKey: "demo.horizontalScroll.title", viewControllerType: HorizontalScrollViewViewController.self),
-                DemoRoute(titleKey: "demo.profile.title", viewControllerType: ProfileViewController.self),
-                DemoRoute(titleKey: "demo.counter.title", viewControllerType: CounterViewController.self),
-                DemoRoute(titleKey: "demo.dynamicScroll.title", viewControllerType: DynamicScrollViewController.self),
-                DemoRoute(titleKey: "demo.dashboard.title", viewControllerType: DashboardViewController.self),
-                DemoRoute(titleKey: "demo.messages.title", viewControllerType: MesssageViewController.self),
-                DemoRoute(titleKey: "demo.tableMessages.title", viewControllerType: MessageTableViewController.self),
-                DemoRoute(titleKey: "demo.keyboard.title", viewControllerType: KeyboardHandlingViewController.self),
-                DemoRoute(titleKey: "demo.form.title", viewControllerType: ScrollViewWithKeyboardViewController.self),
-                DemoRoute(titleKey: "demo.semantic.title", viewControllerType: SemanticContentDemoViewController.self)
-            ]
-        ),
-        DemoSection(
-            titleKey: "main.section.hosting",
-            routes: [
-                DemoRoute(titleKey: "demo.representable.title", viewControllerType: ViewControllerRepresentableDemoViewController.self)
-            ]
-        ),
-        DemoSection(
-            titleKey: "main.section.localization",
-            routes: [
-                DemoRoute(titleKey: "demo.localizationOverview.title", viewControllerType: LocalizationOverviewViewController.self),
-                DemoRoute(titleKey: "demo.uikitLocalization.title", viewControllerType: UIKitLocalizationShowcaseViewController.self),
-                DemoRoute(titleKey: "demo.directionalNavigation.title", viewControllerType: DirectionalNavigationDemoViewController.self),
-                DemoRoute(titleKey: "demo.semanticGesture.title", viewControllerType: SemanticGestureDemoViewController.self),
-                DemoRoute(titleKey: "demo.swiftUIBridge.title", viewControllerType: SwiftUILocalizationBridgeDemoViewController.self),
-                DemoRoute(titleKey: "demo.localizationBoundary.title", viewControllerType: LocalizationBoundaryDemoViewController.self)
-            ]
-        )
-    ]
-
-    private var sectionHeaders: [UILabel] = []
-    private var routeButtonsByTitleKey: [String: UIButton] = [:]
+    private let viewModel: MainViewModel
+    private let router: any DemoRouting
+    private var sectionHeadersByID: [String: UILabel] = [:]
+    private var routeButtons: [DemoRoute: UIButton] = [:]
     private var menuViews: [UIView] = []
     private var routeLookup: [Int: DemoRoute] = [:]
+    private var menuStructure: [(id: String, routes: [DemoRoute])] = []
+
     let scrollView = QuickLayoutScrollView()
+
     private lazy var menuContentView = QuickLayoutView { [unowned self] in
         VStack(alignment: .leading, spacing: 12) {
             ForEach(self.menuViews) { view in
                 self.menuElement(for: view)
             }
         }
-        .layoutDirection(self.currentQuickLayoutDirection)
+    }
+
+    convenience init() {
+        self.init(
+            viewModel: MainViewModel(),
+            router: DemoRouter()
+        )
+    }
+
+    init(
+        viewModel: MainViewModel,
+        router: any DemoRouting
+    ) {
+        self.viewModel = viewModel
+        self.router = router
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        viewModel = MainViewModel()
+        router = DemoRouter()
+        super.init(coder: coder)
     }
 
     override var body: Layout {
@@ -77,77 +58,143 @@ class MainViewController: DemoQuickLayoutHostingController {
             menuContentView
                 .resizable(axis: .horizontal)
         }
-        .contentMargins(.horizontal, 16)
+        .contentMargins(.horizontal, 16, for: .scrollContent)
         .contentMargins(.top, 16)
         .contentMargins(.bottom, 24)
     }
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        bindViewModel()
+    }
 
+    override func reloadLocalizedContent() {
+        super.reloadLocalizedContent()
+        viewModel.reloadLocalizedContent()
+    }
+
+    override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
+        super.reloadLayoutDirection(direction)
+
+        let semanticContentAttribute = view.semanticContentAttribute
+        scrollView.semanticContentAttribute = semanticContentAttribute
+        menuContentView.semanticContentAttribute = semanticContentAttribute
+        routeButtons.values.forEach { button in
+            button.semanticContentAttribute = semanticContentAttribute
+            button.configuration = button.configuration
+            button.setNeedsLayout()
+        }
+
+        menuContentView.setNeedsQuickLayout()
+        scrollView.setNeedsLayout()
+        setNeedsQuickLayout()
+    }
+
+    private func bindViewModel() {
+        viewModel.bind(
+            stateDidChange: { [weak self] state in
+                self?.render(state)
+            },
+            routeDidSelect: { [weak self] route in
+                guard let self else { return }
+                self.router.navigate(to: route, from: self)
+            }
+        )
+    }
+
+    private func render(_ state: MainViewModel.State) {
+        let newStructure = state.sections.map { section in
+            (id: section.id, routes: section.routes.map(\.route))
+        }
+
+        if !hasSameMenuStructure(as: newStructure) {
+            rebuildMenu(with: state)
+        }
+
+        for section in state.sections {
+            sectionHeadersByID[section.id]?.text = section.title
+            for routeState in section.routes {
+                guard let button = routeButtons[routeState.route],
+                      var configuration = button.configuration else {
+                    continue
+                }
+                configuration.title = routeState.title
+                button.configuration = configuration
+            }
+        }
+
+        menuContentView.setNeedsQuickLayout()
+    }
+
+    private func rebuildMenu(with state: MainViewModel.State) {
         var tag = 0
         menuViews = []
-        sectionHeaders = []
-        routeButtonsByTitleKey = [:]
+        sectionHeadersByID = [:]
+        routeButtons = [:]
+        routeLookup = [:]
 
-        for section in sections {
-            let header = UILabel()
-            header.font = .preferredFont(forTextStyle: .headline)
-            header.textColor = .secondaryLabel
-            header.accessibilityIdentifier = section.titleKey
-            header.textAlignment = .natural
-            header.semanticContentAttribute = .unspecified
-            sectionHeaders.append(header)
+        for section in state.sections {
+            let header = makeSectionHeader(id: section.id)
+            sectionHeadersByID[section.id] = header
             menuViews.append(header)
 
-            for route in section.routes {
-                let button = makeRouteButton(route: route, tag: tag)
-                routeButtonsByTitleKey[route.titleKey] = button
+            for routeState in section.routes {
+                let button = makeRouteButton(
+                    route: routeState.route,
+                    title: routeState.title,
+                    tag: tag
+                )
+                routeButtons[routeState.route] = button
                 menuViews.append(button)
                 tag += 1
             }
         }
 
-        reloadLocalizedContent()
-    }
-
-    override func reloadLocalizedContent() {
-        super.reloadLocalizedContent()
-        guard sectionHeaders.count == sections.count else { return }
-
-        for (sectionIndex, section) in sections.enumerated() {
-            sectionHeaders[sectionIndex].text = DemoLocalization.text(section.titleKey)
-
-            for route in section.routes {
-                guard let button = routeButtonsByTitleKey[route.titleKey] else { continue }
-                button.configuration?.title = DemoLocalization.text(route.titleKey)
-            }
+        menuStructure = state.sections.map { section in
+            (id: section.id, routes: section.routes.map(\.route))
         }
-
-        menuContentView.setNeedsQuickLayout()
     }
 
-    override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
-        super.reloadLayoutDirection(direction)
-        menuContentView.setNeedsQuickLayout()
+    private func makeSectionHeader(id: String) -> UILabel {
+        let header = UILabel()
+        header.font = .preferredFont(forTextStyle: .headline)
+        header.textColor = .secondaryLabel
+        header.accessibilityIdentifier = id
+        header.textAlignment = .natural
+        header.semanticContentAttribute = .unspecified
+        return header
     }
 
-    private func makeRouteButton(route: DemoRoute, tag: Int) -> UIButton {
-            var config = UIButton.Configuration.filled()
-            config.title = DemoLocalization.text(route.titleKey)
-            config.baseBackgroundColor = .systemBlue.withAlphaComponent(0.1)
-            config.baseForegroundColor = .systemBlue
-            config.cornerStyle = .medium
-            
-            let button = UIButton(configuration: config)
-            button.tag = tag
-            button.addTarget(self, action: #selector(buttonTapped(_:)), for: .touchUpInside)
-            routeLookup[tag] = route
-            return button
+    private func makeRouteButton(
+        route: DemoRoute,
+        title: String,
+        tag: Int
+    ) -> UIButton {
+        var config = UIButton.Configuration.filled()
+        config.title = title
+        config.baseBackgroundColor = .systemBlue.withAlphaComponent(0.1)
+        config.baseForegroundColor = .systemBlue
+        config.cornerStyle = .medium
+
+        let button = UIButton(configuration: config)
+        button.semanticContentAttribute = scrollView.semanticContentAttribute
+        button.tag = tag
+        button.addTarget(
+            self,
+            action: #selector(buttonTapped(_:)),
+            for: .touchUpInside
+        )
+        routeLookup[tag] = route
+        return button
     }
 
-    private var currentQuickLayoutDirection: LayoutDirection {
-        DemoLocalization.currentUIKitDirection == .rightToLeft ? .rightToLeft : .leftToRight
+    private func hasSameMenuStructure(
+        as structure: [(id: String, routes: [DemoRoute])]
+    ) -> Bool {
+        guard menuStructure.count == structure.count else { return false }
+        return zip(menuStructure, structure).allSatisfy { current, new in
+            current.id == new.id && current.routes == new.routes
+        }
     }
 
     private func menuElement(for view: UIView) -> Element {
@@ -162,9 +209,7 @@ class MainViewController: DemoQuickLayoutHostingController {
 
     @objc private func buttonTapped(_ sender: UIButton) {
         guard let route = routeLookup[sender.tag] else { return }
-        let vc = route.viewControllerType.init()
-        vc.navigationItem.title = DemoLocalization.text(route.titleKey)
-        navigationController?.pushViewController(vc, animated: true)
+        viewModel.select(route)
     }
 }
 

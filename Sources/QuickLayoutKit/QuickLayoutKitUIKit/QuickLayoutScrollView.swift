@@ -15,6 +15,8 @@ import UIKit
 /// choose whether indicators are visible, and provide builder content. Unlike
 /// SwiftUI, this type is a UIKit reference type and can also be created with
 /// `init(frame:)` for use with ``ScrollView(_:_:showsIndicators:content:)``.
+/// Runtime layout-direction changes relayout existing content without changing
+/// the numeric scroll position, matching SwiftUI's `ScrollView` behavior.
 open class QuickLayoutScrollView: UIScrollView, HasBody {
 
     /// An edge of the scrollable content.
@@ -65,6 +67,17 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
         didSet {
             guard showsIndicators != oldValue else { return }
             configureIndicators()
+        }
+    }
+
+    /// The semantic role used to resolve the receiver's layout direction.
+    ///
+    /// Changing this value invalidates QuickLayout content so a runtime LTR to
+    /// RTL switch takes effect without rebuilding the scroll view.
+    open override var semanticContentAttribute: UISemanticContentAttribute {
+        didSet {
+            guard semanticContentAttribute != oldValue else { return }
+            setNeedsLayout()
         }
     }
 
@@ -121,6 +134,23 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
         configureAxisBehavior()
     }
 
+    open override func didMoveToWindow() {
+        super.didMoveToWindow()
+        setNeedsLayout()
+    }
+
+    open override func traitCollectionDidChange(
+        _ previousTraitCollection: UITraitCollection?
+    ) {
+        super.traitCollectionDidChange(previousTraitCollection)
+
+        guard previousTraitCollection?.layoutDirection
+                != traitCollection.layoutDirection else {
+            return
+        }
+        setNeedsLayout()
+    }
+
     // MARK: - HasBody
 
     /// The QuickLayout content rendered by the scroll view.
@@ -152,6 +182,8 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
     override open func layoutSubviews() {
         super.layoutSubviews()
 
+        quickLayoutUpdateContentMarginDirectionIfNeeded()
+        let layoutDirection = quickLayoutDirection
         let layoutProposal = proposedContentSize
         let safeAreaRegionInsets = quickLayoutSafeAreaRegionInsets
         let measuredContentSize = withQuickLayoutContainerSize(
@@ -174,7 +206,7 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
             body.applyFrame(
                 CGRect(origin: .zero, size: contentLayoutSize),
                 alignment: contentAlignment,
-                layoutDirection: quickLayoutDirection
+                layoutDirection: layoutDirection
             )
         }
 

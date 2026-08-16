@@ -14,25 +14,39 @@ final class MesssageViewController: DemoViewController {
     override var localizedTitleKey: String? { "demo.messages.title" }
 
     private var collectionView: UICollectionView!
-    private var data = MessageListFactory.localizedItems()
+    private let viewModel: MessageListViewModel
     private lazy var adapter = CollectionListAdapter<MessageListSection>(
         collectionView: collectionView
     )
+
+    convenience init() {
+        self.init(
+            viewModel: MessageListViewModel(configuration: .collection)
+        )
+    }
+
+    init(viewModel: MessageListViewModel) {
+        self.viewModel = viewModel
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        viewModel = MessageListViewModel(configuration: .collection)
+        super.init(coder: coder)
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
 
         view.backgroundColor = .white
         setupCollectionView()
-        reloadLocalizedContent()
+        bindViewModel()
         reloadLayoutDirection(DemoLocalization.currentUIKitDirection)
     }
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        data = MessageListFactory.localizedItems()
-        guard collectionView != nil else { return }
-        render()
+        viewModel.refreshLocalizedContent()
     }
 
     override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
@@ -55,10 +69,16 @@ final class MesssageViewController: DemoViewController {
         collectionView.collectionViewLayout = adapter.makeCompositionalLayout()
     }
 
-    private func render() {
+    private func bindViewModel() {
+        viewModel.bind { [weak self] state in
+            self?.render(state)
+        }
+    }
+
+    private func render(_ state: MessageListViewModel.State) {
         adapter.apply(transaction: .disabled) {
             ListSection(.messages) {
-                ForEach(data, id: \.id) { item in
+                ForEach(state.items, id: \.id) { item in
                     Row(model: item.model, cell: MessageCell.self) {
                         cell, message, _ in
                         cell.configure(message)

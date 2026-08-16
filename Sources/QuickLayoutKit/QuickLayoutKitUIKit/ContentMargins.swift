@@ -176,6 +176,7 @@ final class QuickLayoutContentMarginState {
 
     private(set) var appliedContentInsets: UIEdgeInsets = .zero
     private(set) var appliedIndicatorInsets: UIEdgeInsets = .zero
+    private var appliedLayoutDirection: UIUserInterfaceLayoutDirection?
 
     @MainActor
     func reset(on scrollView: UIScrollView) {
@@ -204,7 +205,20 @@ final class QuickLayoutContentMarginState {
     }
 
     @MainActor
-    private func updateInsets(on scrollView: UIScrollView) {
+    func updateLayoutDirectionIfNeeded(on scrollView: UIScrollView) {
+        guard appliedLayoutDirection
+                != scrollView.effectiveUserInterfaceLayoutDirection else {
+            return
+        }
+
+        updateInsets(on: scrollView, keepsContentAtStart: false)
+    }
+
+    @MainActor
+    private func updateInsets(
+        on scrollView: UIScrollView,
+        keepsContentAtStart: Bool = true
+    ) {
         let previousContentMargins = appliedContentInsets
         let baseContentInsets = scrollView.contentInset
             .subtracting(appliedContentInsets)
@@ -212,19 +226,22 @@ final class QuickLayoutContentMarginState {
             .subtracting(appliedIndicatorInsets)
         let baseHorizontalIndicatorInsets = scrollView.horizontalScrollIndicatorInsets
             .subtracting(appliedIndicatorInsets)
+        let layoutDirection = scrollView.effectiveUserInterfaceLayoutDirection
 
         let contentMargins = scrollContent
             .overriding(automatic)
             .resolved
-            .uiInsets(for: scrollView.effectiveUserInterfaceLayoutDirection)
+            .uiInsets(for: layoutDirection)
         let indicatorMargins = scrollIndicators
             .overriding(automatic)
             .resolved
-            .uiInsets(for: scrollView.effectiveUserInterfaceLayoutDirection)
-        let shouldKeepContentAtStart = contentMargins != previousContentMargins
+            .uiInsets(for: layoutDirection)
+        let shouldKeepContentAtStart = keepsContentAtStart
+            && contentMargins != previousContentMargins
             && (scrollView as? QuickLayoutScrollView)?
                 .quickLayoutIsAtContentStart() == true
 
+        appliedLayoutDirection = layoutDirection
         appliedContentInsets = contentMargins
         appliedIndicatorInsets = indicatorMargins
 
@@ -246,6 +263,11 @@ extension QuickLayoutScrollView {
     @MainActor
     func quickLayoutResetContentMargins() {
         quickLayoutContentMarginState.reset(on: self)
+    }
+
+    @MainActor
+    func quickLayoutUpdateContentMarginDirectionIfNeeded() {
+        quickLayoutContentMarginState.updateLayoutDirectionIfNeeded(on: self)
     }
 
     @MainActor

@@ -55,14 +55,39 @@ final class ViewControllerRepresentableDemoViewController: DemoQuickLayoutHostin
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        showLazyButton.configuration?.title = DemoLocalization.text("representable.showLazy")
-        hideHostButton.configuration?.title = DemoLocalization.text("representable.hide")
-        showAgainButton.configuration?.title = DemoLocalization.text("representable.showAgain")
-        replaceButton.configuration?.title = DemoLocalization.text("representable.replace")
-        preferredSizeButton.configuration?.title = DemoLocalization.text("representable.preferredSize")
-        resetButton.configuration?.title = DemoLocalization.text("representable.reset")
+        updateButtonTitle(showLazyButton, titleKey: "representable.showLazy")
+        updateButtonTitle(hideHostButton, titleKey: "representable.hide")
+        updateButtonTitle(showAgainButton, titleKey: "representable.showAgain")
+        updateButtonTitle(replaceButton, titleKey: "representable.replace")
+        updateButtonTitle(
+            preferredSizeButton,
+            titleKey: "representable.preferredSize"
+        )
+        updateButtonTitle(resetButton, titleKey: "representable.reset")
         (lazyChild.ifLoaded?.viewController as? LoggingChildViewController)?.reloadLocalizedContent()
         refreshStateLabel()
+    }
+
+    override func reloadLayoutDirection(
+        _ direction: UIUserInterfaceLayoutDirection
+    ) {
+        super.reloadLayoutDirection(direction)
+
+        let attribute = direction.appLayoutDirection.semanticContentAttribute
+        scrollView.semanticContentAttribute = attribute
+        [stateLabel, logTextView].forEach {
+            $0.semanticContentAttribute = attribute
+        }
+        directionSensitiveButtons.forEach {
+            $0.semanticContentAttribute = attribute
+            $0.configuration = $0.configuration
+            $0.setNeedsLayout()
+        }
+
+        if let host = lazyChild.ifLoaded {
+            applyLayoutDirection(direction, to: host)
+        }
+        setNeedsQuickLayout()
     }
 
     override var body: Layout {
@@ -95,6 +120,17 @@ final class ViewControllerRepresentableDemoViewController: DemoQuickLayoutHostin
 }
 
 private extension ViewControllerRepresentableDemoViewController {
+
+    var directionSensitiveButtons: [UIButton] {
+        [
+            showLazyButton,
+            hideHostButton,
+            showAgainButton,
+            replaceButton,
+            preferredSizeButton,
+            resetButton,
+        ]
+    }
 
     @objc func showLazyA() {
         appendLog("Action: Show Lazy A")
@@ -172,6 +208,10 @@ private extension ViewControllerRepresentableDemoViewController {
 
             let child = makeLoggingChild(name: name)
             let host = QuickLayoutViewControllerRepresentable(child)
+            applyLayoutDirection(
+                DemoLocalization.currentUIKitDirection,
+                to: host
+            )
             host.eventHandler = { [weak self] event in
                 self?.appendLog("Representable event: \(event.name)")
             }
@@ -181,6 +221,20 @@ private extension ViewControllerRepresentableDemoViewController {
 
             return host
         }
+    }
+
+    func applyLayoutDirection(
+        _ direction: UIUserInterfaceLayoutDirection,
+        to host: QuickLayoutViewControllerRepresentable
+    ) {
+        let attribute = direction.appLayoutDirection.semanticContentAttribute
+        host.semanticContentAttribute = attribute
+        if let updating = host.viewController as? UserInterfaceLayoutDirectionUpdating {
+            updating.reloadLayoutDirection(direction)
+        } else {
+            host.viewController?.viewIfLoaded?.semanticContentAttribute = attribute
+        }
+        host.setNeedsQuickLayout()
     }
 
     func makeLoggingChild(name: String) -> LoggingChildViewController {
@@ -200,6 +254,15 @@ private extension ViewControllerRepresentableDemoViewController {
         button.contentHorizontalAlignment = .leading
         button.addTarget(self, action: action, for: .touchUpInside)
         return button
+    }
+
+    func updateButtonTitle(_ button: UIButton, titleKey: String) {
+        guard var configuration = button.configuration else {
+            assertionFailure("Representable buttons require UIButton.Configuration")
+            return
+        }
+        configuration.title = DemoLocalization.text(titleKey)
+        button.configuration = configuration
     }
 
     func appendLazyStateLog() {
@@ -276,7 +339,16 @@ private final class LoggingChildViewController: UIViewController, LocalizedConte
     private let logHandler: (String) -> Void
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
-    private let actionButton = UIButton(type: .system)
+    private let actionButton: UIButton = {
+        var configuration = UIButton.Configuration.filled()
+        configuration.title = DemoLocalization.text(
+            "representable.child.button"
+        )
+        configuration.baseBackgroundColor = .systemGreen.withAlphaComponent(0.16)
+        configuration.baseForegroundColor = .systemGreen
+        configuration.cornerStyle = .medium
+        return UIButton(configuration: configuration)
+    }()
     private var usesExpandedPreferredSize = false
 
     init(name: String, logHandler: @escaping (String) -> Void) {
@@ -311,11 +383,6 @@ private final class LoggingChildViewController: UIViewController, LocalizedConte
         subtitleLabel.textColor = .secondaryLabel
         subtitleLabel.numberOfLines = 0
 
-        var configuration = UIButton.Configuration.filled()
-        configuration.baseBackgroundColor = .systemGreen.withAlphaComponent(0.16)
-        configuration.baseForegroundColor = .systemGreen
-        configuration.cornerStyle = .medium
-        actionButton.configuration = configuration
         actionButton.addTarget(self, action: #selector(childButtonTapped), for: .touchUpInside)
 
         view.addSubview(titleLabel)
@@ -334,12 +401,24 @@ private final class LoggingChildViewController: UIViewController, LocalizedConte
     func reloadLocalizedContent() {
         titleLabel.text = DemoLocalization.text("representable.child.title", name)
         subtitleLabel.text = DemoLocalization.text("representable.child.subtitle")
-        actionButton.configuration?.title = DemoLocalization.text("representable.child.button")
+        if var configuration = actionButton.configuration {
+            configuration.title = DemoLocalization.text(
+                "representable.child.button"
+            )
+            actionButton.configuration = configuration
+        } else {
+            assertionFailure("Child action button requires UIButton.Configuration")
+        }
         viewIfLoaded?.setNeedsLayout()
     }
 
     func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
-        viewIfLoaded?.semanticContentAttribute = direction.appLayoutDirection.semanticContentAttribute
+        let attribute = direction.appLayoutDirection.semanticContentAttribute
+        viewIfLoaded?.semanticContentAttribute = attribute
+        [titleLabel, subtitleLabel, actionButton].forEach {
+            $0.semanticContentAttribute = attribute
+        }
+        actionButton.configuration = actionButton.configuration
         viewIfLoaded?.setNeedsLayout()
     }
 

@@ -15,29 +15,61 @@ final class MessageTableViewController: DemoViewController {
     }
 
     private let contentView = MessageTableListView()
+    private let viewModel: MessageListViewModel
 
     var tableView: UITableView? {
         isViewLoaded ? contentView.tableView : nil
+    }
+
+    convenience init() {
+        self.init(viewModel: MessageListViewModel(configuration: .table))
+    }
+
+    init(viewModel: MessageListViewModel) {
+        self.viewModel = viewModel
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        viewModel = MessageListViewModel(configuration: .table)
+        super.init(coder: coder)
     }
 
     override func loadView() {
         view = contentView
     }
 
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        bindViewModel()
+    }
+
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        guard isViewLoaded else { return }
+        viewModel.refreshLocalizedContent()
+    }
+
+    private func bindViewModel() {
+        viewModel.bind { [weak self] state in
+            self?.render(state)
+        }
+    }
+
+    private func render(_ state: MessageListViewModel.State) {
+        guard
+            let headerTitle = state.headerTitle,
+            let headerDetail = state.headerDetail,
+            let footerTitle = state.footerTitle
+        else {
+            assertionFailure("The table message list requires header and footer content")
+            return
+        }
+
         contentView.render(
-            items: MessageListFactory.localizedItems(repeating: 3),
-            headerTitle: DemoLocalization.text(
-                "demo.tableMessages.header"
-            ),
-            headerDetail: DemoLocalization.text(
-                "demo.tableMessages.header.detail"
-            ),
-            footerTitle: DemoLocalization.text(
-                "demo.tableMessages.footer"
-            )
+            items: state.items,
+            headerTitle: headerTitle,
+            headerDetail: headerDetail,
+            footerTitle: footerTitle
         )
     }
 
@@ -45,7 +77,6 @@ final class MessageTableViewController: DemoViewController {
         _ direction: UIUserInterfaceLayoutDirection
     ) {
         super.reloadLayoutDirection(direction)
-        guard isViewLoaded else { return }
         contentView.applyLayoutDirection(direction)
     }
 

@@ -9,7 +9,7 @@ struct QuickLayoutKitTests {
 
     @MainActor
     @Test func collectionCellDefaultsToBodyContent() {
-        let cell = CollectionCellBodyProbe()
+        let cell = CollectionCellBodyProbe(frame: .zero)
         cell.quickLayoutHorizontalFlexibility = .fixedSize
         cell.quickLayoutVerticalFlexibility = .fullyFlexible
 
@@ -17,143 +17,8 @@ struct QuickLayoutKitTests {
         cell.frame = CGRect(origin: .zero, size: size)
         cell.layoutIfNeeded()
 
-        #expect(cell.quickLayoutContentSource == .body)
         #expect(size == CGSize(width: 180, height: 37))
         #expect(cell.bodyView.superview === cell.contentView)
-    }
-
-    @MainActor
-    @Test func collectionCellMeasuresConfiguredQuickLayoutContent() throws {
-        let cell = CollectionCellBodyProbe(
-            contentSource: .contentConfiguration
-        )
-        cell.quickLayoutHorizontalFlexibility = .fixedSize
-        cell.quickLayoutVerticalFlexibility = .fullyFlexible
-        cell.contentConfiguration = ListTestConfiguration(
-            size: CGSize(width: 180, height: 91)
-        )
-        let contentView = try #require(
-            cell.contentView as? ListTestContentView
-        )
-
-        let proposedSize = CGSize(width: 180, height: 44)
-        let size = cell.sizeThatFits(proposedSize)
-        let directSizingProposal = contentView.sizingProposals.last
-        let preferredSizingProposalIndex = contentView.sizingProposals.endIndex
-        let layoutAttributes = UICollectionViewLayoutAttributes(
-            forCellWith: IndexPath(item: 0, section: 0)
-        )
-        layoutAttributes.size = proposedSize
-        let fittedAttributes = cell.preferredLayoutAttributesFitting(
-            layoutAttributes
-        )
-
-        #expect(cell.quickLayoutContentSource == .contentConfiguration)
-        #expect(size == CGSize(width: 180, height: 91))
-        #expect(fittedAttributes.size == size)
-        #expect(directSizingProposal?.width == 180)
-        #expect(directSizingProposal?.height.isInfinite == true)
-        #expect(
-            contentView.sizingProposals.count
-                > preferredSizingProposalIndex
-        )
-        #expect(contentView.sizingProposals.last?.width == 180)
-        #expect(contentView.sizingProposals.last?.height.isInfinite == true)
-
-        let invalidationCount = contentView.invalidationCount
-        cell.setNeedsQuickLayout()
-        #expect(contentView.invalidationCount == invalidationCount + 1)
-
-        let immediateLayoutCount = contentView.immediateLayoutCount
-        cell.frame = CGRect(origin: .zero, size: size)
-        cell.quickLayoutIfNeeded()
-        #expect(contentView.immediateLayoutCount == immediateLayoutCount + 1)
-        #expect(contentView.frame == cell.bounds)
-        #expect(contentView.measuredView.superview === contentView)
-        #expect(cell.bodyView.superview == nil)
-    }
-
-    @MainActor
-    @Test func collectionCellConfigurationSourceSurvivesConfigurationReuse() throws {
-        let proposedSize = CGSize(width: 180, height: 44)
-        let baselineCell = UICollectionViewCell()
-        let baselineSize = baselineCell.sizeThatFits(proposedSize)
-        let cell = CollectionCellBodyProbe(
-            contentSource: .contentConfiguration
-        )
-        cell.quickLayoutHorizontalFlexibility = .fixedSize
-        cell.quickLayoutVerticalFlexibility = .fullyFlexible
-
-        #expect(cell.quickLayoutContentSource == .contentConfiguration)
-        #expect(cell.sizeThatFits(proposedSize) == baselineSize)
-
-        cell.contentConfiguration = ListTestConfiguration(
-            size: CGSize(width: 180, height: 61)
-        )
-        let firstContentView = try #require(
-            cell.contentView as? ListTestContentView
-        )
-        #expect(
-            cell.sizeThatFits(proposedSize)
-                == CGSize(width: 180, height: 61)
-        )
-
-        cell.contentConfiguration = nil
-        #expect(cell.quickLayoutContentSource == .contentConfiguration)
-        #expect(cell.contentView !== firstContentView)
-        #expect(cell.sizeThatFits(proposedSize) == baselineSize)
-
-        cell.contentConfiguration = ListTestConfiguration(
-            size: CGSize(width: 180, height: 117)
-        )
-        let reusedContentView = try #require(
-            cell.contentView as? ListTestContentView
-        )
-        let reusedSize = cell.sizeThatFits(proposedSize)
-        cell.frame = CGRect(origin: .zero, size: reusedSize)
-        cell.layoutIfNeeded()
-
-        #expect(reusedContentView !== firstContentView)
-        #expect(reusedSize == CGSize(width: 180, height: 117))
-        #expect(reusedContentView.frame == cell.bounds)
-        #expect(cell.bodyView.superview == nil)
-    }
-
-    @MainActor
-    @Test func collectionCellLeavesNonQuickLayoutConfigurationsToUIKit() {
-        var configuration = UIListContentConfiguration.cell()
-        configuration.text = "UIKit content"
-
-        let baselineCell = UICollectionViewCell()
-        baselineCell.contentConfiguration = configuration
-
-        let cell = CollectionCellBodyProbe(
-            contentSource: .contentConfiguration
-        )
-        cell.contentConfiguration = configuration
-
-        let proposedSize = CGSize(width: 180, height: 44)
-        #expect(
-            cell.sizeThatFits(proposedSize)
-                == baselineCell.sizeThatFits(proposedSize)
-        )
-
-        let baselineAttributes = UICollectionViewLayoutAttributes(
-            forCellWith: IndexPath(item: 0, section: 0)
-        )
-        baselineAttributes.size = proposedSize
-        let cellAttributes = UICollectionViewLayoutAttributes(
-            forCellWith: IndexPath(item: 0, section: 0)
-        )
-        cellAttributes.size = proposedSize
-
-        #expect(
-            cell.preferredLayoutAttributesFitting(cellAttributes).size
-                == baselineCell.preferredLayoutAttributesFitting(
-                    baselineAttributes
-                ).size
-        )
-        #expect(cell.bodyView.superview == nil)
     }
 
     @MainActor
@@ -177,108 +42,9 @@ struct QuickLayoutKitTests {
         cell.frame = CGRect(origin: .zero, size: size)
         cell.layoutIfNeeded()
 
-        #expect(cell.quickLayoutContentSource == .body)
         #expect(size == CGSize(width: 180, height: 37))
         #expect(systemFittingSize == size)
         #expect(bodyView.superview === cell.contentView)
-    }
-
-    @MainActor
-    @Test func tableCellMeasuresConfiguredQuickLayoutContent() throws {
-        let cell = TableCellBodyProbe(
-            contentSource: .contentConfiguration
-        )
-        cell.contentConfiguration = ListTestConfiguration(
-            size: CGSize(width: 240, height: 91)
-        )
-        let contentView = try #require(
-            cell.contentView as? ListTestContentView
-        )
-        let proposedSize = CGSize(width: 180, height: CGFloat.infinity)
-
-        let size = cell.sizeThatFits(proposedSize)
-        let systemFittingProposalIndex = contentView.sizingProposals.endIndex
-        let systemFittingSize = cell.systemLayoutSizeFitting(
-            CGSize(width: 180, height: 0),
-            withHorizontalFittingPriority: .required,
-            verticalFittingPriority: .fittingSizeLevel
-        )
-
-        #expect(cell.quickLayoutContentSource == .contentConfiguration)
-        #expect(size == CGSize(width: 240, height: 91))
-        #expect(systemFittingSize == CGSize(width: 180, height: 91))
-        #expect(
-            contentView.sizingProposals.count
-                > systemFittingProposalIndex
-        )
-        #expect(contentView.sizingProposals.last == proposedSize)
-
-        let invalidationCount = contentView.invalidationCount
-        cell.setNeedsQuickLayout()
-        #expect(contentView.invalidationCount == invalidationCount + 1)
-
-        let immediateLayoutCount = contentView.immediateLayoutCount
-        cell.frame = CGRect(origin: .zero, size: size)
-        cell.quickLayoutIfNeeded()
-        #expect(contentView.immediateLayoutCount == immediateLayoutCount + 1)
-        #expect(contentView.measuredView.superview === contentView)
-        #expect(cell.bodyView.superview == nil)
-    }
-
-    @MainActor
-    @Test func tableCellConfigurationSourceSurvivesConfigurationReuse() throws {
-        let fallbackProposal = CGSize(width: 180, height: 44)
-        let sizingProposal = CGSize(width: 180, height: CGFloat.infinity)
-        let baselineCell = UITableViewCell(
-            style: .default,
-            reuseIdentifier: nil
-        )
-        let baselineSize = baselineCell.sizeThatFits(fallbackProposal)
-        let cell = TableCellBodyProbe(
-            contentSource: .contentConfiguration
-        )
-
-        #expect(cell.quickLayoutContentSource == .contentConfiguration)
-        #expect(cell.sizeThatFits(fallbackProposal) == baselineSize)
-
-        cell.contentConfiguration = ListTestConfiguration(
-            size: CGSize(width: 180, height: 61)
-        )
-        let firstContentView = try #require(
-            cell.contentView as? ListTestContentView
-        )
-        #expect(
-            cell.sizeThatFits(sizingProposal)
-                == CGSize(width: 180, height: 61)
-        )
-
-        cell.contentConfiguration = ListTestConfiguration(
-            size: CGSize(width: 180, height: 89)
-        )
-        #expect(cell.contentView === firstContentView)
-        #expect(
-            cell.sizeThatFits(sizingProposal)
-                == CGSize(width: 180, height: 89)
-        )
-
-        cell.contentConfiguration = nil
-        #expect(cell.quickLayoutContentSource == .contentConfiguration)
-        #expect(cell.contentView !== firstContentView)
-        #expect(cell.sizeThatFits(fallbackProposal) == baselineSize)
-
-        cell.contentConfiguration = ListTestConfiguration(
-            size: CGSize(width: 180, height: 117)
-        )
-        let reusedContentView = try #require(
-            cell.contentView as? ListTestContentView
-        )
-        let reusedSize = cell.sizeThatFits(sizingProposal)
-        cell.frame = CGRect(origin: .zero, size: reusedSize)
-        cell.layoutIfNeeded()
-
-        #expect(reusedContentView !== firstContentView)
-        #expect(reusedSize == CGSize(width: 180, height: 117))
-        #expect(cell.bodyView.superview == nil)
     }
 
     @MainActor
@@ -303,189 +69,35 @@ struct QuickLayoutKitTests {
         reusableView.frame = CGRect(origin: .zero, size: size)
         reusableView.layoutIfNeeded()
 
-        #expect(reusableView.quickLayoutContentSource == .body)
         #expect(size == CGSize(width: 180, height: 37))
         #expect(systemFittingSize == size)
         #expect(bodyView.superview === reusableView.contentView)
     }
 
     @MainActor
-    @Test func tableHeaderFooterMeasuresConfiguredQuickLayoutContent() throws {
-        let reusableView = TableHeaderFooterBodyProbe(
-            contentSource: .contentConfiguration
+    @Test func collectionReusableViewDefaultsToBodyContent() {
+        let bodyView = IntrinsicTestView(
+            size: CGSize(width: 180, height: 37)
         )
-        reusableView.contentConfiguration = ListTestConfiguration(
-            size: CGSize(width: 240, height: 73)
-        )
-        let contentView = try #require(
-            reusableView.contentView as? ListTestContentView
-        )
-        let proposedSize = CGSize(width: 180, height: CGFloat.infinity)
+        let reusableView = QuickLayoutCollectionReusableView {
+            bodyView
+        }
+        let proposedSize = CGSize(width: 180, height: 44)
 
         let size = reusableView.sizeThatFits(proposedSize)
-        let systemFittingProposalIndex = contentView.sizingProposals.endIndex
-        let systemFittingSize = reusableView.systemLayoutSizeFitting(
-            CGSize(width: 180, height: 0),
-            withHorizontalFittingPriority: .required,
-            verticalFittingPriority: .fittingSizeLevel
+        let layoutAttributes = UICollectionViewLayoutAttributes(
+            forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
+            with: IndexPath(item: 0, section: 0)
         )
-
-        #expect(
-            reusableView.quickLayoutContentSource
-                == .contentConfiguration
-        )
-        #expect(size == CGSize(width: 240, height: 73))
-        #expect(systemFittingSize == CGSize(width: 180, height: 73))
-        #expect(
-            contentView.sizingProposals.count
-                > systemFittingProposalIndex
-        )
-        #expect(contentView.sizingProposals.last == proposedSize)
-
-        let invalidationCount = contentView.invalidationCount
-        reusableView.setNeedsQuickLayout()
-        #expect(contentView.invalidationCount == invalidationCount + 1)
-
-        let immediateLayoutCount = contentView.immediateLayoutCount
+        layoutAttributes.size = proposedSize
+        let fittedAttributes = reusableView
+            .preferredLayoutAttributesFitting(layoutAttributes)
         reusableView.frame = CGRect(origin: .zero, size: size)
-        reusableView.quickLayoutIfNeeded()
-        #expect(
-            contentView.immediateLayoutCount
-                == immediateLayoutCount + 1
-        )
-        #expect(contentView.measuredView.superview === contentView)
-        #expect(reusableView.bodyView.superview == nil)
-    }
+        reusableView.layoutIfNeeded()
 
-    @MainActor
-    @Test func tableHeaderFooterSourceSurvivesConfigurationReuse() throws {
-        let fallbackProposal = CGSize(width: 180, height: 44)
-        let sizingProposal = CGSize(width: 180, height: CGFloat.infinity)
-        let baselineView = UITableViewHeaderFooterView(
-            reuseIdentifier: nil
-        )
-        let baselineSize = baselineView.sizeThatFits(fallbackProposal)
-        let reusableView = TableHeaderFooterBodyProbe(
-            contentSource: .contentConfiguration
-        )
-
-        #expect(
-            reusableView.sizeThatFits(fallbackProposal) == baselineSize
-        )
-
-        reusableView.contentConfiguration = ListTestConfiguration(
-            size: CGSize(width: 180, height: 61)
-        )
-        let firstContentView = try #require(
-            reusableView.contentView as? ListTestContentView
-        )
-        #expect(
-            reusableView.sizeThatFits(sizingProposal)
-                == CGSize(width: 180, height: 61)
-        )
-
-        reusableView.contentConfiguration = ListTestConfiguration(
-            size: CGSize(width: 180, height: 89)
-        )
-        #expect(reusableView.contentView === firstContentView)
-        #expect(
-            reusableView.sizeThatFits(sizingProposal)
-                == CGSize(width: 180, height: 89)
-        )
-
-        reusableView.contentConfiguration = nil
-        #expect(
-            reusableView.quickLayoutContentSource
-                == .contentConfiguration
-        )
-        #expect(reusableView.contentView !== firstContentView)
-        #expect(
-            reusableView.sizeThatFits(fallbackProposal) == baselineSize
-        )
-
-        reusableView.contentConfiguration = ListTestConfiguration(
-            size: CGSize(width: 180, height: 117)
-        )
-        let reusedContentView = try #require(
-            reusableView.contentView as? ListTestContentView
-        )
-        #expect(reusedContentView !== firstContentView)
-        #expect(
-            reusableView.sizeThatFits(sizingProposal)
-                == CGSize(width: 180, height: 117)
-        )
-        #expect(reusableView.bodyView.superview == nil)
-    }
-
-    @MainActor
-    @Test func tableHeaderFooterLeavesUIKitConfigurationsToUIKit() {
-        let baselineView = UITableViewHeaderFooterView(
-            reuseIdentifier: nil
-        )
-        var configuration = baselineView.defaultContentConfiguration()
-        configuration.text = "UIKit content"
-        baselineView.contentConfiguration = configuration
-
-        let reusableView = TableHeaderFooterBodyProbe(
-            contentSource: .contentConfiguration
-        )
-        reusableView.contentConfiguration = configuration
-
-        let proposedSize = CGSize(width: 180, height: 44)
-        #expect(
-            reusableView.sizeThatFits(proposedSize)
-                == baselineView.sizeThatFits(proposedSize)
-        )
-
-        let targetSize = CGSize(width: 180, height: 0)
-        #expect(
-            reusableView.systemLayoutSizeFitting(
-                targetSize,
-                withHorizontalFittingPriority: .required,
-                verticalFittingPriority: .fittingSizeLevel
-            ) == baselineView.systemLayoutSizeFitting(
-                targetSize,
-                withHorizontalFittingPriority: .required,
-                verticalFittingPriority: .fittingSizeLevel
-            )
-        )
-        #expect(reusableView.bodyView.superview == nil)
-    }
-
-    @MainActor
-    @Test func tableCellLeavesNonQuickLayoutConfigurationsToUIKit() {
-        var configuration = UIListContentConfiguration.cell()
-        configuration.text = "UIKit content"
-
-        let baselineCell = UITableViewCell(
-            style: .default,
-            reuseIdentifier: nil
-        )
-        baselineCell.contentConfiguration = configuration
-
-        let cell = TableCellBodyProbe(
-            contentSource: .contentConfiguration
-        )
-        cell.contentConfiguration = configuration
-
-        let proposedSize = CGSize(width: 180, height: 44)
-        #expect(
-            cell.sizeThatFits(proposedSize)
-                == baselineCell.sizeThatFits(proposedSize)
-        )
-        let targetSize = CGSize(width: 180, height: 0)
-        #expect(
-            cell.systemLayoutSizeFitting(
-                targetSize,
-                withHorizontalFittingPriority: .required,
-                verticalFittingPriority: .fittingSizeLevel
-            ) == baselineCell.systemLayoutSizeFitting(
-                targetSize,
-                withHorizontalFittingPriority: .required,
-                verticalFittingPriority: .fittingSizeLevel
-            )
-        )
-        #expect(cell.bodyView.superview == nil)
+        #expect(size == CGSize(width: 180, height: 37))
+        #expect(fittedAttributes.size == size)
+        #expect(bodyView.superview === reusableView)
     }
 
     @Test func maximumInsetsUseLargestDirectionalValue() {
@@ -633,6 +245,259 @@ struct QuickLayoutKitTests {
     }
 
     @MainActor
+    @Test func horizontalScrollViewRelayoutsWhenItsDirectionChanges() {
+        let first = UIView()
+        let second = UIView()
+        let scrollView = QuickLayoutScrollView(.horizontal) {
+            first.frame(width: 120, height: 40)
+            second.frame(width: 120, height: 40)
+        }
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.semanticContentAttribute = .forceLeftToRight
+        scrollView.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
+
+        scrollView.layoutIfNeeded()
+
+        let leftToRightFirstFrame = first.frame
+        let leftToRightSecondFrame = second.frame
+        let leftToRightContentSize = scrollView.contentSize
+        scrollView.contentOffset.x = 40
+        #expect(leftToRightFirstFrame.minX < leftToRightSecondFrame.minX)
+
+        scrollView.semanticContentAttribute = .forceRightToLeft
+        scrollView.layoutIfNeeded()
+
+        #expect(first.frame.minX > second.frame.minX)
+        #expect(
+            first.frame.minX
+                == leftToRightContentSize.width - leftToRightFirstFrame.maxX
+        )
+        #expect(
+            second.frame.minX
+                == leftToRightContentSize.width - leftToRightSecondFrame.maxX
+        )
+        #expect(scrollView.contentSize == leftToRightContentSize)
+        #expect(scrollView.contentOffset.x == 40)
+
+        scrollView.semanticContentAttribute = .forceLeftToRight
+        scrollView.layoutIfNeeded()
+
+        #expect(first.frame == leftToRightFirstFrame)
+        #expect(second.frame == leftToRightSecondFrame)
+        #expect(scrollView.contentSize == leftToRightContentSize)
+        #expect(scrollView.contentOffset.x == 40)
+    }
+
+    @MainActor
+    @Test func horizontalScrollToUsesTheLatestDirectionAcrossRoundTrips() {
+        let scrollView = QuickLayoutScrollView(.horizontal) {
+            UIView().frame(width: 120, height: 40)
+            UIView().frame(width: 120, height: 40)
+        }
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.contentInset = UIEdgeInsets(
+            top: 0,
+            left: 11,
+            bottom: 0,
+            right: 17
+        )
+        scrollView.semanticContentAttribute = .forceLeftToRight
+        scrollView.frame = CGRect(x: 0, y: 0, width: 100, height: 40)
+        scrollView.layoutIfNeeded()
+
+        let minimumX = -scrollView.adjustedContentInset.left
+        let maximumX = scrollView.contentSize.width
+            - scrollView.bounds.width
+            + scrollView.adjustedContentInset.right
+
+        scrollView.scrollTo(.leading, animated: false)
+        #expect(scrollView.contentOffset.x == minimumX)
+        scrollView.scrollTo(.trailing, animated: false)
+        #expect(scrollView.contentOffset.x == maximumX)
+
+        scrollView.semanticContentAttribute = .forceRightToLeft
+        scrollView.scrollTo(.leading, animated: false)
+        #expect(scrollView.contentOffset.x == maximumX)
+        scrollView.scrollTo(.trailing, animated: false)
+        #expect(scrollView.contentOffset.x == minimumX)
+
+        scrollView.semanticContentAttribute = .forceLeftToRight
+        scrollView.scrollTo(.leading, animated: false)
+        #expect(scrollView.contentOffset.x == minimumX)
+        scrollView.scrollTo(.trailing, animated: false)
+        #expect(scrollView.contentOffset.x == maximumX)
+    }
+
+    @MainActor
+    @Test func pendingHorizontalScrollUsesDirectionAtResolutionTime() {
+        let scrollView = QuickLayoutScrollView(.horizontal) {
+            UIView().frame(width: 120, height: 40)
+            UIView().frame(width: 120, height: 40)
+        }
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.contentInset = UIEdgeInsets(
+            top: 0,
+            left: 11,
+            bottom: 0,
+            right: 17
+        )
+        scrollView.semanticContentAttribute = .forceLeftToRight
+
+        #expect(scrollView.bounds.width == 0)
+        scrollView.scrollTo(.leading, animated: false)
+
+        scrollView.semanticContentAttribute = .forceRightToLeft
+        scrollView.frame = CGRect(x: 0, y: 0, width: 100, height: 40)
+        scrollView.layoutIfNeeded()
+
+        let rightToLeftLeadingX = scrollView.contentSize.width
+            - scrollView.bounds.width
+            + scrollView.adjustedContentInset.right
+        #expect(scrollView.contentOffset.x == rightToLeftLeadingX)
+    }
+
+    @MainActor
+    @Test func quickLayoutViewRelayoutsAndPublishesEnvironmentDirectionChanges() {
+        let hostingView = DirectionRecordingQuickLayoutView()
+        hostingView.semanticContentAttribute = .forceLeftToRight
+        hostingView.frame = CGRect(x: 0, y: 0, width: 100, height: 40)
+
+        hostingView.layoutIfNeeded()
+        let leftToRightFrame = hostingView.child.frame
+        #expect(leftToRightFrame == CGRect(x: 12, y: 0, width: 20, height: 10))
+
+        let layoutChangeCount = hostingView.environmentChangeReasons.count
+        hostingView.semanticContentAttribute = .forceRightToLeft
+        hostingView.layoutIfNeeded()
+
+        #expect(
+            hostingView.environmentChangeReasons.last?
+                .contains(.layoutDirection) == true
+        )
+        #expect(
+            hostingView.environmentChangeReasons.count
+                == layoutChangeCount + 1
+        )
+        #expect(
+            hostingView.child.frame
+                == CGRect(x: 68, y: 0, width: 20, height: 10)
+        )
+
+        let measurementChangeCount = hostingView.environmentChangeReasons.count
+        hostingView.semanticContentAttribute = .forceLeftToRight
+        let measuredSize = hostingView.sizeThatFits(
+            CGSize(width: 100, height: 40)
+        )
+
+        #expect(measuredSize == CGSize(width: 100, height: 40))
+        #expect(
+            hostingView.environmentChangeReasons.last?
+                .contains(.layoutDirection) == true
+        )
+        #expect(
+            hostingView.environmentChangeReasons.count
+                == measurementChangeCount + 1
+        )
+        hostingView.layoutIfNeeded()
+
+        #expect(hostingView.child.frame == leftToRightFrame)
+        #expect(hostingView.child.superview === hostingView)
+    }
+
+    @MainActor
+    @Test func reusableListHostsRelayoutWhenTheirDirectionChanges() {
+        let collectionCellViews = (UIView(), UIView())
+        let collectionCell = QuickLayoutCollectionViewCell {
+            HStack {
+                collectionCellViews.0.frame(width: 20, height: 10)
+                collectionCellViews.1.frame(width: 20, height: 10)
+            }
+        }
+        let tableCellViews = (UIView(), UIView())
+        let tableCell = QuickLayoutTableViewCell {
+            HStack {
+                tableCellViews.0.frame(width: 20, height: 10)
+                tableCellViews.1.frame(width: 20, height: 10)
+            }
+        }
+        let headerFooterViews = (UIView(), UIView())
+        let headerFooter = QuickLayoutTableViewHeaderFooterView {
+            HStack {
+                headerFooterViews.0.frame(width: 20, height: 10)
+                headerFooterViews.1.frame(width: 20, height: 10)
+            }
+        }
+        let reusableViews = (UIView(), UIView())
+        let reusableView = QuickLayoutCollectionReusableView {
+            HStack {
+                reusableViews.0.frame(width: 20, height: 10)
+                reusableViews.1.frame(width: 20, height: 10)
+            }
+        }
+        let scenarios: [(UIView, UIView, UIView)] = [
+            (collectionCell, collectionCellViews.0, collectionCellViews.1),
+            (tableCell, tableCellViews.0, tableCellViews.1),
+            (headerFooter, headerFooterViews.0, headerFooterViews.1),
+            (reusableView, reusableViews.0, reusableViews.1),
+        ]
+
+        for (host, first, second) in scenarios {
+            host.semanticContentAttribute = .forceLeftToRight
+            host.frame = CGRect(x: 0, y: 0, width: 100, height: 40)
+            host.layoutIfNeeded()
+            let leftToRightFrames = (first.frame, second.frame)
+            #expect(first.frame.minX < second.frame.minX)
+
+            host.semanticContentAttribute = .forceRightToLeft
+            host.layoutIfNeeded()
+            #expect(first.frame.minX > second.frame.minX)
+
+            host.semanticContentAttribute = .forceLeftToRight
+            host.layoutIfNeeded()
+            #expect(first.frame == leftToRightFrames.0)
+            #expect(second.frame == leftToRightFrames.1)
+        }
+    }
+
+    @MainActor
+    @Test func contentMarginsFollowRuntimeLayoutDirectionChanges() {
+        let scrollView = QuickLayoutScrollView(.horizontal)
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.semanticContentAttribute = .forceLeftToRight
+        scrollView.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
+
+        _ = ScrollView(scrollView, .horizontal) {
+            UIView().frame(width: 240, height: 40)
+        }
+        .contentMargins(.leading, 14)
+        scrollView.layoutIfNeeded()
+
+        #expect(scrollView.contentInset.left == 14)
+        #expect(scrollView.contentInset.right == 0)
+        #expect(scrollView.horizontalScrollIndicatorInsets.left == 14)
+        #expect(scrollView.horizontalScrollIndicatorInsets.right == 0)
+        scrollView.contentOffset.x = 40
+
+        scrollView.semanticContentAttribute = .forceRightToLeft
+        scrollView.layoutIfNeeded()
+
+        #expect(scrollView.contentInset.left == 0)
+        #expect(scrollView.contentInset.right == 14)
+        #expect(scrollView.horizontalScrollIndicatorInsets.left == 0)
+        #expect(scrollView.horizontalScrollIndicatorInsets.right == 14)
+        #expect(scrollView.contentOffset.x == 40)
+
+        scrollView.semanticContentAttribute = .forceLeftToRight
+        scrollView.layoutIfNeeded()
+
+        #expect(scrollView.contentInset.left == 14)
+        #expect(scrollView.contentInset.right == 0)
+        #expect(scrollView.horizontalScrollIndicatorInsets.left == 14)
+        #expect(scrollView.horizontalScrollIndicatorInsets.right == 0)
+        #expect(scrollView.contentOffset.x == 40)
+    }
+
+    @MainActor
     @Test func changingContentMarginsPreservesAnExistingScrollPosition() {
         let scrollView = QuickLayoutScrollView(.horizontal)
         scrollView.contentInsetAdjustmentBehavior = .never
@@ -767,6 +632,170 @@ struct QuickLayoutKitTests {
         #expect(size == CGSize(width: 51, height: 59))
     }
 
+    @MainActor
+    @Test func localLayoutDirectionResolvesPhysicalSafeAreaEdges() {
+        let leftToRightChild = UIView()
+        let rightToLeftChild = UIView()
+        let nestedPaddingChild = UIView()
+        let ignoredLeadingChild = UIView()
+        let frame = CGRect(x: 0, y: 0, width: 100, height: 40)
+
+        func apply(
+            _ child: UIView,
+            layoutDirection: LayoutDirection
+        ) {
+            let element = child
+                .frame(width: 20, height: 10)
+                .safeAreaPadding(.leading, 0)
+                .frame(width: 100, height: 40, alignment: .topLeading)
+                .layoutDirection(layoutDirection)
+
+            withPhysicalSafeArea(
+                containerSize: frame.size,
+                containerInsets: UIEdgeInsets(
+                    top: 0,
+                    left: 10,
+                    bottom: 0,
+                    right: 20
+                )
+            ) {
+                element.applyFrame(
+                    frame,
+                    alignment: .topLeading,
+                    layoutDirection: .leftToRight
+                )
+            }
+        }
+
+        apply(leftToRightChild, layoutDirection: .leftToRight)
+        apply(rightToLeftChild, layoutDirection: .rightToLeft)
+
+        let nestedPadding = nestedPaddingChild
+            .frame(width: 20, height: 10)
+            .safeAreaPadding(.leading, 0)
+            .safeAreaPadding(.leading, 0)
+            .frame(width: 100, height: 40, alignment: .topLeading)
+            .layoutDirection(.rightToLeft)
+        let ignoredLeading = ignoredLeadingChild
+            .frame(width: 20, height: 10)
+            .safeAreaPadding(.leading, 0)
+            .ignoresSafeArea(.container, edges: .leading)
+            .frame(width: 100, height: 40, alignment: .topLeading)
+            .layoutDirection(.rightToLeft)
+        withPhysicalSafeArea(
+            containerSize: frame.size,
+            containerInsets: UIEdgeInsets(
+                top: 0,
+                left: 10,
+                bottom: 0,
+                right: 20
+            )
+        ) {
+            nestedPadding.applyFrame(
+                frame,
+                alignment: .topLeading,
+                layoutDirection: .leftToRight
+            )
+            ignoredLeading.applyFrame(
+                frame,
+                alignment: .topLeading,
+                layoutDirection: .leftToRight
+            )
+        }
+
+        #expect(
+            leftToRightChild.frame
+                == CGRect(x: 10, y: 0, width: 20, height: 10)
+        )
+        #expect(
+            rightToLeftChild.frame
+                == CGRect(x: 60, y: 0, width: 20, height: 10)
+        )
+        #expect(frame.maxX - rightToLeftChild.frame.maxX == 20)
+        #expect(nestedPaddingChild.frame == rightToLeftChild.frame)
+        #expect(
+            ignoredLeadingChild.frame
+                == CGRect(x: 80, y: 0, width: 20, height: 10)
+        )
+    }
+
+    @MainActor
+    @Test func paddingIgnoringLayoutDirectionKeepsPhysicalInsets() {
+        let leftToRightChild = UIView()
+        let rightToLeftChild = UIView()
+        let frame = CGRect(x: 0, y: 0, width: 36, height: 10)
+        let physicalInsets = UIEdgeInsets(
+            top: 0,
+            left: 12,
+            bottom: 0,
+            right: 4
+        )
+
+        leftToRightChild
+            .frame(width: 20, height: 10)
+            .padding(ignoringLayoutDirection: physicalInsets)
+            .applyFrame(
+                frame,
+                alignment: .topLeading,
+                layoutDirection: .leftToRight
+            )
+        rightToLeftChild
+            .frame(width: 20, height: 10)
+            .padding(ignoringLayoutDirection: physicalInsets)
+            .applyFrame(
+                frame,
+                alignment: .topLeading,
+                layoutDirection: .rightToLeft
+            )
+
+        let expectedFrame = CGRect(x: 12, y: 0, width: 20, height: 10)
+        #expect(leftToRightChild.frame == expectedFrame)
+        #expect(rightToLeftChild.frame == expectedFrame)
+    }
+
+    @MainActor
+    @Test func directionalInsetHelpersRoundTripWithLayoutDirection() {
+        let view = SafeAreaProbeView(
+            safeAreaInsets: UIEdgeInsets(
+                top: 1,
+                left: 10,
+                bottom: 3,
+                right: 20
+            )
+        )
+        view.insetsLayoutMarginsFromSafeArea = false
+        view.layoutMargins = UIEdgeInsets(
+            top: 2,
+            left: 7,
+            bottom: 4,
+            right: 13
+        )
+
+        view.semanticContentAttribute = .forceLeftToRight
+        let leftToRightSafeArea = view.quickLayoutSafeAreaInsets
+        let leftToRightMargins = view.quickLayoutLayoutMargins
+
+        #expect(leftToRightSafeArea.leading == 10)
+        #expect(leftToRightSafeArea.trailing == 20)
+        #expect(leftToRightMargins.leading == 7)
+        #expect(leftToRightMargins.trailing == 13)
+
+        view.semanticContentAttribute = .forceRightToLeft
+        let rightToLeftSafeArea = view.quickLayoutSafeAreaInsets
+        let rightToLeftMargins = view.quickLayoutLayoutMargins
+
+        #expect(rightToLeftSafeArea.leading == 20)
+        #expect(rightToLeftSafeArea.trailing == 10)
+        #expect(rightToLeftMargins.leading == 13)
+        #expect(rightToLeftMargins.trailing == 7)
+
+        view.semanticContentAttribute = .forceLeftToRight
+        #expect(view.quickLayoutSafeAreaInsets.leading == 10)
+        #expect(view.quickLayoutSafeAreaInsets.trailing == 20)
+        #expect(view.quickLayoutLayoutMargins.leading == 7)
+        #expect(view.quickLayoutLayoutMargins.trailing == 13)
+    }
+
     @Test func safeAreaPaddingUsesDefaultSpacing() {
         let element = IntrinsicTestElement(size: CGSize(width: 20, height: 30))
             .safeAreaPadding()
@@ -845,6 +874,79 @@ struct QuickLayoutKitTests {
         }
 
         #expect(size == CGSize(width: 46, height: 30))
+    }
+
+    @MainActor
+    @Test func leadingSafeAreaInsetUsesPhysicalEdgeForLocalDirection() {
+        let leftToRightTarget = UIView()
+        let leftToRightInset = UIView()
+        let rightToLeftTarget = UIView()
+        let rightToLeftInset = UIView()
+        let frame = CGRect(x: 0, y: 0, width: 100, height: 40)
+        let physicalInsets = UIEdgeInsets(
+            top: 0,
+            left: 10,
+            bottom: 0,
+            right: 20
+        )
+
+        func apply(
+            target: UIView,
+            inset: UIView,
+            layoutDirection: LayoutDirection
+        ) {
+            let element = target
+                .frame(width: 20, height: 10)
+                .safeAreaInset(
+                    edge: HorizontalEdge.leading,
+                    alignment: .top,
+                    spacing: 4
+                ) {
+                    inset.frame(width: 12, height: 16)
+                }
+                .frame(width: 100, height: 40, alignment: .topLeading)
+                .layoutDirection(layoutDirection)
+
+            withPhysicalSafeArea(
+                containerSize: frame.size,
+                containerInsets: physicalInsets
+            ) {
+                element.applyFrame(
+                    frame,
+                    alignment: .topLeading,
+                    layoutDirection: .leftToRight
+                )
+            }
+        }
+
+        apply(
+            target: leftToRightTarget,
+            inset: leftToRightInset,
+            layoutDirection: .leftToRight
+        )
+        apply(
+            target: rightToLeftTarget,
+            inset: rightToLeftInset,
+            layoutDirection: .rightToLeft
+        )
+
+        #expect(leftToRightInset.frame.minX == physicalInsets.left)
+        #expect(
+            leftToRightTarget.frame.minX
+                == leftToRightInset.frame.maxX + 4
+        )
+        #expect(
+            frame.maxX - rightToLeftInset.frame.maxX
+                == physicalInsets.right
+        )
+        #expect(
+            rightToLeftInset.frame.minX
+                == rightToLeftTarget.frame.maxX + 4
+        )
+        #expect(leftToRightTarget.frame.size == CGSize(width: 20, height: 10))
+        #expect(rightToLeftTarget.frame.size == CGSize(width: 20, height: 10))
+        #expect(leftToRightInset.frame.size == CGSize(width: 12, height: 16))
+        #expect(rightToLeftInset.frame.size == CGSize(width: 12, height: 16))
     }
 
     @Test func safeAreaPaddingScopesContainerRelativeFrameToRemainingSpace() {
@@ -1053,6 +1155,86 @@ struct QuickLayoutKitTests {
                     localFrame: CGRect(x: 0, y: 0, width: 90, height: 35)
                 ),
             ]
+        )
+    }
+
+    @MainActor
+    @Test func geometryProxyUsesTheQuickLayoutDirectionForSafeAreaInsets() {
+        let view = SafeAreaProbeView(
+            safeAreaInsets: UIEdgeInsets(
+                top: 1,
+                left: 10,
+                bottom: 3,
+                right: 20
+            )
+        )
+
+        let leftToRight = GeometryProxy(
+            observing: view,
+            layoutDirection: .leftToRight
+        )
+        let rightToLeft = GeometryProxy(
+            observing: view,
+            layoutDirection: .rightToLeft
+        )
+
+        #expect(leftToRight.safeAreaInsets.leading == 10)
+        #expect(leftToRight.safeAreaInsets.trailing == 20)
+        #expect(rightToLeft.safeAreaInsets.leading == 20)
+        #expect(rightToLeft.safeAreaInsets.trailing == 10)
+    }
+
+    @MainActor
+    @Test func geometryObservationTracksLocalLayoutDirectionChanges() {
+        var layoutDirection = LayoutDirection.rightToLeft
+        var safeAreaSnapshots: [CGSize] = []
+        let child = UIView()
+        let hostingView = QuickLayoutView {
+            child
+                .resizable()
+                .onGeometryChange(for: CGSize.self) { geometry in
+                    CGSize(
+                        width: geometry.safeAreaInsets.leading,
+                        height: geometry.safeAreaInsets.trailing
+                    )
+                } action: { insets in
+                    safeAreaSnapshots.append(insets)
+                }
+                .layoutDirection(layoutDirection)
+        }
+        let viewController = UIViewController()
+        viewController.view = hostingView
+        viewController.additionalSafeAreaInsets = UIEdgeInsets(
+            top: 0,
+            left: 10,
+            bottom: 0,
+            right: 20
+        )
+        let window = UIWindow(
+            frame: CGRect(x: 0, y: 0, width: 100, height: 100)
+        )
+        window.rootViewController = viewController
+        window.isHidden = false
+        defer { window.isHidden = true }
+
+        window.layoutIfNeeded()
+        hostingView.layoutIfNeeded()
+
+        #expect(
+            safeAreaSnapshots.last
+                == CGSize(width: 20, height: 10)
+        )
+
+        layoutDirection = .leftToRight
+        hostingView.setNeedsQuickLayout()
+        hostingView.layoutIfNeeded()
+
+        #expect(
+            safeAreaSnapshots.suffix(2)
+                == [
+                    CGSize(width: 20, height: 10),
+                    CGSize(width: 10, height: 20),
+                ]
         )
     }
 
@@ -1378,6 +1560,63 @@ struct QuickLayoutKitTests {
     }
 
     @MainActor
+    @Test func explicitAlignmentGuidesDoNotMovePhysicalPlacements() {
+        let frame = CGRect(x: 0, y: 0, width: 100, height: 80)
+
+        let directionPairs: [(
+            outer: LayoutDirection,
+            local: LayoutDirection
+        )] = [
+            (.leftToRight, .leftToRight),
+            (.rightToLeft, .rightToLeft),
+            (.leftToRight, .rightToLeft),
+            (.rightToLeft, .leftToRight),
+        ]
+
+        for directionPair in directionPairs {
+            let positionedView = IntrinsicTestView(
+                size: CGSize(width: 20, height: 10)
+            )
+            positionedView
+                .alignmentGuide(.leading) { _ in 7 }
+                .alignmentGuide(.top) { _ in 3 }
+                .position(x: 70, y: 30)
+                .layoutDirection(directionPair.local)
+                .applyFrame(
+                    frame,
+                    alignment: .topLeading,
+                    layoutDirection: directionPair.outer
+                )
+
+            #expect(
+                positionedView.frame
+                    == CGRect(x: 60, y: 25, width: 20, height: 10)
+            )
+
+            let customLayoutView = IntrinsicTestView(
+                size: CGSize(width: 20, height: 10)
+            )
+            let layout = CenteredOverlayLayout {
+                customLayoutView
+                    .alignmentGuide(.leading) { _ in 7 }
+                    .alignmentGuide(.top) { _ in 3 }
+            }
+            layout
+                .layoutDirection(directionPair.local)
+                .applyFrame(
+                    frame,
+                    alignment: .topLeading,
+                    layoutDirection: directionPair.outer
+                )
+
+            #expect(
+                customLayoutView.frame
+                    == CGRect(x: 40, y: 35, width: 20, height: 10)
+            )
+        }
+    }
+
+    @MainActor
     @Test func zIndexControlsLayerAndCustomLayoutOrdering() {
         let high = IntrinsicTestView(size: CGSize(width: 20, height: 20))
         let low = IntrinsicTestView(size: CGSize(width: 20, height: 20))
@@ -1395,6 +1634,50 @@ struct QuickLayoutKitTests {
 }
 
 @MainActor
+private final class DirectionRecordingQuickLayoutView: QuickLayoutView {
+
+    let child = UIView()
+    private(set) var environmentChangeReasons: [
+        QuickLayoutEnvironmentChangeReason
+    ] = []
+
+    @LayoutBuilder
+    override var body: Layout {
+        child
+            .frame(width: 20, height: 10)
+            .frame(width: 88, height: 40, alignment: .topLeading)
+            .padding(.leading, 12)
+    }
+
+    override func quickLayoutEnvironmentDidChange(
+        _ environment: QuickLayoutEnvironment,
+        reason: QuickLayoutEnvironmentChangeReason
+    ) {
+        environmentChangeReasons.append(reason)
+        super.quickLayoutEnvironmentDidChange(environment, reason: reason)
+    }
+}
+
+@MainActor
+private final class SafeAreaProbeView: UIView {
+
+    private let reportedSafeAreaInsets: UIEdgeInsets
+
+    init(safeAreaInsets: UIEdgeInsets) {
+        reportedSafeAreaInsets = safeAreaInsets
+        super.init(frame: .zero)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var safeAreaInsets: UIEdgeInsets {
+        reportedSafeAreaInsets
+    }
+}
+
+@MainActor
 private final class CollectionCellBodyProbe: QuickLayoutCollectionViewCell {
 
     let bodyView = IntrinsicTestView(
@@ -1406,132 +1689,12 @@ private final class CollectionCellBodyProbe: QuickLayoutCollectionViewCell {
         bodyView
     }
 
-    init(contentSource: ContentSource = .body) {
-        super.init(frame: .zero, contentSource: contentSource)
+    override init(frame: CGRect) {
+        super.init(frame: frame)
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
-    }
-}
-
-@MainActor
-private final class TableCellBodyProbe: QuickLayoutTableViewCell {
-
-    let bodyView = IntrinsicTestView(
-        size: CGSize(width: 180, height: 37)
-    )
-
-    @LayoutBuilder
-    override var body: Layout {
-        bodyView
-    }
-
-    init(contentSource: ContentSource) {
-        super.init(
-            style: .default,
-            reuseIdentifier: nil,
-            contentSource: contentSource
-        )
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-}
-
-@MainActor
-private final class TableHeaderFooterBodyProbe: QuickLayoutTableViewHeaderFooterView {
-
-    let bodyView = IntrinsicTestView(
-        size: CGSize(width: 180, height: 37)
-    )
-
-    @LayoutBuilder
-    override var body: Layout {
-        bodyView
-    }
-
-    init(contentSource: ContentSource) {
-        super.init(
-            reuseIdentifier: nil,
-            contentSource: contentSource
-        )
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-}
-
-private struct ListTestConfiguration: UIContentConfiguration {
-
-    let size: CGSize
-
-    @MainActor
-    func makeContentView() -> UIView & UIContentView {
-        ListTestContentView(configuration: self)
-    }
-
-    func updated(
-        for state: any UIConfigurationState
-    ) -> ListTestConfiguration {
-        self
-    }
-}
-
-@MainActor
-private final class ListTestContentView: QuickLayoutView, UIContentView {
-
-    private var testConfiguration: ListTestConfiguration
-    private(set) var measuredView: IntrinsicTestView
-    private(set) var sizingProposals: [CGSize] = []
-    private(set) var invalidationCount = 0
-    private(set) var immediateLayoutCount = 0
-
-    var configuration: any UIContentConfiguration {
-        get { testConfiguration }
-        set {
-            guard
-                let configuration = newValue
-                    as? ListTestConfiguration
-            else {
-                return
-            }
-            testConfiguration = configuration
-            measuredView = IntrinsicTestView(size: configuration.size)
-            setNeedsQuickLayout()
-        }
-    }
-
-    @LayoutBuilder
-    override var body: Layout {
-        measuredView
-    }
-
-    init(configuration: ListTestConfiguration) {
-        self.testConfiguration = configuration
-        self.measuredView = IntrinsicTestView(size: configuration.size)
-        super.init(frame: .zero)
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func sizeThatFits(_ size: CGSize) -> CGSize {
-        sizingProposals.append(size)
-        return super.sizeThatFits(size)
-    }
-
-    override func setNeedsQuickLayout() {
-        invalidationCount += 1
-        super.setNeedsQuickLayout()
-    }
-
-    override func quickLayoutIfNeeded() {
-        immediateLayoutCount += 1
-        super.quickLayoutIfNeeded()
     }
 }
 
@@ -1546,6 +1709,22 @@ private func withSafeArea<Result>(
             containerSize: containerSize,
             containerInsets: containerInsets,
             keyboardInsets: keyboardInsets
+        ),
+        operation: operation
+    )
+}
+
+private func withPhysicalSafeArea<Result>(
+    containerSize: CGSize,
+    containerInsets: UIEdgeInsets,
+    keyboardInsets: UIEdgeInsets = .zero,
+    operation: () throws -> Result
+) rethrows -> Result {
+    try QuickLayoutSafeAreaContext.withValues(
+        QuickLayoutSafeAreaValues(
+            containerSize: containerSize,
+            physicalContainerInsets: containerInsets,
+            physicalKeyboardInsets: keyboardInsets
         ),
         operation: operation
     )

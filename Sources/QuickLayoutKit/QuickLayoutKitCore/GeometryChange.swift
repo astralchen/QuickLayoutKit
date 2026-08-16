@@ -43,7 +43,10 @@ public struct GeometryProxy: Sendable {
     }
 
     @MainActor
-    fileprivate init(observing view: UIView) {
+    package init(
+        observing view: UIView,
+        layoutDirection: LayoutDirection
+    ) {
         let size = view.bounds.size
         self.size = size
         localFrame = CGRect(origin: .zero, size: size)
@@ -61,7 +64,7 @@ public struct GeometryProxy: Sendable {
         scrollViewFrame = scrollView.map { view.convert(view.bounds, to: $0) }
 
         let insets = view.safeAreaInsets
-        switch view.effectiveUserInterfaceLayoutDirection {
+        switch layoutDirection {
         case .rightToLeft:
             safeAreaInsets = EdgeInsets(
                 top: insets.top,
@@ -70,13 +73,6 @@ public struct GeometryProxy: Sendable {
                 trailing: insets.left
             )
         case .leftToRight:
-            safeAreaInsets = EdgeInsets(
-                top: insets.top,
-                leading: insets.left,
-                bottom: insets.bottom,
-                trailing: insets.right
-            )
-        @unknown default:
             safeAreaInsets = EdgeInsets(
                 top: insets.top,
                 leading: insets.left,
@@ -306,6 +302,7 @@ private final class GeometryObserverView: UIView {
 
     var geometryDidChange: ((GeometryProxy) -> Void)?
     var didDetach: (() -> Void)?
+    var observedLayoutDirection: LayoutDirection = .leftToRight
 
     init() {
         super.init(frame: .zero)
@@ -321,7 +318,12 @@ private final class GeometryObserverView: UIView {
 
     override var center: CGPoint {
         didSet {
-            geometryDidChange?(GeometryProxy(observing: self))
+            geometryDidChange?(
+                GeometryProxy(
+                    observing: self,
+                    layoutDirection: observedLayoutDirection
+                )
+            )
         }
     }
 
@@ -349,6 +351,7 @@ where Value: Equatable & Sendable {
     }
 
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode {
+        state.observerView.observedLayoutDirection = LayoutContext.layoutDirection
         let childLayout = child.quick_layoutThatFits(proposedSize)
         return ZStackElement(
             children: [

@@ -26,8 +26,8 @@ extension UIView {
         )
         let safeAreaValues = QuickLayoutSafeAreaValues(
             containerSize: normalizedSize,
-            containerInsets: quickLayoutInsets(insets),
-            keyboardInsets: quickLayoutInsets(keyboardInsets)
+            physicalContainerInsets: insets,
+            physicalKeyboardInsets: keyboardInsets
         )
         let geometryObservationRegistry = quickLayoutGeometryObservationRegistry
         let containerSize = CGSize(
@@ -52,32 +52,6 @@ extension UIView {
                     operation: operation
                 )
             }
-        }
-    }
-
-    private func quickLayoutInsets(_ insets: UIEdgeInsets) -> EdgeInsets {
-        switch effectiveUserInterfaceLayoutDirection {
-        case .rightToLeft:
-            return EdgeInsets(
-                top: insets.top,
-                leading: insets.right,
-                bottom: insets.bottom,
-                trailing: insets.left
-            )
-        case .leftToRight:
-            return EdgeInsets(
-                top: insets.top,
-                leading: insets.left,
-                bottom: insets.bottom,
-                trailing: insets.right
-            )
-        @unknown default:
-            return EdgeInsets(
-                top: insets.top,
-                leading: insets.left,
-                bottom: insets.bottom,
-                trailing: insets.right
-            )
         }
     }
 

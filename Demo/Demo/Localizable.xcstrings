@@ -63,7 +63,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重建 Alert"
+            "value" : "إعادة إنشاء التنبيه"
           }
         },
         "en" : {
@@ -86,7 +86,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "应用名、Launch Screen、权限弹窗属于系统边界。"
+            "value" : "اسم التطبيق وشاشة التشغيل ومطالبات الأذونات تندرج ضمن حدود النظام."
           }
         },
         "en" : {
@@ -99,6 +99,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "应用名、Launch Screen、权限弹窗属于系统边界。"
+          }
+        }
+      }
+    },
+    "common.boolean.false" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لا"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "否"
+          }
+        }
+      }
+    },
+    "common.boolean.true" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نعم"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "是"
           }
         }
       }
@@ -523,19 +569,19 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "يستخدم الرأس والتذييل أيضًا UIContentConfiguration."
+            "value" : "يستخدم الرأس والتذييل أيضًا تخطيط UIKit التقليدي."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The header and footer also use UIContentConfiguration."
+            "value" : "The header and footer also use traditional UIKit layout."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "页眉和页脚同样使用 UIContentConfiguration。"
+            "value" : "页眉和页脚同样使用传统 UIKit 布局。"
           }
         }
       }
@@ -569,19 +615,19 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تستضيف الخلايا QuickLayout باستخدام UIContentConfiguration."
+            "value" : "تستضيف الخلايا QuickLayout باستخدام تخطيط UIKit التقليدي."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cells host QuickLayout using UIContentConfiguration."
+            "value" : "Cells host QuickLayout using traditional UIKit layout."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "单元格通过 UIContentConfiguration 承载 QuickLayout。"
+            "value" : "单元格通过传统 UIKit 布局承载 QuickLayout。"
           }
         }
       }
@@ -766,6 +812,98 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "添加项目"
+          }
+        }
+      }
+    },
+    "dynamic.item.deleteAccessibilityHint" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يحذف هذا العنصر"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deletes this item"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除此项目"
+          }
+        }
+      }
+    },
+    "dynamic.item.deleteButton" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حذف العنصر %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Item %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除项目 %lld"
+          }
+        }
+      }
+    },
+    "dynamic.item.deleteHint" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اضغط على أيقونة الحذف"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the delete icon"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻点删除图标"
+          }
+        }
+      }
+    },
+    "dynamic.item.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "العنصر %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Item %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "项目 %lld"
           }
         }
       }
@@ -1029,7 +1167,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Back swipe: %@"
+            "value" : "إيماءة الرجوع: %@"
           }
         },
         "en" : {
@@ -1075,7 +1213,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Semantic: leading"
+            "value" : "الاتجاه الدلالي: البداية"
           }
         },
         "en" : {
@@ -1121,7 +1259,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Semantic: trailing"
+            "value" : "الاتجاه الدلالي: النهاية"
           }
         },
         "en" : {
@@ -1134,6 +1272,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "语义方向：trailing"
+          }
+        }
+      }
+    },
+    "gesture.translation" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الإزاحة الأفقية: %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Horizontal translation: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "水平位移：%lld"
           }
         }
       }
@@ -1157,6 +1318,98 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "输入文本"
+          }
+        }
+      }
+    },
+    "keyboard.diagnostics.event" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الحدث: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Event: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "事件：%@"
+          }
+        }
+      }
+    },
+    "keyboard.diagnostics.height" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الارتفاع: %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Height: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高度：%lld"
+          }
+        }
+      }
+    },
+    "keyboard.diagnostics.intersection" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "منطقة التقاطع: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intersection: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "交集区域：%@"
+          }
+        }
+      }
+    },
+    "keyboard.diagnostics.rawFrame" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الإطار الأصلي: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raw frame: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始区域：%@"
           }
         }
       }
@@ -1644,13 +1897,82 @@
         }
       }
     },
+    "navigation.edge.left" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اليسار"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "left"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左侧"
+          }
+        }
+      }
+    },
+    "navigation.edge.right" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اليمين"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "right"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右侧"
+          }
+        }
+      }
+    },
+    "navigation.edge.summary" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حافة الرجوع: %@، علامة الاتجاه: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back edge: %@, chevron: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回边缘：%@，箭头：%@"
+          }
+        }
+      }
+    },
     "navigation.leading" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Leading 按钮"
+            "value" : "عنصر البداية"
           }
         },
         "en" : {
@@ -1673,7 +1995,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trailing 按钮"
+            "value" : "عنصر النهاية"
           }
         },
         "en" : {
@@ -1742,7 +2064,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "作品集"
+            "value" : "معرض الأعمال"
           }
         },
         "en" : {
@@ -1788,7 +2110,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "أطلق تجربة QuickLayout محلية"
+            "value" : "أطلق تجربة QuickLayout موطّنة"
           }
         },
         "en" : {
@@ -1903,7 +2225,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "简介"
+            "value" : "نبذة"
           }
         },
         "en" : {
@@ -2087,7 +2409,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Localization"
+            "value" : "التوطين"
           }
         },
         "en" : {
@@ -2984,7 +3306,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "显示 Modal"
+            "value" : "عرض نافذة مشروطة"
           }
         },
         "en" : {

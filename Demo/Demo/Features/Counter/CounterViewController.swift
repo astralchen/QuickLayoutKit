@@ -13,16 +13,25 @@ class CounterViewController: DemoQuickLayoutHostingController {
 
     override var localizedTitleKey: String? { "demo.counter.title" }
 
-    private var count = 0 {
-        didSet {
-            updateLabels()
-            setNeedsQuickLayout()
-        }
-    }
+    private let viewModel: CounterViewModel
 
     let counterLabel = UILabel()
-    let incrementButton = UIButton(type: .system)
-    let decrementButton = UIButton(type: .system)
+    let incrementButton = UIButton(configuration: .plain())
+    let decrementButton = UIButton(configuration: .plain())
+
+    convenience init() {
+        self.init(viewModel: CounterViewModel())
+    }
+
+    init(viewModel: CounterViewModel) {
+        self.viewModel = viewModel
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        viewModel = CounterViewModel()
+        super.init(coder: coder)
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -34,13 +43,14 @@ class CounterViewController: DemoQuickLayoutHostingController {
 
         decrementButton.addTarget(self, action: #selector(decrement), for: .touchUpInside)
 
-        updateLabels()
+        viewModel.bind { [weak self] state in
+            self?.render(state)
+        }
     }
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        incrementButton.setTitle(DemoLocalization.text("counter.increment"), for: .normal)
-        decrementButton.setTitle(DemoLocalization.text("counter.decrement"), for: .normal)
+        viewModel.reloadLocalizedContent()
     }
 
     override var body: Layout {
@@ -71,15 +81,24 @@ class CounterViewController: DemoQuickLayoutHostingController {
     }
 
     @objc private func increment() {
-        count += 1
+        viewModel.increment()
     }
 
     @objc private func decrement() {
-        count -= 1
+        viewModel.decrement()
     }
 
-    private func updateLabels() {
-        counterLabel.text = "\(count)"
+    private func render(_ state: CounterViewModel.State) {
+        counterLabel.text = state.countText
+        updateTitle(state.incrementTitle, for: incrementButton)
+        updateTitle(state.decrementTitle, for: decrementButton)
+        setNeedsQuickLayout()
+    }
+
+    private func updateTitle(_ title: String, for button: UIButton) {
+        guard var configuration = button.configuration else { return }
+        configuration.title = title
+        button.configuration = configuration
     }
 }
 

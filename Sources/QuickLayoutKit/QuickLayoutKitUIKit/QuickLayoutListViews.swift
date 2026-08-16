@@ -1,30 +1,8 @@
 import UIKit
 import QuickLayout
 
-/// The source of QuickLayout content hosted by a reusable list view.
-public enum QuickLayoutListContentSource: Equatable, Sendable {
-
-    /// The reusable view lays out its own ``HasBody/body`` in UIKit's
-    /// `contentView`.
-    case body
-
-    /// The reusable view measures the QuickLayout content view installed by
-    /// its `UIContentConfiguration`.
-    case contentConfiguration
-}
-
 /// A collection view cell whose content is described by QuickLayout.
 open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLayoutUpdating {
-
-    /// The source whose QuickLayout content is hosted by the cell.
-    public typealias ContentSource = QuickLayoutListContentSource
-
-    /// The source of the cell's QuickLayout content.
-    ///
-    /// Select the source when the cell is initialized. The source remains
-    /// fixed for the lifetime of the cell because assigning a UIKit content
-    /// configuration replaces the cell's `contentView`.
-    public let quickLayoutContentSource: ContentSource
 
     /// The cell's horizontal sizing flexibility.
     open var quickLayoutHorizontalFlexibility: Flexibility = .fullyFlexible
@@ -35,35 +13,10 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
     private var contentProvider: (() -> Layout)?
 
     public override init(frame: CGRect) {
-        self.quickLayoutContentSource = .body
-        super.init(frame: frame)
-    }
-
-    /// Creates a cell that uses the specified source for QuickLayout content.
-    ///
-    /// - Parameters:
-    ///   - frame: The initial frame of the cell.
-    ///   - contentSource: The source whose QuickLayout content the cell lays
-    ///     out and measures.
-    public init(frame: CGRect, contentSource: ContentSource) {
-        self.quickLayoutContentSource = contentSource
         super.init(frame: frame)
     }
 
     public required init?(coder: NSCoder) {
-        self.quickLayoutContentSource = .body
-        super.init(coder: coder)
-    }
-
-    /// Creates a decoded cell that uses the specified source for QuickLayout
-    /// content.
-    ///
-    /// - Parameters:
-    ///   - coder: The coder used to initialize the cell.
-    ///   - contentSource: The source whose QuickLayout content the cell lays
-    ///     out and measures.
-    public init?(coder: NSCoder, contentSource: ContentSource) {
-        self.quickLayoutContentSource = contentSource
         super.init(coder: coder)
     }
 
@@ -99,19 +52,15 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
     }
 
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
-        quickLayoutContentSizeThatFits(size) ?? super.sizeThatFits(size)
+        quickLayoutSizeThatFits(size) ?? super.sizeThatFits(size)
     }
 
     open override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
         let attributes = super.preferredLayoutAttributesFitting(layoutAttributes)
-        if let size = quickLayoutContentSizeThatFits(layoutAttributes.size) {
+        if let size = quickLayoutSizeThatFits(layoutAttributes.size) {
             attributes.size = size
         }
         return attributes
-    }
-
-    open override var isBodyEnabled: Bool {
-        super.isBodyEnabled && quickLayoutContentSource == .body && contentConfiguration == nil
     }
 
     open override func quickLayoutFlexibility(for axis: Axis) -> Flexibility {
@@ -125,40 +74,19 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
 
     open func setNeedsQuickLayout() {
         setNeedsLayout()
-        configuredQuickLayoutContentView?.setNeedsQuickLayout()
     }
 
     open func quickLayoutIfNeeded() {
         layoutIfNeeded()
-        configuredQuickLayoutContentView?.quickLayoutIfNeeded()
     }
 
-    private var configuredQuickLayoutContentView: (UIView & QuickLayoutUpdating)? {
-        guard
-            quickLayoutContentSource == .contentConfiguration,
-            contentConfiguration != nil
-        else {
-            return nil
-        }
-        return contentView as? (UIView & QuickLayoutUpdating)
-    }
-
-    private func quickLayoutContentSizeThatFits(_ size: CGSize) -> CGSize? {
+    private func quickLayoutSizeThatFits(_ size: CGSize) -> CGSize? {
         let proposedSize = quickLayoutSizeLimit(proposed: size)
         return withQuickLayoutContainerSize(proposedSize) {
-            switch quickLayoutContentSource {
-            case .body:
-                guard contentConfiguration == nil else { return nil }
-                return _QuickLayoutViewImplementation.sizeThatFits(
-                    self,
-                    size: proposedSize
-                )
-
-            case .contentConfiguration:
-                return configuredQuickLayoutContentView?.sizeThatFits(
-                    proposedSize
-                )
-            }
+            _QuickLayoutViewImplementation.sizeThatFits(
+                self,
+                size: proposedSize
+            )
         }
     }
 }
@@ -166,53 +94,13 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
 /// A table view cell whose content is described by QuickLayout.
 open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdating {
 
-    /// The source whose QuickLayout content is hosted by the cell.
-    public typealias ContentSource = QuickLayoutListContentSource
-
-    /// The source of the cell's QuickLayout content.
-    ///
-    /// Select the source when the cell is initialized. The source remains
-    /// fixed for the lifetime of the cell because assigning a UIKit content
-    /// configuration replaces the cell's `contentView`.
-    public let quickLayoutContentSource: ContentSource
-
     private var contentProvider: (() -> Layout)?
 
     public override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
-        self.quickLayoutContentSource = .body
-        super.init(style: style, reuseIdentifier: reuseIdentifier)
-    }
-
-    /// Creates a cell that uses the specified source for QuickLayout content.
-    ///
-    /// - Parameters:
-    ///   - style: The table cell style.
-    ///   - reuseIdentifier: The reuse identifier.
-    ///   - contentSource: The source whose QuickLayout content the cell lays
-    ///     out and measures.
-    public init(
-        style: UITableViewCell.CellStyle,
-        reuseIdentifier: String?,
-        contentSource: ContentSource
-    ) {
-        self.quickLayoutContentSource = contentSource
         super.init(style: style, reuseIdentifier: reuseIdentifier)
     }
 
     public required init?(coder: NSCoder) {
-        self.quickLayoutContentSource = .body
-        super.init(coder: coder)
-    }
-
-    /// Creates a decoded cell that uses the specified source for QuickLayout
-    /// content.
-    ///
-    /// - Parameters:
-    ///   - coder: The coder used to initialize the cell.
-    ///   - contentSource: The source whose QuickLayout content the cell lays
-    ///     out and measures.
-    public init?(coder: NSCoder, contentSource: ContentSource) {
-        self.quickLayoutContentSource = contentSource
         super.init(coder: coder)
     }
 
@@ -255,7 +143,7 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
     }
 
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
-        quickLayoutContentSizeThatFits(size) ?? super.sizeThatFits(size)
+        quickLayoutSizeThatFits(size) ?? super.sizeThatFits(size)
     }
 
     open override func systemLayoutSizeFitting(
@@ -263,7 +151,7 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         withHorizontalFittingPriority horizontalFittingPriority: UILayoutPriority,
         verticalFittingPriority: UILayoutPriority
     ) -> CGSize {
-        quickLayoutContentSystemFittingSize(
+        quickLayoutSystemFittingSize(
             targetSize,
             horizontalFittingPriority: horizontalFittingPriority,
             verticalFittingPriority: verticalFittingPriority
@@ -274,47 +162,24 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         )
     }
 
-    open override var isBodyEnabled: Bool {
-        super.isBodyEnabled && quickLayoutContentSource == .body && contentConfiguration == nil
-    }
-
     open func setNeedsQuickLayout() {
         setNeedsLayout()
-        configuredQuickLayoutContentView?.setNeedsQuickLayout()
     }
 
     open func quickLayoutIfNeeded() {
         layoutIfNeeded()
-        configuredQuickLayoutContentView?.quickLayoutIfNeeded()
     }
 
-    private var configuredQuickLayoutContentView: (UIView & QuickLayoutUpdating)? {
-        guard
-            quickLayoutContentSource == .contentConfiguration,
-            contentConfiguration != nil
-        else {
-            return nil
-        }
-        return contentView as? (UIView & QuickLayoutUpdating)
-    }
-
-    private func quickLayoutContentSizeThatFits(_ size: CGSize) -> CGSize? {
+    private func quickLayoutSizeThatFits(_ size: CGSize) -> CGSize? {
         withQuickLayoutContainerSize(size) {
-            switch quickLayoutContentSource {
-            case .body:
-                guard contentConfiguration == nil else { return nil }
-                return _QuickLayoutViewImplementation.sizeThatFits(
-                    self,
-                    size: size
-                )
-
-            case .contentConfiguration:
-                return configuredQuickLayoutContentView?.sizeThatFits(size)
-            }
+            _QuickLayoutViewImplementation.sizeThatFits(
+                self,
+                size: size
+            )
         }
     }
 
-    private func quickLayoutContentSystemFittingSize(
+    private func quickLayoutSystemFittingSize(
         _ targetSize: CGSize,
         horizontalFittingPriority: UILayoutPriority,
         verticalFittingPriority: UILayoutPriority
@@ -327,7 +192,7 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
                 ? targetSize.height
                 : .infinity
         )
-        guard var measuredSize = quickLayoutContentSizeThatFits(proposedSize)
+        guard var measuredSize = quickLayoutSizeThatFits(proposedSize)
         else {
             return nil
         }
@@ -344,52 +209,13 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
 /// A table view header or footer whose content is described by QuickLayout.
 open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, HasBody, QuickLayoutUpdating {
 
-    /// The source whose QuickLayout content is hosted by the reusable view.
-    public typealias ContentSource = QuickLayoutListContentSource
-
-    /// The source of the reusable view's QuickLayout content.
-    ///
-    /// Select the source when the reusable view is initialized. The source
-    /// remains fixed for its lifetime because assigning a UIKit content
-    /// configuration replaces its `contentView`.
-    public let quickLayoutContentSource: ContentSource
-
     private var contentProvider: (() -> Layout)?
 
     public override init(reuseIdentifier: String?) {
-        self.quickLayoutContentSource = .body
-        super.init(reuseIdentifier: reuseIdentifier)
-    }
-
-    /// Creates a reusable view that uses the specified source for QuickLayout
-    /// content.
-    ///
-    /// - Parameters:
-    ///   - reuseIdentifier: The reuse identifier.
-    ///   - contentSource: The source whose QuickLayout content the reusable
-    ///     view lays out and measures.
-    public init(
-        reuseIdentifier: String?,
-        contentSource: ContentSource
-    ) {
-        self.quickLayoutContentSource = contentSource
         super.init(reuseIdentifier: reuseIdentifier)
     }
 
     public required init?(coder: NSCoder) {
-        self.quickLayoutContentSource = .body
-        super.init(coder: coder)
-    }
-
-    /// Creates a decoded reusable view that uses the specified source for
-    /// QuickLayout content.
-    ///
-    /// - Parameters:
-    ///   - coder: The coder used to initialize the reusable view.
-    ///   - contentSource: The source whose QuickLayout content the reusable
-    ///     view lays out and measures.
-    public init?(coder: NSCoder, contentSource: ContentSource) {
-        self.quickLayoutContentSource = contentSource
         super.init(coder: coder)
     }
 
@@ -433,7 +259,7 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
     }
 
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
-        quickLayoutContentSizeThatFits(size) ?? super.sizeThatFits(size)
+        quickLayoutSizeThatFits(size) ?? super.sizeThatFits(size)
     }
 
     open override func systemLayoutSizeFitting(
@@ -441,7 +267,7 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         withHorizontalFittingPriority horizontalFittingPriority: UILayoutPriority,
         verticalFittingPriority: UILayoutPriority
     ) -> CGSize {
-        quickLayoutContentSystemFittingSize(
+        quickLayoutSystemFittingSize(
             targetSize,
             horizontalFittingPriority: horizontalFittingPriority,
             verticalFittingPriority: verticalFittingPriority
@@ -452,47 +278,24 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         )
     }
 
-    open override var isBodyEnabled: Bool {
-        super.isBodyEnabled && quickLayoutContentSource == .body && contentConfiguration == nil
-    }
-
     open func setNeedsQuickLayout() {
         setNeedsLayout()
-        configuredQuickLayoutContentView?.setNeedsQuickLayout()
     }
 
     open func quickLayoutIfNeeded() {
         layoutIfNeeded()
-        configuredQuickLayoutContentView?.quickLayoutIfNeeded()
     }
 
-    private var configuredQuickLayoutContentView: (UIView & QuickLayoutUpdating)? {
-        guard
-            quickLayoutContentSource == .contentConfiguration,
-            contentConfiguration != nil
-        else {
-            return nil
-        }
-        return contentView as? (UIView & QuickLayoutUpdating)
-    }
-
-    private func quickLayoutContentSizeThatFits(_ size: CGSize) -> CGSize? {
+    private func quickLayoutSizeThatFits(_ size: CGSize) -> CGSize? {
         withQuickLayoutContainerSize(size) {
-            switch quickLayoutContentSource {
-            case .body:
-                guard contentConfiguration == nil else { return nil }
-                return _QuickLayoutViewImplementation.sizeThatFits(
-                    self,
-                    size: size
-                )
-
-            case .contentConfiguration:
-                return configuredQuickLayoutContentView?.sizeThatFits(size)
-            }
+            _QuickLayoutViewImplementation.sizeThatFits(
+                self,
+                size: size
+            )
         }
     }
 
-    private func quickLayoutContentSystemFittingSize(
+    private func quickLayoutSystemFittingSize(
         _ targetSize: CGSize,
         horizontalFittingPriority: UILayoutPriority,
         verticalFittingPriority: UILayoutPriority
@@ -505,7 +308,7 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
                 ? targetSize.height
                 : .infinity
         )
-        guard var measuredSize = quickLayoutContentSizeThatFits(proposedSize)
+        guard var measuredSize = quickLayoutSizeThatFits(proposedSize)
         else {
             return nil
         }
@@ -564,14 +367,14 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
     }
 
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
-        withQuickLayoutContainerSize(size) {
-            _QuickLayoutViewImplementation.sizeThatFits(self, size: size) ?? super.sizeThatFits(size)
-        }
+        quickLayoutSizeThatFits(size) ?? super.sizeThatFits(size)
     }
 
     open override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
         let attributes = super.preferredLayoutAttributesFitting(layoutAttributes)
-        attributes.size = sizeThatFits(layoutAttributes.size)
+        if let size = quickLayoutSizeThatFits(layoutAttributes.size) {
+            attributes.size = size
+        }
         return attributes
     }
 
@@ -581,5 +384,11 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
 
     open func quickLayoutIfNeeded() {
         layoutIfNeeded()
+    }
+
+    private func quickLayoutSizeThatFits(_ size: CGSize) -> CGSize? {
+        withQuickLayoutContainerSize(size) {
+            _QuickLayoutViewImplementation.sizeThatFits(self, size: size)
+        }
     }
 }

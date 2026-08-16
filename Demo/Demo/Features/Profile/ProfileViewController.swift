@@ -6,7 +6,6 @@
 //
 
 import UIKit
-import AppLocalization
 import QuickLayout
 import QuickLayoutKit
 
@@ -52,8 +51,23 @@ class ProfileViewController: DemoQuickLayoutHostingController {
         "profile.skill.accessibility"
     ]
 
-    private let messageButton = UIButton(type: .system)
-    private let portfolioButton = UIButton(type: .system)
+    private let messageButton: UIButton = {
+        var configuration = UIButton.Configuration.filled()
+        configuration.cornerStyle = .large
+        configuration.image = UIImage(systemName: "message.fill")
+        configuration.imagePlacement = .leading
+        configuration.imagePadding = 8
+        return UIButton(configuration: configuration)
+    }()
+
+    private let portfolioButton: UIButton = {
+        var configuration = UIButton.Configuration.tinted()
+        configuration.cornerStyle = .large
+        configuration.image = UIImage(systemName: "square.grid.2x2.fill")
+        configuration.imagePlacement = .leading
+        configuration.imagePadding = 8
+        return UIButton(configuration: configuration)
+    }()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -91,8 +105,14 @@ class ProfileViewController: DemoQuickLayoutHostingController {
 
         skillCloudView.configure(titles: skillLocalizationKeys.map(DemoLocalization.text))
 
-        messageButton.configuration?.title = DemoLocalization.text("profile.action.message")
-        portfolioButton.configuration?.title = DemoLocalization.text("profile.action.portfolio")
+        updateTitle(
+            DemoLocalization.text("profile.action.message"),
+            for: messageButton
+        )
+        updateTitle(
+            DemoLocalization.text("profile.action.portfolio"),
+            for: portfolioButton
+        )
 
         setNeedsQuickLayout()
     }
@@ -100,11 +120,16 @@ class ProfileViewController: DemoQuickLayoutHostingController {
     override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
         super.reloadLayoutDirection(direction)
 
-        let attribute = direction.appLayoutDirection.semanticContentAttribute
+        let attribute = view.semanticContentAttribute
+        scrollView.semanticContentAttribute = attribute
+        // Refresh UIButton.Configuration's internal image/title ordering.
         [messageButton, portfolioButton].forEach {
             $0.semanticContentAttribute = attribute
+            $0.configuration = $0.configuration
+            $0.setNeedsLayout()
         }
-        skillCloudView.semanticContentAttribute = attribute
+        skillCloudView.applySemanticContentAttribute(attribute)
+        scrollView.setNeedsLayout()
         setNeedsQuickLayout()
     }
 
@@ -118,7 +143,6 @@ class ProfileViewController: DemoQuickLayoutHostingController {
                 skillsSection
                 actionsSection
             }
-            .layoutDirection(view.quickLayoutDirection)
         }
         .contentMargins(.horizontal, 16)
         .safeAreaPadding(.horizontal, 0)
@@ -349,7 +373,6 @@ class ProfileViewController: DemoQuickLayoutHostingController {
         activityDetailLabel.textColor = .secondaryLabel
         activityDetailLabel.numberOfLines = 0
 
-        configureButtons()
     }
 
     private func configureSectionTitle(_ label: UILabel) {
@@ -359,20 +382,10 @@ class ProfileViewController: DemoQuickLayoutHostingController {
         label.textAlignment = .natural
     }
 
-    private func configureButtons() {
-        var messageConfig = UIButton.Configuration.filled()
-        messageConfig.cornerStyle = .large
-        messageConfig.image = UIImage(systemName: "message.fill")
-        messageConfig.imagePlacement = .leading
-        messageConfig.imagePadding = 8
-        messageButton.configuration = messageConfig
-
-        var portfolioConfig = UIButton.Configuration.tinted()
-        portfolioConfig.cornerStyle = .large
-        portfolioConfig.image = UIImage(systemName: "square.grid.2x2.fill")
-        portfolioConfig.imagePlacement = .leading
-        portfolioConfig.imagePadding = 8
-        portfolioButton.configuration = portfolioConfig
+    private func updateTitle(_ title: String, for button: UIButton) {
+        guard var configuration = button.configuration else { return }
+        configuration.title = title
+        button.configuration = configuration
     }
 
     private func makeCardBackground() -> UIView {
@@ -456,6 +469,14 @@ private final class ProfileChipView: UIView {
         setNeedsLayout()
     }
 
+    func applySemanticContentAttribute(
+        _ semanticContentAttribute: UISemanticContentAttribute
+    ) {
+        self.semanticContentAttribute = semanticContentAttribute
+        titleLabel.semanticContentAttribute = semanticContentAttribute
+        setNeedsLayout()
+    }
+
     private func setupViews() {
         backgroundColor = .systemBlue.withAlphaComponent(0.10)
         layer.cornerRadius = 15
@@ -490,6 +511,17 @@ private final class ProfileSkillCloudView: UIView {
         setNeedsLayout()
     }
 
+    func applySemanticContentAttribute(
+        _ semanticContentAttribute: UISemanticContentAttribute
+    ) {
+        self.semanticContentAttribute = semanticContentAttribute
+        chipViews.forEach {
+            $0.applySemanticContentAttribute(semanticContentAttribute)
+        }
+        invalidateIntrinsicContentSize()
+        setNeedsLayout()
+    }
+
     var body: Layout {
         HFlow(
             itemAlignment: .center,
@@ -511,6 +543,7 @@ private final class ProfileSkillCloudView: UIView {
 
         while chipViews.count < count {
             let chipView = ProfileChipView()
+            chipView.applySemanticContentAttribute(semanticContentAttribute)
             chipViews.append(chipView)
         }
     }

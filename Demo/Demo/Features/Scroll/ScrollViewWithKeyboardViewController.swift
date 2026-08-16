@@ -6,7 +6,6 @@
 //
 
 import UIKit
-import AppLocalization
 import QuickLayout
 import QuickLayoutKit
 import Combine
@@ -37,12 +36,21 @@ class FormHeaderView: UIView {
 
         subtitleLabel.font = .systemFont(ofSize: 14)
         subtitleLabel.textColor = .secondaryLabel
-        reloadLocalizedContent()
     }
 
-    func reloadLocalizedContent() {
-        titleLabel.text = DemoLocalization.text("form.header.title")
-        subtitleLabel.text = DemoLocalization.text("form.header.subtitle")
+    func configure(title: String, subtitle: String) {
+        titleLabel.text = title
+        subtitleLabel.text = subtitle
+        setNeedsLayout()
+    }
+
+    func applySemanticContentAttribute(
+        _ semanticContentAttribute: UISemanticContentAttribute
+    ) {
+        self.semanticContentAttribute = semanticContentAttribute
+        [titleLabel, subtitleLabel].forEach {
+            $0.semanticContentAttribute = semanticContentAttribute
+        }
         setNeedsLayout()
     }
 
@@ -90,6 +98,16 @@ class FormFieldView: UIView {
         setNeedsLayout()
     }
 
+    func applySemanticContentAttribute(
+        _ semanticContentAttribute: UISemanticContentAttribute
+    ) {
+        self.semanticContentAttribute = semanticContentAttribute
+        [textField, iconView, containerView].forEach {
+            $0.semanticContentAttribute = semanticContentAttribute
+        }
+        setNeedsLayout()
+    }
+
     var body: Layout {
         ZStack {
             containerView
@@ -129,11 +147,20 @@ class NotesFieldView: UIView {
     private func setupViews() {
         label.font = .systemFont(ofSize: 16, weight: .medium)
         label.textColor = .label
-        reloadLocalizedContent()
     }
 
-    func reloadLocalizedContent() {
-        label.text = DemoLocalization.text("form.notes")
+    func configure(title: String) {
+        label.text = title
+        setNeedsLayout()
+    }
+
+    func applySemanticContentAttribute(
+        _ semanticContentAttribute: UISemanticContentAttribute
+    ) {
+        self.semanticContentAttribute = semanticContentAttribute
+        [label, textView].forEach {
+            $0.semanticContentAttribute = semanticContentAttribute
+        }
         setNeedsLayout()
     }
 
@@ -153,6 +180,8 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
 
     override var localizedTitleKey: String? { "demo.form.title" }
 
+    private let viewModel: FormViewModel
+
     let scrollView = QuickLayoutScrollView()
     let keyboardObserver = QuickLayoutKeyboardObserver()
     private lazy var keyboardAvoider = QuickLayoutKeyboardAvoider(
@@ -168,14 +197,36 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
     let phoneTextField = UITextField()
     let addressTextField = UITextField()
     let notesTextView = UITextView()
-    let customInputButton = UIButton(type: .system)
-    let submitButton = UIButton(type: .system)
+    let customInputButton: UIButton = {
+        var configuration = UIButton.Configuration.tinted()
+        configuration.cornerStyle = .large
+        configuration.image = UIImage(systemName: "keyboard.badge.eye")
+        configuration.imagePlacement = .leading
+        configuration.imagePadding = 8
+        return UIButton(configuration: configuration)
+    }()
+    let submitButton: UIButton = {
+        var configuration = UIButton.Configuration.filled()
+        configuration.cornerStyle = .large
+        configuration.baseBackgroundColor = .systemBlue
+        configuration.baseForegroundColor = .white
+        configuration.contentInsets = .init(
+            top: 14,
+            leading: 32,
+            bottom: 14,
+            trailing: 32
+        )
+        configuration.image = UIImage(systemName: "checkmark.circle.fill")
+        configuration.imagePlacement = .leading
+        configuration.imagePadding = 8
+        return UIButton(configuration: configuration)
+    }()
 
     // Form Field Views
-    lazy var nameFieldView = FormFieldView(textField: nameTextField, placeholder: "姓名", icon: "person.fill")
-    lazy var emailFieldView = FormFieldView(textField: emailTextField, placeholder: "邮箱", icon: "envelope.fill")
-    lazy var phoneFieldView = FormFieldView(textField: phoneTextField, placeholder: "电话", icon: "phone.fill")
-    lazy var addressFieldView = FormFieldView(textField: addressTextField, placeholder: "地址", icon: "location.fill")
+    lazy var nameFieldView = FormFieldView(textField: nameTextField, placeholder: "", icon: "person.fill")
+    lazy var emailFieldView = FormFieldView(textField: emailTextField, placeholder: "", icon: "envelope.fill")
+    lazy var phoneFieldView = FormFieldView(textField: phoneTextField, placeholder: "", icon: "phone.fill")
+    lazy var addressFieldView = FormFieldView(textField: addressTextField, placeholder: "", icon: "location.fill")
     lazy var notesFieldView = NotesFieldView(textView: notesTextView)
 
     private var keyboardContext = QuickLayoutKeyboardContext.hidden {
@@ -191,6 +242,20 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
 
     private var currentActiveField: UIView?
     private var cancellables: Set<AnyCancellable> = []
+
+    convenience init() {
+        self.init(viewModel: FormViewModel())
+    }
+
+    init(viewModel: FormViewModel) {
+        self.viewModel = viewModel
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        viewModel = FormViewModel()
+        super.init(coder: coder)
+    }
 
     override var body: Layout {
         ScrollView(scrollView, .vertical) {
@@ -226,6 +291,7 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupViews()
+        bindViewModel()
         setupKeyboardObservers()
         setupGestures()
         _ = keyboardAvoider
@@ -244,6 +310,11 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
             textField.font = .systemFont(ofSize: 16)
             textField.returnKeyType = .next
             textField.delegate = self
+            textField.addTarget(
+                self,
+                action: #selector(textFieldDidChange(_:)),
+                for: .editingChanged
+            )
         }
 
         addressTextField.returnKeyType = .done
@@ -262,54 +333,49 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
         notesTextView.textContainerInset = UIEdgeInsets(top: 12, left: 8, bottom: 12, right: 8)
         notesTextView.delegate = self
 
-        var customInputConfig = UIButton.Configuration.tinted()
-        customInputConfig.cornerStyle = .large
-        customInputConfig.image = UIImage(systemName: "keyboard.badge.eye")
-        customInputConfig.imagePlacement = .leading
-        customInputConfig.imagePadding = 8
-        customInputButton.configuration = customInputConfig
         customInputButton.addTarget(self, action: #selector(customInputTapped), for: .touchUpInside)
 
-        // Configure Submit Button
-        var config = UIButton.Configuration.filled()
-        config.cornerStyle = .large
-        config.baseBackgroundColor = .systemBlue
-        config.baseForegroundColor = .white
-        config.contentInsets = .init(top: 14, leading: 32, bottom: 14, trailing: 32)
-        config.image = UIImage(systemName: "checkmark.circle.fill")
-        config.imagePlacement = .leading
-        config.imagePadding = 8
-
-        submitButton.configuration = config
         submitButton.addTarget(self, action: #selector(submitTapped), for: .touchUpInside)
         keyboardAvoider.extraBottomPadding = 12
         keyboardAvoider.safeAreaStrategy = .ignore
-        reloadLocalizedContent()
     }
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        headerView.reloadLocalizedContent()
-        nameFieldView.updatePlaceholder(DemoLocalization.text("form.name"))
-        emailFieldView.updatePlaceholder(DemoLocalization.text("form.email"))
-        phoneFieldView.updatePlaceholder(DemoLocalization.text("form.phone"))
-        addressFieldView.updatePlaceholder(DemoLocalization.text("form.address"))
-        notesFieldView.reloadLocalizedContent()
-        customInputButton.configuration?.title = DemoLocalization.text("form.customInput")
-        submitButton.configuration?.title = DemoLocalization.text("form.submit")
+        viewModel.refreshLocalizedContent()
     }
 
     override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
         super.reloadLayoutDirection(direction)
-        let attribute = direction.appLayoutDirection.semanticContentAttribute
-        let inputViews: [UIView] = [nameTextField, emailTextField, phoneTextField, addressTextField, notesTextView, customInputButton]
-        inputViews.forEach {
+        let attribute = view.semanticContentAttribute
+
+        scrollView.semanticContentAttribute = attribute
+        headerView.applySemanticContentAttribute(attribute)
+        [
+            nameFieldView,
+            emailFieldView,
+            phoneFieldView,
+            addressFieldView,
+        ].forEach {
+            $0.applySemanticContentAttribute(attribute)
+        }
+        notesFieldView.applySemanticContentAttribute(attribute)
+
+        // Refresh UIButton.Configuration's internal image/title ordering.
+        [customInputButton, submitButton].forEach {
             $0.semanticContentAttribute = attribute
+            if let configuration = $0.configuration {
+                $0.configuration = configuration
+            }
+            $0.setNeedsLayout()
         }
         [nameTextField, emailTextField, phoneTextField, addressTextField].forEach {
             $0.textAlignment = direction == .rightToLeft ? .right : .left
         }
         notesTextView.textAlignment = direction == .rightToLeft ? .right : .left
+
+        scrollView.setNeedsLayout()
+        setNeedsQuickLayout()
     }
 
     private func setupKeyboardObservers() {
@@ -336,6 +402,39 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
         tapGesture.cancelsTouchesInView = false
         view.addGestureRecognizer(tapGesture)
+    }
+
+    private func bindViewModel() {
+        viewModel.bind { [weak self] state in
+            self?.render(state)
+        }
+        viewModel.onSubmission = { [weak self] submission in
+            self?.present(submission)
+        }
+    }
+
+    private func render(_ state: FormViewModel.State) {
+        headerView.configure(
+            title: state.headerTitle,
+            subtitle: state.headerSubtitle
+        )
+        nameFieldView.updatePlaceholder(state.namePlaceholder)
+        emailFieldView.updatePlaceholder(state.emailPlaceholder)
+        phoneFieldView.updatePlaceholder(state.phonePlaceholder)
+        addressFieldView.updatePlaceholder(state.addressPlaceholder)
+        notesFieldView.configure(title: state.notesTitle)
+        updateButton(customInputButton, title: state.customInputTitle)
+        updateButton(submitButton, title: state.submitTitle)
+        setNeedsQuickLayout()
+    }
+
+    private func updateButton(_ button: UIButton, title: String) {
+        guard var configuration = button.configuration else {
+            assertionFailure("Form buttons require UIButton.Configuration")
+            return
+        }
+        configuration.title = title
+        button.configuration = configuration
     }
 
     private func animateKeyboardChange() {
@@ -375,21 +474,55 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
         scrollToActiveField(customInputButton)
     }
 
+    @objc private func textFieldDidChange(_ textField: UITextField) {
+        guard let field = formField(for: textField) else { return }
+        viewModel.update(textField.text ?? "", for: field)
+    }
+
     @objc private func submitTapped() {
         dismissKeyboard()
+        syncFormValues()
+        viewModel.submit()
+    }
 
-        let formData = DemoLocalization.text(
-            "form.summary",
-            nameTextField.text ?? "",
-            emailTextField.text ?? "",
-            phoneTextField.text ?? "",
-            addressTextField.text ?? "",
-            notesTextView.text ?? ""
+    private func syncFormValues() {
+        viewModel.update(nameTextField.text ?? "", for: .name)
+        viewModel.update(emailTextField.text ?? "", for: .email)
+        viewModel.update(phoneTextField.text ?? "", for: .phone)
+        viewModel.update(addressTextField.text ?? "", for: .address)
+        viewModel.update(notesTextView.text ?? "", for: .notes)
+    }
+
+    private func present(_ submission: FormViewModel.Submission) {
+        let alert = UIAlertController(
+            title: submission.title,
+            message: submission.message,
+            preferredStyle: .alert
         )
-
-        let alert = UIAlertController(title: DemoLocalization.text("form.alert.title"), message: formData, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: DemoLocalization.text("common.ok"), style: .default))
+        alert.addAction(
+            UIAlertAction(title: submission.actionTitle, style: .default)
+        )
         present(alert, animated: true)
+    }
+
+    private func formField(for textField: UITextField) -> FormViewModel.Field? {
+        switch textField {
+        case nameTextField: .name
+        case emailTextField: .email
+        case phoneTextField: .phone
+        case addressTextField: .address
+        default: nil
+        }
+    }
+
+    private func focus(_ field: FormViewModel.Field) {
+        switch field {
+        case .name: nameTextField.becomeFirstResponder()
+        case .email: emailTextField.becomeFirstResponder()
+        case .phone: phoneTextField.becomeFirstResponder()
+        case .address: addressTextField.becomeFirstResponder()
+        case .notes: notesTextView.becomeFirstResponder()
+        }
     }
 }
 
@@ -397,18 +530,13 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
 
 extension ScrollViewWithKeyboardViewController: UITextFieldDelegate {
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-        switch textField {
-        case nameTextField:
-            emailTextField.becomeFirstResponder()
-        case emailTextField:
-            phoneTextField.becomeFirstResponder()
-        case phoneTextField:
-            addressTextField.becomeFirstResponder()
-        case addressTextField:
-            notesTextView.becomeFirstResponder()
-        default:
+        guard let field = formField(for: textField),
+              let nextField = viewModel.nextField(after: field) else {
             textField.resignFirstResponder()
+            return true
         }
+
+        focus(nextField)
         return true
     }
 }
@@ -417,7 +545,7 @@ extension ScrollViewWithKeyboardViewController: UITextFieldDelegate {
 
 extension ScrollViewWithKeyboardViewController: UITextViewDelegate {
     func textViewDidChange(_ textView: UITextView) {
-        // 可以添加字数限制等逻辑
+        viewModel.update(textView.text ?? "", for: .notes)
     }
 }
 
