@@ -38,8 +38,9 @@ enum DemoLocalization {
     }
 
     static func start() {
-        sceneCoordinator.applyGlobalLayoutDirection(localizationController.currentLocale)
-
+        // Keep direction on windows/controllers. A UIView appearance proxy
+        // turns inherited direction into an explicit value on every new view,
+        // which prevents an existing subtree from following runtime changes.
         guard notificationToken == nil else { return }
         notificationToken = NotificationCenter.default.addObserver(
             forName: LocalizationController.localizationDidChangeNotification,
@@ -63,6 +64,11 @@ enum DemoLocalization {
                 )
             }
         }
+    }
+
+    static func applyCurrentLayoutDirection(to window: UIWindow?) {
+        window?.semanticContentAttribute = currentLayoutDirection
+            .semanticContentAttribute
     }
 
     static func shouldRebuildRootWindows(
@@ -205,6 +211,7 @@ extension UIViewController {
     func applyDemoLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
         let attribute = direction.appLayoutDirection.semanticContentAttribute
         view.semanticContentAttribute = attribute
+        view.setNeedsLayout()
         navigationController?.view.semanticContentAttribute = attribute
         navigationController?.navigationBar.semanticContentAttribute = attribute
     }

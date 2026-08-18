@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/astralchen/ListKit.git",
       "state" : {
-        "revision" : "a8933d0b6bd00c6a6d53db5ecca60d025b239e9b",
-        "version" : "1.0.0"
+        "branch" : "main",
+        "revision" : "0710ddb30ff922f19a9dc4bc7e5f58c833f4244f"
       }
     },
     {

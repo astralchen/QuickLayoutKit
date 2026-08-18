@@ -75,6 +75,77 @@ struct QuickLayoutKitTests {
     }
 
     @MainActor
+    @Test func tableHeaderFooterLaysOutCenteredBodyInsideContentViewBounds() {
+        let bodyView = IntrinsicTestView(
+            size: CGSize(width: 80, height: 20)
+        )
+        let header = QuickLayoutTableViewHeaderFooterView {
+            bodyView
+        }
+        let dataSource = TableHeaderFooterDataSource(header: header)
+        let tableView = UITableView(
+            frame: CGRect(x: 0, y: 0, width: 320, height: 240),
+            style: .insetGrouped
+        )
+        tableView.dataSource = dataSource
+        tableView.delegate = dataSource
+        tableView.reloadData()
+        tableView.layoutIfNeeded()
+
+        let visibleHeader = tableView.headerView(forSection: 0)
+        #expect(visibleHeader === header)
+        #expect(header.contentView.bounds.width < header.bounds.width)
+        #expect(header.contentView.bounds.contains(bodyView.frame))
+        #expect(
+            abs(bodyView.frame.midX - header.contentView.bounds.midX) < 0.5
+        )
+        #expect(bodyView.frame.size == CGSize(width: 80, height: 20))
+    }
+
+    @MainActor
+    @Test func tableReusableHostsSynchronizeDirectionFromTheirTable() {
+        let cell = DirectionProbeTableViewCell(
+            style: .default,
+            reuseIdentifier: nil
+        )
+        let header = DirectionProbeTableHeaderFooterView(
+            reuseIdentifier: nil
+        )
+        let dataSource = TableHeaderFooterDataSource(
+            header: header,
+            cell: cell
+        )
+        let tableView = UITableView(
+            frame: CGRect(x: 0, y: 0, width: 320, height: 240),
+            style: .plain
+        )
+        tableView.semanticContentAttribute = .forceLeftToRight
+        tableView.dataSource = dataSource
+        tableView.delegate = dataSource
+        tableView.reloadData()
+        tableView.layoutIfNeeded()
+
+        #expect(cell.semanticContentAttribute == .forceLeftToRight)
+        #expect(cell.contentView.semanticContentAttribute == .forceLeftToRight)
+        #expect(cell.directionView.semanticContentAttribute == .forceLeftToRight)
+        #expect(header.semanticContentAttribute == .forceLeftToRight)
+        #expect(header.contentView.semanticContentAttribute == .forceLeftToRight)
+        #expect(header.directionView.semanticContentAttribute == .forceLeftToRight)
+
+        tableView.semanticContentAttribute = .forceRightToLeft
+        cell.setNeedsLayout()
+        header.setNeedsLayout()
+        tableView.layoutIfNeeded()
+
+        #expect(cell.semanticContentAttribute == .forceRightToLeft)
+        #expect(cell.contentView.semanticContentAttribute == .forceRightToLeft)
+        #expect(cell.directionView.semanticContentAttribute == .forceRightToLeft)
+        #expect(header.semanticContentAttribute == .forceRightToLeft)
+        #expect(header.contentView.semanticContentAttribute == .forceRightToLeft)
+        #expect(header.directionView.semanticContentAttribute == .forceRightToLeft)
+    }
+
+    @MainActor
     @Test func collectionReusableViewDefaultsToBodyContent() {
         let bodyView = IntrinsicTestView(
             size: CGSize(width: 180, height: 37)
@@ -456,6 +527,48 @@ struct QuickLayoutKitTests {
             host.layoutIfNeeded()
             #expect(first.frame == leftToRightFrames.0)
             #expect(second.frame == leftToRightFrames.1)
+        }
+    }
+
+    @MainActor
+    @Test func reusableListHostsPublishEnvironmentDirectionChangesOnce() {
+        let collectionCell = EnvironmentRecordingCollectionViewCell(
+            frame: .zero
+        )
+        let tableCell = EnvironmentRecordingTableViewCell(
+            style: .default,
+            reuseIdentifier: nil
+        )
+        let headerFooter = EnvironmentRecordingTableHeaderFooterView(
+            reuseIdentifier: nil
+        )
+        let reusableView = EnvironmentRecordingCollectionReusableView(
+            frame: .zero
+        )
+        let scenarios: [(UIView, () -> [QuickLayoutEnvironmentChangeReason])] = [
+            (collectionCell, { collectionCell.environmentChangeReasons }),
+            (tableCell, { tableCell.environmentChangeReasons }),
+            (headerFooter, { headerFooter.environmentChangeReasons }),
+            (reusableView, { reusableView.environmentChangeReasons }),
+        ]
+
+        for (host, environmentChangeReasons) in scenarios {
+            host.semanticContentAttribute = .forceLeftToRight
+            host.frame = CGRect(x: 0, y: 0, width: 100, height: 40)
+            host.layoutIfNeeded()
+            let initialChangeCount = environmentChangeReasons().count
+
+            host.semanticContentAttribute = .forceRightToLeft
+            host.layoutIfNeeded()
+
+            #expect(environmentChangeReasons().count == initialChangeCount + 1)
+            #expect(
+                environmentChangeReasons().last?
+                    .contains(.layoutDirection) == true
+            )
+
+            host.layoutIfNeeded()
+            #expect(environmentChangeReasons().count == initialChangeCount + 1)
         }
     }
 
@@ -1659,6 +1772,105 @@ private final class DirectionRecordingQuickLayoutView: QuickLayoutView {
 }
 
 @MainActor
+private final class EnvironmentRecordingCollectionViewCell:
+    QuickLayoutCollectionViewCell {
+
+    private(set) var environmentChangeReasons: [
+        QuickLayoutEnvironmentChangeReason
+    ] = []
+
+    override func quickLayoutEnvironmentDidChange(
+        _ environment: QuickLayoutEnvironment,
+        reason: QuickLayoutEnvironmentChangeReason
+    ) {
+        environmentChangeReasons.append(reason)
+        super.quickLayoutEnvironmentDidChange(environment, reason: reason)
+    }
+}
+
+@MainActor
+private final class EnvironmentRecordingTableViewCell:
+    QuickLayoutTableViewCell {
+
+    private(set) var environmentChangeReasons: [
+        QuickLayoutEnvironmentChangeReason
+    ] = []
+
+    override func quickLayoutEnvironmentDidChange(
+        _ environment: QuickLayoutEnvironment,
+        reason: QuickLayoutEnvironmentChangeReason
+    ) {
+        environmentChangeReasons.append(reason)
+        super.quickLayoutEnvironmentDidChange(environment, reason: reason)
+    }
+}
+
+@MainActor
+private final class EnvironmentRecordingTableHeaderFooterView:
+    QuickLayoutTableViewHeaderFooterView {
+
+    private(set) var environmentChangeReasons: [
+        QuickLayoutEnvironmentChangeReason
+    ] = []
+
+    override func quickLayoutEnvironmentDidChange(
+        _ environment: QuickLayoutEnvironment,
+        reason: QuickLayoutEnvironmentChangeReason
+    ) {
+        environmentChangeReasons.append(reason)
+        super.quickLayoutEnvironmentDidChange(environment, reason: reason)
+    }
+}
+
+@MainActor
+private final class EnvironmentRecordingCollectionReusableView:
+    QuickLayoutCollectionReusableView {
+
+    private(set) var environmentChangeReasons: [
+        QuickLayoutEnvironmentChangeReason
+    ] = []
+
+    override func quickLayoutEnvironmentDidChange(
+        _ environment: QuickLayoutEnvironment,
+        reason: QuickLayoutEnvironmentChangeReason
+    ) {
+        environmentChangeReasons.append(reason)
+        super.quickLayoutEnvironmentDidChange(environment, reason: reason)
+    }
+}
+
+@MainActor
+private final class DirectionProbeTableViewCell: QuickLayoutTableViewCell {
+
+    let directionView = UIView()
+
+    override var quickLayoutDirectionViews: [UIView] {
+        super.quickLayoutDirectionViews + [directionView]
+    }
+
+    @LayoutBuilder
+    override var body: Layout {
+        directionView.frame(width: 20, height: 10)
+    }
+}
+
+@MainActor
+private final class DirectionProbeTableHeaderFooterView:
+    QuickLayoutTableViewHeaderFooterView {
+
+    let directionView = UIView()
+
+    override var quickLayoutDirectionViews: [UIView] {
+        super.quickLayoutDirectionViews + [directionView]
+    }
+
+    @LayoutBuilder
+    override var body: Layout {
+        directionView.frame(width: 20, height: 10)
+    }
+}
+
+@MainActor
 private final class SafeAreaProbeView: UIView {
 
     private let reportedSafeAreaInsets: UIEdgeInsets
@@ -1921,6 +2133,56 @@ private struct CacheProbeLayout: LayoutAlgorithm {
         for subview in subviews {
             subview.place(at: bounds.origin)
         }
+    }
+}
+
+@MainActor
+private final class TableHeaderFooterDataSource:
+    NSObject,
+    UITableViewDataSource,
+    UITableViewDelegate {
+
+    let header: UITableViewHeaderFooterView
+    let cell: UITableViewCell?
+
+    init(
+        header: UITableViewHeaderFooterView,
+        cell: UITableViewCell? = nil
+    ) {
+        self.header = header
+        self.cell = cell
+    }
+
+    func numberOfSections(in tableView: UITableView) -> Int {
+        1
+    }
+
+    func tableView(
+        _ tableView: UITableView,
+        numberOfRowsInSection section: Int
+    ) -> Int {
+        1
+    }
+
+    func tableView(
+        _ tableView: UITableView,
+        cellForRowAt indexPath: IndexPath
+    ) -> UITableViewCell {
+        cell ?? UITableViewCell(style: .default, reuseIdentifier: nil)
+    }
+
+    func tableView(
+        _ tableView: UITableView,
+        viewForHeaderInSection section: Int
+    ) -> UIView? {
+        header
+    }
+
+    func tableView(
+        _ tableView: UITableView,
+        heightForHeaderInSection section: Int
+    ) -> CGFloat {
+        60
     }
 }
 

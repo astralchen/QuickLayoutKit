@@ -18,6 +18,7 @@ final class MessageTableListView: UIView {
     private lazy var adapter = TableListAdapter<MessageListSection>(
         tableView: tableView
     )
+    // 防止较早一次语言刷新晚完成后，重新调整已经进入新语言的列表。
     private var renderGeneration = 0
 
     override init(frame: CGRect) {
@@ -51,9 +52,13 @@ final class MessageTableListView: UIView {
                     return
                 }
 
+                // apply 完成时 header/footer/cell 可能刚被创建或复用，必须在
+                // 最终视图集合上再次同步当前 table 方向。
                 self.refreshMaterializedContentLayoutDirection()
                 if summary.visibleSupplementaryRefreshCount > 0,
                    !summary.animation.layoutInvalidated {
+                    // 可见 supplementary 已重配但 adapter 没有失效布局时，
+                    // 主动触发自动高度计算，并在前后保持同一可见行锚点。
                     self.refreshAutomaticSectionLayoutPreservingVisibleRow()
                 }
                 completion?()
@@ -67,6 +72,8 @@ final class MessageTableListView: UIView {
                     ) { cell, message, _ in
                         cell.configure(message)
                     }
+                    // 行 identity 不随语言变化，文案参与 refreshID 才能让
+                    // 已显示的 self-sizing cell 重新配置并测量高度。
                     .refreshID([
                         item.model.title,
                         item.model.message,
@@ -85,6 +92,7 @@ final class MessageTableListView: UIView {
                         role: .header
                     )
                 }
+                // Header identity 固定，标题和详情负责触发内容与高度刷新。
                 .refreshID([headerTitle, headerDetail])
                 .height(.automatic(estimated: 64))
             } footer: {
@@ -98,6 +106,7 @@ final class MessageTableListView: UIView {
                         role: .footer
                     )
                 }
+                // Footer 文案变化同样需要重新配置和 self-sizing。
                 .refreshID([footerTitle])
                 .height(.automatic(estimated: 48))
             }
@@ -108,6 +117,7 @@ final class MessageTableListView: UIView {
     func applyLayoutDirection(
         _ direction: UIUserInterfaceLayoutDirection
     ) {
+        // 方向边界由 table 容器控制，同时保留用户当前看到的逻辑行。
         tableView.applyUserInterfaceLayoutDirection(
             direction.appLayoutDirection,
             preservingVisibleRow: true
@@ -119,6 +129,8 @@ final class MessageTableListView: UIView {
                 || tableView.semanticContentAttribute != .unspecified else {
             return
         }
+        // 等待 snapshot 后新增/复用的视图物化，再用 table 当前的最终方向
+        // 统一触发 reusable host 和自动尺寸布局刷新。
         tableView.layoutIfNeeded()
         tableView.applyUserInterfaceLayoutDirection(
             tableView.effectiveUserInterfaceLayoutDirection
@@ -276,6 +288,12 @@ final class MessageTableCell: QuickLayoutTableViewCell {
 
     let messageContentView = MessageContentView(frame: .zero)
 
+    // Cell/contentView 由框架默认同步；把真正执行 QuickLayout 的内部 host
+    // 一并声明，确保复用后的 cell 不携带上一次语言方向。
+    override var quickLayoutDirectionViews: [UIView] {
+        super.quickLayoutDirectionViews + [messageContentView]
+    }
+
     override var isHighlighted: Bool {
         didSet {
             guard isHighlighted != oldValue else { return }
@@ -291,8 +309,9 @@ final class MessageTableCell: QuickLayoutTableViewCell {
     }
 
     override var body: Layout {
-        messageContentView
-            .frame(maxWidth: .infinity, alignment: .leading)
+        ZStack {
+            messageContentView
+        }
     }
 
     override init(
@@ -337,9 +356,20 @@ final class MessageTableHeaderFooterView:
 
     let sectionContentView = MessageSectionContentView(frame: .zero)
 
+    // Header/footer 的 contentView、QuickLayout host 和文本叶子都可能来自
+    // 复用池；显式列出后由 table 的最终 effective direction 一次同步。
+    override var quickLayoutDirectionViews: [UIView] {
+        super.quickLayoutDirectionViews + [
+            sectionContentView,
+            sectionContentView.titleLabel,
+            sectionContentView.detailLabel,
+        ]
+    }
+
     override var body: Layout {
-        sectionContentView
-            .frame(maxWidth: .infinity, alignment: .leading)
+        ZStack {
+            sectionContentView
+        }
     }
 
     override init(reuseIdentifier: String?) {

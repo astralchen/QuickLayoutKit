@@ -152,6 +152,39 @@ public protocol QuickLayoutEnvironmentUpdating: AnyObject {
     )
 }
 
+@MainActor
+/// Stores the last environment seen by one QuickLayout host.
+///
+/// Comparing snapshots prevents repeated layout invalidation when UIKit calls
+/// several lifecycle hooks for the same language, trait, or direction change.
+final class _QuickLayoutEnvironmentState {
+
+    private var lastEnvironment: QuickLayoutEnvironment?
+
+    @discardableResult
+    func update(
+        _ host: UIView & QuickLayoutEnvironmentUpdating,
+        explicitReason: QuickLayoutEnvironmentChangeReason = []
+    ) -> Bool {
+        let environment = host.quickLayoutEnvironment
+        let reason: QuickLayoutEnvironmentChangeReason
+
+        if let lastEnvironment {
+            reason = environment
+                .changes(from: lastEnvironment)
+                .union(explicitReason)
+        } else {
+            reason = explicitReason
+        }
+
+        self.lastEnvironment = environment
+        guard !reason.isEmpty else { return false }
+
+        host.quickLayoutEnvironmentDidChange(environment, reason: reason)
+        return true
+    }
+}
+
 extension UIView {
 
     /// The view's current QuickLayout environment.

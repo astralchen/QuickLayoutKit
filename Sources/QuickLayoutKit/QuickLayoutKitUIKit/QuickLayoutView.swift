@@ -9,7 +9,7 @@ import QuickLayout
 open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnvironmentUpdating {
 
     private var contentProvider: (() -> Layout)?
-    private var lastQuickLayoutEnvironment: QuickLayoutEnvironment?
+    private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
 
     /// Creates a hosting view with no content.
     public override init(frame: CGRect) {
@@ -50,27 +50,27 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
 
     open override func didMoveToWindow() {
         super.didMoveToWindow()
-        updateQuickLayoutEnvironment(explicitReason: [])
+        quickLayoutEnvironmentState.update(self)
     }
 
     open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
-        updateQuickLayoutEnvironment(explicitReason: [])
+        quickLayoutEnvironmentState.update(self)
     }
 
     open override func safeAreaInsetsDidChange() {
         super.safeAreaInsetsDidChange()
-        updateQuickLayoutEnvironment(explicitReason: .safeArea)
+        quickLayoutEnvironmentState.update(self, explicitReason: .safeArea)
     }
 
     open override func layoutMarginsDidChange() {
         super.layoutMarginsDidChange()
-        updateQuickLayoutEnvironment(explicitReason: .layoutMargins)
+        quickLayoutEnvironmentState.update(self, explicitReason: .layoutMargins)
     }
 
     open override func layoutSubviews() {
         super.layoutSubviews()
-        updateQuickLayoutEnvironment(explicitReason: [])
+        quickLayoutEnvironmentState.update(self)
         QuickLayoutDiagnostics.recordLayoutPass(for: String(describing: Self.self), measuredSize: bounds.size)
         withQuickLayoutContainerSize(bounds.size) {
             _QuickLayoutViewImplementation.layoutSubviews(self)
@@ -78,7 +78,10 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
     }
 
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
-        withQuickLayoutContainerSize(size) {
+        // Self-sizing can run before the next layout pass after a locale or
+        // direction switch, so measurement must observe the latest environment.
+        quickLayoutEnvironmentState.update(self)
+        return withQuickLayoutContainerSize(size) {
             _QuickLayoutViewImplementation.sizeThatFits(self, size: size) ?? super.sizeThatFits(size)
         }
     }
@@ -116,25 +119,4 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         setNeedsQuickLayout()
     }
 
-    @discardableResult
-    private func updateQuickLayoutEnvironment(
-        explicitReason: QuickLayoutEnvironmentChangeReason
-    ) -> Bool {
-        let environment = quickLayoutEnvironment
-        let reason: QuickLayoutEnvironmentChangeReason
-
-        if let lastQuickLayoutEnvironment {
-            reason = environment
-                .changes(from: lastQuickLayoutEnvironment)
-                .union(explicitReason)
-        } else {
-            reason = explicitReason
-        }
-
-        self.lastQuickLayoutEnvironment = environment
-        guard !reason.isEmpty else { return false }
-
-        quickLayoutEnvironmentDidChange(environment, reason: reason)
-        return true
-    }
 }

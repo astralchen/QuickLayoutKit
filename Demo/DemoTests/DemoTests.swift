@@ -577,10 +577,11 @@ struct DemoTests {
 
         let viewController = UIViewController()
         viewController.view = listView
+        viewController.view.semanticContentAttribute = .forceRightToLeft
+        listView.applyLayoutDirection(.rightToLeft)
         let window = try makeVisibleTestWindow(
             rootViewController: viewController,
-            size: CGSize(width: 320, height: 640),
-            semanticContentAttribute: .forceRightToLeft
+            size: CGSize(width: 320, height: 640)
         )
         defer { window.isHidden = true }
         listView.tableView.layoutIfNeeded()
@@ -627,13 +628,13 @@ struct DemoTests {
             verticalFittingPriority: .fittingSizeLevel
         )
 
-        #expect(window.semanticContentAttribute == .forceRightToLeft)
-        #expect(listView.semanticContentAttribute == .unspecified)
+        #expect(window.semanticContentAttribute == .unspecified)
+        #expect(listView.semanticContentAttribute == .forceRightToLeft)
         #expect(
             listView.effectiveUserInterfaceLayoutDirection == .rightToLeft
         )
         #expect(
-            listView.tableView.semanticContentAttribute == .unspecified
+            listView.tableView.semanticContentAttribute == .forceRightToLeft
         )
         #expect(
             listView.tableView.effectiveUserInterfaceLayoutDirection
@@ -647,17 +648,22 @@ struct DemoTests {
             footer.effectiveUserInterfaceLayoutDirection
                 == listView.tableView.effectiveUserInterfaceLayoutDirection
         )
-        #expect(header.semanticContentAttribute == .unspecified)
-        #expect(footer.semanticContentAttribute == .unspecified)
+        #expect(header.semanticContentAttribute == .forceRightToLeft)
+        #expect(footer.semanticContentAttribute == .forceRightToLeft)
         #expect(
-            headerContent.semanticContentAttribute == .unspecified
+            headerContent.semanticContentAttribute == .forceRightToLeft
         )
         #expect(
-            footerContent.semanticContentAttribute == .unspecified
+            footerContent.semanticContentAttribute == .forceRightToLeft
         )
-        #expect(headerTitle.semanticContentAttribute == .unspecified)
-        #expect(headerDetail.semanticContentAttribute == .unspecified)
-        #expect(footerTitle.semanticContentAttribute == .unspecified)
+        #expect(
+            header.contentView.bounds.insetBy(dx: -1, dy: -1)
+                .contains(headerContent.frame)
+        )
+        #expect(
+            footer.contentView.bounds.insetBy(dx: -1, dy: -1)
+                .contains(footerContent.frame)
+        )
         #expect(
             headerContent.effectiveUserInterfaceLayoutDirection
                 == listView.tableView.effectiveUserInterfaceLayoutDirection
@@ -767,7 +773,7 @@ struct DemoTests {
 
         let arabicHeader = "رسائل ذاتية التحجيم طويلة لاختبار الارتفاع"
         let arabicDetail = "يجب أن يتغير اتجاه هذا الرأس وارتفاعه فورًا من دون تمرير القائمة."
-        let arabicFooter = "يجب أن يحدّث الرأس والتذييل الارتفاع مباشرة."
+        let arabicFooter = "يجب أن يحدّث الرأس والتذييل الارتفاع مباشرة عند تبديل اللغة من الصينية إلى العربية من دون تمرير القائمة."
 
         await withCheckedContinuation { continuation in
             listView.render(
@@ -817,13 +823,16 @@ struct DemoTests {
         #expect(
             listView.tableView.semanticContentAttribute == .forceRightToLeft
         )
-        #expect(updatedHeader.semanticContentAttribute == .unspecified)
-        #expect(updatedFooter.semanticContentAttribute == .unspecified)
-        #expect(headerContent.semanticContentAttribute == .unspecified)
-        #expect(footerContent.semanticContentAttribute == .unspecified)
-        #expect(headerTitle.semanticContentAttribute == .unspecified)
-        #expect(headerDetail.semanticContentAttribute == .unspecified)
-        #expect(footerTitle.semanticContentAttribute == .unspecified)
+        #expect(headerContent.semanticContentAttribute == .forceRightToLeft)
+        #expect(footerContent.semanticContentAttribute == .forceRightToLeft)
+        #expect(
+            updatedHeader.contentView.bounds.insetBy(dx: -1, dy: -1)
+                .contains(headerContent.frame)
+        )
+        #expect(
+            updatedFooter.contentView.bounds.insetBy(dx: -1, dy: -1)
+                .contains(footerContent.frame)
+        )
         #expect(
             updatedHeader.effectiveUserInterfaceLayoutDirection
                 == listView.tableView.effectiveUserInterfaceLayoutDirection
@@ -2950,7 +2959,7 @@ struct DemoTests {
         )
     }
 
-    @Test func collectionMessagesInheritDirectionForVisibleAndNewContent() throws {
+    @Test func collectionMessagesInheritDirectionForVisibleAndNewContent() async throws {
         var prefix = "ltr."
         let localizer = DemoLocalizer { key, _ in prefix + key }
         let viewController = MesssageViewController(
@@ -2960,12 +2969,11 @@ struct DemoTests {
             )
         )
         viewController.loadViewIfNeeded()
-        viewController.view.frame = CGRect(
-            x: 0,
-            y: 0,
-            width: 320,
-            height: 220
+        let window = try makeVisibleTestWindow(
+            rootViewController: viewController,
+            size: CGSize(width: 320, height: 220)
         )
+        defer { window.isHidden = true }
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
 
@@ -2991,6 +2999,17 @@ struct DemoTests {
         let titleLabel = contentView.titleLabel
         let ltrAvatarFrame = avatarView.convert(avatarView.bounds, to: contentView)
         let ltrTitleFrame = titleLabel.convert(titleLabel.bounds, to: contentView)
+        // Local QuickLayout frames can look correct while UICollectionView's
+        // reusable-view coordinate mapping is still mirrored. Keep a physical
+        // window-space baseline to catch that stale UIKit state.
+        let ltrAvatarWindowFrame = avatarView.convert(
+            avatarView.bounds,
+            to: window
+        )
+        let ltrTitleWindowFrame = titleLabel.convert(
+            titleLabel.bounds,
+            to: window
+        )
 
         #expect(titleLabel.text == "ltr.messages.title.1")
         #expect(collectionView.semanticContentAttribute == .forceLeftToRight)
@@ -2998,8 +3017,9 @@ struct DemoTests {
             collectionView.effectiveUserInterfaceLayoutDirection
                 == .leftToRight
         )
-        #expect(cell.semanticContentAttribute == .unspecified)
-        #expect(contentView.semanticContentAttribute == .unspecified)
+        #expect(cell.semanticContentAttribute == .forceLeftToRight)
+        #expect(cell.contentView.semanticContentAttribute == .forceLeftToRight)
+        #expect(contentView.semanticContentAttribute == .forceLeftToRight)
         #expect(avatarView.semanticContentAttribute == .unspecified)
         #expect(titleLabel.semanticContentAttribute == .unspecified)
         #expect(contentView.messageLabel.semanticContentAttribute == .unspecified)
@@ -3032,14 +3052,26 @@ struct DemoTests {
             rtlContentView.titleLabel.bounds,
             to: rtlContentView
         )
+        let rtlAvatarWindowFrame = rtlContentView.avatarView.convert(
+            rtlContentView.avatarView.bounds,
+            to: window
+        )
+        let rtlTitleWindowFrame = rtlContentView.titleLabel.convert(
+            rtlContentView.titleLabel.bounds,
+            to: window
+        )
 
         #expect(collectionView.semanticContentAttribute == .forceRightToLeft)
         #expect(
             collectionView.effectiveUserInterfaceLayoutDirection
                 == .rightToLeft
         )
-        #expect(rtlCell.semanticContentAttribute == .unspecified)
-        #expect(rtlContentView.semanticContentAttribute == .unspecified)
+        #expect(rtlCell.semanticContentAttribute == .forceRightToLeft)
+        #expect(
+            rtlCell.contentView.semanticContentAttribute
+                == .forceRightToLeft
+        )
+        #expect(rtlContentView.semanticContentAttribute == .forceRightToLeft)
         #expect(rtlContentView.avatarView.semanticContentAttribute == .unspecified)
         #expect(rtlContentView.titleLabel.semanticContentAttribute == .unspecified)
         #expect(rtlContentView.messageLabel.semanticContentAttribute == .unspecified)
@@ -3052,6 +3084,7 @@ struct DemoTests {
                 == collectionView.effectiveUserInterfaceLayoutDirection
         )
         #expect(rtlAvatarFrame.midX > rtlTitleFrame.midX)
+        #expect(rtlAvatarWindowFrame.midX > rtlTitleWindowFrame.midX)
         #expect(
             isHorizontalMirror(
                 rtlAvatarFrame,
@@ -3083,8 +3116,12 @@ struct DemoTests {
             collectionView.effectiveUserInterfaceLayoutDirection
                 == .leftToRight
         )
-        #expect(returnedCell.semanticContentAttribute == .unspecified)
-        #expect(returnedContent.semanticContentAttribute == .unspecified)
+        #expect(returnedCell.semanticContentAttribute == .forceLeftToRight)
+        #expect(
+            returnedCell.contentView.semanticContentAttribute
+                == .forceLeftToRight
+        )
+        #expect(returnedContent.semanticContentAttribute == .forceLeftToRight)
         #expect(returnedContent.avatarView.semanticContentAttribute == .unspecified)
         #expect(returnedContent.titleLabel.semanticContentAttribute == .unspecified)
         #expect(returnedContent.messageLabel.semanticContentAttribute == .unspecified)
@@ -3095,6 +3132,16 @@ struct DemoTests {
         #expect(
             returnedContent.effectiveUserInterfaceLayoutDirection
                 == collectionView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(returnedCell.transform == .identity)
+        #expect(returnedCell.contentView.transform == .identity)
+        #expect(returnedContent.transform == .identity)
+        #expect(returnedContent.titleLabel.transform == .identity)
+        #expect(CATransform3DIsIdentity(returnedCell.layer.transform))
+        #expect(CATransform3DIsIdentity(returnedCell.layer.sublayerTransform))
+        #expect(CATransform3DIsIdentity(returnedContent.layer.transform))
+        #expect(
+            CATransform3DIsIdentity(returnedContent.layer.sublayerTransform)
         )
         #expect(
             returnedContent.avatarView.convert(
@@ -3110,10 +3157,36 @@ struct DemoTests {
             )
                 .approximatelyEquals(ltrTitleFrame)
         )
+        #expect(
+            returnedContent.avatarView.convert(
+                returnedContent.avatarView.bounds,
+                to: window
+            )
+                .approximatelyEquals(ltrAvatarWindowFrame)
+        )
+        #expect(
+            returnedContent.titleLabel.convert(
+                returnedContent.titleLabel.bounds,
+                to: window
+            )
+                .approximatelyEquals(ltrTitleWindowFrame)
+        )
 
         prefix = "rtl."
         viewController.reloadLocalizedContent()
         viewController.reloadLayoutDirection(.rightToLeft)
+        let localizedContentDidApply = await waitForCondition {
+            guard
+                let cell = collectionView.cellForItem(
+                    at: IndexPath(item: 0, section: 0)
+                ) as? MessageCell
+            else {
+                return false
+            }
+            return cell.messageContentView.titleLabel.text
+                == "rtl.messages.title.1"
+        }
+        #expect(localizedContentDidApply)
         viewController.view.layoutIfNeeded()
         collectionView.layoutIfNeeded()
         let localizedCell = try #require(
@@ -3129,8 +3202,12 @@ struct DemoTests {
             collectionView.effectiveUserInterfaceLayoutDirection
                 == .rightToLeft
         )
-        #expect(localizedCell.semanticContentAttribute == .unspecified)
-        #expect(localizedContent.semanticContentAttribute == .unspecified)
+        #expect(localizedCell.semanticContentAttribute == .forceRightToLeft)
+        #expect(
+            localizedCell.contentView.semanticContentAttribute
+                == .forceRightToLeft
+        )
+        #expect(localizedContent.semanticContentAttribute == .forceRightToLeft)
         #expect(localizedContent.avatarView.semanticContentAttribute == .unspecified)
         #expect(localizedContent.titleLabel.semanticContentAttribute == .unspecified)
         #expect(localizedContent.messageLabel.semanticContentAttribute == .unspecified)
@@ -3173,8 +3250,15 @@ struct DemoTests {
             )
         )
         #expect(newlyVisibleContent.titleLabel.text == "rtl.messages.title.4")
-        #expect(newlyVisibleCell.semanticContentAttribute == .unspecified)
-        #expect(newlyVisibleContent.semanticContentAttribute == .unspecified)
+        #expect(newlyVisibleCell.semanticContentAttribute == .forceRightToLeft)
+        #expect(
+            newlyVisibleCell.contentView.semanticContentAttribute
+                == .forceRightToLeft
+        )
+        #expect(
+            newlyVisibleContent.semanticContentAttribute
+                == .forceRightToLeft
+        )
         #expect(newlyVisibleContent.avatarView.semanticContentAttribute == .unspecified)
         #expect(newlyVisibleContent.titleLabel.semanticContentAttribute == .unspecified)
         #expect(newlyVisibleContent.messageLabel.semanticContentAttribute == .unspecified)
@@ -3187,9 +3271,78 @@ struct DemoTests {
                 == collectionView.effectiveUserInterfaceLayoutDirection
         )
         #expect(newAvatarFrame.midX > newTitleFrame.midX)
+
+        prefix = "returned."
+        viewController.reloadLocalizedContent()
+        viewController.reloadLayoutDirection(.leftToRight)
+        collectionView.scrollToItem(
+            at: IndexPath(item: 0, section: 0),
+            at: .top,
+            animated: false
+        )
+        let returnedLocalizedContentDidApply = await waitForCondition {
+            guard
+                let cell = collectionView.cellForItem(
+                    at: IndexPath(item: 0, section: 0)
+                ) as? MessageCell
+            else {
+                return false
+            }
+            return cell.messageContentView.titleLabel.text
+                == "returned.messages.title.1"
+        }
+        #expect(returnedLocalizedContentDidApply)
+        viewController.view.layoutIfNeeded()
+        collectionView.layoutIfNeeded()
+
+        let returnedLocalizedCell = try #require(
+            collectionView.cellForItem(
+                at: IndexPath(item: 0, section: 0)
+            ) as? MessageCell
+        )
+        let returnedLocalizedContent = returnedLocalizedCell.messageContentView
+        returnedLocalizedContent.layoutIfNeeded()
+        let returnedLocalizedAvatarWindowFrame =
+            returnedLocalizedContent.avatarView.convert(
+                returnedLocalizedContent.avatarView.bounds,
+                to: window
+            )
+        let returnedLocalizedTitleWindowFrame =
+            returnedLocalizedContent.titleLabel.convert(
+                returnedLocalizedContent.titleLabel.bounds,
+                to: window
+            )
+
+        #expect(
+            returnedLocalizedContent.titleLabel.text
+                == "returned.messages.title.1"
+        )
+        #expect(collectionView.semanticContentAttribute == .forceLeftToRight)
+        #expect(
+            returnedLocalizedContent.semanticContentAttribute
+                == .forceLeftToRight
+        )
+        // 文本宽度可以因语言变化而不同；物理 leading 坐标必须回到初始 LTR，
+        // 这能捕获局部 frame 正确但 window 坐标仍残留 RTL 镜像的回归。
+        #expect(
+            abs(
+                returnedLocalizedAvatarWindowFrame.minX
+                    - ltrAvatarWindowFrame.minX
+            ) < 0.5
+        )
+        #expect(
+            abs(
+                returnedLocalizedTitleWindowFrame.minX
+                    - ltrTitleWindowFrame.minX
+            ) < 0.5
+        )
+        #expect(
+            returnedLocalizedAvatarWindowFrame.midX
+                < returnedLocalizedTitleWindowFrame.midX
+        )
     }
 
-    @Test func tableMessagesInheritDirectionForVisibleAndNewContent() throws {
+    @Test func tableMessagesInheritDirectionForVisibleAndNewContent() async throws {
         let sectionHorizontalPadding: CGFloat = 16
         let sectionEdgeTolerance: CGFloat = 1
         let sectionSizingTolerance: CGFloat = 1.01
@@ -3202,12 +3355,11 @@ struct DemoTests {
             )
         )
         viewController.loadViewIfNeeded()
-        viewController.view.frame = CGRect(
-            x: 0,
-            y: 0,
-            width: 320,
-            height: 260
+        let window = try makeVisibleTestWindow(
+            rootViewController: viewController,
+            size: CGSize(width: 320, height: 260)
         )
+        defer { window.isHidden = true }
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
 
@@ -3259,13 +3411,13 @@ struct DemoTests {
         #expect(
             tableView.effectiveUserInterfaceLayoutDirection == .leftToRight
         )
-        #expect(cell.semanticContentAttribute == .unspecified)
-        #expect(contentView.semanticContentAttribute == .unspecified)
-        #expect(avatarView.semanticContentAttribute == .unspecified)
-        #expect(titleLabel.semanticContentAttribute == .unspecified)
-        #expect(contentView.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(contentView.semanticContentAttribute == .forceLeftToRight)
         #expect(
             cell.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            cell.contentView.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
         #expect(
@@ -3273,12 +3425,17 @@ struct DemoTests {
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
         #expect(ltrAvatarFrame.midX < ltrTitleFrame.midX)
-        #expect(header.semanticContentAttribute == .unspecified)
-        #expect(headerContent.semanticContentAttribute == .unspecified)
-        #expect(headerTitleLabel.semanticContentAttribute == .unspecified)
-        #expect(headerDetailLabel.semanticContentAttribute == .unspecified)
+        #expect(headerContent.semanticContentAttribute == .forceLeftToRight)
+        #expect(
+            header.contentView.bounds.insetBy(dx: -1, dy: -1)
+                .contains(headerContent.frame)
+        )
         #expect(
             header.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            header.contentView.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
         #expect(
@@ -3327,12 +3484,17 @@ struct DemoTests {
             to: footerContent
         )
 
-        #expect(footer.semanticContentAttribute == .unspecified)
-        #expect(footerContent.semanticContentAttribute == .unspecified)
-        #expect(footerTitleLabel.semanticContentAttribute == .unspecified)
-        #expect(footerDetailLabel.semanticContentAttribute == .unspecified)
+        #expect(footerContent.semanticContentAttribute == .forceLeftToRight)
+        #expect(
+            footer.contentView.bounds.insetBy(dx: -1, dy: -1)
+                .contains(footerContent.frame)
+        )
         #expect(
             footer.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            footer.contentView.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
         #expect(
@@ -3406,13 +3568,13 @@ struct DemoTests {
         #expect(
             tableView.effectiveUserInterfaceLayoutDirection == .rightToLeft
         )
-        #expect(rtlCell.semanticContentAttribute == .unspecified)
-        #expect(rtlContentView.semanticContentAttribute == .unspecified)
-        #expect(rtlContentView.avatarView.semanticContentAttribute == .unspecified)
-        #expect(rtlContentView.titleLabel.semanticContentAttribute == .unspecified)
-        #expect(rtlContentView.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(rtlContentView.semanticContentAttribute == .forceRightToLeft)
         #expect(
             rtlCell.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            rtlCell.contentView.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
         #expect(
@@ -3434,12 +3596,17 @@ struct DemoTests {
                 in: rtlContentView.bounds.width
             )
         )
-        #expect(rtlHeader.semanticContentAttribute == .unspecified)
-        #expect(rtlHeaderContent.semanticContentAttribute == .unspecified)
-        #expect(rtlHeaderTitleLabel.semanticContentAttribute == .unspecified)
-        #expect(rtlHeaderDetailLabel.semanticContentAttribute == .unspecified)
+        #expect(rtlHeaderContent.semanticContentAttribute == .forceRightToLeft)
+        #expect(
+            rtlHeader.contentView.bounds.insetBy(dx: -1, dy: -1)
+                .contains(rtlHeaderContent.frame)
+        )
         #expect(
             rtlHeader.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            rtlHeader.contentView.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
         #expect(
@@ -3520,11 +3687,7 @@ struct DemoTests {
         #expect(
             tableView.effectiveUserInterfaceLayoutDirection == .leftToRight
         )
-        #expect(returnedCell.semanticContentAttribute == .unspecified)
-        #expect(returnedContent.semanticContentAttribute == .unspecified)
-        #expect(returnedContent.avatarView.semanticContentAttribute == .unspecified)
-        #expect(returnedContent.titleLabel.semanticContentAttribute == .unspecified)
-        #expect(returnedContent.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(returnedContent.semanticContentAttribute == .forceLeftToRight)
         #expect(
             returnedCell.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
@@ -3533,8 +3696,7 @@ struct DemoTests {
             returnedContent.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
-        #expect(returnedHeader.semanticContentAttribute == .unspecified)
-        #expect(returnedHeaderContent.semanticContentAttribute == .unspecified)
+        #expect(returnedHeaderContent.semanticContentAttribute == .forceLeftToRight)
         #expect(
             returnedHeader.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
@@ -3575,6 +3737,21 @@ struct DemoTests {
         prefix = "rtl."
         viewController.reloadLocalizedContent()
         viewController.reloadLayoutDirection(.rightToLeft)
+        let localizedContentDidApply = await waitForCondition {
+            guard
+                let header = tableView.headerView(forSection: 0)
+                    as? MessageTableHeaderFooterView,
+                let cell = tableView.cellForRow(at: IndexPath(row: 0, section: 0))
+                    as? MessageTableCell
+            else {
+                return false
+            }
+            return header.sectionContentView.titleLabel.text
+                    == "rtl.demo.tableMessages.header"
+                && cell.messageContentView.titleLabel.text
+                    == "rtl.messages.title.1"
+        }
+        #expect(localizedContentDidApply)
         viewController.view.layoutIfNeeded()
         tableView.layoutIfNeeded()
         let localizedCell = try #require(
@@ -3614,11 +3791,7 @@ struct DemoTests {
         #expect(
             tableView.effectiveUserInterfaceLayoutDirection == .rightToLeft
         )
-        #expect(localizedCell.semanticContentAttribute == .unspecified)
-        #expect(localizedContent.semanticContentAttribute == .unspecified)
-        #expect(localizedContent.avatarView.semanticContentAttribute == .unspecified)
-        #expect(localizedContent.titleLabel.semanticContentAttribute == .unspecified)
-        #expect(localizedContent.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(localizedContent.semanticContentAttribute == .forceRightToLeft)
         #expect(
             localizedCell.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
@@ -3627,10 +3800,7 @@ struct DemoTests {
             localizedContent.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
-        #expect(localizedHeader.semanticContentAttribute == .unspecified)
-        #expect(localizedHeaderContent.semanticContentAttribute == .unspecified)
-        #expect(localizedHeaderTitleLabel.semanticContentAttribute == .unspecified)
-        #expect(localizedHeaderDetailLabel.semanticContentAttribute == .unspecified)
+        #expect(localizedHeaderContent.semanticContentAttribute == .forceRightToLeft)
         #expect(
             localizedHeader.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
@@ -3702,13 +3872,13 @@ struct DemoTests {
         )
 
         #expect(newlyVisibleContent.titleLabel.text == "rtl.messages.title.4")
-        #expect(newlyVisibleCell.semanticContentAttribute == .unspecified)
-        #expect(newlyVisibleContent.semanticContentAttribute == .unspecified)
-        #expect(newlyVisibleContent.avatarView.semanticContentAttribute == .unspecified)
-        #expect(newlyVisibleContent.titleLabel.semanticContentAttribute == .unspecified)
-        #expect(newlyVisibleContent.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(newlyVisibleContent.semanticContentAttribute == .forceRightToLeft)
         #expect(
             newlyVisibleCell.effectiveUserInterfaceLayoutDirection
+                == tableView.effectiveUserInterfaceLayoutDirection
+        )
+        #expect(
+            newlyVisibleCell.contentView.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
         #expect(
@@ -3716,10 +3886,11 @@ struct DemoTests {
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
         #expect(newAvatarFrame.midX > newTitleFrame.midX)
-        #expect(rtlFooter.semanticContentAttribute == .unspecified)
-        #expect(rtlFooterContent.semanticContentAttribute == .unspecified)
-        #expect(rtlFooterTitleLabel.semanticContentAttribute == .unspecified)
-        #expect(rtlFooterDetailLabel.semanticContentAttribute == .unspecified)
+        #expect(rtlFooterContent.semanticContentAttribute == .forceRightToLeft)
+        #expect(
+            rtlFooter.contentView.bounds.insetBy(dx: -1, dy: -1)
+                .contains(rtlFooterContent.frame)
+        )
         #expect(
             rtlFooter.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
@@ -3800,18 +3971,9 @@ struct DemoTests {
             )
 
         #expect(tableView.semanticContentAttribute == .forceRightToLeft)
-        #expect(returnedRTLHeader.semanticContentAttribute == .unspecified)
         #expect(
             returnedRTLHeaderContent.semanticContentAttribute
-                == .unspecified
-        )
-        #expect(
-            returnedRTLHeaderTitleLabel.semanticContentAttribute
-                == .unspecified
-        )
-        #expect(
-            returnedRTLHeaderDetailLabel.semanticContentAttribute
-                == .unspecified
+                == .forceRightToLeft
         )
         #expect(
             returnedRTLHeader.effectiveUserInterfaceLayoutDirection
@@ -3912,6 +4074,20 @@ private func makeVisibleTestWindow(
     rootViewController.view.setNeedsLayout()
     rootViewController.view.layoutIfNeeded()
     return window
+}
+
+@MainActor
+private func waitForCondition(
+    attempts: Int = 200,
+    _ condition: () -> Bool
+) async -> Bool {
+    for _ in 0..<attempts {
+        if condition() {
+            return true
+        }
+        try? await Task.sleep(for: .milliseconds(10))
+    }
+    return condition()
 }
 
 private func isHorizontalMirror(

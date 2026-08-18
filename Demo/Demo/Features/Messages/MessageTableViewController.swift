@@ -77,6 +77,8 @@ final class MessageTableViewController: DemoViewController {
         _ direction: UIUserInterfaceLayoutDirection
     ) {
         super.reloadLayoutDirection(direction)
+        // Controller 只负责建立容器方向边界；已物化和复用视图的同步、
+        // 自动高度刷新与可见行锚点由 MessageTableListView 统一处理。
         contentView.applyLayoutDirection(direction)
     }
 
