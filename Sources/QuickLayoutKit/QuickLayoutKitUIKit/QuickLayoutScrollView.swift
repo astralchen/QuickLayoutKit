@@ -17,7 +17,11 @@ import UIKit
 /// `init(frame:)` for use with ``ScrollView(_:_:showsIndicators:content:)``.
 /// Runtime layout-direction changes relayout existing content without changing
 /// the numeric scroll position, matching SwiftUI's `ScrollView` behavior.
-open class QuickLayoutScrollView: UIScrollView, HasBody {
+open class QuickLayoutScrollView:
+    UIScrollView,
+    HasBody,
+    QuickLayoutUpdating,
+    QuickLayoutEnvironmentUpdating {
 
     /// An edge of the scrollable content.
     public enum Edge: Equatable, Sendable {
@@ -58,7 +62,7 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
                 self.pendingScroll = nil
             }
             configureAxisBehavior()
-            setNeedsLayout()
+            setNeedsQuickLayout()
         }
     }
 
@@ -72,21 +76,24 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
 
     /// The semantic role used to resolve the receiver's layout direction.
     ///
-    /// Changing this value invalidates QuickLayout content so a runtime LTR to
-    /// RTL switch takes effect without rebuilding the scroll view.
+    /// App-level language switching commonly updates this property directly.
+    /// Publish the new effective direction immediately, then invalidate the
+    /// hosted content so the next layout pass remeasures and replaces it.
     open override var semanticContentAttribute: UISemanticContentAttribute {
         didSet {
             guard semanticContentAttribute != oldValue else { return }
-            setNeedsLayout()
+            quickLayoutEnvironmentState.update(self)
+            setNeedsQuickLayout()
         }
     }
 
     private var contentElements: [Element] = [] {
         didSet {
-            setNeedsLayout()
+            setNeedsQuickLayout()
         }
     }
 
+    private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
     private var pendingScroll: (edge: Edge, animated: Bool)?
     private var needsContentMarginStartPosition = false
     let quickLayoutContentMarginState = QuickLayoutContentMarginState()
@@ -136,19 +143,26 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
 
     open override func didMoveToWindow() {
         super.didMoveToWindow()
-        setNeedsLayout()
+        quickLayoutEnvironmentState.update(self)
+        setNeedsQuickLayout()
     }
 
     open override func traitCollectionDidChange(
         _ previousTraitCollection: UITraitCollection?
     ) {
         super.traitCollectionDidChange(previousTraitCollection)
+        quickLayoutEnvironmentState.update(self)
+        setNeedsQuickLayout()
+    }
 
-        guard previousTraitCollection?.layoutDirection
-                != traitCollection.layoutDirection else {
-            return
-        }
-        setNeedsLayout()
+    open override func safeAreaInsetsDidChange() {
+        super.safeAreaInsetsDidChange()
+        quickLayoutEnvironmentState.update(self, explicitReason: .safeArea)
+    }
+
+    open override func layoutMarginsDidChange() {
+        super.layoutMarginsDidChange()
+        quickLayoutEnvironmentState.update(self, explicitReason: .layoutMargins)
     }
 
     // MARK: - HasBody
@@ -182,6 +196,7 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
     override open func layoutSubviews() {
         super.layoutSubviews()
 
+        quickLayoutEnvironmentState.update(self)
         quickLayoutUpdateContentMarginDirectionIfNeeded()
         let layoutDirection = quickLayoutDirection
         let layoutProposal = proposedContentSize
@@ -216,6 +231,30 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
 
         applyContentMarginStartPositionIfPossible()
         applyPendingScrollIfPossible()
+    }
+
+    /// Invalidates the hosted scroll content.
+    ///
+    /// Call this after localized content changes without changing layout
+    /// direction, because UIKit has no notification for an app-specific locale.
+    open func setNeedsQuickLayout() {
+        setNeedsLayout()
+    }
+
+    /// Lays out the hosted scroll content immediately if needed.
+    open func quickLayoutIfNeeded() {
+        layoutIfNeeded()
+    }
+
+    /// Responds to UIKit environment changes that can affect scroll content.
+    ///
+    /// The default implementation invalidates measurement and placement while
+    /// preserving the existing numeric content offset.
+    open func quickLayoutEnvironmentDidChange(
+        _ environment: QuickLayoutEnvironment,
+        reason: QuickLayoutEnvironmentChangeReason
+    ) {
+        setNeedsQuickLayout()
     }
 
     private var contentAlignment: Alignment {
@@ -331,7 +370,7 @@ open class QuickLayoutScrollView: UIScrollView, HasBody {
 
     func quickLayoutKeepContentAtStartAfterMarginChange() {
         needsContentMarginStartPosition = true
-        setNeedsLayout()
+        setNeedsQuickLayout()
     }
 
     // MARK: - Private Helpers

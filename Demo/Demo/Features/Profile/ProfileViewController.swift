@@ -122,10 +122,14 @@ class ProfileViewController: DemoQuickLayoutHostingController {
 
         let attribute = view.semanticContentAttribute
         scrollView.semanticContentAttribute = attribute
-        // Refresh UIButton.Configuration's internal image/title ordering.
+        // Apple 明确说明不能假定 effectiveUserInterfaceLayoutDirection 会传播到
+        // 整个子树。运行时切换语言后，已物化的按钮可能仍保留旧方向，因此必须
+        // 显式更新按钮的 semantic；仅刷新 configuration 或请求 layout 不会改变
+        // effective direction。
+        // https://developer.apple.com/documentation/uikit/uiview/effectiveuserinterfacelayoutdirection
         [messageButton, portfolioButton].forEach {
             $0.semanticContentAttribute = attribute
-            $0.configuration = $0.configuration
+            $0.setNeedsUpdateConfiguration()
             $0.setNeedsLayout()
         }
         skillCloudView.applySemanticContentAttribute(attribute)

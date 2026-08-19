@@ -11,6 +11,19 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
     private var contentProvider: (() -> Layout)?
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
 
+    /// The semantic role used to resolve the hosted layout direction.
+    ///
+    /// App-level language switching commonly updates this property directly.
+    /// Publish the new effective direction immediately and invalidate the
+    /// hosted body instead of waiting for a later trait or layout callback.
+    open override var semanticContentAttribute: UISemanticContentAttribute {
+        didSet {
+            guard semanticContentAttribute != oldValue else { return }
+            quickLayoutEnvironmentState.update(self)
+            setNeedsQuickLayout()
+        }
+    }
+
     /// Creates a hosting view with no content.
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -91,6 +104,9 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
     }
 
     /// Invalidates the hosted layout.
+    ///
+    /// Call this after localized content changes without changing layout
+    /// direction, because UIKit has no notification for an app-specific locale.
     open func setNeedsQuickLayout() {
         setNeedsLayout()
     }
