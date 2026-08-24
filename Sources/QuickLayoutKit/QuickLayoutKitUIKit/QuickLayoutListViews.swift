@@ -1,10 +1,10 @@
 import UIKit
 import QuickLayout
 
-/// A collection view cell whose content is described by QuickLayout.
+/// 使用 QuickLayout 描述内容的集合视图单元格。
 open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLayoutUpdating, QuickLayoutEnvironmentUpdating {
 
-    /// The semantic role used to resolve the cell's layout direction.
+    /// 用于解析单元格布局方向的语义角色。
     open override var semanticContentAttribute: UISemanticContentAttribute {
         didSet {
             guard semanticContentAttribute != oldValue else { return }
@@ -13,16 +13,15 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         }
     }
 
-    /// The cell's horizontal sizing flexibility.
+    /// 单元格的水平尺寸弹性。
     open var quickLayoutHorizontalFlexibility: Flexibility = .fullyFlexible
 
-    /// The cell's vertical sizing flexibility.
+    /// 单元格的垂直尺寸弹性。
     open var quickLayoutVerticalFlexibility: Flexibility = .fullyFlexible
 
-    /// Views whose semantic direction follows the enclosing collection view.
+    /// 语义方向跟随外层集合视图的视图。
     ///
-    /// Subclasses can append direction-sensitive descendants that explicitly
-    /// cache or override their semantic direction.
+    /// 子类可以追加显式缓存或覆盖语义方向的方向敏感子视图。
     open var quickLayoutDirectionViews: [UIView] {
         [self, contentView]
     }
@@ -38,15 +37,15 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         super.init(coder: coder)
     }
 
-    /// Creates a cell with inline QuickLayout content.
+    /// 创建以内联方式提供 QuickLayout 内容的单元格。
     ///
-    /// - Parameter content: A closure that returns the cell content.
+    /// - Parameter content: 返回单元格内容的构建器闭包。
     public convenience init(@LayoutBuilder content: @escaping () -> Layout) {
         self.init(frame: .zero)
         self.contentProvider = content
     }
 
-    /// The QuickLayout content rendered in `contentView`.
+    /// 在 `contentView` 中渲染的 QuickLayout 内容。
     @LayoutBuilder
     open var body: Layout {
         if let contentProvider {
@@ -71,9 +70,8 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         _ layoutAttributes: UICollectionViewLayoutAttributes
     ) {
         super.apply(layoutAttributes)
-        // Direction changes invalidate the collection layout, but UIKit does
-        // not guarantee layoutSubviews for every already-visible cell. The
-        // layout-attributes callback is the reliable reuse/update boundary.
+        // 方向变化会使集合布局失效，但 UIKit 不保证每个可见单元格都会再次执行
+        // layoutSubviews。布局属性回调是可靠的复用和更新边界。
         synchronizeLayoutDirectionFromCollectionViewIfNeeded()
         quickLayoutEnvironmentState.update(self)
     }
@@ -137,7 +135,9 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         layoutIfNeeded()
     }
 
-    /// Synchronizes semantic direction from the enclosing collection view.
+    /// 从外层集合视图同步语义方向。
+    ///
+    /// - Returns: 实际更新了至少一个视图时为 `true`；否则为 `false`。
     @discardableResult
     open func synchronizeLayoutDirectionFromCollectionViewIfNeeded() -> Bool {
         guard let collectionView = enclosingListView(
@@ -151,7 +151,7 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         )
     }
 
-    /// Responds to UIKit environment changes that can affect layout.
+    /// 响应可能影响布局的 UIKit 环境变化。
     open func quickLayoutEnvironmentDidChange(
         _ environment: QuickLayoutEnvironment,
         reason: QuickLayoutEnvironmentChangeReason
@@ -174,10 +174,10 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
     }
 }
 
-/// A table view cell whose content is described by QuickLayout.
+/// 使用 QuickLayout 描述内容的表格视图单元格。
 open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdating, QuickLayoutEnvironmentUpdating {
 
-    /// The semantic role used to resolve the cell's layout direction.
+    /// 用于解析单元格布局方向的语义角色。
     open override var semanticContentAttribute: UISemanticContentAttribute {
         didSet {
             guard semanticContentAttribute != oldValue else { return }
@@ -189,10 +189,9 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
     private var contentProvider: (() -> Layout)?
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
 
-    /// Views whose semantic direction follows the enclosing table view.
+    /// 语义方向跟随外层表格视图的视图。
     ///
-    /// Subclasses can append direction-sensitive descendants that explicitly
-    /// cache or override their semantic direction.
+    /// 子类可以追加显式缓存或覆盖语义方向的方向敏感子视图。
     open var quickLayoutDirectionViews: [UIView] {
         [self, contentView]
     }
@@ -205,12 +204,12 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         super.init(coder: coder)
     }
 
-    /// Creates a cell with inline QuickLayout content.
+    /// 创建以内联方式提供 QuickLayout 内容的单元格。
     ///
     /// - Parameters:
-    ///   - style: The table cell style.
-    ///   - reuseIdentifier: The reuse identifier.
-    ///   - content: A closure that returns the cell content.
+    ///   - style: 表格视图单元格样式。
+    ///   - reuseIdentifier: 单元格的复用标识符。
+    ///   - content: 返回单元格内容的构建器闭包。
     public convenience init(
         style: UITableViewCell.CellStyle = .default,
         reuseIdentifier: String? = nil,
@@ -220,7 +219,7 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         self.contentProvider = content
     }
 
-    /// The QuickLayout content rendered in `contentView`.
+    /// 在 `contentView` 中渲染的 QuickLayout 内容。
     @LayoutBuilder
     open var body: Layout {
         if let contentProvider {
@@ -299,7 +298,9 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         layoutIfNeeded()
     }
 
-    /// Synchronizes semantic direction from the enclosing table view.
+    /// 从外层表格视图同步语义方向。
+    ///
+    /// - Returns: 实际更新了至少一个视图时为 `true`；否则为 `false`。
     @discardableResult
     open func synchronizeLayoutDirectionFromTableIfNeeded() -> Bool {
         guard let tableView = enclosingListView(of: UITableView.self) else {
@@ -311,7 +312,7 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         )
     }
 
-    /// Responds to UIKit environment changes that can affect layout.
+    /// 响应可能影响布局的 UIKit 环境变化。
     open func quickLayoutEnvironmentDidChange(
         _ environment: QuickLayoutEnvironment,
         reason: QuickLayoutEnvironmentChangeReason
@@ -359,10 +360,10 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
     }
 }
 
-/// A table view header or footer whose content is described by QuickLayout.
+/// 使用 QuickLayout 描述内容的表格视图页眉或页脚。
 open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, HasBody, QuickLayoutUpdating, QuickLayoutEnvironmentUpdating {
 
-    /// The semantic role used to resolve the reusable view's layout direction.
+    /// 用于解析复用视图布局方向的语义角色。
     open override var semanticContentAttribute: UISemanticContentAttribute {
         didSet {
             guard semanticContentAttribute != oldValue else { return }
@@ -374,10 +375,9 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
     private var contentProvider: (() -> Layout)?
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
 
-    /// Views whose semantic direction follows the enclosing table view.
+    /// 语义方向跟随外层表格视图的视图。
     ///
-    /// Subclasses can append direction-sensitive descendants that explicitly
-    /// cache or override their semantic direction.
+    /// 子类可以追加显式缓存或覆盖语义方向的方向敏感子视图。
     open var quickLayoutDirectionViews: [UIView] {
         [self, contentView]
     }
@@ -390,11 +390,11 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         super.init(coder: coder)
     }
 
-    /// Creates a reusable view with inline QuickLayout content.
+    /// 创建以内联方式提供 QuickLayout 内容的复用视图。
     ///
     /// - Parameters:
-    ///   - reuseIdentifier: The reuse identifier.
-    ///   - content: A closure that returns the reusable content.
+    ///   - reuseIdentifier: 复用视图的复用标识符。
+    ///   - content: 返回复用内容的构建器闭包。
     public convenience init(
         reuseIdentifier: String? = nil,
         @LayoutBuilder content: @escaping () -> Layout
@@ -403,7 +403,7 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         self.contentProvider = content
     }
 
-    /// The QuickLayout content rendered in `contentView`.
+    /// 在 `contentView` 中渲染的 QuickLayout 内容。
     @LayoutBuilder
     open var body: Layout {
         if let contentProvider {
@@ -455,10 +455,9 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
             withQuickLayoutContainerSize(containerBounds.size) {
                 _QuickLayoutViewImplementation.layoutSubviews(self)
                 guard containerBounds != bounds else { return }
-                // QuickLayout mounts this body in contentView, while its generic
-                // bridge currently applies the frame using the reusable root's
-                // bounds. Reapply the same layout in the actual container bounds;
-                // the body keeps full control of its own sizing and alignment.
+                // QuickLayout 将 body 挂载到 contentView，但通用桥接当前使用复用根视图的
+                // bounds 应用框架。这里按实际容器边界重新应用同一布局，同时让 body 继续
+                // 完全控制自身尺寸和对齐方式。
                 let layoutDirection: LayoutDirection =
                     effectiveUserInterfaceLayoutDirection == .rightToLeft
                     ? .rightToLeft
@@ -500,7 +499,9 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         layoutIfNeeded()
     }
 
-    /// Synchronizes semantic direction from the enclosing table view.
+    /// 从外层表格视图同步语义方向。
+    ///
+    /// - Returns: 实际更新了至少一个视图时为 `true`；否则为 `false`。
     @discardableResult
     open func synchronizeLayoutDirectionFromTableIfNeeded() -> Bool {
         guard let tableView = enclosingListView(of: UITableView.self) else {
@@ -512,7 +513,7 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         )
     }
 
-    /// Responds to UIKit environment changes that can affect layout.
+    /// 响应可能影响布局的 UIKit 环境变化。
     open func quickLayoutEnvironmentDidChange(
         _ environment: QuickLayoutEnvironment,
         reason: QuickLayoutEnvironmentChangeReason
@@ -560,10 +561,10 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
     }
 }
 
-/// A collection reusable view whose content is described by QuickLayout.
+/// 使用 QuickLayout 描述内容的集合复用视图。
 open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody, QuickLayoutUpdating, QuickLayoutEnvironmentUpdating {
 
-    /// The semantic role used to resolve the reusable view's layout direction.
+    /// 用于解析复用视图布局方向的语义角色。
     open override var semanticContentAttribute: UISemanticContentAttribute {
         didSet {
             guard semanticContentAttribute != oldValue else { return }
@@ -575,10 +576,9 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
     private var contentProvider: (() -> Layout)?
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
 
-    /// Views whose semantic direction follows the enclosing collection view.
+    /// 语义方向跟随外层集合视图的视图。
     ///
-    /// Subclasses can append direction-sensitive descendants that explicitly
-    /// cache or override their semantic direction.
+    /// 子类可以追加显式缓存或覆盖语义方向的方向敏感子视图。
     open var quickLayoutDirectionViews: [UIView] {
         [self]
     }
@@ -591,15 +591,15 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         super.init(coder: coder)
     }
 
-    /// Creates a reusable view with inline QuickLayout content.
+    /// 创建以内联方式提供 QuickLayout 内容的复用视图。
     ///
-    /// - Parameter content: A closure that returns the view content.
+    /// - Parameter content: 返回复用视图内容的构建器闭包。
     public convenience init(@LayoutBuilder content: @escaping () -> Layout) {
         self.init(frame: .zero)
         self.contentProvider = content
     }
 
-    /// The QuickLayout content rendered by the reusable view.
+    /// 复用视图渲染的 QuickLayout 内容。
     @LayoutBuilder
     open var body: Layout {
         if let contentProvider {
@@ -624,8 +624,7 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         _ layoutAttributes: UICollectionViewLayoutAttributes
     ) {
         super.apply(layoutAttributes)
-        // Supplementary views receive new attributes after collection layout
-        // invalidation even when UIKit skips another layoutSubviews pass.
+        // 集合布局失效后，即使 UIKit 不再执行 layoutSubviews，补充视图仍会收到新的布局属性。
         synchronizeLayoutDirectionFromCollectionViewIfNeeded()
         quickLayoutEnvironmentState.update(self)
     }
@@ -680,7 +679,9 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         layoutIfNeeded()
     }
 
-    /// Synchronizes semantic direction from the enclosing collection view.
+    /// 从外层集合视图同步语义方向。
+    ///
+    /// - Returns: 实际更新了至少一个视图时为 `true`；否则为 `false`。
     @discardableResult
     open func synchronizeLayoutDirectionFromCollectionViewIfNeeded() -> Bool {
         guard let collectionView = enclosingListView(
@@ -694,7 +695,7 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         )
     }
 
-    /// Responds to UIKit environment changes that can affect layout.
+    /// 响应可能影响布局的 UIKit 环境变化。
     open func quickLayoutEnvironmentDidChange(
         _ environment: QuickLayoutEnvironment,
         reason: QuickLayoutEnvironmentChangeReason
@@ -736,17 +737,15 @@ private extension UIView {
         let attribute: UISemanticContentAttribute = direction == .rightToLeft
             ? .forceRightToLeft
             : .forceLeftToRight
-        // UIKit resolves effective direction through the hierarchy, but it
-        // does not copy semanticContentAttribute into already materialized or
-        // reused hosts. Stamp only the declared layout hosts so their cached
-        // QuickLayout environment and self-sizing measurement are refreshed.
+        // UIKit 会通过视图层级解析有效方向，但不会把 semanticContentAttribute 复制到
+        // 已经创建或复用的宿主。这里只更新已声明的布局宿主，使其缓存的 QuickLayout
+        // 环境和自适应尺寸测量得到刷新。
         let viewsToUpdate = views.filter {
             $0.semanticContentAttribute != attribute
         }
         guard !viewsToUpdate.isEmpty else { return false }
 
-        // Avoid redundant assignments: changing semanticContentAttribute
-        // itself publishes an environment change and schedules another layout.
+        // 避免重复赋值：修改 semanticContentAttribute 本身会发布环境变化并安排新的布局。
         for view in viewsToUpdate {
             view.semanticContentAttribute = attribute
             view.setNeedsLayout()

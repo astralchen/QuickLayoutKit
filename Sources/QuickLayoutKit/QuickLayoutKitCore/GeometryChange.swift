@@ -2,35 +2,37 @@ import CoreGraphics
 import QuickLayout
 import UIKit
 
-/// A coordinate space available from ``GeometryProxy``.
+/// ``GeometryProxy`` 可使用的坐标空间。
 public enum GeometryCoordinateSpace: Sendable {
-    /// The observed element's local coordinate space.
+    /// 被观察元素的局部坐标空间。
     case local
 
-    /// The global UIKit window coordinate space.
+    /// UIKit 窗口的全局坐标空间。
     case global
 
-    /// The coordinate space of the nearest ancestor scroll view.
+    /// 最近上层滚动视图的坐标空间。
     ///
-    /// This falls back to the global coordinate space when the element isn't
-    /// contained in a scroll view.
+    /// 元素不在滚动视图中时，使用全局坐标空间。
     case scrollView
 }
 
-/// A snapshot of an element's geometry after QuickLayout applies its frame.
+/// QuickLayout 应用元素框架后的几何信息快照。
 public struct GeometryProxy: Sendable {
 
-    /// The size of the observed element.
+    /// 被观察元素的尺寸。
     public let size: CGSize
 
-    /// The safe-area insets intersecting the observed element.
+    /// 与被观察元素相交的安全区域边距。
     public let safeAreaInsets: EdgeInsets
 
     private let localFrame: CGRect
     private let globalFrame: CGRect
     private let scrollViewFrame: CGRect?
 
-    /// Returns the observed element's frame in a coordinate space.
+    /// 返回被观察元素在指定坐标空间中的框架。
+    ///
+    /// - Parameter coordinateSpace: 用于表示结果框架的坐标空间。
+    /// - Returns: 被观察元素在指定坐标空间中的框架。
     public func frame(in coordinateSpace: GeometryCoordinateSpace) -> CGRect {
         switch coordinateSpace {
         case .local:
@@ -85,11 +87,15 @@ public struct GeometryProxy: Sendable {
 
 public extension Element {
 
-    /// Performs an action when a transformed geometry value changes.
+    /// 在转换后的几何值发生变化时执行操作。
     ///
-    /// The action runs once for the initial applied geometry and then only
-    /// when the `Equatable` value returned by `transform` changes. Measuring
-    /// the element with `sizeThatFits` doesn't invoke the action.
+    /// 该操作会在首次应用几何信息时执行一次，此后仅在 `transform` 返回的 `Equatable`
+    /// 值发生变化时执行。使用 `sizeThatFits` 测量元素不会触发该操作。
+    ///
+    /// - Parameters:
+    ///   - type: 转换后值的类型。
+    ///   - transform: 根据当前几何信息生成可比较值的闭包。
+    ///   - action: 值发生变化时执行的闭包。
     @MainActor
     func onGeometryChange<Value>(
         for type: Value.Type,
@@ -111,10 +117,14 @@ public extension Element {
         }
     }
 
-    /// Performs an action with the old and new transformed geometry values.
+    /// 使用转换前后的新旧几何值执行操作。
     ///
-    /// For the initial applied geometry, both parameters contain the initial
-    /// value. Later invocations contain the previous and current values.
+    /// 首次应用几何信息时，两个参数均包含初始值。后续调用分别包含先前值和当前值。
+    ///
+    /// - Parameters:
+    ///   - type: 转换后值的类型。
+    ///   - transform: 根据当前几何信息生成可比较值的闭包。
+    ///   - action: 接收先前值和当前值的闭包。
     @MainActor
     func onGeometryChange<Value>(
         for type: Value.Type,
@@ -168,7 +178,7 @@ public extension Element {
     }
 }
 
-/// Persistent geometry-observation state owned by a QuickLayoutKit host.
+/// 由 QuickLayoutKit 宿主持有的持久几何观察状态。
 @MainActor
 package final class QuickLayoutGeometryObservationRegistry: @unchecked Sendable {
 
@@ -219,7 +229,7 @@ package final class QuickLayoutGeometryObservationRegistry: @unchecked Sendable 
     }
 }
 
-/// The task-local observation registry established by QuickLayoutKit hosts.
+/// QuickLayoutKit 宿主建立的任务局部几何观察注册表。
 package enum QuickLayoutGeometryObservationContext {
 
     @TaskLocal package static var current: QuickLayoutGeometryObservationRegistry?

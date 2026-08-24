@@ -2,35 +2,33 @@
 //  ScrollView.swift
 //  QuickLayoutKit
 //
-//  Created by Sondra on 2025/12/24.
+//  由 Sondra 创建于 2025/12/24。
 //
 
 import UIKit
 import QuickLayout
 
-// MARK: - ScrollView Container
+// MARK: - 滚动视图容器
 
-/// Creates a layout element backed by a scroll view.
+/// 创建由滚动视图承载的布局元素。
 ///
-/// Use this function inside a layout builder to declare scrollable QuickLayout
-/// content while reusing a specific `QuickLayoutScrollView` instance.
+/// 在布局构建器中使用此函数声明可滚动的 QuickLayout 内容，并复用指定的
+/// `QuickLayoutScrollView` 实例。
 ///
-/// The explicit scroll view parameter supplies the stable UIKit identity that
-/// SwiftUI normally manages for its value-typed `ScrollView`.
+/// 显式传入滚动视图，可以提供稳定的 UIKit 对象标识；对于值类型的 `ScrollView`，
+/// 该标识通常由 SwiftUI 管理。
 ///
-/// Like SwiftUI's `ScrollView`, the scroll view occupies its full proposed
-/// viewport. UIKit exposes any intersecting safe area through the scroll view's
-/// adjusted insets, and QuickLayout propagates those values to its content.
-/// Apply `safeAreaPadding` to non-scrolling content that must remain inside the
-/// safe area, or `contentMargins` when the scrollable content's leading and
-/// trailing edges must be reachable inside that area.
+/// 与 SwiftUI 的 `ScrollView` 一样，该滚动视图占据完整的建议视口。UIKit 通过调整后的
+/// 内容边距表示与滚动视图相交的安全区域，QuickLayout 会将这些值传递给滚动内容。
+/// 对必须保持在安全区域内的非滚动内容使用 `safeAreaPadding`；需要让可滚动内容的起止
+/// 边缘在安全区域内可达时，使用 `contentMargins`。
 ///
 /// - Parameters:
-///   - scrollView: The scroll view to use as the backing view.
-///   - axis: The single axis along which the scroll view scrolls.
-///   - showsIndicators: Whether to show the indicator for that axis.
-///   - content: A builder closure that returns the elements to display.
-/// - Returns: A layout element that renders the scroll view.
+///   - scrollView: 用作承载视图的滚动视图。
+///   - axis: 滚动视图滚动的单一轴。
+///   - showsIndicators: 是否显示相应轴的滚动指示器。
+///   - content: 返回待显示元素的构建器闭包。
+/// - Returns: 用于渲染滚动视图的布局元素。
 @MainActor public func ScrollView(
     _ scrollView: QuickLayoutScrollView,
     _ axis: QuickLayout.Axis = .vertical,

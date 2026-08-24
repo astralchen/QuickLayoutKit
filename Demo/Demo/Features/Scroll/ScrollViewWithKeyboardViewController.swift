@@ -10,7 +10,7 @@ import QuickLayout
 import QuickLayoutKit
 import Combine
 
-// MARK: - Header View
+// MARK: - 页头视图
 
 @QuickLayout
 class FormHeaderView: UIView {
@@ -63,7 +63,7 @@ class FormHeaderView: UIView {
     }
 }
 
-// MARK: - Form Field View
+// MARK: - 表单字段视图
 
 @QuickLayout
 class FormFieldView: UIView {
@@ -126,7 +126,7 @@ class FormFieldView: UIView {
     }
 }
 
-// MARK: - Notes Field View
+// MARK: - 备注字段视图
 
 @QuickLayout
 class NotesFieldView: UIView {
@@ -174,7 +174,7 @@ class NotesFieldView: UIView {
     }
 }
 
-// MARK: - Main ViewController
+// MARK: - 主控制器
 
 class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
 
@@ -189,7 +189,7 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
         observer: keyboardObserver
     )
 
-    // UI Components
+    // 界面组件
     let headerView = FormHeaderView()
 
     let nameTextField = UITextField()
@@ -222,7 +222,7 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
         return UIButton(configuration: configuration)
     }()
 
-    // Form Field Views
+    // 表单字段视图
     lazy var nameFieldView = FormFieldView(textField: nameTextField, placeholder: "", icon: "person.fill")
     lazy var emailFieldView = FormFieldView(textField: emailTextField, placeholder: "", icon: "envelope.fill")
     lazy var phoneFieldView = FormFieldView(textField: phoneTextField, placeholder: "", icon: "phone.fill")
@@ -260,24 +260,24 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
     override var body: Layout {
         ScrollView(scrollView, .vertical) {
             VStack(spacing: 20) {
-                // Header
+                // 页头
                 headerView
                     .frame(height: 100)
 
-                // Form Fields
+                // 表单字段
                 nameFieldView
                 emailFieldView
                 phoneFieldView
                 addressFieldView
 
-                // Notes Field
+                // 备注字段
                 notesFieldView
 
-                // Custom input control
+                // 自定义输入控件
                 customInputButton
                     .frame(height: 48)
 
-                // Submit Button
+                // 提交按钮
                 submitButton
                     .frame(height: 50)
             }
@@ -302,7 +302,7 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
         scrollView.contentInsetAdjustmentBehavior = .never
         scrollView.keyboardDismissMode = .interactive
 
-        // Configure TextFields
+        // 配置文本输入框。
         [nameTextField, emailTextField, phoneTextField, addressTextField].forEach { textField in
             textField.borderStyle = .roundedRect
             textField.backgroundColor = .secondarySystemBackground
@@ -319,14 +319,14 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
 
         addressTextField.returnKeyType = .done
 
-        // Configure Email TextField
+        // 配置邮箱输入框。
         emailTextField.keyboardType = .emailAddress
         emailTextField.autocapitalizationType = .none
 
-        // Configure Phone TextField
+        // 配置电话输入框。
         phoneTextField.keyboardType = .phonePad
 
-        // Configure TextView
+        // 配置多行文本视图。
         notesTextView.backgroundColor = .secondarySystemBackground
         notesTextView.layer.cornerRadius = 12
         notesTextView.font = .systemFont(ofSize: 16)
@@ -361,7 +361,7 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
         }
         notesFieldView.applySemanticContentAttribute(attribute)
 
-        // Refresh UIButton.Configuration's internal image/title ordering.
+        // 重新应用配置，刷新 UIButton.Configuration 内部的图文排列。
         [customInputButton, submitButton].forEach {
             $0.semanticContentAttribute = attribute
             if let configuration = $0.configuration {
@@ -526,7 +526,7 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
     }
 }
 
-// MARK: - UITextFieldDelegate
+// MARK: - UITextField 代理
 
 extension ScrollViewWithKeyboardViewController: UITextFieldDelegate {
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
@@ -541,7 +541,7 @@ extension ScrollViewWithKeyboardViewController: UITextFieldDelegate {
     }
 }
 
-// MARK: - UITextViewDelegate
+// MARK: - UITextView 代理
 
 extension ScrollViewWithKeyboardViewController: UITextViewDelegate {
     func textViewDidChange(_ textView: UITextView) {
@@ -549,7 +549,7 @@ extension ScrollViewWithKeyboardViewController: UITextViewDelegate {
     }
 }
 
-// MARK: - Preview
+// MARK: - 预览
 
 #Preview {
     UINavigationController(rootViewController: ScrollViewWithKeyboardViewController())

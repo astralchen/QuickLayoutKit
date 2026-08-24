@@ -501,9 +501,8 @@ private final class DashboardWeeklyGoalCardView: QuickLayoutView {
             .appLayoutDirection
             .semanticContentAttribute
         semanticContentAttribute = attribute
-        // UIProgressView has no public fill-edge API. Keep its internal
-        // renderer deterministic, then mirror the control exactly once for
-        // the app-localized layout direction.
+        // UIProgressView 没有公开的填充起始边 API。先固定其内部渲染方向，
+        // 再根据应用本地化方向对控件进行一次镜像，避免重复翻转。
         progressView.semanticContentAttribute = .forceLeftToRight
         progressView.transform = direction == .rightToLeft
             ? CGAffineTransform(scaleX: -1, y: 1)

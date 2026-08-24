@@ -87,11 +87,10 @@ final class MainViewModel {
         )
     }
 
-    /// Connects the view to the current state and navigation output.
+    /// 将视图绑定到当前状态和导航输出。
     ///
-    /// State is delivered immediately so binding remains reliable even when the
-    /// base view controller requested a localization reload before `viewDidLoad`
-    /// finished installing the binding.
+    /// 绑定后立即发送当前状态，确保基础控制器在 `viewDidLoad` 完成绑定前请求
+    /// 本地化刷新时，视图仍能收到可靠的初始状态。
     func bind(
         stateDidChange: @escaping StateHandler,
         routeDidSelect: @escaping SelectionHandler

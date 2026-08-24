@@ -1,29 +1,24 @@
 import UIKit
 
-/// Controls whether a standalone QuickLayout host restores semantic direction
-/// when it joins a UIKit hierarchy.
+/// 控制独立 QuickLayout 宿主加入 UIKit 层级时是否恢复语义方向。
 public enum QuickLayoutSemanticDirectionBehavior: Equatable, Sendable {
-    /// Leaves `semanticContentAttribute` unchanged.
+    /// 保持 `semanticContentAttribute` 不变。
     ///
-    /// This is the default so playback, spatial, and other locally fixed
-    /// semantics are never overwritten implicitly.
+    /// 这是默认行为，可避免隐式覆盖播放、空间和其他局部固定语义。
     case preserve
 
-    /// Resolves the direct enclosing container's effective direction before
-    /// attachment, measurement, or layout work.
+    /// 在附加、测量或布局前解析直接外层容器的有效方向。
     ///
-    /// Use this for hosts that can be detached during a runtime language
-    /// switch, reused, or moved between containers and windows.
+    /// 对于可能在运行时切换语言期间被移除、复用，或者在容器和窗口之间移动的宿主，
+    /// 使用此选项。
     case followEnclosingContainer
 
-    /// Resolves the nearest public UIKit reusable-view boundary's effective
-    /// direction.
+    /// 解析最近的公开 UIKit 复用视图边界的有效方向。
     ///
-    /// This is intended for content hosted by `UITableViewCell`,
-    /// `UICollectionViewCell`, `UITableViewHeaderFooterView`, or
-    /// `UICollectionReusableView`. UIKit may insert private configuration
-    /// hosts between those owners and application content, so following the
-    /// direct superview is not sufficient for runtime direction changes.
+    /// 此选项适用于由 `UITableViewCell`、`UICollectionViewCell`、
+    /// `UITableViewHeaderFooterView` 或 `UICollectionReusableView` 承载的内容。
+    /// UIKit 可能在这些容器与应用内容之间插入私有配置宿主，因此运行时方向变化不能只跟随
+    /// 直接父视图。
     case followEnclosingReusableView
 }
 

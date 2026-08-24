@@ -2,39 +2,38 @@
 //  QuickLayoutScrollView.swift
 //  QuickLayoutKit
 //
-//  Created by Sondra on 2025/12/26.
+//  由 Sondra 创建于 2025/12/26。
 //
 
 import QuartzCore
 import QuickLayout
 import UIKit
 
-/// A scroll view that lays out QuickLayout elements along one scroll axis.
+/// 沿单一滚动轴排列 QuickLayout 元素的滚动视图。
 ///
-/// The primary initializer mirrors SwiftUI's `ScrollView`: choose an axis,
-/// choose whether indicators are visible, and provide builder content. Unlike
-/// SwiftUI, this type is a UIKit reference type and can also be created with
-/// `init(frame:)` for use with ``ScrollView(_:_:showsIndicators:content:)``.
-/// Runtime layout-direction changes relayout existing content without changing
-/// the numeric scroll position, matching SwiftUI's `ScrollView` behavior.
+/// 主要初始化方法与 SwiftUI 的 `ScrollView` 形式一致：指定滚动轴、是否显示指示器，
+/// 并通过构建器提供内容。不同于 SwiftUI，该类型是 UIKit 引用类型，也可以使用
+/// `init(frame:)` 创建，再传入 ``ScrollView(_:_:showsIndicators:content:)``。
+/// 运行时布局方向变化会重新布局现有内容，但不会修改数值形式的滚动位置；该行为与
+/// SwiftUI 的 `ScrollView` 一致。
 open class QuickLayoutScrollView:
     UIScrollView,
     HasBody,
     QuickLayoutUpdating,
     QuickLayoutEnvironmentUpdating {
 
-    /// An edge of the scrollable content.
+    /// 可滚动内容的边缘。
     public enum Edge: Equatable, Sendable {
-        /// The top edge of vertical content.
+        /// 垂直内容的顶部边缘。
         case top
 
-        /// The bottom edge of vertical content.
+        /// 垂直内容的底部边缘。
         case bottom
 
-        /// The semantic leading edge of horizontal content.
+        /// 水平内容的语义前缘。
         case leading
 
-        /// The semantic trailing edge of horizontal content.
+        /// 水平内容的语义后缘。
         case trailing
 
         fileprivate func isCompatible(with axis: QuickLayout.Axis) -> Bool {
@@ -48,13 +47,12 @@ open class QuickLayoutScrollView:
         }
     }
 
-    // MARK: - Public Properties
+    // MARK: - 公开属性
 
-    /// The axis along which the receiver scrolls.
+    /// 接收者滚动的轴。
     ///
-    /// `QuickLayoutScrollView` intentionally supports one axis at a time. It
-    /// uses the axis to choose the implicit `VStack` or `HStack` that contains
-    /// builder-produced elements.
+    /// `QuickLayoutScrollView` 每次只支持一个轴，并根据该轴选择隐式 `VStack` 或
+    /// `HStack` 来承载构建器生成的元素。
     open var axis: QuickLayout.Axis = .vertical {
         didSet {
             guard axis != oldValue else { return }
@@ -67,7 +65,7 @@ open class QuickLayoutScrollView:
         }
     }
 
-    /// Whether the indicator for the configured axis is visible.
+    /// 指示是否显示当前滚动轴的滚动指示器。
     open var showsIndicators = true {
         didSet {
             guard showsIndicators != oldValue else { return }
@@ -75,11 +73,10 @@ open class QuickLayoutScrollView:
         }
     }
 
-    /// The attachment and layout semantic direction policy for this scroll host.
+    /// 滚动宿主在附加和布局时采用的语义方向策略。
     ///
-    /// The default `.preserve` protects locally fixed semantics. Set
-    /// `.followEnclosingContainer` when the scroll view can be detached or
-    /// moved between containers during runtime language switching.
+    /// 默认值 `.preserve` 会保护局部固定语义。滚动视图可能在运行时切换语言期间被移除，
+    /// 或在不同容器之间移动时，应设置为 `.followEnclosingContainer`。
     open var quickLayoutSemanticDirectionBehavior:
         QuickLayoutSemanticDirectionBehavior = .preserve {
         didSet {
@@ -95,11 +92,10 @@ open class QuickLayoutScrollView:
         }
     }
 
-    /// The semantic role used to resolve the receiver's layout direction.
+    /// 用于解析接收者布局方向的语义角色。
     ///
-    /// App-level language switching commonly updates this property directly.
-    /// Publish the new effective direction immediately, then invalidate the
-    /// hosted content so the next layout pass remeasures and replaces it.
+    /// 应用内切换语言时通常会直接更新该属性。属性变化会立即发布新的有效方向，并使宿主内容
+    /// 失效，以便下一次布局重新测量和放置内容。
     open override var semanticContentAttribute: UISemanticContentAttribute {
         didSet {
             guard semanticContentAttribute != oldValue else { return }
@@ -120,19 +116,19 @@ open class QuickLayoutScrollView:
     private var lastResolvedAdjustedContentInset: UIEdgeInsets?
     let quickLayoutContentMarginState = QuickLayoutContentMarginState()
 
-    // MARK: - Initialization
+    // MARK: - 初始化
 
-    /// Creates an empty, vertically scrolling view.
+    /// 创建不包含内容的垂直滚动视图。
     public override init(frame: CGRect) {
         super.init(frame: frame)
         configureAxisBehavior()
     }
 
-    /// Creates an empty scroll view for a single axis.
+    /// 创建不包含内容且沿单一轴滚动的视图。
     ///
     /// - Parameters:
-    ///   - axis: The single axis along which content scrolls.
-    ///   - showsIndicators: Whether to show the indicator for that axis.
+    ///   - axis: 内容滚动的单一轴。
+    ///   - showsIndicators: 是否显示相应轴的滚动指示器。
     public convenience init(
         _ axis: QuickLayout.Axis,
         showsIndicators: Bool = true
@@ -141,13 +137,12 @@ open class QuickLayoutScrollView:
         configure(axis: axis, showsIndicators: showsIndicators, content: [])
     }
 
-    /// Creates a scroll view with builder-produced content.
+    /// 创建包含构建器所生成内容的滚动视图。
     ///
     /// - Parameters:
-    ///   - axis: The single axis along which content scrolls.
-    ///   - showsIndicators: Whether to show the indicator for that axis.
-    ///   - content: The elements to place in the scroll view. Multiple root
-    ///     elements use a zero-spacing stack and center on the cross axis.
+    ///   - axis: 内容滚动的单一轴。
+    ///   - showsIndicators: 是否显示相应轴的滚动指示器。
+    ///   - content: 要放入滚动视图的元素。多个根元素会使用零间距堆栈，并在交叉轴上居中。
     public convenience init(
         _ axis: QuickLayout.Axis = .vertical,
         showsIndicators: Bool = true,
@@ -157,7 +152,7 @@ open class QuickLayoutScrollView:
         configure(axis: axis, showsIndicators: showsIndicators, content: content())
     }
 
-    /// Creates a scroll view from an archive or storyboard.
+    /// 从归档或故事板创建滚动视图。
     public required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureAxisBehavior()
@@ -213,9 +208,9 @@ open class QuickLayoutScrollView:
         quickLayoutEnvironmentState.update(self, explicitReason: .layoutMargins)
     }
 
-    // MARK: - HasBody
+    // MARK: - 布局内容
 
-    /// The QuickLayout content rendered by the scroll view.
+    /// 滚动视图渲染的 QuickLayout 内容。
     @LayoutBuilder
     open var body: Layout {
         if contentElements.isEmpty {
@@ -239,15 +234,13 @@ open class QuickLayoutScrollView:
         }
     }
 
-    // MARK: - Layout
+    // MARK: - 布局
 
-    /// Returns the viewport size that best fits the hosted scroll content.
+    /// 返回最适合宿主滚动内容的视口尺寸。
     ///
-    /// A horizontal scroll view uses its content's natural height while its
-    /// width continues to come from the enclosing container. This mirrors the
-    /// cross-axis sizing behavior of SwiftUI's `ScrollView` and lets localized
-    /// or Dynamic Type content determine a carousel's height without caching a
-    /// fixed value in the owner.
+    /// 水平滚动视图使用内容的自然高度，宽度则继续由外层容器提供。该行为与 SwiftUI
+    /// `ScrollView` 的交叉轴尺寸处理一致，使本地化内容或动态字体可以决定轮播视图高度，
+    /// 而无需由拥有者缓存固定值。
     func quickLayoutViewportSizeThatFits(_ size: CGSize) -> CGSize {
         synchronizeQuickLayoutSemanticDirectionIfNeeded(
             for: self,
@@ -329,23 +322,26 @@ open class QuickLayoutScrollView:
         }
     }
 
-    /// Invalidates the hosted scroll content.
+    /// 将宿主滚动内容标记为需要更新。
     ///
-    /// Call this after localized content changes without changing layout
-    /// direction, because UIKit has no notification for an app-specific locale.
+    /// 本地化内容发生变化但布局方向未改变时，应调用此方法，因为 UIKit 不会为应用自定义
+    /// 区域设置发送通知。
     open func setNeedsQuickLayout() {
         setNeedsLayout()
     }
 
-    /// Lays out the hosted scroll content immediately if needed.
+    /// 根据需要立即布局宿主滚动内容。
     open func quickLayoutIfNeeded() {
         layoutIfNeeded()
     }
 
-    /// Responds to UIKit environment changes that can affect scroll content.
+    /// 响应可能影响滚动内容的 UIKit 环境变化。
     ///
-    /// The default implementation invalidates measurement and placement while
-    /// preserving the existing numeric content offset.
+    /// 默认实现会使测量和放置失效，同时保留现有的数值内容偏移量。
+    ///
+    /// - Parameters:
+    ///   - environment: 变化后的当前环境快照。
+    ///   - reason: 描述发生变化部分的原因集合。
     open func quickLayoutEnvironmentDidChange(
         _ environment: QuickLayoutEnvironment,
         reason: QuickLayoutEnvironmentChangeReason
@@ -434,11 +430,9 @@ open class QuickLayoutScrollView:
         container: UIEdgeInsets,
         keyboard: UIEdgeInsets
     ) {
-        // UIKit may omit a physical horizontal safe area from
-        // adjustedContentInset even though the full-screen scroll view still
-        // intersects it. Preserve every automatic bar/content adjustment, but
-        // never publish less than the scroll view's physical safe area to
-        // QuickLayout content.
+        // 即使全屏滚动视图仍与水平安全区域相交，UIKit 也可能不会将该物理边距计入
+        // adjustedContentInset。保留所有自动栏位和内容调整，同时确保传递给 QuickLayout
+        // 内容的值不小于滚动视图自身的物理安全区域。
         let resolvedContainerInsets = UIEdgeInsets(
             top: max(adjustedContentInset.top, safeAreaInsets.top),
             left: max(adjustedContentInset.left, safeAreaInsets.left),
@@ -477,17 +471,16 @@ open class QuickLayoutScrollView:
         }
     }
 
-    // MARK: - Scrolling
+    // MARK: - 滚动
 
-    /// Scrolls to an edge that belongs to the configured axis.
+    /// 滚动到当前轴对应的内容边缘。
     ///
-    /// A request made before the content has been measured is deferred until
-    /// the next successful layout pass. A request for an edge on the other
-    /// axis is ignored.
+    /// 内容尚未完成测量时提出的请求，会延迟到下一次成功布局后执行。与当前滚动轴不匹配的
+    /// 边缘请求会被忽略。
     ///
     /// - Parameters:
-    ///   - edge: The content edge to reveal.
-    ///   - animated: Pass `true` to animate the change.
+    ///   - edge: 要显示的内容边缘。
+    ///   - animated: 传入 `true` 以动画方式执行滚动。
     open func scrollTo(_ edge: Edge, animated: Bool = true) {
         guard edge.isCompatible(with: axis) else { return }
 
@@ -500,7 +493,7 @@ open class QuickLayoutScrollView:
         setContentOffset(targetOffset(for: edge), requestedAnimated: animated)
     }
 
-    // MARK: - Internal Configuration
+    // MARK: - 内部配置
 
     func configure(
         axis: QuickLayout.Axis,
@@ -535,7 +528,7 @@ open class QuickLayoutScrollView:
         setNeedsQuickLayout()
     }
 
-    // MARK: - Private Helpers
+    // MARK: - 私有辅助方法
 
     private func configureAxisBehavior() {
         alwaysBounceVertical = axis == .vertical

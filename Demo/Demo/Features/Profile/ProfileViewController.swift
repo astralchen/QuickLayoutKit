@@ -88,9 +88,8 @@ final class ProfileViewController: DemoQuickLayoutHostingController {
     override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
         super.reloadLayoutDirection(direction)
 
-        // The scroll view is the single application-direction boundary owned by
-        // this controller. Section components recover from their enclosing
-        // container during attachment, measurement, and layout.
+        // 滚动视图是该控制器唯一负责的应用方向边界。各分区组件在挂载、测量和布局时，
+        // 从外层容器恢复当前方向。
         scrollView.semanticContentAttribute = view.semanticContentAttribute
         scrollView.setNeedsLayout()
         setNeedsQuickLayout()

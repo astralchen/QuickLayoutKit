@@ -20,8 +20,7 @@ final class CounterViewController: DemoQuickLayoutHostingController {
     private let controlsView = CounterControlsView()
     private let statusView = CounterStatusView()
 
-    // Kept visible to the Demo tests and accessibility inspection as the
-    // public interaction boundary of this example.
+    // 作为该示例的公开交互边界，供 Demo 测试和辅助功能检查访问。
     var counterLabel: UILabel { controlsView.countLabel }
     var incrementButton: QuickLayoutButton { controlsView.incrementButton }
     var decrementButton: QuickLayoutButton { controlsView.decrementButton }
@@ -308,9 +307,8 @@ private final class CounterControlsView: CounterCardView {
         decrementButton.title = state.decrementTitle
         decrementButton.isEnabled = state.canDecrement
 
-        // Keep the control group transparent to accessibility so both buttons
-        // remain independently reachable. The count itself announces the
-        // aggregate progress.
+        // 控件组本身不作为辅助功能元素，使两个按钮仍可被分别访问；
+        // 当前计数负责播报整体进度。
         countLabel.accessibilityLabel = state.controlsTitle
         countLabel.accessibilityValue = state.progressText
         setNeedsQuickLayout()
@@ -391,11 +389,10 @@ private final class CounterControlsView: CounterCardView {
 
 }
 
-/// Demo-owned appearance for the framework's style-free button primitive.
+/// Demo 为框架无样式按钮基元提供的外观。
 ///
-/// QuickLayoutButton supplies control state and action delivery. This type
-/// owns every visual choice, including its content, colors, corner shape, and
-/// pressed/disabled treatment.
+/// `QuickLayoutButton` 提供控件状态和操作分发；该类型负责全部视觉选择，
+/// 包括内容、颜色、圆角形状以及按下和禁用状态的表现。
 private final class CounterActionButton: QuickLayoutButton {
 
     enum Style {

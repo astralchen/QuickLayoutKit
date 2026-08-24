@@ -1,26 +1,26 @@
 import UIKit
 
-/// A type that can invalidate and immediately lay out QuickLayout content.
+/// 能够使 QuickLayout 内容失效并立即执行布局的类型。
 @MainActor
 public protocol QuickLayoutUpdating: AnyObject {
 
-    /// Invalidates the hosted QuickLayout content.
+    /// 将宿主 QuickLayout 内容标记为需要更新。
     func setNeedsQuickLayout()
 
-    /// Lays out the hosted QuickLayout content immediately if needed.
+    /// 根据需要立即布局宿主 QuickLayout 内容。
     func quickLayoutIfNeeded()
 }
 
 extension QuickLayoutUpdating where Self: UIView {
 
-    /// Invalidates and lays out QuickLayout content inside a UIKit animation.
+    /// 在 UIKit 动画中更新并布局 QuickLayout 内容。
     ///
     /// - Parameters:
-    ///   - duration: The animation duration.
-    ///   - delay: The delay before the animation starts.
-    ///   - options: UIKit animation options.
-    ///   - animations: Additional animations to run with the layout update.
-    ///   - completion: A completion handler called when the animation finishes.
+    ///   - duration: 动画持续时间。
+    ///   - delay: 动画开始前的延迟时间。
+    ///   - options: UIKit 动画选项。
+    ///   - animations: 与布局更新同时执行的附加动画。
+    ///   - completion: 动画结束时调用的闭包。
     public func performLayoutUpdate(
         duration: TimeInterval,
         delay: TimeInterval = 0,
@@ -44,14 +44,14 @@ extension QuickLayoutUpdating where Self: UIView {
 
 extension QuickLayoutUpdating where Self: UIViewController {
 
-    /// Invalidates and lays out QuickLayout content inside a UIKit animation.
+    /// 在 UIKit 动画中更新并布局 QuickLayout 内容。
     ///
     /// - Parameters:
-    ///   - duration: The animation duration.
-    ///   - delay: The delay before the animation starts.
-    ///   - options: UIKit animation options.
-    ///   - animations: Additional animations to run with the layout update.
-    ///   - completion: A completion handler called when the animation finishes.
+    ///   - duration: 动画持续时间。
+    ///   - delay: 动画开始前的延迟时间。
+    ///   - options: UIKit 动画选项。
+    ///   - animations: 与布局更新同时执行的附加动画。
+    ///   - completion: 动画结束时调用的闭包。
     public func performLayoutUpdate(
         duration: TimeInterval,
         delay: TimeInterval = 0,

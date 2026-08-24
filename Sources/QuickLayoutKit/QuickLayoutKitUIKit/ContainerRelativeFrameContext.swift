@@ -5,8 +5,7 @@ import UIKit
 
 extension UIView {
 
-    /// Runs a layout operation with the safe-area-adjusted container size used
-    /// by the `containerRelativeFrame` modifier.
+    /// 使用 `containerRelativeFrame` 修饰符所需的安全区域调整后容器尺寸执行布局操作。
     func withQuickLayoutContainerSize<Result>(
         _ proposedSize: CGSize,
         insets explicitInsets: UIEdgeInsets? = nil,

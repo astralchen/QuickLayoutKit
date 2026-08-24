@@ -3,25 +3,33 @@ import UIKit
 
 public extension Element {
 
-    /// Positions the center of this element at a point in the space proposed
-    /// by its parent.
+    /// 将元素的中心放置在父元素所建议空间内的指定点。
+    ///
+    /// - Parameter position: 元素中心在父元素坐标空间中的位置。
+    /// - Returns: 中心位于指定位置的元素。
     func position(_ position: CGPoint) -> Element & Layout {
         PositionElement(child: self, position: position)
     }
 
-    /// Positions the center of this element at the specified coordinates in
-    /// the space proposed by its parent.
+    /// 将元素的中心放置在父元素所建议空间内的指定坐标。
+    ///
+    /// - Parameters:
+    ///   - x: 元素中心的水平坐标。
+    ///   - y: 元素中心的垂直坐标。
+    /// - Returns: 中心位于指定坐标的元素。
     func position(x: CGFloat, y: CGFloat) -> Element & Layout {
         position(CGPoint(x: x, y: y))
     }
 
-    /// Controls the display order of overlapping elements.
+    /// 控制重叠元素的显示顺序。
     ///
-    /// Larger values appear in front of smaller values. Equal values retain
-    /// source order. QuickLayoutKit hosts restore a view's original
-    /// `layer.zPosition` when the modifier is removed or the view moves to a
-    /// different host. Raw QuickLayout layout outside a QuickLayoutKit host
-    /// keeps one-shot layer assignment behavior.
+    /// 值较大的元素显示在值较小的元素前面；值相同时保持源码中的声明顺序。
+    /// 当移除此修饰符或视图移动到其他宿主时，QuickLayoutKit 宿主会恢复视图原有的
+    /// `layer.zPosition`。在 QuickLayoutKit 宿主之外直接使用 QuickLayout 布局时，
+    /// 仍保持一次性写入图层层级的行为。
+    ///
+    /// - Parameter value: 元素的显示层级。非有限值按 `0` 处理。
+    /// - Returns: 应用指定显示层级后的元素。
     func zIndex(_ value: Double) -> Element & Layout {
         ZIndexElement(child: self, value: value.isFinite ? value : 0)
     }
@@ -111,8 +119,7 @@ private struct ZIndexElement: Layout, _LayoutValueProvidingElement {
                 if let store = QuickLayoutManagedViewStateContext.current {
                     store.applyZIndex(zPosition, to: view)
                 } else {
-                    // Raw QuickLayout manual integration has no host render
-                    // boundary, so preserve its existing one-shot behavior.
+                    // 直接集成 QuickLayout 时不存在宿主渲染边界，因此保留原有的一次性写入行为。
                     view.layer.zPosition = zPosition
                 }
             }
@@ -146,8 +153,7 @@ private func positionedPositionElement(
         child: PositionPrecomputedLayoutElement(layout: layout),
         offset: CGPoint(x: horizontalOffset, y: origin.y)
     )
-        // Keep child guides from changing this physical placement when the
-        // enclosing fixed frame resolves its top-leading alignment.
+        // 避免外层固定框架解析顶部前缘对齐时，子元素的对齐参考线改变此处的物理位置。
         .alignmentGuide(HorizontalAlignment.leading) { dimensions in
             dimensions[HorizontalAlignment.leading]
         }
@@ -162,8 +168,7 @@ private func positionedPositionElement(
         alignment: .topLeading
     )
     return positionedChild
-        // Resolve the wrapper's guides in its parent's direction so a local
-        // layout-direction override can't leak its physical compensation out.
+        // 按父元素的布局方向解析包装层参考线，避免局部布局方向覆盖向外泄漏物理补偿。
         .alignmentGuide(HorizontalAlignment.leading) { dimensions in
             dimensions[HorizontalAlignment.leading]
         }

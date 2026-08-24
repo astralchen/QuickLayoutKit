@@ -389,10 +389,8 @@ final class DirectionalNavigationDemoViewController: DemoViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
-        // The leading item is part of this demo, not a replacement for the
-        // navigation controller's back item. Keeping the system back item lets
-        // UIKit own its RTL mirroring, accessibility, and interactive-pop
-        // behavior.
+        // leading 按钮属于当前示例，不用于替换导航控制器的返回按钮。
+        // 保留系统返回按钮，使其 RTL 镜像、辅助功能和交互式返回行为继续由 UIKit 管理。
         navigationItem.leftItemsSupplementBackButton = true
         label.numberOfLines = 0
         label.font = .preferredFont(forTextStyle: .body)

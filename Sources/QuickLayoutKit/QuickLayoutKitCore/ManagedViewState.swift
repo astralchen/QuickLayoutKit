@@ -5,11 +5,10 @@ private enum QuickLayoutManagedViewStateAssociation {
     nonisolated(unsafe) static var zIndexOwnershipKey: UInt8 = 0
 }
 
-/// View state managed for the duration of QuickLayoutKit host render passes.
+/// QuickLayoutKit 宿主渲染过程中管理的视图状态。
 ///
-/// The store restores state from the preceding pass before recording the next
-/// pass. Weak view references let removed-but-retained UIKit views recover their
-/// original state without extending their lifetime.
+/// 该存储会在记录下一次渲染前恢复上一次渲染中的状态。通过弱引用视图，已经移除但仍被
+/// 外部持有的 UIKit 视图可以恢复原始状态，同时不会延长视图生命周期。
 @MainActor
 package final class QuickLayoutManagedViewStateStore {
 
@@ -100,9 +99,8 @@ package final class QuickLayoutManagedViewStateStore {
                 return ownership.originalZPosition
             }
 
-            // A view can leave one host and enter another before its former
-            // host renders again. Restore the former baseline during the
-            // ownership transfer so the managed z-index never leaks hosts.
+            // 视图可能在原宿主再次渲染前离开并进入另一宿主。所有权转移时恢复原始基线，
+            // 避免受管理的显示层级泄漏到其他宿主。
             view.layer.zPosition = ownership.originalZPosition
         }
 

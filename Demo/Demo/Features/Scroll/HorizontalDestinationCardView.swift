@@ -181,10 +181,8 @@ final class HorizontalDestinationCardView: QuickLayoutView {
 
             detailsLayout
         }
-        // Equal-height carousel layout can make this host taller than its
-        // content's natural height. Fill that proposal and keep the content
-        // pinned to the top so the card background cannot appear above the
-        // artwork on shorter cards.
+        // 等高轮播布局可能让宿主高度大于内容的自然高度。填满该提议高度并将内容固定
+        // 在顶部，避免较短卡片的背景出现在图片上方。
         .frame(
             maxWidth: .infinity,
             maxHeight: .infinity,

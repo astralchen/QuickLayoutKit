@@ -2,30 +2,51 @@ import Foundation
 import QuickLayout
 import UIKit
 
-/// A type that measures and places a collection of elements.
+/// 用于测量和放置一组元素的类型。
 ///
-/// Conforming types implement the same two-phase layout model as SwiftUI's
-/// `Layout`: first report a container size, then place every subview inside
-/// the resulting bounds.
+/// 遵循该协议的类型实现与 SwiftUI `Layout` 相同的两阶段布局模型：先返回容器尺寸，
+/// 再将每个子元素放置在结果边界内。
 public protocol LayoutAlgorithm {
 
+    /// 布局在测量阶段和放置阶段之间共享的缓存类型。
     associatedtype Cache = Void
+
+    /// 自定义布局接收的子元素集合类型。
     typealias Subviews = LayoutSubviews
 
-    /// Creates storage shared by the measurement and placement phases.
+    /// 创建由测量阶段和放置阶段共享的缓存。
+    ///
+    /// - Parameter subviews: 布局中的子元素代理集合。
+    /// - Returns: 新创建的布局缓存。
     func makeCache(subviews: Subviews) -> Cache
 
-    /// Refreshes an existing cache before a new layout pass.
+    /// 在新的布局过程中刷新现有缓存。
+    ///
+    /// - Parameters:
+    ///   - cache: 要更新的现有布局缓存。
+    ///   - subviews: 当前布局中的子元素代理集合。
     func updateCache(_ cache: inout Cache, subviews: Subviews)
 
-    /// Returns the size of the composite element for a proposed size.
+    /// 返回组合元素在指定尺寸建议下的尺寸。
+    ///
+    /// - Parameters:
+    ///   - proposal: 父布局提出的尺寸建议。
+    ///   - subviews: 要测量的子元素代理集合。
+    ///   - cache: 当前布局缓存。
+    /// - Returns: 组合元素在建议约束下所需的尺寸。
     func sizeThatFits(
         proposal: ProposedSize,
         subviews: Subviews,
         cache: inout Cache
     ) -> CGSize
 
-    /// Assigns a position and proposal to each subview.
+    /// 为每个子元素指定位置和尺寸建议。
+    ///
+    /// - Parameters:
+    ///   - bounds: 用于放置子元素的容器边界。
+    ///   - proposal: 父布局提出的尺寸建议。
+    ///   - subviews: 要放置的子元素代理集合。
+    ///   - cache: 当前布局缓存。
     func placeSubviews(
         in bounds: CGRect,
         proposal: ProposedSize,
@@ -43,7 +64,10 @@ public extension LayoutAlgorithm {
 
     func updateCache(_ cache: inout Cache, subviews: Subviews) {}
 
-    /// Builds a QuickLayout element using this layout algorithm.
+    /// 使用该布局算法构建 QuickLayout 元素。
+    ///
+    /// - Parameter content: 生成布局子元素的构建器。
+    /// - Returns: 使用该算法测量和放置内容的布局元素。
     func callAsFunction(
         @FastArrayBuilder<Element> content: () -> [Element]
     ) -> some Element & Layout {
@@ -54,10 +78,13 @@ public extension LayoutAlgorithm {
     }
 }
 
-/// A random-access collection of proxies for a custom layout's children.
+/// 自定义布局中子元素代理的随机访问集合。
 public struct LayoutSubviews: RandomAccessCollection {
 
+    /// 集合索引的类型。
     public typealias Index = Int
+
+    /// 集合元素的类型。
     public typealias Element = LayoutSubview
 
     private let subviews: [LayoutSubview]
@@ -68,9 +95,15 @@ public struct LayoutSubviews: RandomAccessCollection {
         }
     }
 
+    /// 集合第一个元素的位置。
     public var startIndex: Int { subviews.startIndex }
+
+    /// 集合末尾之后的位置。
     public var endIndex: Int { subviews.endIndex }
 
+    /// 访问指定位置的子元素代理。
+    ///
+    /// - Parameter position: 要访问的集合位置。
     public subscript(position: Int) -> LayoutSubview {
         subviews[position]
     }
@@ -80,36 +113,48 @@ public struct LayoutSubviews: RandomAccessCollection {
     }
 }
 
-/// A proxy that a `LayoutAlgorithm` uses to measure and place one child.
+/// `LayoutAlgorithm` 用于测量和放置单个子元素的代理。
 public struct LayoutSubview: Equatable {
 
     fileprivate let storage: LayoutSubviewStorage
 
-    /// The child's QuickLayout layout priority.
+    /// 子元素的 QuickLayout 布局优先级。
     public var priority: Double {
         Double(storage.element.quick_layoutPriority())
     }
 
-    /// Returns the child's custom value for a layout key.
+    /// 返回子元素中与指定布局键关联的自定义值。
+    ///
+    /// - Parameter key: 要读取的布局值键类型。
     public subscript<Key: LayoutValueKey>(key: Key.Type) -> Key.Value {
         storage.element._layoutValue(for: key)
     }
 
-    /// Asks the child to choose a size for a proposal.
+    /// 请求子元素为指定尺寸建议选择合适的尺寸。
+    ///
+    /// - Parameter proposal: 向子元素提出的尺寸建议。
+    /// - Returns: 子元素选择的尺寸。
     public func sizeThatFits(_ proposal: ProposedSize) -> CGSize {
         let dimensions = dimensions(in: proposal)
         return CGSize(width: dimensions.width, height: dimensions.height)
     }
 
-    /// Asks the child for its dimensions and alignment guides.
+    /// 请求子元素返回指定尺寸建议下的尺寸和对齐参考线。
+    ///
+    /// - Parameter proposal: 向子元素提出的尺寸建议。
+    /// - Returns: 子元素的尺寸和对齐参考线。
     public func dimensions(in proposal: ProposedSize) -> ElementDimensions {
         storage.element.quick_layoutThatFits(proposal.quickLayoutProposal).dimensions
     }
 
-    /// Places the child at a point in the layout container.
+    /// 将子元素放置在布局容器中的指定点。
     ///
-    /// The anchor uses unit coordinates where `(0, 0)` is the child's top-left
-    /// and `(1, 1)` is its bottom-right.
+    /// 锚点使用单位坐标，其中 `(0, 0)` 表示子元素左上角，`(1, 1)` 表示右下角。
+    ///
+    /// - Parameters:
+    ///   - position: 锚点在布局容器坐标空间中的位置。
+    ///   - anchor: 用于定位子元素的单位锚点。
+    ///   - proposal: 放置子元素时使用的尺寸建议。
     public func place(
         at position: CGPoint,
         anchor: UnitPoint = UnitPoint(x: 0, y: 0),
@@ -295,8 +340,7 @@ private func positioned(
         child: PrecomputedLayoutElement(layout: layout),
         offset: CGPoint(x: horizontalOffset, y: origin.y)
     )
-        // Keep child guides from changing this physical placement when the
-        // enclosing fixed frame resolves its top-leading alignment.
+        // 避免外层固定框架解析顶部前缘对齐时，子元素的对齐参考线改变此处的物理位置。
         .alignmentGuide(HorizontalAlignment.leading) { dimensions in
             dimensions[HorizontalAlignment.leading]
         }
@@ -311,8 +355,7 @@ private func positioned(
         alignment: .topLeading
     )
     return positionedChild
-        // Resolve the wrapper's guides in its parent's direction so a local
-        // layout-direction override can't leak its physical compensation out.
+        // 按父元素的布局方向解析包装层参考线，避免局部布局方向覆盖向外泄漏物理补偿。
         .alignmentGuide(HorizontalAlignment.leading) { dimensions in
             dimensions[HorizontalAlignment.leading]
         }

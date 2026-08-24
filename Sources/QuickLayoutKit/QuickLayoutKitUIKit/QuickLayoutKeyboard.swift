@@ -2,52 +2,69 @@ import Combine
 import ObjectiveC
 import UIKit
 
-/// The UIKit keyboard notification event represented by a context.
+/// 上下文所表示的 UIKit 键盘通知事件。
 public enum QuickLayoutKeyboardEvent: Equatable, Sendable {
+    /// 键盘即将显示。
     case willShow
+
+    /// 键盘即将隐藏。
     case willHide
+
+    /// 键盘框架即将变化。
     case willChangeFrame
+
+    /// 键盘框架已经变化。
     case didChangeFrame
+
+    /// 无法识别的键盘事件。
     case unknown
 }
 
-/// Controls how keyboard avoidance combines with the scroll view's safe area.
+/// 控制键盘避让值与滚动视图安全区域的组合方式。
 public enum QuickLayoutKeyboardSafeAreaStrategy: Equatable, Sendable {
-    /// Use only the resolved keyboard intersection height.
+    /// 仅使用解析后的键盘相交高度。
     case ignore
 
-    /// Add the scroll view's bottom safe area to the resolved keyboard height.
+    /// 将滚动视图底部安全区域添加到解析后的键盘高度。
     case add
 
-    /// Subtract the scroll view's existing bottom safe area from the resolved keyboard height.
+    /// 从解析后的键盘高度中减去滚动视图现有的底部安全区域。
     case subtractExisting
 }
 
-/// Keyboard geometry resolved for a concrete view.
+/// 针对具体视图解析后的键盘几何信息。
 public struct QuickLayoutResolvedKeyboardContext: Equatable, Sendable {
 
-    /// The keyboard frame converted into the target view's coordinate space.
+    /// 转换到目标视图坐标空间中的键盘框架。
     public let keyboardFrameInView: CGRect
 
-    /// The visible bounds used for intersection.
+    /// 用于计算相交区域的可见边界。
     public let visibleBounds: CGRect
 
-    /// The intersection between the target visible bounds and keyboard frame.
+    /// 目标可见边界与键盘框架的相交区域。
     public let intersection: CGRect
 
-    /// The effective visible keyboard height for the target view.
+    /// 键盘在目标视图中的有效可见高度。
     public let height: CGFloat
 
-    /// A Boolean value indicating whether the keyboard appears floating or split.
+    /// 指示键盘是否呈现为浮动或分离状态的布尔值。
     public let isFloatingOrSplitKeyboard: Bool
 
-    /// A Boolean value indicating whether this looks like an external hardware keyboard transition.
+    /// 指示当前变化是否类似外接硬件键盘切换的布尔值。
     public let isHardwareKeyboardLikely: Bool
 
-    /// Creates resolved keyboard geometry.
+    /// 创建解析后的键盘几何信息。
     ///
-    /// This initializer is useful for deterministic tests and for integrations
-    /// that resolve keyboard geometry outside ``QuickLayoutKeyboardContext``.
+    /// 该初始化方法适用于确定性测试，也适用于在 ``QuickLayoutKeyboardContext`` 之外
+    /// 解析键盘几何信息的集成场景。
+    ///
+    /// - Parameters:
+    ///   - keyboardFrameInView: 目标视图坐标空间中的键盘框架。
+    ///   - visibleBounds: 用于计算相交区域的可见边界。
+    ///   - intersection: 可见边界与键盘框架的相交区域。
+    ///   - height: 键盘的有效可见高度。
+    ///   - isFloatingOrSplitKeyboard: 键盘是否为浮动或分离状态。
+    ///   - isHardwareKeyboardLikely: 当前变化是否可能由硬件键盘导致。
     public init(
         keyboardFrameInView: CGRect,
         visibleBounds: CGRect,
@@ -67,54 +84,62 @@ public struct QuickLayoutResolvedKeyboardContext: Equatable, Sendable {
 
 public extension Notification.Name {
 
-    /// Posted by custom input controls when editing begins.
+    /// 自定义输入控件开始编辑时发布的通知。
     static let quickLayoutKeyboardActiveInputDidBeginEditing = Notification.Name(
         "QuickLayoutKeyboardActiveInputDidBeginEditing"
     )
 
-    /// Posted by custom input controls when editing ends.
+    /// 自定义输入控件结束编辑时发布的通知。
     static let quickLayoutKeyboardActiveInputDidEndEditing = Notification.Name(
         "QuickLayoutKeyboardActiveInputDidEndEditing"
     )
 }
 
-/// A parsed UIKit keyboard notification.
+/// 解析后的 UIKit 键盘通知。
 public struct QuickLayoutKeyboardContext: Equatable, Sendable {
 
-    /// A discoverable spelling for keyboard events scoped to a context.
+    /// 当前上下文对应的键盘事件类型。
     public typealias Event = QuickLayoutKeyboardEvent
 
-    /// A discoverable spelling for resolved geometry scoped to a context.
+    /// 当前上下文对应的解析后几何信息类型。
     public typealias Resolved = QuickLayoutResolvedKeyboardContext
 
-    /// The keyboard frame at the beginning of the transition.
+    /// 键盘变化开始时的框架。
     public let beginFrame: CGRect
 
-    /// The keyboard frame at the end of the transition.
+    /// 键盘变化结束时的框架。
     public let endFrame: CGRect
 
-    /// The UIKit keyboard event that produced this context.
+    /// 生成该上下文的 UIKit 键盘事件。
     public let event: QuickLayoutKeyboardEvent
 
-    /// The keyboard animation duration.
+    /// 键盘动画持续时间。
     public let animationDuration: TimeInterval
 
-    /// UIKit animation options matching the keyboard transition.
+    /// 与键盘变化匹配的 UIKit 动画选项。
     public let animationOptions: UIView.AnimationOptions
 
-    /// A Boolean value indicating whether the keyboard is visible.
+    /// 指示键盘是否可见的布尔值。
     public let isVisible: Bool
 
-    /// The effective keyboard height.
+    /// 键盘的有效高度。
     ///
-    /// Before the context has been resolved against a view, this falls back to
-    /// UIKit's raw `endFrame.height` for compatibility.
+    /// 上下文尚未针对具体视图解析时，为保持兼容，该值使用 UIKit 原始的
+    /// `endFrame.height`。
     public var height: CGFloat {
         guard isVisible else { return 0 }
         return endFrame.height
     }
 
-    /// Creates a context from explicit values.
+    /// 使用明确提供的值创建键盘上下文。
+    ///
+    /// - Parameters:
+    ///   - beginFrame: 键盘变化开始时的框架。
+    ///   - endFrame: 键盘变化结束时的框架。
+    ///   - animationDuration: 键盘动画持续时间。
+    ///   - animationOptions: 与键盘变化匹配的动画选项。
+    ///   - isVisible: 指示键盘是否可见。
+    ///   - event: 生成上下文的键盘事件。
     public init(
         beginFrame: CGRect = .zero,
         endFrame: CGRect,
@@ -131,9 +156,9 @@ public struct QuickLayoutKeyboardContext: Equatable, Sendable {
         self.isVisible = isVisible
     }
 
-    /// Creates a keyboard context from a UIKit keyboard notification.
+    /// 根据 UIKit 键盘通知创建键盘上下文。
     ///
-    /// - Parameter notification: A keyboard notification from `UIResponder`.
+    /// - Parameter notification: `UIResponder` 发布的键盘通知。
     public init?(notification: Notification) {
         guard let endFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else {
             return nil
@@ -156,12 +181,13 @@ public struct QuickLayoutKeyboardContext: Equatable, Sendable {
         )
     }
 
-    /// Resolves keyboard geometry for a target view.
+    /// 针对目标视图解析键盘几何信息。
     ///
-    /// UIKit keyboard frames are reported in screen coordinates. This method
-    /// converts the frame into the target view and measures the visible
-    /// intersection, which is required for floating keyboards, split keyboards,
-    /// iPad windows, and views that are offset inside a window.
+    /// UIKit 使用屏幕坐标报告键盘框架。该方法将框架转换到目标视图坐标空间并计算可见
+    /// 相交区域，以正确处理浮动键盘、分离键盘、iPad 窗口以及在窗口中存在偏移的视图。
+    ///
+    /// - Parameter view: 用于解析键盘几何信息的目标视图。
+    /// - Returns: 针对目标视图解析后的键盘几何信息。
     @MainActor
     public func resolved(in view: UIView) -> QuickLayoutResolvedKeyboardContext {
         let keyboardFrameInView = convertedEndFrame(in: view)
@@ -186,13 +212,16 @@ public struct QuickLayoutKeyboardContext: Equatable, Sendable {
         )
     }
 
-    /// Resolves keyboard geometry for a scroll view.
+    /// 针对滚动视图解析键盘几何信息。
+    ///
+    /// - Parameter scrollView: 用于解析键盘几何信息的滚动视图。
+    /// - Returns: 针对滚动视图解析后的键盘几何信息。
     @MainActor
     public func resolved(in scrollView: UIScrollView) -> QuickLayoutResolvedKeyboardContext {
         resolved(in: scrollView as UIView)
     }
 
-    /// An empty hidden-keyboard context.
+    /// 表示键盘隐藏状态的空上下文。
     public static let hidden = QuickLayoutKeyboardContext(
         endFrame: .zero,
         animationDuration: 0.25,
@@ -229,25 +258,28 @@ private extension QuickLayoutKeyboardEvent {
     }
 }
 
-/// Observes UIKit keyboard notifications and publishes parsed keyboard context.
+/// 观察 UIKit 键盘通知并发布解析后的键盘上下文。
 @MainActor
 public final class QuickLayoutKeyboardObserver: ObservableObject {
 
-    /// The latest keyboard context.
+    /// 最近一次接收到的键盘上下文。
     @Published public private(set) var context: QuickLayoutKeyboardContext = .hidden
 
-    /// The latest keyboard height.
+    /// 最近一次接收到的键盘高度。
     public var keyboardHeight: CGFloat {
         context.height
     }
 
-    /// A Boolean value indicating whether the keyboard is visible.
+    /// 指示键盘是否可见的布尔值。
     public var isKeyboardVisible: Bool {
         context.isVisible
     }
 
     private var cancellables: Set<AnyCancellable> = []
 
+    /// 创建并开始观察键盘通知的对象。
+    ///
+    /// - Parameter notificationCenter: 发布 UIKit 键盘通知的通知中心。
     public init(notificationCenter: NotificationCenter = .default) {
         let notifications = [
             UIResponder.keyboardWillShowNotification,
@@ -267,11 +299,11 @@ public final class QuickLayoutKeyboardObserver: ObservableObject {
     }
 }
 
-/// Applies keyboard insets to a scroll view and keeps the active input visible.
+/// 将键盘边距应用到滚动视图，并保持当前输入视图可见。
 @MainActor
 public final class QuickLayoutKeyboardAvoider {
 
-    /// A discoverable spelling for safe-area behavior scoped to the avoider.
+    /// 当前键盘避让器对应的安全区域策略类型。
     public typealias SafeAreaStrategy = QuickLayoutKeyboardSafeAreaStrategy
 
     private weak var scrollView: UIScrollView?
@@ -283,21 +315,19 @@ public final class QuickLayoutKeyboardAvoider {
     private var baseVerticalScrollIndicatorInsets: UIEdgeInsets
     private var baseHorizontalScrollIndicatorInsets: UIEdgeInsets
 
-    /// Additional bottom spacing applied only while a keyboard intersects the scroll view.
+    /// 仅在键盘与滚动视图相交时应用的额外底部间距。
     public var extraBottomPadding: CGFloat = 0
 
-    /// Controls how resolved keyboard height combines with the scroll view safe area.
+    /// 控制解析后的键盘高度与滚动视图安全区域的组合方式。
     public var safeAreaStrategy: SafeAreaStrategy = .ignore
 
-    /// Creates a keyboard avoider that observes one notification center.
+    /// 创建观察指定通知中心的键盘避让器。
     ///
-    /// The created keyboard observer and the active-input observation both use
-    /// `notificationCenter`.
+    /// 创建的键盘观察器和当前输入视图观察均使用 `notificationCenter`。
     ///
     /// - Parameters:
-    ///   - scrollView: The scroll view whose insets should track the keyboard.
-    ///   - notificationCenter: The center used for keyboard and editing
-    ///     notifications.
+    ///   - scrollView: 边距需要跟随键盘变化的滚动视图。
+    ///   - notificationCenter: 用于接收键盘和编辑通知的通知中心。
     public convenience init(
         scrollView: UIScrollView,
         notificationCenter: NotificationCenter = .default
@@ -309,12 +339,12 @@ public final class QuickLayoutKeyboardAvoider {
         )
     }
 
-    /// Creates a keyboard avoider with an explicit keyboard observer.
+    /// 使用指定键盘观察器创建键盘避让器。
     ///
     /// - Parameters:
-    ///   - scrollView: The scroll view whose insets should track the keyboard.
-    ///   - observer: The keyboard observer to use.
-    ///   - notificationCenter: The center used for editing notifications.
+    ///   - scrollView: 边距需要跟随键盘变化的滚动视图。
+    ///   - observer: 使用的键盘观察器。
+    ///   - notificationCenter: 用于接收编辑通知的通知中心。
     public init(
         scrollView: UIScrollView,
         observer: QuickLayoutKeyboardObserver,
@@ -361,8 +391,7 @@ public final class QuickLayoutKeyboardAvoider {
             .store(in: &cancellables)
     }
 
-    /// Captures the scroll view's current insets as the base values that
-    /// keyboard height should be added to.
+    /// 将滚动视图当前边距保存为添加键盘高度时使用的基准值。
     public func captureCurrentInsetsAsBase() {
         guard let scrollView else { return }
         baseContentInset = scrollView.contentInset
@@ -373,9 +402,9 @@ public final class QuickLayoutKeyboardAvoider {
             .subtracting(scrollView.quickLayoutAppliedIndicatorMarginInsets)
     }
 
-    /// Applies a keyboard context immediately.
+    /// 立即应用指定的键盘上下文。
     ///
-    /// - Parameter context: The keyboard context to apply.
+    /// - Parameter context: 要应用的键盘上下文。
     public func apply(_ context: QuickLayoutKeyboardContext) {
         guard let scrollView else { return }
 
@@ -411,16 +440,16 @@ public final class QuickLayoutKeyboardAvoider {
         )
     }
 
-    /// Sets the view that should remain visible above the keyboard.
+    /// 设置需要保持在键盘上方可见的视图。
     ///
-    /// - Parameter view: The active input or focus view.
+    /// - Parameter view: 当前输入视图或焦点视图。
     public func setActiveView(_ view: UIView?) {
         activeView = view
     }
 
-    /// Scrolls the active view into the visible region.
+    /// 将当前输入视图滚动到可见区域。
     ///
-    /// - Parameter animated: Pass `true` to animate the scroll.
+    /// - Parameter animated: 传入 `true` 以动画方式执行滚动。
     public func scrollActiveViewIntoVisibleArea(animated: Bool) {
         guard
             let scrollView,

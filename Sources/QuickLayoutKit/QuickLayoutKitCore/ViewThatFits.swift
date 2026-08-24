@@ -2,11 +2,15 @@ import CoreGraphics
 import QuickLayout
 import UIKit
 
-/// Chooses the first alternative whose ideal size fits the proposed size.
+/// 选择理想尺寸能够容纳在建议尺寸内的第一个备选布局。
 ///
-/// Alternatives are evaluated in declaration order. Only the axes in `axes`
-/// participate in the fit check, and the last alternative is used when none
-/// of the preceding alternatives fit.
+/// 该函数按照声明顺序评估备选布局，并且只在 `axes` 指定的轴上检查是否能够容纳。
+/// 如果此前的备选布局均无法容纳，则使用最后一个备选布局。
+///
+/// - Parameters:
+///   - axes: 执行尺寸检查的轴。
+///   - content: 按优先顺序生成备选布局的构建器。
+/// - Returns: 根据建议尺寸选择备选项的布局元素。
 public func ViewThatFits(
     in axes: AxisSet = [.horizontal, .vertical],
     @FastArrayBuilder<Element> content: () -> [Element]

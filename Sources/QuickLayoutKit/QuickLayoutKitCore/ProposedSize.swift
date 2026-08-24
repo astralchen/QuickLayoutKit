@@ -1,42 +1,49 @@
 import CoreGraphics
 
-/// A proposal for the size of an element.
+/// 向元素提出的尺寸建议。
 ///
-/// A `nil` dimension is unspecified and asks an element for its ideal length
-/// on that axis. Zero and infinity can be used to query an element's minimum
-/// and maximum sizes respectively.
+/// 维度为 `nil` 表示该轴未指定约束，元素应返回其理想长度。可以分别使用零和无穷大
+/// 查询元素的最小尺寸和最大尺寸。
 @frozen
 public struct ProposedSize: Equatable, Sendable {
 
-    /// The proposed horizontal size, or `nil` when it is unspecified.
+    /// 建议的水平尺寸；未指定时为 `nil`。
     public var width: CGFloat?
 
-    /// The proposed vertical size, or `nil` when it is unspecified.
+    /// 建议的垂直尺寸；未指定时为 `nil`。
     public var height: CGFloat?
 
-    /// A proposal containing zero in both dimensions.
+    /// 两个维度均为零的尺寸建议。
     public static let zero = ProposedSize(width: 0, height: 0)
 
-    /// A proposal containing infinity in both dimensions.
+    /// 两个维度均为无穷大的尺寸建议。
     public static let infinity = ProposedSize(width: .infinity, height: .infinity)
 
-    /// A proposal with both dimensions unspecified.
+    /// 两个维度均未指定的尺寸建议。
     public static let unspecified = ProposedSize(width: nil, height: nil)
 
-    /// Creates a proposal from optional dimensions.
+    /// 使用可选维度创建尺寸建议。
+    ///
+    /// - Parameters:
+    ///   - width: 建议的水平尺寸；传入 `nil` 表示不指定。
+    ///   - height: 建议的垂直尺寸；传入 `nil` 表示不指定。
     public init(width: CGFloat?, height: CGFloat?) {
         self.width = width
         self.height = height
     }
 
-    /// Creates a proposal from a concrete size.
+    /// 使用确定的尺寸创建尺寸建议。
+    ///
+    /// - Parameter size: 同时提供水平和垂直维度的尺寸。
     public init(_ size: CGSize) {
         width = size.width
         height = size.height
     }
 
-    /// Replaces unspecified dimensions with the corresponding fallback
-    /// dimension.
+    /// 使用备用尺寸中对应的维度替换未指定的维度。
+    ///
+    /// - Parameter size: 未指定维度使用的备用尺寸。
+    /// - Returns: 不含未指定维度的确定尺寸。
     public func replacingUnspecifiedDimensions(
         by size: CGSize = CGSize(width: 10, height: 10)
     ) -> CGSize {
@@ -49,7 +56,7 @@ public struct ProposedSize: Equatable, Sendable {
 
 extension ProposedSize {
 
-    /// QuickLayout represents an unspecified constraint with infinity.
+    /// 根据 QuickLayout 使用无穷大表示未指定约束的约定创建尺寸建议。
     init(quickLayoutProposal size: CGSize) {
         width = size.width.isFinite ? max(0, size.width) : nil
         height = size.height.isFinite ? max(0, size.height) : nil

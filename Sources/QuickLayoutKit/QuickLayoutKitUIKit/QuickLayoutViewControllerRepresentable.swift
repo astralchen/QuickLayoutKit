@@ -1,47 +1,46 @@
 import UIKit
 
-/// A UIKit view that embeds a child view controller inside a QuickLayout body.
+/// 在 QuickLayout `body` 中嵌入子视图控制器的 UIKit 视图。
 ///
-/// `QuickLayoutViewControllerRepresentable` mirrors SwiftUI's representable
-/// naming style while staying UIKit-first: callers provide an already-created
-/// child view controller. The representable resolves its parent view controller
-/// from the UIKit responder chain when it enters a view hierarchy. For lazy
-/// creation, wrap this view in QuickLayout's `LazyView`.
+/// `QuickLayoutViewControllerRepresentable` 沿用 SwiftUI representable 的命名方式，
+/// 但采用 UIKit 优先的契约：调用方传入已经创建的子视图控制器。该视图进入视图层级时，
+/// 会从 UIKit 响应者链解析父视图控制器。需要延迟创建时，应使用 QuickLayout 的
+/// `LazyView` 包装该视图。
 @MainActor
 public final class QuickLayoutViewControllerRepresentable: UIView, QuickLayoutUpdating {
 
-    /// Containment and layout events emitted by the representable.
+    /// representable 视图发出的包含关系和布局事件。
     public enum Event: Equatable {
-        /// The representable moved to or from a superview.
+        /// representable 视图移入或移出父视图。
         case didMoveToSuperview
-        /// The parent view controller reference was captured or replaced.
+        /// 捕获或替换了父视图控制器引用。
         case didCaptureParent
-        /// The child view controller is about to be attached to its parent.
+        /// 子视图控制器即将附加到父视图控制器。
         case willAttach
-        /// The child view controller was attached to its parent.
+        /// 子视图控制器已经附加到父视图控制器。
         case didAttach
-        /// The child view controller is about to be detached from its parent.
+        /// 子视图控制器即将从父视图控制器移除。
         case willDetach
-        /// The child view controller was detached from its parent.
+        /// 子视图控制器已经从父视图控制器移除。
         case didDetach
-        /// The hosted view controller is about to be replaced.
+        /// 宿主视图控制器即将被替换。
         case willReplaceViewController
-        /// The hosted view controller was replaced.
+        /// 宿主视图控制器已经被替换。
         case didReplaceViewController
-        /// The hosted view controller is about to be dismantled.
+        /// 宿主视图控制器即将被拆除。
         case willDismantleViewController
-        /// The hosted view controller was dismantled.
+        /// 宿主视图控制器已经被拆除。
         case didDismantleViewController
-        /// The representable needs a parent before it can attach the child.
+        /// representable 视图缺少附加子控制器所需的父控制器。
         case missingParent
-        /// The child already belongs to a different parent.
+        /// 子视图控制器已属于其他父控制器。
         case viewControllerAlreadyParented
-        /// The child view was laid out inside the representable.
+        /// 子控制器视图已在 representable 视图内完成布局。
         case didLayoutSubviews
-        /// The hosted child layout was invalidated.
+        /// 宿主子控制器布局已失效。
         case didInvalidateChildLayout
 
-        /// A stable string name for logging and tests.
+        /// 用于日志和测试的稳定字符串名称。
         public var name: String {
             switch self {
             case .didMoveToSuperview:
@@ -76,42 +75,41 @@ public final class QuickLayoutViewControllerRepresentable: UIView, QuickLayoutUp
         }
     }
 
-    /// A stable detailed-event kind.
+    /// 详细事件使用的稳定事件类型。
     public typealias EventKind = Event
 
-    /// A containment or layout event with contextual controller references.
+    /// 包含相关控制器引用的包含关系或布局事件。
     public struct DetailedEvent {
 
-        /// The event kind.
+        /// 事件类型。
         public let kind: EventKind
 
-        /// The parent view controller involved in the event.
+        /// 事件涉及的父视图控制器。
         public let parent: UIViewController?
 
-        /// The primary child view controller involved in the event.
+        /// 事件涉及的主要子视图控制器。
         public let viewController: UIViewController?
 
-        /// The previous child when replacing hosted controllers.
+        /// 替换宿主控制器时的旧子视图控制器。
         public let oldViewController: UIViewController?
 
-        /// The new child when replacing hosted controllers.
+        /// 替换宿主控制器时的新子视图控制器。
         public let newViewController: UIViewController?
 
-        /// Optional diagnostic context.
+        /// 可选的诊断上下文。
         public let reason: String?
     }
 
-    /// The currently hosted child view controller.
+    /// 当前承载的子视图控制器。
     public private(set) var viewController: UIViewController?
 
-    /// Receives containment and layout events.
+    /// 接收包含关系和布局事件的闭包。
     public var eventHandler: ((Event) -> Void)?
 
-    /// Receives containment and layout events with parent and child context.
+    /// 接收包含父子控制器上下文的包含关系和布局事件闭包。
     public var detailedEventHandler: ((DetailedEvent) -> Void)?
 
-    /// Enables lightweight preferred-content-size change detection during
-    /// measurement.
+    /// 指示测量期间是否检测首选内容尺寸变化。
     public var observesPreferredContentSizeChanges = true
 
     private weak var parentViewController: UIViewController?
@@ -119,13 +117,11 @@ public final class QuickLayoutViewControllerRepresentable: UIView, QuickLayoutUp
     private var usesExplicitParent = false
     private var lastPreferredContentSize: CGSize = .zero
 
-    /// Creates a representable view for a child view controller.
+    /// 为子视图控制器创建 representable 视图。
     ///
-    /// The parent view controller is resolved automatically from the UIKit
-    /// responder chain when the representable enters a controller-owned view
-    /// hierarchy.
+    /// representable 视图进入控制器拥有的视图层级时，会自动从 UIKit 响应者链解析父视图控制器。
     ///
-    /// - Parameter viewController: The child view controller to embed.
+    /// - Parameter viewController: 要嵌入的子视图控制器。
     public init(_ viewController: UIViewController) {
         self.viewController = viewController
         super.init(frame: .zero)
@@ -133,11 +129,11 @@ public final class QuickLayoutViewControllerRepresentable: UIView, QuickLayoutUp
         clipsToBounds = false
     }
 
-    /// Creates a representable view for a child view controller with an explicit parent.
+    /// 使用明确指定的父控制器，为子视图控制器创建 representable 视图。
     ///
     /// - Parameters:
-    ///   - viewController: The child view controller to embed.
-    ///   - parent: The parent view controller that owns containment.
+    ///   - viewController: 要嵌入的子视图控制器。
+    ///   - parent: 负责包含关系的父视图控制器。
     public init(_ viewController: UIViewController, parent: UIViewController) {
         self.viewController = viewController
         self.parentViewController = parent
@@ -147,17 +143,18 @@ public final class QuickLayoutViewControllerRepresentable: UIView, QuickLayoutUp
         clipsToBounds = false
     }
 
-    /// Creates a representable view from Interface Builder.
+    /// 从 Interface Builder 归档创建 representable 视图。
     public required init?(coder: NSCoder) {
         super.init(coder: coder)
         backgroundColor = .clear
         clipsToBounds = false
     }
 
-    /// Replaces the hosted child view controller.
+    /// 替换当前承载的子视图控制器。
     ///
-    /// If the representable is currently in a QuickLayout hierarchy, the old
-    /// child is detached before the new child is attached.
+    /// representable 视图当前位于 QuickLayout 层级中时，会先移除旧子控制器，再附加新子控制器。
+    ///
+    /// - Parameter viewController: 新的子视图控制器；传入 `nil` 表示移除当前子控制器。
     public func setViewController(_ viewController: UIViewController?) {
         guard self.viewController !== viewController else {
             attachIfNeeded()
@@ -186,7 +183,7 @@ public final class QuickLayoutViewControllerRepresentable: UIView, QuickLayoutUp
         )
     }
 
-    /// Detaches and releases the hosted child view controller.
+    /// 移除并释放当前承载的子视图控制器。
     public func dismantleViewController() {
         emit(.willDismantleViewController)
         detachIfNeeded()
@@ -198,11 +195,12 @@ public final class QuickLayoutViewControllerRepresentable: UIView, QuickLayoutUp
         emit(.didDismantleViewController)
     }
 
-    /// Captures or replaces the parent view controller used for containment.
+    /// 捕获或替换负责包含关系的父视图控制器。
     ///
-    /// If the representable is already attached to a different parent, the old
-    /// containment relationship is removed and the child is attached to the new
-    /// parent when the representable is visible.
+    /// representable 视图已经附加到其他父控制器时，会移除旧包含关系，并在视图可见时将
+    /// 子控制器附加到新的父控制器。
+    ///
+    /// - Parameter parent: 新的父视图控制器。
     public func captureParent(_ parent: UIViewController) {
         guard parentViewController !== parent else {
             usesExplicitParent = true
@@ -269,19 +267,19 @@ public final class QuickLayoutViewControllerRepresentable: UIView, QuickLayoutUp
         return clamped(measuredSize, to: size)
     }
 
-    /// Invalidates the hosted controller layout.
+    /// 将宿主控制器布局标记为需要更新。
     public func setNeedsQuickLayout() {
         setNeedsLayout()
         viewController?.view?.setNeedsLayout()
     }
 
-    /// Lays out the hosted controller view immediately if needed.
+    /// 根据需要立即布局宿主控制器视图。
     public func quickLayoutIfNeeded() {
         layoutIfNeeded()
         viewController?.view?.layoutIfNeeded()
     }
 
-    /// Invalidates the hosted child controller layout and representable size.
+    /// 使宿主子控制器布局和 representable 视图尺寸失效。
     public func invalidateChildLayout() {
         viewController?.view?.setNeedsLayout()
         viewController?.view?.invalidateIntrinsicContentSize()

@@ -1,50 +1,52 @@
 import CoreGraphics
 
-/// Debug diagnostics for QuickLayoutKit layout work.
+/// 用于记录 QuickLayoutKit 布局过程的调试诊断工具。
 @MainActor
 public enum QuickLayoutDiagnostics {
 
-    /// One recorded layout pass.
+    /// 一次已记录的布局过程。
     public struct Entry: Equatable, Sendable {
-        /// The type or caller name associated with the layout pass.
+        /// 与布局过程关联的类型名称或调用方名称。
         public let viewName: String
 
-        /// The measured size reported by the caller.
+        /// 调用方报告的测量尺寸。
         public let measuredSize: CGSize
     }
 
-    /// A point-in-time diagnostics snapshot.
+    /// 指定时刻的诊断快照。
     public struct Snapshot: Equatable, Sendable {
-        /// All recorded entries.
+        /// 所有已记录的布局条目。
         public let entries: [Entry]
 
-        /// The number of recorded layout passes.
+        /// 已记录的布局次数。
         public var totalLayoutPasses: Int {
             entries.count
         }
     }
 
-    /// A Boolean value indicating whether diagnostics are enabled.
+    /// 指示是否启用诊断记录的布尔值。
     public static var isEnabled = false
 
     private static var entries: [Entry] = []
 
-    /// Records a layout pass when diagnostics are enabled.
+    /// 在启用诊断时记录一次布局过程。
     ///
     /// - Parameters:
-    ///   - viewName: The view or caller name.
-    ///   - measuredSize: The size associated with the layout pass.
+    ///   - viewName: 视图名称或调用方名称。
+    ///   - measuredSize: 与布局过程关联的尺寸。
     public static func recordLayoutPass(for viewName: String, measuredSize: CGSize) {
         guard isEnabled else { return }
         entries.append(Entry(viewName: viewName, measuredSize: measuredSize))
     }
 
-    /// Returns the current diagnostics snapshot.
+    /// 返回当前诊断快照。
+    ///
+    /// - Returns: 包含所有已记录布局条目的快照。
     public static func snapshot() -> Snapshot {
         Snapshot(entries: entries)
     }
 
-    /// Removes all recorded diagnostics entries.
+    /// 移除所有已记录的诊断条目。
     public static func reset() {
         entries.removeAll()
     }

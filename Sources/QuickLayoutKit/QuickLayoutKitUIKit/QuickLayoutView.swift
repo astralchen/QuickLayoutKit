@@ -1,21 +1,19 @@
 import UIKit
 import QuickLayout
 
-/// A reusable view that hosts QuickLayout content.
+/// 承载 QuickLayout 内容的可复用视图。
 ///
-/// Use `QuickLayoutView` when a QuickLayout hierarchy needs to be embedded in
-/// an existing UIKit view controller, table view cell, collection view cell, or
-/// reusable view without introducing a dedicated view controller subclass.
+/// 需要将 QuickLayout 层级嵌入现有 UIKit 视图控制器、表格视图单元格、集合视图单元格
+/// 或复用视图，并且不需要单独创建视图控制器子类时，使用 `QuickLayoutView`。
 open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnvironmentUpdating {
 
     private var contentProvider: (() -> Layout)?
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
 
-    /// An explicit override for the host's horizontal sizing flexibility.
+    /// 宿主水平尺寸弹性的显式覆盖值。
     ///
-    /// The default `nil` derives flexibility from `body`, preserving the
-    /// sizing semantics expressed by the hosted layout. Set a value only when
-    /// the host itself needs to override those semantics for its container.
+    /// 默认值 `nil` 表示从 `body` 推导尺寸弹性，从而保留宿主布局表达的尺寸语义。
+    /// 仅当宿主本身需要针对其容器覆盖这些语义时，才应设置具体值。
     open var quickLayoutHorizontalFlexibility: Flexibility? {
         didSet {
             guard quickLayoutHorizontalFlexibility != oldValue else { return }
@@ -25,11 +23,10 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         }
     }
 
-    /// An explicit override for the host's vertical sizing flexibility.
+    /// 宿主垂直尺寸弹性的显式覆盖值。
     ///
-    /// The default `nil` derives flexibility from `body`, preserving the
-    /// sizing semantics expressed by the hosted layout. Set a value only when
-    /// the host itself needs to override those semantics for its container.
+    /// 默认值 `nil` 表示从 `body` 推导尺寸弹性，从而保留宿主布局表达的尺寸语义。
+    /// 仅当宿主本身需要针对其容器覆盖这些语义时，才应设置具体值。
     open var quickLayoutVerticalFlexibility: Flexibility? {
         didSet {
             guard quickLayoutVerticalFlexibility != oldValue else { return }
@@ -39,11 +36,10 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         }
     }
 
-    /// The attachment, layout, and measurement direction policy for this host.
+    /// 宿主在附加、布局和测量时采用的语义方向策略。
     ///
-    /// The default `.preserve` keeps local playback or spatial semantics.
-    /// Select `.followEnclosingContainer` for detachable application-content
-    /// hosts that must recover the latest container direction when reattached.
+    /// 默认值 `.preserve` 会保留局部播放或空间语义。对于可从层级中移除且重新附加时
+    /// 必须恢复容器最新方向的应用内容宿主，应使用 `.followEnclosingContainer`。
     open var quickLayoutSemanticDirectionBehavior:
         QuickLayoutSemanticDirectionBehavior = .preserve {
         didSet {
@@ -59,11 +55,10 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         }
     }
 
-    /// The semantic role used to resolve the hosted layout direction.
+    /// 用于解析宿主布局方向的语义角色。
     ///
-    /// App-level language switching commonly updates this property directly.
-    /// Publish the new effective direction immediately and invalidate the
-    /// hosted body instead of waiting for a later trait or layout callback.
+    /// 应用内切换语言时通常会直接更新该属性。属性变化会立即发布新的有效方向并使宿主内容
+    /// 失效，而不等待后续特征或布局回调。
     open override var semanticContentAttribute: UISemanticContentAttribute {
         didSet {
             guard semanticContentAttribute != oldValue else { return }
@@ -72,29 +67,29 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         }
     }
 
-    /// Creates a hosting view with no content.
+    /// 创建不包含内容的宿主视图。
     public override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .clear
     }
 
-    /// Creates a hosting view from Interface Builder.
+    /// 从 Interface Builder 归档创建宿主视图。
     public required init?(coder: NSCoder) {
         super.init(coder: coder)
         backgroundColor = .clear
     }
 
-    /// Creates a hosting view with inline QuickLayout content.
+    /// 创建以内联方式提供 QuickLayout 内容的宿主视图。
     ///
-    /// - Parameter content: A closure that returns the hosted layout.
+    /// - Parameter content: 返回宿主布局的构建器闭包。
     public convenience init(@LayoutBuilder content: @escaping () -> Layout) {
         self.init(frame: .zero)
         self.contentProvider = content
     }
 
-    /// The QuickLayout content hosted by the view.
+    /// 视图承载的 QuickLayout 内容。
     ///
-    /// Subclasses can override this property to provide their own layout.
+    /// 子类可以重写该属性以提供自定义布局。
     @LayoutBuilder
     open var body: Layout {
         if let contentProvider {
@@ -153,8 +148,7 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
     }
 
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
-        // Self-sizing can run before the next layout pass after a locale or
-        // direction switch, so measurement must observe the latest environment.
+        // 切换区域设置或布局方向后，自适应尺寸可能先于下一次布局执行，因此测量必须读取最新环境。
         synchronizeQuickLayoutSemanticDirectionIfNeeded(
             for: self,
             behavior: quickLayoutSemanticDirectionBehavior
@@ -183,31 +177,34 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
             ?? super.quick_flexibility(for: axis)
     }
 
-    /// Invalidates the hosted layout.
+    /// 将宿主布局标记为需要更新。
     ///
-    /// Call this after localized content changes without changing layout
-    /// direction, because UIKit has no notification for an app-specific locale.
+    /// 本地化内容发生变化但布局方向未改变时，应调用此方法，因为 UIKit 不会为应用自定义
+    /// 区域设置发送通知。
     open func setNeedsQuickLayout() {
         setNeedsLayout()
     }
 
-    /// Lays out the hosted QuickLayout content immediately if needed.
+    /// 根据需要立即布局宿主 QuickLayout 内容。
     open func quickLayoutIfNeeded() {
         layoutIfNeeded()
     }
 
-    /// Returns the size that best fits the specified constraints.
+    /// 返回最适合指定约束的尺寸。
     ///
-    /// - Parameter size: The maximum size available to the hosted content.
-    /// - Returns: The size that fits the hosted layout.
+    /// - Parameter size: 宿主内容可使用的最大尺寸。
+    /// - Returns: 适合宿主布局的尺寸。
     open func sizeThatFits(in size: CGSize) -> CGSize {
         sizeThatFits(size)
     }
 
-    /// Responds to UIKit environment changes that can affect layout.
+    /// 响应可能影响布局的 UIKit 环境变化。
     ///
-    /// The default implementation invalidates the hosted QuickLayout content.
-    /// Subclasses can override this method to synchronize additional state.
+    /// 默认实现会使宿主 QuickLayout 内容失效。子类可以重写该方法以同步其他状态。
+    ///
+    /// - Parameters:
+    ///   - environment: 变化后的当前环境快照。
+    ///   - reason: 描述发生变化部分的原因集合。
     open func quickLayoutEnvironmentDidChange(
         _ environment: QuickLayoutEnvironment,
         reason: QuickLayoutEnvironmentChangeReason

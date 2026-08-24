@@ -1,7 +1,7 @@
 import QuickLayout
 import UIKit
 
-/// The part of a supported container that receives content margins.
+/// 支持内容边距的容器中需要应用边距的部分。
 public struct ContentMarginPlacement: Hashable, Sendable {
 
     fileprivate enum Kind: Hashable, Sendable {
@@ -12,17 +12,17 @@ public struct ContentMarginPlacement: Hashable, Sendable {
 
     fileprivate let kind: Kind
 
-    /// Applies margins to every placement supported by the container.
+    /// 将边距应用到容器支持的所有位置。
     public static var automatic: ContentMarginPlacement {
         ContentMarginPlacement(kind: .automatic)
     }
 
-    /// Applies margins to scrollable content without moving scroll indicators.
+    /// 将边距应用到可滚动内容，但不移动滚动指示器。
     public static var scrollContent: ContentMarginPlacement {
         ContentMarginPlacement(kind: .scrollContent)
     }
 
-    /// Applies margins to scroll indicators without moving scrollable content.
+    /// 将边距应用到滚动指示器，但不移动可滚动内容。
     public static var scrollIndicators: ContentMarginPlacement {
         ContentMarginPlacement(kind: .scrollIndicators)
     }
@@ -30,10 +30,15 @@ public struct ContentMarginPlacement: Hashable, Sendable {
 
 public extension Element {
 
-    /// Configures directional content margins for supported containers.
+    /// 为支持的容器配置方向性内容边距。
     ///
-    /// `QuickLayoutScrollView` supports all placements. The automatic
-    /// placement applies the margins to both its content and indicators.
+    /// `QuickLayoutScrollView` 支持所有位置。自动位置会同时将边距应用到内容和滚动指示器。
+    ///
+    /// - Parameters:
+    ///   - edges: 需要配置内容边距的边缘。
+    ///   - insets: 应用于各边缘的方向性边距。
+    ///   - placement: 接收内容边距的容器部分。
+    /// - Returns: 配置内容边距后的元素。
     @MainActor
     func contentMargins(
         _ edges: EdgeSet = .all,
@@ -48,11 +53,16 @@ public extension Element {
         )
     }
 
-    /// Configures equal content margins on selected edges.
+    /// 在选定边缘上配置相同的内容边距。
     ///
-    /// Passing `nil` leaves the selected edges unspecified, matching SwiftUI.
-    /// An earlier margin for the same placement or the container's default
-    /// therefore remains in effect.
+    /// 传入 `nil` 会保持选定边缘未指定，与 SwiftUI 的覆盖语义一致。因此，同一位置上
+    /// 先前设置的边距或容器默认值仍然有效。
+    ///
+    /// - Parameters:
+    ///   - edges: 需要配置内容边距的边缘。
+    ///   - length: 应用于选定边缘的边距；传入 `nil` 表示不指定这些边缘。
+    ///   - placement: 接收内容边距的容器部分。
+    /// - Returns: 配置内容边距后的元素。
     @MainActor
     func contentMargins(
         _ edges: EdgeSet = .all,
@@ -80,7 +90,12 @@ public extension Element {
         )
     }
 
-    /// Configures the same content margin on every edge.
+    /// 在所有边缘上配置相同的内容边距。
+    ///
+    /// - Parameters:
+    ///   - length: 应用于所有边缘的边距。
+    ///   - placement: 接收内容边距的容器部分。
+    /// - Returns: 配置内容边距后的元素。
     @MainActor
     func contentMargins(
         _ length: CGFloat,

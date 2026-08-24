@@ -3,16 +3,16 @@ import QuickLayout
 
 extension QuickLayout.EdgeInsets {
 
-    /// The maximum horizontal inset.
+    /// 水平方向上的最大边距。
     ///
-    /// This value is the larger of the receiver's leading and trailing insets.
+    /// 该值是接收者前缘边距与后缘边距中的较大值。
     public var maximumHorizontalInset: CGFloat {
         max(leading, trailing)
     }
 
-    /// The maximum vertical inset.
+    /// 垂直方向上的最大边距。
     ///
-    /// This value is the larger of the receiver's top and bottom insets.
+    /// 该值是接收者顶部边距与底部边距中的较大值。
     public var maximumVerticalInset: CGFloat {
         max(top, bottom)
     }

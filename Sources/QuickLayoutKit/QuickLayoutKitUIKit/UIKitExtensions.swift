@@ -3,13 +3,11 @@ import QuickLayout
 
 extension UIView {
 
-    /// The view's safe area insets expressed as QuickLayout edge insets.
+    /// 使用 QuickLayout 边距表示的视图安全区域边距。
     ///
-    /// The leading and trailing values reflect the view's effective user
-    /// interface layout direction.
+    /// 前缘值和后缘值反映视图当前有效的用户界面布局方向。
     ///
-    /// Query this value after the view has been laid out, such as from
-    /// `viewDidLayoutSubviews()`.
+    /// 应在视图完成布局后查询该值，例如在 `viewDidLayoutSubviews()` 中查询。
     public var quickLayoutSafeAreaInsets: QuickLayout.EdgeInsets {
         let isRTL = effectiveUserInterfaceLayoutDirection == .rightToLeft
 
@@ -21,8 +19,7 @@ extension UIView {
         )
     }
 
-    /// The view's directional layout margins expressed as QuickLayout edge
-    /// insets.
+    /// 使用 QuickLayout 边距表示的视图方向性布局边距。
     public var quickLayoutDirectionalLayoutMargins: QuickLayout.EdgeInsets {
         .init(
             top: directionalLayoutMargins.top,
@@ -32,8 +29,7 @@ extension UIView {
         )
     }
 
-    /// The view's physical layout margins expressed as directional QuickLayout
-    /// edge insets.
+    /// 将视图物理布局边距转换为方向性 QuickLayout 边距后的值。
     public var quickLayoutLayoutMargins: QuickLayout.EdgeInsets {
         let isRTL = effectiveUserInterfaceLayoutDirection == .rightToLeft
 
@@ -45,7 +41,7 @@ extension UIView {
         )
     }
 
-    /// Insets needed to align content with the readable content guide.
+    /// 将内容与可读内容参考线对齐所需的边距。
     public var quickLayoutReadableContentInsets: QuickLayout.EdgeInsets {
         layoutIfNeeded()
 
@@ -66,7 +62,7 @@ extension UIView {
         )
     }
 
-    /// The maximum of safe-area and directional layout margin insets.
+    /// 安全区域边距与方向性布局边距逐边取较大值后的结果。
     public var quickLayoutContentInsets: QuickLayout.EdgeInsets {
         let safeArea = quickLayoutSafeAreaInsets
         let margins = quickLayoutDirectionalLayoutMargins
@@ -80,15 +76,14 @@ extension UIView {
     }
 }
 
-/// Creates a QuickLayout expression by mapping views to layout elements.
+/// 将一组视图映射为布局元素并创建 QuickLayout 表达式。
 ///
-/// Use this function inside a layout builder when you need to produce one
-/// element for each view in a collection.
+/// 需要在布局构建器中为集合内每个视图生成一个元素时，使用此函数。
 ///
 /// - Parameters:
-///   - list: The views to iterate over.
-///   - map: A closure that returns the element for a view.
-/// - Returns: A fast expression that contains the mapped elements in order.
+///   - list: 要遍历的视图集合。
+///   - map: 根据视图返回布局元素的闭包。
+/// - Returns: 按原有顺序包含映射元素的快速表达式。
 public func ForEach<T>(_ list: [T], map: (T) -> Element) -> FastExpression where T: UIView {
     BlockExpression(expressions: list.map { ValueExpression<Element>(value: map($0)) })
 }
@@ -96,30 +91,27 @@ public func ForEach<T>(_ list: [T], map: (T) -> Element) -> FastExpression where
 
 extension UICollectionViewCell {
 
-    /// Returns the sizing flexibility for the cell on the specified axis.
+    /// 返回单元格在指定轴上的尺寸弹性。
     ///
-    /// Override this method in subclasses to describe whether the cell's width
-    /// or height is fixed by the collection view layout, partially constrained,
-    /// or fully determined by its content.
+    /// 子类可以重写该方法，说明单元格的宽度或高度是由集合视图布局固定、受部分约束，
+    /// 还是完全由内容决定。
     ///
-    /// - Parameter axis: The axis to query.
-    /// - Returns: The sizing flexibility for the specified axis.
+    /// - Parameter axis: 要查询的轴。
+    /// - Returns: 单元格在指定轴上的尺寸弹性。
     @objc open func quickLayoutFlexibility(for axis: Axis) -> Flexibility {
         .fullyFlexible
     }
 
-    /// Returns the layout limit for a proposed length and flexibility.
+    /// 根据建议长度和尺寸弹性返回布局限制。
     ///
-    /// Use this value when measuring collection view cells whose final size is
-    /// computed by QuickLayout. Fixed sizes use the proposed value, partially
-    /// flexible sizes use at least the minimum value, and fully flexible sizes
-    /// use an unconstrained limit.
+    /// 测量由 QuickLayout 计算最终尺寸的集合视图单元格时使用该值。固定尺寸使用建议值；
+    /// 部分弹性尺寸至少使用最小值；完全弹性尺寸使用无约束限制。
     ///
     /// - Parameters:
-    ///   - proposed: The length proposed by the parent layout.
-    ///   - minimum: The minimum length to use for partial flexibility.
-    ///   - flexibility: The sizing flexibility for the measured axis.
-    /// - Returns: The length limit to use during layout measurement.
+    ///   - proposed: 父布局建议的长度。
+    ///   - minimum: 部分弹性情况下使用的最小长度。
+    ///   - flexibility: 被测量轴的尺寸弹性。
+    /// - Returns: 布局测量时使用的长度限制。
     public func quickLayoutSizeLimit(
         proposed: CGFloat,
         minimum: CGFloat = 0,
@@ -141,13 +133,12 @@ extension UICollectionViewCell {
 
 extension UICollectionViewCell {
 
-    /// Returns the layout limit for a proposed size.
+    /// 返回指定建议尺寸对应的布局限制。
     ///
-    /// The returned size applies the cell's horizontal and vertical flexibility
-    /// independently.
+    /// 返回值会分别应用单元格的水平和垂直尺寸弹性。
     ///
-    /// - Parameter size: The size proposed by the parent layout.
-    /// - Returns: The size limit to use during layout measurement.
+    /// - Parameter size: 父布局建议的尺寸。
+    /// - Returns: 布局测量时使用的尺寸限制。
     public func quickLayoutSizeLimit(
         proposed size: CGSize
     ) -> CGSize {

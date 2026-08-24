@@ -2,41 +2,50 @@ import CoreGraphics
 import QuickLayout
 import UIKit
 
-/// The safe-area regions that a layout can ignore.
+/// 布局可以忽略的安全区域类型。
 public struct SafeAreaRegions: OptionSet, Sendable {
 
+    /// 选项集合的原始位掩码。
     public let rawValue: UInt
 
+    /// 使用原始位掩码创建安全区域选项集合。
+    ///
+    /// - Parameter rawValue: 安全区域类型的位掩码。
     public init(rawValue: UInt) {
         self.rawValue = rawValue
     }
 
-    /// The safe area supplied by the containing view or scroll viewport.
+    /// 包含视图或滚动视口提供的安全区域。
     public static let container = SafeAreaRegions(rawValue: 1 << 0)
 
-    /// The safe area occupied by the software keyboard.
+    /// 软件键盘占用的安全区域。
     ///
-    /// `QuickLayoutKeyboardAvoider` publishes this region when it manages a
-    /// `QuickLayoutScrollView`.
+    /// `QuickLayoutKeyboardAvoider` 管理 `QuickLayoutScrollView` 时会发布该区域。
     public static let keyboard = SafeAreaRegions(rawValue: 1 << 1)
 
-    /// All safe-area regions known to QuickLayoutKit.
+    /// QuickLayoutKit 已知的所有安全区域类型。
     public static let all: SafeAreaRegions = [.container, .keyboard]
 }
 
-/// A vertical edge used by `safeAreaInset`.
+/// `safeAreaInset` 使用的垂直边缘。
 public enum VerticalEdge: Sendable {
+    /// 顶部边缘。
     case top
+
+    /// 底部边缘。
     case bottom
 }
 
-/// A horizontal edge used by `safeAreaInset`.
+/// `safeAreaInset` 使用的水平边缘。
 public enum HorizontalEdge: Sendable {
+    /// 前缘。
     case leading
+
+    /// 后缘。
     case trailing
 }
 
-/// Safe-area values propagated while a QuickLayout hierarchy is measured.
+/// 测量 QuickLayout 层级时传递的安全区域值。
 package struct QuickLayoutSafeAreaValues: Sendable {
 
     package var containerSize: CGSize
@@ -237,7 +246,7 @@ private struct QuickLayoutPhysicalInsets: Sendable {
     }
 }
 
-/// The task-local safe-area scope established by QuickLayoutKit hosts.
+/// QuickLayoutKit 宿主建立的任务局部安全区域作用域。
 package enum QuickLayoutSafeAreaContext {
 
     @TaskLocal package static var current: QuickLayoutSafeAreaValues?
@@ -252,10 +261,12 @@ package enum QuickLayoutSafeAreaContext {
 
 public extension Element {
 
-    /// Adds fixed insets to the safe area seen by this element.
+    /// 向元素可见的安全区域添加固定边距。
     ///
-    /// The modifier consumes the inherited safe-area insets and then adds the
-    /// supplied amount of space before laying out the element.
+    /// 该修饰符先占用继承的安全区域边距，再添加指定间距并布局元素。
+    ///
+    /// - Parameter insets: 添加到各个安全区域边缘的间距。
+    /// - Returns: 应用安全区域内边距后的元素。
     func safeAreaPadding(_ insets: EdgeInsets) -> Element & Layout {
         SafeAreaPaddingElement(
             child: self,
@@ -264,14 +275,14 @@ public extension Element {
         )
     }
 
-    /// Adds fixed padding to selected safe-area edges.
+    /// 向选定的安全区域边缘添加固定内边距。
     ///
-    /// Passing `nil` adds no spacing, matching QuickLayout's zero-spacing
-    /// default.
+    /// 传入 `nil` 不会添加额外间距，与 QuickLayout 默认使用零间距的行为一致。
     ///
     /// - Parameters:
-    ///   - edges: The safe-area edges to pad.
-    ///   - length: The additional spacing, or `nil` for zero.
+    ///   - edges: 需要添加内边距的安全区域边缘。
+    ///   - length: 额外间距；传入 `nil` 表示零。
+    /// - Returns: 应用安全区域内边距后的元素。
     func safeAreaPadding(
         _ edges: EdgeSet = .all,
         _ length: CGFloat? = nil
@@ -289,14 +300,24 @@ public extension Element {
         )
     }
 
-    /// Adds the same fixed padding to every safe-area edge.
+    /// 向所有安全区域边缘添加相同的固定内边距。
+    ///
+    /// - Parameter length: 添加到每个安全区域边缘的间距。
+    /// - Returns: 应用安全区域内边距后的元素。
     func safeAreaPadding(_ length: CGFloat) -> Element & Layout {
         safeAreaPadding(.all, length)
     }
 
-    /// Places content at a vertical safe-area edge and reserves space for it.
+    /// 在安全区域的垂直边缘放置内容并为其预留空间。
     ///
-    /// A `nil` spacing value resolves to zero.
+    /// `spacing` 为 `nil` 时按零处理。
+    ///
+    /// - Parameters:
+    ///   - edge: 放置内容的垂直边缘。
+    ///   - alignment: 内容在垂直边缘上的水平对齐方式。
+    ///   - spacing: 插入内容与主体内容之间的间距。
+    ///   - content: 生成插入内容的构建器。
+    /// - Returns: 在指定边缘插入内容后的元素。
     func safeAreaInset(
         edge: VerticalEdge,
         alignment: HorizontalAlignment = .center,
@@ -312,9 +333,16 @@ public extension Element {
         )
     }
 
-    /// Places content at a horizontal safe-area edge and reserves space for it.
+    /// 在安全区域的水平边缘放置内容并为其预留空间。
     ///
-    /// A `nil` spacing value resolves to zero.
+    /// `spacing` 为 `nil` 时按零处理。
+    ///
+    /// - Parameters:
+    ///   - edge: 放置内容的水平边缘。
+    ///   - alignment: 内容在水平边缘上的垂直对齐方式。
+    ///   - spacing: 插入内容与主体内容之间的间距。
+    ///   - content: 生成插入内容的构建器。
+    /// - Returns: 在指定边缘插入内容后的元素。
     func safeAreaInset(
         edge: HorizontalEdge,
         alignment: VerticalAlignment = .center,
@@ -330,7 +358,12 @@ public extension Element {
         )
     }
 
-    /// Expands the safe area for this element on selected edges.
+    /// 在选定边缘上扩展元素可用的安全区域。
+    ///
+    /// - Parameters:
+    ///   - regions: 要忽略的安全区域类型。
+    ///   - edges: 要忽略安全区域的边缘。
+    /// - Returns: 忽略指定安全区域后的元素。
     func ignoresSafeArea(
         _ regions: SafeAreaRegions = .all,
         edges: EdgeSet = .all

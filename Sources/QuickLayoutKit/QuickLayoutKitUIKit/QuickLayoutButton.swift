@@ -1,34 +1,39 @@
 import UIKit
 import QuickLayout
 
-/// The semantic role of an action exposed by ``QuickLayoutButton``.
+/// ``QuickLayoutButton`` 公开的操作语义角色。
 ///
-/// A role does not apply visual styling. It is published as part of
-/// ``QuickLayoutButtonState`` so application-owned UI can choose an
-/// appropriate appearance.
+/// 角色不会自动应用视觉样式。它会作为 ``QuickLayoutButtonState`` 的一部分发布，
+/// 供应用自行决定适当的外观。
 public enum QuickLayoutButtonRole: Equatable, Sendable {
-    /// An action that deletes data or performs another destructive operation.
+    /// 删除数据或执行其他破坏性操作的角色。
     case destructive
 
-    /// An action that cancels the current operation.
+    /// 取消当前操作的角色。
     case cancel
 }
 
-/// A snapshot of the interaction state published by a ``QuickLayoutButton``.
+/// ``QuickLayoutButton`` 发布的交互状态快照。
 public struct QuickLayoutButtonState: Equatable, Sendable {
-    /// Whether an active pointer or touch is pressing inside the button.
+    /// 指示当前指针或触摸是否正在按钮内部按压。
     public let isPressed: Bool
 
-    /// Whether the button can currently perform its action.
+    /// 指示按钮当前是否可以执行操作。
     public let isEnabled: Bool
 
-    /// Whether the button is selected.
+    /// 指示按钮是否处于选中状态。
     public let isSelected: Bool
 
-    /// The semantic action role, if one was supplied.
+    /// 操作的语义角色；未提供角色时为 `nil`。
     public let role: QuickLayoutButtonRole?
 
-    /// Creates a button-state snapshot.
+    /// 创建按钮状态快照。
+    ///
+    /// - Parameters:
+    ///   - isPressed: 指示按钮是否正被按压。
+    ///   - isEnabled: 指示按钮是否可以执行操作。
+    ///   - isSelected: 指示按钮是否处于选中状态。
+    ///   - role: 操作的语义角色。
     public init(
         isPressed: Bool,
         isEnabled: Bool,
@@ -42,17 +47,14 @@ public struct QuickLayoutButtonState: Equatable, Sendable {
     }
 }
 
-/// A UIKit control whose complete visual hierarchy is authored with
-/// QuickLayout.
+/// 使用 QuickLayout 构建完整视觉层级的 UIKit 控件。
 ///
-/// `QuickLayoutButton` is itself a ``HasBody`` host. Applications can supply a
-/// label through the layout-builder initializer or subclass the control and
-/// override ``body``. The control owns interaction, accessibility semantics,
-/// measurement, and layout; every visual detail remains application-owned.
+/// `QuickLayoutButton` 本身是一个 ``HasBody`` 宿主。应用可以通过布局构建器初始化方法
+/// 提供标签，也可以创建子类并重写 ``body``。控件负责交互、辅助功能语义、测量和布局；
+/// 所有视觉细节均由应用负责。
 ///
-/// The control deliberately supplies no default padding, foreground color,
-/// background, corner radius, pressed animation, or disabled appearance.
-/// Supply those through ``body`` and ``stateUpdateHandler``.
+/// 控件不会提供默认内边距、前景色、背景、圆角、按压动画或禁用状态外观。应通过 ``body``
+/// 和 ``stateUpdateHandler`` 提供这些内容。
 @MainActor
 open class QuickLayoutButton:
     UIControl,
@@ -60,10 +62,10 @@ open class QuickLayoutButton:
     QuickLayoutUpdating,
     QuickLayoutEnvironmentUpdating {
 
-    /// The action performed for the primary control event.
+    /// 主控件事件触发时执行的操作。
     public typealias Action = @MainActor () -> Void
 
-    /// A callback used by application-owned UI to render control state.
+    /// 应用自有界面用于渲染控件状态的回调。
     public typealias StateUpdateHandler =
         @MainActor (QuickLayoutButtonState) -> Void
 
@@ -71,10 +73,10 @@ open class QuickLayoutButton:
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
     private var lastPublishedState: QuickLayoutButtonState?
 
-    /// The action performed when the control emits `primaryActionTriggered`.
+    /// 控件发出 `primaryActionTriggered` 事件时执行的操作。
     public var action: Action
 
-    /// The semantic action role exposed to ``stateUpdateHandler``.
+    /// 向 ``stateUpdateHandler`` 公开的操作语义角色。
     open var role: QuickLayoutButtonRole? {
         didSet {
             guard role != oldValue else { return }
@@ -82,12 +84,10 @@ open class QuickLayoutButton:
         }
     }
 
-    /// Controls semantic-direction recovery when the button is attached,
-    /// measured, or laid out.
+    /// 控制按钮在附加、测量或布局时如何恢复语义方向。
     ///
-    /// The default preserves local playback or spatial semantics, matching
-    /// ``QuickLayoutView``. Choose `.followEnclosingContainer` for ordinary
-    /// application content that can be detached and reattached.
+    /// 默认行为与 ``QuickLayoutView`` 一致，会保留局部播放或空间语义。对于可能被移除并
+    /// 重新附加的普通应用内容，应使用 `.followEnclosingContainer`。
     open var quickLayoutSemanticDirectionBehavior:
         QuickLayoutSemanticDirectionBehavior = .preserve {
         didSet {
@@ -100,19 +100,17 @@ open class QuickLayoutButton:
         }
     }
 
-    /// Receives the initial state when installed and every distinct state
-    /// thereafter.
+    /// 设置时立即接收初始状态，此后接收每个不同的状态。
     ///
-    /// This callback is the only built-in bridge to pressed, disabled,
-    /// selected, and role-based visuals. Avoid strongly capturing the button
-    /// from its own handler.
+    /// 该回调是框架为按压、禁用、选中和角色相关外观提供的唯一内置桥接。不要在按钮自身的
+    /// 处理闭包中强引用按钮。
     public var stateUpdateHandler: StateUpdateHandler? {
         didSet {
             publishButtonState(force: true)
         }
     }
 
-    /// The current immutable interaction-state snapshot.
+    /// 当前不可变的交互状态快照。
     public var buttonState: QuickLayoutButtonState {
         QuickLayoutButtonState(
             isPressed: isHighlighted,
@@ -122,11 +120,10 @@ open class QuickLayoutButton:
         )
     }
 
-    /// The complete application-owned visual hierarchy of the button.
+    /// 完全由应用提供的按钮视觉层级。
     ///
-    /// Subclasses can override this property. The default implementation uses
-    /// the hierarchy supplied to ``init(role:action:label:)`` or renders no
-    /// content when the button was created with `init(frame:)`.
+    /// 子类可以重写该属性。默认实现使用 ``init(role:action:label:)`` 提供的层级；
+    /// 使用 `init(frame:)` 创建按钮时不渲染任何内容。
     @LayoutBuilder
     open var body: Layout {
         if let contentProvider {
@@ -169,7 +166,7 @@ open class QuickLayoutButton:
         }
     }
 
-    /// Creates an empty button host for subclassing or later configuration.
+    /// 创建用于子类化或后续配置的空按钮宿主。
     public override init(frame: CGRect) {
         action = {}
         role = nil
@@ -177,10 +174,9 @@ open class QuickLayoutButton:
         configureControl()
     }
 
-    /// Creates an empty button host from Interface Builder.
+    /// 从 Interface Builder 归档创建空按钮宿主。
     ///
-    /// A subclass using this initializer supplies ``body`` and assigns
-    /// ``action`` itself.
+    /// 使用该初始化方法的子类应自行提供 ``body`` 并设置 ``action``。
     public required init?(coder: NSCoder) {
         action = {}
         role = nil
@@ -188,11 +184,11 @@ open class QuickLayoutButton:
         configureControl()
     }
 
-    /// Creates a button whose visual hierarchy is supplied by a subclass.
+    /// 创建由子类提供视觉层级的按钮。
     ///
     /// - Parameters:
-    ///   - role: An optional semantic action role. It does not apply styling.
-    ///   - action: The primary action.
+    ///   - role: 可选的操作语义角色；该值不会自动应用样式。
+    ///   - action: 按钮的主要操作。
     public init(
         role: QuickLayoutButtonRole? = nil,
         action: @escaping Action
@@ -203,13 +199,12 @@ open class QuickLayoutButton:
         configureControl()
     }
 
-    /// Creates a button with an application-owned QuickLayout hierarchy.
+    /// 创建具有应用自有 QuickLayout 层级的按钮。
     ///
     /// - Parameters:
-    ///   - role: An optional semantic action role. It does not apply styling.
-    ///   - action: The primary action.
-    ///   - label: The complete visual hierarchy. It receives no implicit
-    ///     styling or padding from the framework.
+    ///   - role: 可选的操作语义角色；该值不会自动应用样式。
+    ///   - action: 按钮的主要操作。
+    ///   - label: 完整的视觉层级；框架不会隐式添加样式或内边距。
     public convenience init(
         role: QuickLayoutButtonRole? = nil,
         action: @escaping Action,
@@ -219,10 +214,9 @@ open class QuickLayoutButton:
         contentProvider = label
     }
 
-    /// Sends the primary action when the button is enabled.
+    /// 在按钮启用时发送主要操作。
     ///
-    /// Registered `primaryActionTriggered` targets are notified through the
-    /// normal `UIControl` event path.
+    /// 已注册的 `primaryActionTriggered` 目标会通过标准 `UIControl` 事件路径收到通知。
     open func performAction() {
         guard isEnabled else { return }
         sendActions(for: .primaryActionTriggered)
@@ -234,8 +228,7 @@ open class QuickLayoutButton:
         return true
     }
 
-    /// Keeps interaction at the control boundary even when application-owned
-    /// label views normally accept touches.
+    /// 即使应用提供的标签视图通常会接收触摸，也将交互保持在控件边界上。
     open override func hitTest(
         _ point: CGPoint,
         with event: UIEvent?
@@ -381,29 +374,34 @@ open class QuickLayoutButton:
             ?? super.quick_flexibility(for: axis)
     }
 
-    /// Invalidates body measurement and placement.
+    /// 将 `body` 的测量和放置标记为需要更新。
     open func setNeedsQuickLayout() {
         setNeedsLayout()
         invalidateIntrinsicContentSize()
         superview?.setNeedsLayout()
     }
 
-    /// Immediately lays out the control when needed.
+    /// 根据需要立即布局控件。
     open func quickLayoutIfNeeded() {
         layoutIfNeeded()
     }
 
-    /// Responds to a distinct enabled, selected, pressed, or role state.
+    /// 响应不同的启用、选中、按压或角色状态。
     ///
-    /// Subclasses can override this hook to update application-owned UI. The
-    /// default implementation invokes ``stateUpdateHandler``.
+    /// 子类可以重写该方法以更新应用自有界面。默认实现会调用 ``stateUpdateHandler``。
+    ///
+    /// - Parameter state: 按钮当前的交互状态快照。
     open func quickLayoutButtonStateDidChange(
         _ state: QuickLayoutButtonState
     ) {
         stateUpdateHandler?(state)
     }
 
-    /// Responds to UIKit environment changes that can affect ``body``.
+    /// 响应可能影响 ``body`` 的 UIKit 环境变化。
+    ///
+    /// - Parameters:
+    ///   - environment: 变化后的当前环境快照。
+    ///   - reason: 描述发生变化部分的原因集合。
     open func quickLayoutEnvironmentDidChange(
         _ environment: QuickLayoutEnvironment,
         reason: QuickLayoutEnvironmentChangeReason

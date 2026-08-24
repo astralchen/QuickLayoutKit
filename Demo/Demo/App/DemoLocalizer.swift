@@ -8,10 +8,10 @@
 import Foundation
 import AppLocalization
 
-/// The narrow localization dependency consumed by view models.
+/// 供视图模型使用的最小本地化依赖。
 ///
-/// Keeping the resolver behind a value makes view-model state deterministic in
-/// tests while `DemoLocalization` continues to own the app-wide locale flow.
+/// 将解析闭包封装在值类型中，使视图模型状态在测试中保持确定；
+/// 应用级语言环境流程仍由 `DemoLocalization` 统一管理。
 @MainActor
 struct DemoLocalizer {
     typealias Resolver = (_ key: String, _ arguments: [CVarArg]) -> String

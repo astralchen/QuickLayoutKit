@@ -1,42 +1,51 @@
 import UIKit
 import QuickLayout
 
-/// A snapshot of UIKit state that can affect QuickLayout measurement and
-/// placement.
+/// 可能影响 QuickLayout 测量和放置的 UIKit 状态快照。
 public struct QuickLayoutEnvironment: Equatable {
 
-    /// A discoverable spelling for environment change reasons scoped to an
-    /// environment snapshot.
+    /// 当前环境快照对应的环境变化原因类型。
     public typealias ChangeReason = QuickLayoutEnvironmentChangeReason
 
-    /// The effective QuickLayout layout direction.
+    /// 当前有效的 QuickLayout 布局方向。
     public let layoutDirection: LayoutDirection
 
-    /// The current Dynamic Type content size category.
+    /// 当前动态字体内容尺寸类别。
     public let preferredContentSizeCategory: UIContentSizeCategory
 
-    /// The current horizontal size class.
+    /// 当前水平尺寸类别。
     public let horizontalSizeClass: UIUserInterfaceSizeClass
 
-    /// The current vertical size class.
+    /// 当前垂直尺寸类别。
     public let verticalSizeClass: UIUserInterfaceSizeClass
 
-    /// The current interface style.
+    /// 当前用户界面样式。
     public let userInterfaceStyle: UIUserInterfaceStyle
 
-    /// The current display scale.
+    /// 当前显示比例。
     public let displayScale: CGFloat
 
-    /// Safe-area insets expressed in QuickLayout leading/trailing terms.
+    /// 使用 QuickLayout 前缘和后缘语义表示的安全区域边距。
     public let safeAreaInsets: EdgeInsets
 
-    /// Layout margins expressed in QuickLayout leading/trailing terms.
+    /// 使用 QuickLayout 前缘和后缘语义表示的布局边距。
     public let layoutMargins: EdgeInsets
 
-    /// The current bounds size of the QuickLayout host.
+    /// QuickLayout 宿主当前的边界尺寸。
     public let containerSize: CGSize
 
-    /// Creates an environment snapshot.
+    /// 创建环境快照。
+    ///
+    /// - Parameters:
+    ///   - layoutDirection: 当前有效的布局方向。
+    ///   - preferredContentSizeCategory: 当前动态字体内容尺寸类别。
+    ///   - horizontalSizeClass: 当前水平尺寸类别。
+    ///   - verticalSizeClass: 当前垂直尺寸类别。
+    ///   - userInterfaceStyle: 当前用户界面样式。
+    ///   - displayScale: 当前显示比例。
+    ///   - safeAreaInsets: 使用方向性语义表示的安全区域边距。
+    ///   - layoutMargins: 使用方向性语义表示的布局边距。
+    ///   - containerSize: 宿主当前的边界尺寸。
     public init(
         layoutDirection: LayoutDirection,
         preferredContentSizeCategory: UIContentSizeCategory,
@@ -71,10 +80,10 @@ public struct QuickLayoutEnvironment: Equatable {
             && lhs.containerSize == rhs.containerSize
     }
 
-    /// Returns the environment values that differ from an earlier snapshot.
+    /// 返回与先前快照不同的环境值。
     ///
-    /// - Parameter previous: The snapshot to compare with the receiver.
-    /// - Returns: An option set describing every changed environment value.
+    /// - Parameter previous: 要与当前值比较的先前快照。
+    /// - Returns: 描述所有已变化环境值的选项集合。
     public func changes(from previous: QuickLayoutEnvironment) -> ChangeReason {
         var reason: ChangeReason = []
 
@@ -107,47 +116,50 @@ public struct QuickLayoutEnvironment: Equatable {
     }
 }
 
-/// Describes which parts of a `QuickLayoutEnvironment` changed.
+/// 描述 `QuickLayoutEnvironment` 中发生变化的部分。
 public struct QuickLayoutEnvironmentChangeReason: OptionSet, Sendable {
 
+    /// 变化原因选项集合的原始位掩码。
     public let rawValue: Int
 
-    /// Creates a change reason.
+    /// 使用原始值创建环境变化原因。
+    ///
+    /// - Parameter rawValue: 变化原因的位掩码。
     public init(rawValue: Int) {
         self.rawValue = rawValue
     }
 
-    /// The effective layout direction changed.
+    /// 有效布局方向发生变化。
     public static let layoutDirection = QuickLayoutEnvironmentChangeReason(rawValue: 1 << 0)
 
-    /// The Dynamic Type content size category changed.
+    /// 动态字体内容尺寸类别发生变化。
     public static let preferredContentSizeCategory = QuickLayoutEnvironmentChangeReason(rawValue: 1 << 1)
 
-    /// The horizontal or vertical size class changed.
+    /// 水平或垂直尺寸类别发生变化。
     public static let sizeClass = QuickLayoutEnvironmentChangeReason(rawValue: 1 << 2)
 
-    /// The interface style changed.
+    /// 用户界面样式发生变化。
     public static let userInterfaceStyle = QuickLayoutEnvironmentChangeReason(rawValue: 1 << 3)
 
-    /// The display scale changed.
+    /// 显示比例发生变化。
     public static let displayScale = QuickLayoutEnvironmentChangeReason(rawValue: 1 << 4)
 
-    /// The safe-area insets changed.
+    /// 安全区域边距发生变化。
     public static let safeArea = QuickLayoutEnvironmentChangeReason(rawValue: 1 << 5)
 
-    /// The layout margins changed.
+    /// 布局边距发生变化。
     public static let layoutMargins = QuickLayoutEnvironmentChangeReason(rawValue: 1 << 6)
 
-    /// The host's bounds size changed.
+    /// 宿主边界尺寸发生变化。
     public static let containerSize = QuickLayoutEnvironmentChangeReason(rawValue: 1 << 7)
 
-    /// UIKit reported a trait-collection change.
+    /// UIKit 报告特征集合发生变化。
     ///
-    /// This reason complements the individually tracked trait values so a new
-    /// or otherwise unmodeled UIKit trait still invalidates QuickLayout.
+    /// 此原因用于补充单独跟踪的特征值，使新增或尚未建模的 UIKit 特征仍能使
+    /// QuickLayout 布局失效。
     public static let traitCollection = QuickLayoutEnvironmentChangeReason(rawValue: 1 << 8)
 
-    /// Every environment value tracked by QuickLayoutKit.
+    /// QuickLayoutKit 跟踪的所有环境值。
     public static let all: QuickLayoutEnvironmentChangeReason = [
         .layoutDirection,
         .preferredContentSizeCategory,
@@ -161,11 +173,15 @@ public struct QuickLayoutEnvironmentChangeReason: OptionSet, Sendable {
     ]
 }
 
-/// A type that can react to QuickLayout environment changes.
+/// 能够响应 QuickLayout 环境变化的类型。
 @MainActor
 public protocol QuickLayoutEnvironmentUpdating: AnyObject {
 
-    /// Called when UIKit state that affects QuickLayout changes.
+    /// 影响 QuickLayout 的 UIKit 状态发生变化时调用。
+    ///
+    /// - Parameters:
+    ///   - environment: 变化后的当前环境快照。
+    ///   - reason: 描述发生变化部分的原因集合。
     func quickLayoutEnvironmentDidChange(
         _ environment: QuickLayoutEnvironment,
         reason: QuickLayoutEnvironmentChangeReason
@@ -173,10 +189,10 @@ public protocol QuickLayoutEnvironmentUpdating: AnyObject {
 }
 
 @MainActor
-/// Stores the last environment seen by one QuickLayout host.
+/// 存储单个 QuickLayout 宿主最近一次观察到的环境。
 ///
-/// Comparing snapshots prevents repeated layout invalidation when UIKit calls
-/// several lifecycle hooks for the same language, trait, or direction change.
+/// 当 UIKit 因同一次语言、特征或方向变化调用多个生命周期方法时，通过比较快照避免重复
+/// 使布局失效。
 final class _QuickLayoutEnvironmentState {
 
     private var lastEnvironment: QuickLayoutEnvironment?
@@ -207,7 +223,7 @@ final class _QuickLayoutEnvironmentState {
 
 extension UIView {
 
-    /// The view's current QuickLayout environment.
+    /// 视图当前的 QuickLayout 环境。
     public var quickLayoutEnvironment: QuickLayoutEnvironment {
         QuickLayoutEnvironment(
             layoutDirection: quickLayoutDirection,
@@ -222,7 +238,7 @@ extension UIView {
         )
     }
 
-    /// The view's effective layout direction expressed as QuickLayout direction.
+    /// 使用 QuickLayout 方向表示的视图有效布局方向。
     public var quickLayoutDirection: LayoutDirection {
         effectiveUserInterfaceLayoutDirection.quickLayoutDirection
     }
@@ -230,7 +246,7 @@ extension UIView {
 
 extension UIUserInterfaceLayoutDirection {
 
-    /// The UIKit direction expressed as QuickLayout direction.
+    /// 使用 QuickLayout 方向表示的 UIKit 布局方向。
     public var quickLayoutDirection: LayoutDirection {
         switch self {
         case .rightToLeft:

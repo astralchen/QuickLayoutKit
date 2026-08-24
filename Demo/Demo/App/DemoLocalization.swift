@@ -68,9 +68,8 @@ enum DemoLocalization {
     }
 
     static func start() {
-        // Keep direction on windows/controllers. A UIView appearance proxy
-        // turns inherited direction into an explicit value on every new view,
-        // which prevents an existing subtree from following runtime changes.
+        // 方向边界只设置在窗口和控制器上。若通过 UIView appearance proxy 设置，
+        // 每个新视图都会把继承方向固化为显式值，导致既有子树无法跟随运行时切换。
         guard notificationToken == nil else { return }
         notificationToken = NotificationCenter.default.addObserver(
             forName: LocalizationController.localizationDidChangeNotification,
@@ -86,9 +85,8 @@ enum DemoLocalization {
                     == localizationController.currentSnapshot.revision else {
                     return
                 }
-                // The Demo deliberately opts into connected-scene discovery so
-                // interactive #Preview windows, which have no SceneDelegate,
-                // receive the same atomic update as the running application.
+                // Demo 主动查找已连接场景，使没有 SceneDelegate 的交互式 #Preview 窗口
+                // 也能与正式应用接收同一次原子更新。
                 sceneCoordinator.reloadAllScenes(for: change)
             }
         }
@@ -141,8 +139,8 @@ enum DemoLocalization {
     }
 
     static func installLanguageMenu(on viewController: UIViewController) {
-        // #Preview does not execute AppDelegate. Starting here is idempotent
-        // and ensures menu selections have an observer in both environments.
+        // #Preview 不会执行 AppDelegate；此处重复启动是幂等操作，可确保预览和正式应用
+        // 都能监听菜单中的语言选择。
         start()
         let item = UIBarButtonItem(
             image: UIImage(systemName: "globe"),

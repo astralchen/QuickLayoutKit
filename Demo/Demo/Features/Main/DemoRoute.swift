@@ -5,7 +5,7 @@
 //  Created by Codex on 2026/8/15.
 //
 
-/// A UIKit-independent destination in the demo application.
+/// 演示应用中不依赖 UIKit 的导航目标。
 enum DemoRoute: CaseIterable, Hashable, Sendable {
     case horizontalScroll
     case profile

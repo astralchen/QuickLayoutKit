@@ -3,11 +3,19 @@ import UIKit
 
 public extension Element {
 
-    /// Positions this element inside a flexible frame with minimum, ideal, and
-    /// maximum dimensions.
+    /// 将元素放置在具有最小、理想和最大尺寸的弹性框架中。
     ///
-    /// An ideal dimension replaces an unspecified proposal on its axis. A
-    /// finite proposal from the parent continues to take precedence.
+    /// 理想尺寸用于替换对应轴上未指定的尺寸建议。父元素提供的有限尺寸建议仍具有更高优先级。
+    ///
+    /// - Parameters:
+    ///   - minWidth: 框架的最小宽度。
+    ///   - idealWidth: 未指定水平约束时使用的理想宽度。
+    ///   - maxWidth: 框架的最大宽度。
+    ///   - minHeight: 框架的最小高度。
+    ///   - idealHeight: 未指定垂直约束时使用的理想高度。
+    ///   - maxHeight: 框架的最大高度。
+    ///   - alignment: 元素在框架内的对齐方式。
+    /// - Returns: 放置在弹性框架中的元素。
     func frame(
         minWidth: CGFloat? = nil,
         idealWidth: CGFloat? = nil,

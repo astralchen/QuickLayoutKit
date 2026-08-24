@@ -112,7 +112,7 @@ class DynamicScrollViewController: DemoQuickLayoutHostingController {
             .semanticContentAttribute
         scrollView.semanticContentAttribute = semanticContentAttribute
         addButton.semanticContentAttribute = semanticContentAttribute
-        // Refresh UIButton.Configuration's internal image/title ordering.
+        // 重新应用配置，刷新 UIButton.Configuration 内部的图文排列。
         if let configuration = addButton.configuration {
             addButton.configuration = configuration
         }
@@ -128,7 +128,7 @@ class DynamicScrollViewController: DemoQuickLayoutHostingController {
         let newItemID = viewModel.addItem()
         guard let newItem = itemViewCache[newItemID] else { return }
 
-        // ① Complete the layout first (without animation)
+        // ① 先在无动画状态下完成布局。
         UIView.performWithoutAnimation {
             setNeedsQuickLayout()
             quickLayoutIfNeeded()
@@ -146,8 +146,8 @@ class DynamicScrollViewController: DemoQuickLayoutHostingController {
             return
         }
 
-        // Keep the viewport and insertion on one timeline so the new item is
-        // not given a second, competing vertical motion while it scrolls in.
+        // 让可视区域移动和插入动画共用同一时间线，避免新项目滚入时叠加第二段
+        // 相互竞争的垂直位移动画。
         UIView.animate(
             withDuration: 0.3,
             delay: 0,
@@ -182,8 +182,8 @@ class DynamicScrollViewController: DemoQuickLayoutHostingController {
                 ?? Float(itemView.alpha)
         )
 
-        // If this item is still appearing, freeze it at the currently visible
-        // opacity so its deletion does not flash back to fully opaque first.
+        // 如果该项目仍在执行出现动画，删除前先固定当前可见透明度，
+        // 避免它瞬间恢复完全不透明后再消失。
         UIView.performWithoutAnimation {
             itemView.layer.removeAllAnimations()
             itemView.alpha = visibleAlpha

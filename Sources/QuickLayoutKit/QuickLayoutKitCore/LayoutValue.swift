@@ -1,21 +1,24 @@
 import QuickLayout
 
-/// A key for a custom value that a layout reads from one of its subviews.
+/// 布局用于从子元素读取自定义值的键。
 public protocol LayoutValueKey {
 
     associatedtype Value
 
-    /// The value returned for an element that doesn't set this key.
+    /// 元素未设置该键时返回的默认值。
     static var defaultValue: Value { get }
 }
 
 public extension Element {
 
-    /// Associates a custom value with this element for its nearest
-    /// `LayoutAlgorithm` container.
+    /// 将自定义布局值与元素关联，供最近的 `LayoutAlgorithm` 容器读取。
     ///
-    /// Put this modifier after sizing modifiers so the layout value remains on
-    /// the direct child that the custom layout receives.
+    /// 应在尺寸修饰符之后调用此方法，以确保自定义布局从直接子元素上读取到该值。
+    ///
+    /// - Parameters:
+    ///   - key: 标识自定义布局值的键类型。
+    ///   - value: 与元素关联的值。
+    /// - Returns: 关联指定布局值后的元素。
     func layoutValue<Key: LayoutValueKey>(
         key: Key.Type,
         value: Key.Value

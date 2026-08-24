@@ -3,7 +3,12 @@ import UIKit
 
 public extension Element {
 
-    /// Constrains this element to a width-to-height ratio.
+    /// 按指定的宽高比约束元素。
+    ///
+    /// - Parameters:
+    ///   - aspectRatio: 元素的宽高比。
+    ///   - contentMode: 调整元素大小时使用的内容模式。
+    /// - Returns: 应用宽高比约束后的元素。
     func aspectRatio(
         _ aspectRatio: CGFloat,
         contentMode: ContentMode = .fit
@@ -15,9 +20,14 @@ public extension Element {
         )
     }
 
-    /// Constrains this element to a width-to-height ratio.
+    /// 按指定的宽高比约束元素。
     ///
-    /// Pass `nil` to preserve the element's ideal aspect ratio.
+    /// 当 `aspectRatio` 为 `nil` 时，该方法使用元素的理想宽高比。
+    ///
+    /// - Parameters:
+    ///   - aspectRatio: 元素的宽高比；传入 `nil` 表示保留元素的理想宽高比。
+    ///   - contentMode: 调整元素大小时使用的内容模式。
+    /// - Returns: 应用宽高比约束后的元素。
     func aspectRatio(
         _ aspectRatio: CGFloat? = nil,
         contentMode: ContentMode
@@ -29,14 +39,16 @@ public extension Element {
         )
     }
 
-    /// Scales this element to fit its parent while preserving its ideal aspect
-    /// ratio.
+    /// 在保持理想宽高比的同时，缩放元素以适应父元素。
+    ///
+    /// - Returns: 使用适应模式缩放后的元素。
     func scaledToFit() -> Element & Layout {
         aspectRatio(nil, contentMode: .fit)
     }
 
-    /// Scales this element to fill its parent while preserving its ideal
-    /// aspect ratio.
+    /// 在保持理想宽高比的同时，缩放元素以填满父元素。
+    ///
+    /// - Returns: 使用填充模式缩放后的元素。
     func scaledToFill() -> Element & Layout {
         aspectRatio(nil, contentMode: .fill)
     }

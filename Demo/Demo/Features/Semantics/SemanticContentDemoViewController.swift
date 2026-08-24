@@ -22,7 +22,7 @@ UIKit / QuickLayout 方向适配原则：
 只有明确要与页面方向不同的局部示例才使用 forceLeftToRight / forceRightToLeft。
 */
 
-// MARK: - Main Demo Controller
+// MARK: - 主演示控制器
 class SemanticContentDemoViewController: DemoQuickLayoutHostingController {
 
     override var localizedTitleKey: String? { "demo.semantic.title" }
@@ -31,7 +31,7 @@ class SemanticContentDemoViewController: DemoQuickLayoutHostingController {
     let titleLabel = UILabel()
     let descLabel = UILabel()
 
-    // Demo sections
+    // 演示分区
     let unspecifiedSection = DemoSection(
         titleKey: "semantic.unspecified",
         semantic: .unspecified
@@ -85,9 +85,8 @@ class SemanticContentDemoViewController: DemoQuickLayoutHostingController {
             }
         )
 
-        // Each reusable section updates only the public nodes it owns. UIKit
-        // explicitly documents that effective direction is not guaranteed to
-        // propagate through an entire subtree.
+        // 每个可复用分区只更新自己拥有的公开节点。UIKit 明确说明，effective direction
+        // 不保证自动传播到整棵子视图树。
         unspecifiedSection.applyLayoutDirection(update)
         ltrSection.applyLayoutDirection(update)
         rtlSection.applyLayoutDirection(update)
@@ -96,14 +95,14 @@ class SemanticContentDemoViewController: DemoQuickLayoutHostingController {
 
     override var body: Layout {
         VStack(spacing: 0) {
-            // Header
+            // 页头
             VStack(spacing: 8) {
                 titleLabel
                 descLabel
             }
             .padding(EdgeInsets(top: 20, leading: 20, bottom: 16, trailing: 20))
 
-            // Scrollable content
+            // 可滚动内容
             ScrollView(scrollView) {
                 VStack(spacing: 20) {
                     unspecifiedSection
@@ -118,26 +117,26 @@ class SemanticContentDemoViewController: DemoQuickLayoutHostingController {
     }
 }
 
-// MARK: - Demo Section Component
+// MARK: - 演示分区组件
 @QuickLayout
 class DemoSection: UIView {
 
     let titleLabel = UILabel()
     let semantic: UISemanticContentAttribute
 
-    // Example 1: Icon + Text
+    // 示例一：图标与文本
     let example1 = ExampleRow1()
 
-    // Example 2: Leading/Trailing
+    // 示例二：Leading 与 Trailing
     let example2 = ExampleRow2()
 
-    // Example 3: Image alignment
+    // 示例三：图片对齐
     let example3 = ExampleRow3()
 
-    // Example 4: Button with icon
+    // 示例四：带图标的按钮
     let example4 = ExampleRow4()
 
-    // Example 5: Progress bar
+    // 示例五：进度条
     let example5 = ExampleRow5()
 
     let titleKey: String
@@ -225,7 +224,7 @@ class DemoSection: UIView {
     }
 }
 
-// MARK: - Example Rows
+// MARK: - 示例行
 
 @QuickLayout
 class ExampleRow1: UIView {
@@ -457,7 +456,7 @@ class ExampleRow5: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        // Progress fill takes 75% of progress bar width
+        // 进度填充区域占进度条宽度的 75%。
         let fillWidth = progressBar.bounds.width * 0.75
         let fillOriginX = effectiveUserInterfaceLayoutDirection == .rightToLeft
             ? progressBar.bounds.width - fillWidth

@@ -2,11 +2,10 @@ import CoreGraphics
 import QuickLayout
 import UIKit
 
-/// The container-size scope used by QuickLayoutKit layout hosts.
+/// QuickLayoutKit 布局宿主使用的容器尺寸作用域。
 ///
-/// A task-local value keeps nested layout and off-main-thread proxy
-/// measurements isolated from one another. When no host establishes a scope,
-/// ``containerRelativeFrame`` falls back to the size proposed by its parent.
+/// 任务局部值使嵌套布局与非主线程代理测量彼此隔离。宿主未建立作用域时，
+/// ``containerRelativeFrame`` 使用父元素建议的尺寸作为备用值。
 package enum QuickLayoutContainerRelativeFrameContext {
 
     @TaskLocal package static var containerSize: CGSize?
@@ -21,22 +20,18 @@ package enum QuickLayoutContainerRelativeFrameContext {
 
 public extension Element {
 
-    /// Positions this element in a frame sized relative to the nearest
-    /// QuickLayoutKit container.
+    /// 将元素放置在相对于最近 QuickLayoutKit 容器确定尺寸的框架中。
     ///
-    /// QuickLayoutKit establishes a container-size scope for
-    /// ``QuickLayoutView``, ``QuickLayoutHostingController``, list cells, and
-    /// ``QuickLayoutScrollView``. A scroll view uses its visible viewport,
-    /// excluding adjusted content insets. Other hosts use their proposed size,
-    /// excluding safe-area insets.
+    /// QuickLayoutKit 会为 ``QuickLayoutView``、``QuickLayoutHostingController``、列表单元格
+    /// 和 ``QuickLayoutScrollView`` 建立容器尺寸作用域。滚动视图使用扣除调整后内容边距的
+    /// 可见视口；其他宿主使用扣除安全区域边距后的建议尺寸。
     ///
-    /// When an element is laid out without a QuickLayoutKit host, the size
-    /// proposed by its immediate parent is used as a fallback.
+    /// 在没有 QuickLayoutKit 宿主的情况下布局元素时，该方法使用直接父元素建议的尺寸。
     ///
     /// - Parameters:
-    ///   - axes: The axes whose frame lengths should match the container.
-    ///   - alignment: The alignment of the element inside the resulting frame.
-    /// - Returns: An element with container-relative dimensions.
+    ///   - axes: 框架长度与容器匹配的轴。
+    ///   - alignment: 元素在结果框架中的对齐方式。
+    /// - Returns: 具有容器相对尺寸的元素。
     func containerRelativeFrame(
         _ axes: AxisSet,
         alignment: Alignment = .center
@@ -49,10 +44,9 @@ public extension Element {
         )
     }
 
-    /// Positions this element in a frame that occupies a number of equal
-    /// sections of the nearest QuickLayoutKit container.
+    /// 将元素放置在占据最近 QuickLayoutKit 容器若干等分的框架中。
     ///
-    /// The resolved length uses the same formula as SwiftUI:
+    /// 该方法使用与 SwiftUI 相同的公式计算长度：
     ///
     /// ```swift
     /// let available = containerLength - spacing * CGFloat(count - 1)
@@ -60,16 +54,15 @@ public extension Element {
     /// let result = column * CGFloat(span) + spacing * CGFloat(span - 1)
     /// ```
     ///
-    /// `count` is clamped to at least one, and `span` is clamped to the range
-    /// `1...count`. A non-finite spacing is treated as zero.
+    /// `count` 的最小值为一，`span` 会限制在 `1...count` 范围内。非有限间距按零处理。
     ///
     /// - Parameters:
-    ///   - axes: The axes on which to divide the container.
-    ///   - count: The number of equal sections in the container.
-    ///   - span: The number of sections occupied by this element.
-    ///   - spacing: The spacing between adjacent sections.
-    ///   - alignment: The alignment of the element inside the resulting frame.
-    /// - Returns: An element with container-relative dimensions.
+    ///   - axes: 对容器进行等分的轴。
+    ///   - count: 容器在相应轴上的等分数量。
+    ///   - span: 元素占据的等分数量。
+    ///   - spacing: 相邻等分之间的间距。
+    ///   - alignment: 元素在结果框架中的对齐方式。
+    /// - Returns: 具有容器相对尺寸的元素。
     func containerRelativeFrame(
         _ axes: AxisSet,
         count: Int,
@@ -93,18 +86,16 @@ public extension Element {
         }
     }
 
-    /// Positions this element in a frame whose length is calculated from the
-    /// nearest QuickLayoutKit container.
+    /// 将元素放置在长度根据最近 QuickLayoutKit 容器计算得出的框架中。
     ///
-    /// The closure runs once for each requested axis with a finite container
-    /// length. Negative results are clamped to zero. Non-finite results leave
-    /// that axis unconstrained.
+    /// 对于每个已请求且容器长度有限的轴，该方法都会调用一次闭包。负数结果按零处理；
+    /// 非有限结果表示不约束相应轴。
     ///
     /// - Parameters:
-    ///   - axes: The axes whose lengths should be calculated.
-    ///   - alignment: The alignment of the element inside the resulting frame.
-    ///   - length: A closure that receives the container length and current axis.
-    /// - Returns: An element with container-relative dimensions.
+    ///   - axes: 需要计算长度的轴。
+    ///   - alignment: 元素在结果框架中的对齐方式。
+    ///   - length: 接收容器长度和当前轴，并返回元素长度的闭包。
+    /// - Returns: 具有容器相对尺寸的元素。
     func containerRelativeFrame(
         _ axes: AxisSet,
         alignment: Alignment = .center,

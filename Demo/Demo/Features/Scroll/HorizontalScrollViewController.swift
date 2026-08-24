@@ -127,9 +127,8 @@ final class HorizontalScrollViewViewController:
             $0.semanticContentAttribute = semanticContentAttribute
             $0.setNeedsQuickLayout()
         }
-        // The semantic change can rebuild the horizontal content during the
-        // parent layout pass. Resolve the logical leading edge afterwards so
-        // an old numeric LTR offset cannot survive an RTL relayout.
+        // 语义方向变化可能在父级布局过程中重建横向内容。布局完成后重新定位到逻辑
+        // leading 边，避免旧的 LTR 数值偏移残留到 RTL 布局中。
         needsLeadingScrollPosition = true
         view.setNeedsLayout()
         currentPage = 0
@@ -183,9 +182,8 @@ final class HorizontalScrollViewViewController:
             HStack(alignment: .top, spacing: spacing) {
                 ForEach(views) { cardView in
                     cardView
-                        // Keep each card's unconstrained height content-driven,
-                        // then allow the ideal stack's second pass to propose
-                        // the tallest card height back to every card.
+                        // 卡片高度不受约束时由内容决定；随后由理想尺寸栈在第二轮测量中，
+                        // 把最高卡片的高度重新提议给每一张卡片。
                         .resizable(axis: [.horizontal, .vertical])
                         .containerRelativeFrame(.horizontal) {
                             containerWidth,
@@ -201,18 +199,15 @@ final class HorizontalScrollViewViewController:
                         }
                 }
             }
-            // Measure the cards at their ideal heights, then remeasure the
-            // vertically flexible cards using the tallest ideal height.
+            // 先按各卡片的理想高度测量，再使用其中最大值重新测量可垂直伸缩的卡片。
             .idealLayout()
-            // The page's vertical scroll view must receive that full ideal
-            // height. Do not clamp the equalized cards to the current
-            // landscape viewport; the page can scroll the overflow instead.
+            // 页面垂直滚动视图必须获得完整的理想高度。不要把等高卡片限制在当前横屏
+            // 可视区域内；超出部分应交给页面滚动。
             .fixedSize(axis: .vertical)
         }
         .resizable(axis: .horizontal)
-        // QuickLayoutScrollView adds its current horizontal safe area to these
-        // margins. containerRelativeFrame therefore measures cards from the
-        // safe viewport, without constraining the scroll view's own frame.
+        // QuickLayoutScrollView 会在这些边距上叠加当前水平方向安全区域；因此
+        // containerRelativeFrame 以安全可视区域测量卡片，但不限制滚动视图自身的 frame。
         .contentMargins(.horizontal, 16)
     }
 
