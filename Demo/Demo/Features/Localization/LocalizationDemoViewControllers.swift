@@ -195,9 +195,10 @@ final class UIKitLocalizationShowcaseViewController: DemoViewController {
         layout.minimumLineSpacing = 12
         layout.itemSize = CGSize(width: 132, height: 64)
         collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        cellRegistration = .localized(
-            using: DemoLocalization.reusableContext
-        ) { cell, _, item in
+        cellRegistration = DemoLocalization.reusableContext.makeCellRegistration {
+            cell,
+            _,
+            item in
             cell.configure(
                 text: DemoLocalization.text(
                     "uikit.collection.\(item + 1)"
