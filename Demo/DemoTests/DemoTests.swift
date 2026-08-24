@@ -312,6 +312,12 @@ struct DemoTests {
         )
         let expectedCornerRadius = min(24, max(12, expectedWidth * 0.08))
         let portraitHeight = firstCard.bounds.height
+        let portraitCardHeights = viewController.views.map(\.bounds.height)
+        let portraitNaturalHeight = viewController.views.map {
+            $0.sizeThatFits(
+                CGSize(width: $0.bounds.width, height: .infinity)
+            ).height
+        }.max() ?? 0
         let secondCard = viewController.views[1]
         let secondCardFrame = secondCard.convert(
             secondCard.bounds,
@@ -341,6 +347,16 @@ struct DemoTests {
         )
         #expect(portraitHeight > 0)
         #expect(
+            (portraitCardHeights.max() ?? 0)
+                - (portraitCardHeights.min() ?? 0) < 1
+        )
+        #expect((portraitCardHeights.min() ?? 0) >= portraitNaturalHeight - 1)
+        #expect(
+            viewController.views.allSatisfy { cardView in
+                (cardView.subviews.map(\.frame.minY).min() ?? 0) < 1
+            }
+        )
+        #expect(
             abs(
                 viewController.scrollView.bounds.height
                     - (viewController.views.map(\.bounds.height).max() ?? 0)
@@ -362,6 +378,12 @@ struct DemoTests {
         let expectedLandscapeWidth = HorizontalCarouselLayoutMetrics.cardWidth(
             for: landscapeViewportWidth
         )
+        let landscapeCardHeights = viewController.views.map(\.bounds.height)
+        let landscapeNaturalHeight = viewController.views.map {
+            $0.sizeThatFits(
+                CGSize(width: $0.bounds.width, height: .infinity)
+            ).height
+        }.max() ?? 0
 
         #expect(
             HorizontalCarouselLayoutMetrics.visibleCardCount(
@@ -370,6 +392,18 @@ struct DemoTests {
         )
         #expect(abs(firstCard.bounds.width - expectedLandscapeWidth) < 1)
         #expect(firstCard.bounds.height > 0)
+        #expect(
+            (landscapeCardHeights.max() ?? 0)
+                - (landscapeCardHeights.min() ?? 0) < 1
+        )
+        #expect(
+            (landscapeCardHeights.min() ?? 0) >= landscapeNaturalHeight - 1
+        )
+        #expect(
+            viewController.views.allSatisfy { cardView in
+                (cardView.subviews.map(\.frame.minY).min() ?? 0) < 1
+            }
+        )
         #expect(
             abs(
                 viewController.scrollView.bounds.height

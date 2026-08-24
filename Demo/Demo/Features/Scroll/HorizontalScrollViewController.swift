@@ -183,7 +183,10 @@ final class HorizontalScrollViewViewController:
             HStack(alignment: .top, spacing: spacing) {
                 ForEach(views) { cardView in
                     cardView
-                        .resizable(axis: .horizontal)
+                        // Keep each card's unconstrained height content-driven,
+                        // then allow the ideal stack's second pass to propose
+                        // the tallest card height back to every card.
+                        .resizable(axis: [.horizontal, .vertical])
                         .containerRelativeFrame(.horizontal) {
                             containerWidth,
                             _ in
@@ -198,6 +201,13 @@ final class HorizontalScrollViewViewController:
                         }
                 }
             }
+            // Measure the cards at their ideal heights, then remeasure the
+            // vertically flexible cards using the tallest ideal height.
+            .idealLayout()
+            // The page's vertical scroll view must receive that full ideal
+            // height. Do not clamp the equalized cards to the current
+            // landscape viewport; the page can scroll the overflow instead.
+            .fixedSize(axis: .vertical)
         }
         .resizable(axis: .horizontal)
         // QuickLayoutScrollView adds its current horizontal safe area to these

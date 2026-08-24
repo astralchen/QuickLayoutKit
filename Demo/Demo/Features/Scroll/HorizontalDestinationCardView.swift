@@ -181,7 +181,15 @@ final class HorizontalDestinationCardView: QuickLayoutView {
 
             detailsLayout
         }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
+        // Equal-height carousel layout can make this host taller than its
+        // content's natural height. Fill that proposal and keep the content
+        // pinned to the top so the card background cannot appear above the
+        // artwork on shorter cards.
+        .frame(
+            maxWidth: .infinity,
+            maxHeight: .infinity,
+            alignment: .topLeading
+        )
     }
 
     private var artworkLayout: Layout {
