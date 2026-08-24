@@ -7,10 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		3B7A03D22FCE600100D7A01A /* AppLocalization in Frameworks */ = {isa = PBXBuildFile; productRef = 3B7A03D12FCE600100D7A01A /* AppLocalization */; };
-		3B7A03D32FCE600100D7A01A /* AppLocalization in Frameworks */ = {isa = PBXBuildFile; productRef = 3B7A03D12FCE600100D7A01A /* AppLocalization */; };
 		4C4B00032FD0000000000003 /* ListKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4C4B00022FD0000000000002 /* ListKit */; };
 		7714E9A22EFE2AB100F8BC60 /* QuickLayoutKit in Frameworks */ = {isa = PBXBuildFile; productRef = 7714E9A12EFE2AB100F8BC60 /* QuickLayoutKit */; };
+		77C1B20F303C3ACC001466FB /* AppLocalization in Frameworks */ = {isa = PBXBuildFile; productRef = 77C1B20E303C3ACC001466FB /* AppLocalization */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -72,8 +71,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3B7A03D22FCE600100D7A01A /* AppLocalization in Frameworks */,
 				4C4B00032FD0000000000003 /* ListKit in Frameworks */,
+				77C1B20F303C3ACC001466FB /* AppLocalization in Frameworks */,
 				7714E9A22EFE2AB100F8BC60 /* QuickLayoutKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -82,7 +81,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3B7A03D32FCE600100D7A01A /* AppLocalization in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -136,9 +134,9 @@
 			);
 			name = Demo;
 			packageProductDependencies = (
-				3B7A03D12FCE600100D7A01A /* AppLocalization */,
 				4C4B00022FD0000000000002 /* ListKit */,
 				7714E9A12EFE2AB100F8BC60 /* QuickLayoutKit */,
+				77C1B20E303C3ACC001466FB /* AppLocalization */,
 			);
 			productName = Demo;
 			productReference = 7714E96C2EFE2A9100F8BC60 /* Demo.app */;
@@ -162,7 +160,6 @@
 			);
 			name = DemoTests;
 			packageProductDependencies = (
-				3B7A03D12FCE600100D7A01A /* AppLocalization */,
 			);
 			productName = DemoTests;
 			productReference = 7714E9822EFE2A9300F8BC60 /* DemoTests.xctest */;
@@ -226,9 +223,9 @@
 			mainGroup = 7714E9632EFE2A9100F8BC60;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				3B7A03D02FCE600100D7A01A /* XCLocalSwiftPackageReference "../../AppLocalization" */,
 				4C4B00012FD0000000000001 /* XCRemoteSwiftPackageReference "ListKit" */,
 				7714E9A02EFE2AB100F8BC60 /* XCLocalSwiftPackageReference ".." */,
+				77C1B20D303C3ACC001466FB /* XCRemoteSwiftPackageReference "AppLocalization" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7714E96D2EFE2A9100F8BC60 /* Products */;
@@ -615,10 +612,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		3B7A03D02FCE600100D7A01A /* XCLocalSwiftPackageReference "../../AppLocalization" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../AppLocalization;
-		};
 		7714E9A02EFE2AB100F8BC60 /* XCLocalSwiftPackageReference ".." */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ..;
@@ -634,14 +627,17 @@
 				kind = branch;
 			};
 		};
+		77C1B20D303C3ACC001466FB /* XCRemoteSwiftPackageReference "AppLocalization" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/astralchen/AppLocalization";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		3B7A03D12FCE600100D7A01A /* AppLocalization */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3B7A03D02FCE600100D7A01A /* XCLocalSwiftPackageReference "../../AppLocalization" */;
-			productName = AppLocalization;
-		};
 		4C4B00022FD0000000000002 /* ListKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 4C4B00012FD0000000000001 /* XCRemoteSwiftPackageReference "ListKit" */;
@@ -650,6 +646,11 @@
 		7714E9A12EFE2AB100F8BC60 /* QuickLayoutKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = QuickLayoutKit;
+		};
+		77C1B20E303C3ACC001466FB /* AppLocalization */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 77C1B20D303C3ACC001466FB /* XCRemoteSwiftPackageReference "AppLocalization" */;
+			productName = AppLocalization;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

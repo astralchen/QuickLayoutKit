@@ -1,6 +1,15 @@
 {
-  "originHash" : "2ce46e09e0e1b2b5a62b88330033b40e353628ae0f0edfae9392fda482d3ff75",
+  "originHash" : "c28d32b8d4c4a004c1d88a737c7fbd631566df18039c1b003bb3947f057de3ee",
   "pins" : [
+    {
+      "identity" : "applocalization",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/astralchen/AppLocalization",
+      "state" : {
+        "branch" : "main",
+        "revision" : "0d08fe2866c7142587ef13d23f5b02b4c8b413c4"
+      }
+    },
     {
       "identity" : "listkit",
       "kind" : "remoteSourceControl",

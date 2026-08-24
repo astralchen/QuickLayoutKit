@@ -216,7 +216,7 @@ final class MainViewController: DemoQuickLayoutHostingController {
                     cell: UICollectionViewListCell.self
                 ) { cell, routeState, _ in
                     self.reusableLocalizationContext
-                        .restoreBeforeConfiguration(cell)
+                        .prepareForConfiguration(cell)
                     self.configure(cell, with: routeState)
                 }
                 .refreshID(routeState.title)
@@ -245,7 +245,7 @@ final class MainViewController: DemoQuickLayoutHostingController {
                 id: "\(section.id).header"
             ) { header, _ in
                 self.reusableLocalizationContext
-                    .restoreBeforeConfiguration(header)
+                    .prepareForConfiguration(header)
                 header.configure(
                     title: section.title,
                     identifier: section.id
