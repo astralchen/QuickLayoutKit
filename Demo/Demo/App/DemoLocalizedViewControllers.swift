@@ -9,14 +9,28 @@ import UIKit
 import AppLocalization
 import QuickLayoutKit
 
-class DemoQuickLayoutHostingController: QuickLayoutHostingController, LocalizedContentUpdating, UserInterfaceLayoutDirectionUpdating {
+class DemoQuickLayoutHostingController: QuickLayoutHostingController, UIKitLocalizationApplying {
     var localizedTitleKey: String? { nil }
 
     override func viewDidLoad() {
         super.viewDidLoad()
         installDemoLanguageMenu()
-        reloadLocalizedContent()
-        reloadLayoutDirection(DemoLocalization.currentUIKitDirection)
+        applyLocalization(
+            .initial(snapshot: DemoLocalization.localizationController.currentSnapshot)
+        )
+    }
+
+    func applyLocalization(_ update: UIKitLocalizationUpdate) {
+        if update.requiresLayoutDirectionRefresh {
+            UIViewLayoutDirectionUpdater.apply(
+                update,
+                to: [UIViewLayoutDirectionTarget(view, policy: .followApplication)]
+            )
+            reloadLayoutDirection(update.layoutDirection)
+        }
+        if update.requiresLocalizedContentRefresh {
+            reloadLocalizedContent()
+        }
     }
 
     func reloadLocalizedContent() {
@@ -34,14 +48,28 @@ class DemoQuickLayoutHostingController: QuickLayoutHostingController, LocalizedC
     }
 }
 
-class DemoViewController: UIViewController, LocalizedContentUpdating, UserInterfaceLayoutDirectionUpdating {
+class DemoViewController: UIViewController, UIKitLocalizationApplying {
     var localizedTitleKey: String? { nil }
 
     override func viewDidLoad() {
         super.viewDidLoad()
         installDemoLanguageMenu()
-        reloadLocalizedContent()
-        reloadLayoutDirection(DemoLocalization.currentUIKitDirection)
+        applyLocalization(
+            .initial(snapshot: DemoLocalization.localizationController.currentSnapshot)
+        )
+    }
+
+    func applyLocalization(_ update: UIKitLocalizationUpdate) {
+        if update.requiresLayoutDirectionRefresh {
+            UIViewLayoutDirectionUpdater.apply(
+                update,
+                to: [UIViewLayoutDirectionTarget(view, policy: .followApplication)]
+            )
+            reloadLayoutDirection(update.layoutDirection)
+        }
+        if update.requiresLocalizedContentRefresh {
+            reloadLocalizedContent()
+        }
     }
 
     func reloadLocalizedContent() {
@@ -56,7 +84,6 @@ class DemoViewController: UIViewController, LocalizedContentUpdating, UserInterf
         applyDemoLayoutDirection(direction)
     }
 }
-
 
 #Preview {
    UINavigationController(rootViewController: DemoQuickLayoutHostingController())

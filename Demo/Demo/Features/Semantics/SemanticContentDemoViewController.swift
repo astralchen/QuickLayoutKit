@@ -74,17 +74,23 @@ class SemanticContentDemoViewController: DemoQuickLayoutHostingController {
     ) {
         super.reloadLayoutDirection(direction)
 
-        let attribute = direction.appLayoutDirection.semanticContentAttribute
-        scrollView.semanticContentAttribute = attribute
-        [titleLabel, descLabel].forEach {
-            $0.semanticContentAttribute = attribute
-        }
+        let update = DemoLocalization.layoutDirectionUpdate(direction)
+        UIViewLayoutDirectionUpdater.apply(
+            update,
+            to: [scrollView, titleLabel, descLabel].map {
+                UIViewLayoutDirectionTarget(
+                    $0,
+                    policy: .followApplication
+                )
+            }
+        )
 
-        // The unspecified section inherits from the scroll view. The explicit
-        // LTR and RTL sections keep their forced semantic boundaries.
-        unspecifiedSection.invalidateLayoutDirection()
-        ltrSection.invalidateLayoutDirection()
-        rtlSection.invalidateLayoutDirection()
+        // Each reusable section updates only the public nodes it owns. UIKit
+        // explicitly documents that effective direction is not guaranteed to
+        // propagate through an entire subtree.
+        unspecifiedSection.applyLayoutDirection(update)
+        ltrSection.applyLayoutDirection(update)
+        rtlSection.applyLayoutDirection(update)
         setNeedsQuickLayout()
     }
 
@@ -172,13 +178,27 @@ class DemoSection: UIView {
         setNeedsLayout()
     }
 
-    func invalidateLayoutDirection() {
-        semanticContentAttribute = semantic
-        [example1, example2, example3, example5].forEach {
-            $0.semanticContentAttribute = semantic
-            $0.setNeedsLayout()
-        }
-        example4.applySemanticContentAttribute(semantic)
+    func applyLayoutDirection(_ update: UIKitLocalizationUpdate) {
+        let policy: UIViewLayoutDirectionPolicy = semantic == .unspecified
+            ? .followApplication
+            : .fixed(semantic)
+        UIViewLayoutDirectionUpdater.apply(
+            update,
+            to: [
+                self,
+                titleLabel,
+                example1,
+                example2,
+                example3,
+                example4,
+                example5,
+            ].map { UIViewLayoutDirectionTarget($0, policy: policy) }
+        )
+        example4.applySemanticContentAttribute(
+            policy == .followApplication
+                ? update.semanticContentAttribute
+                : semantic
+        )
         setNeedsLayout()
     }
 

@@ -50,21 +50,31 @@ public extension Element {
 
     /// Configures equal content margins on selected edges.
     ///
-    /// Passing `nil` uses QuickLayoutKit's default margin of 16 points.
+    /// Passing `nil` leaves the selected edges unspecified, matching SwiftUI.
+    /// An earlier margin for the same placement or the container's default
+    /// therefore remains in effect.
     @MainActor
     func contentMargins(
         _ edges: EdgeSet = .all,
         _ length: CGFloat?,
         for placement: ContentMarginPlacement = .automatic
     ) -> Element & Layout {
-        let length = sanitizedContentMargin(length ?? 16)
+        guard let length else {
+            return ContentMarginsElement(
+                child: self,
+                edges: [],
+                insets: .zero,
+                placement: placement
+            )
+        }
+        let sanitizedLength = sanitizedContentMargin(length)
         return contentMargins(
             edges,
             EdgeInsets(
-                top: edges.contains(.top) ? length : 0,
-                leading: edges.contains(.leading) ? length : 0,
-                bottom: edges.contains(.bottom) ? length : 0,
-                trailing: edges.contains(.trailing) ? length : 0
+                top: edges.contains(.top) ? sanitizedLength : 0,
+                leading: edges.contains(.leading) ? sanitizedLength : 0,
+                bottom: edges.contains(.bottom) ? sanitizedLength : 0,
+                trailing: edges.contains(.trailing) ? sanitizedLength : 0
             ),
             for: placement
         )
@@ -168,6 +178,15 @@ final class QuickLayoutContentMarginState {
                 trailing: trailing ?? 0
             )
         }
+
+        var specified: EdgeInsets {
+            EdgeInsets(
+                top: top == nil ? 0 : 1,
+                leading: leading == nil ? 0 : 1,
+                bottom: bottom == nil ? 0 : 1,
+                trailing: trailing == nil ? 0 : 1
+            )
+        }
     }
 
     private var automatic = Overrides()
@@ -175,8 +194,11 @@ final class QuickLayoutContentMarginState {
     private var scrollIndicators = Overrides()
 
     private(set) var appliedContentInsets: UIEdgeInsets = .zero
-    private(set) var appliedIndicatorInsets: UIEdgeInsets = .zero
+    private(set) var appliedVerticalIndicatorInsets: UIEdgeInsets = .zero
+    private(set) var appliedHorizontalIndicatorInsets: UIEdgeInsets = .zero
     private var appliedLayoutDirection: UIUserInterfaceLayoutDirection?
+    private var appliedSafeAreaInsets: UIEdgeInsets?
+    private var appliedAutomaticAdjustmentInsets: UIEdgeInsets?
 
     @MainActor
     func reset(on scrollView: UIScrollView) {
@@ -206,11 +228,32 @@ final class QuickLayoutContentMarginState {
 
     @MainActor
     func updateLayoutDirectionIfNeeded(on scrollView: UIScrollView) {
+        let automaticAdjustmentInsets = scrollView
+            .quickLayoutAutomaticContentInsetAdjustment
         guard appliedLayoutDirection
-                != scrollView.effectiveUserInterfaceLayoutDirection else {
+                != scrollView.effectiveUserInterfaceLayoutDirection
+                || appliedSafeAreaInsets != scrollView.safeAreaInsets
+                || appliedAutomaticAdjustmentInsets
+                    != automaticAdjustmentInsets else {
             return
         }
 
+        updateInsets(on: scrollView, keepsContentAtStart: false)
+    }
+
+    @MainActor
+    func updateSafeArea(
+        on scrollView: UIScrollView,
+        keepsContentAtStart: Bool
+    ) {
+        updateInsets(
+            on: scrollView,
+            keepsContentAtStart: keepsContentAtStart
+        )
+    }
+
+    @MainActor
+    func updateAxis(on scrollView: UIScrollView) {
         updateInsets(on: scrollView, keepsContentAtStart: false)
     }
 
@@ -223,33 +266,63 @@ final class QuickLayoutContentMarginState {
         let baseContentInsets = scrollView.contentInset
             .subtracting(appliedContentInsets)
         let baseVerticalIndicatorInsets = scrollView.verticalScrollIndicatorInsets
-            .subtracting(appliedIndicatorInsets)
+            .subtracting(appliedVerticalIndicatorInsets)
         let baseHorizontalIndicatorInsets = scrollView.horizontalScrollIndicatorInsets
-            .subtracting(appliedIndicatorInsets)
+            .subtracting(appliedHorizontalIndicatorInsets)
         let layoutDirection = scrollView.effectiveUserInterfaceLayoutDirection
 
-        let contentMargins = scrollContent
-            .overriding(automatic)
-            .resolved
+        let contentOverrides = scrollContent.overriding(automatic)
+        let indicatorOverrides = scrollIndicators.overriding(automatic)
+        let automaticAdjustmentInsets = scrollView
+            .quickLayoutAutomaticContentInsetAdjustment
+        let contentMargins = contentOverrides.resolved
             .uiInsets(for: layoutDirection)
-        let indicatorMargins = scrollIndicators
-            .overriding(automatic)
-            .resolved
+            .adding(
+                scrollView.quickLayoutMissingSafeAreaInsets(
+                    specified: contentOverrides.specified
+                        .uiInsets(for: layoutDirection),
+                    automaticAdjustment: automaticAdjustmentInsets
+                )
+            )
+        let indicatorMargins = indicatorOverrides.resolved
             .uiInsets(for: layoutDirection)
+            .adding(
+                scrollView.quickLayoutMissingSafeAreaInsets(
+                    specified: indicatorOverrides.specified
+                        .uiInsets(for: layoutDirection),
+                    automaticAdjustment: automaticAdjustmentInsets
+                )
+            )
+        let verticalIndicatorMargins: UIEdgeInsets
+        let horizontalIndicatorMargins: UIEdgeInsets
+        if let quickLayoutScrollView = scrollView as? QuickLayoutScrollView {
+            verticalIndicatorMargins = quickLayoutScrollView.axis == .vertical
+                ? indicatorMargins
+                : .zero
+            horizontalIndicatorMargins = quickLayoutScrollView.axis == .horizontal
+                ? indicatorMargins
+                : .zero
+        } else {
+            verticalIndicatorMargins = indicatorMargins
+            horizontalIndicatorMargins = indicatorMargins
+        }
         let shouldKeepContentAtStart = keepsContentAtStart
             && contentMargins != previousContentMargins
             && (scrollView as? QuickLayoutScrollView)?
                 .quickLayoutIsAtContentStart() == true
 
         appliedLayoutDirection = layoutDirection
+        appliedSafeAreaInsets = scrollView.safeAreaInsets
+        appliedAutomaticAdjustmentInsets = automaticAdjustmentInsets
         appliedContentInsets = contentMargins
-        appliedIndicatorInsets = indicatorMargins
+        appliedVerticalIndicatorInsets = verticalIndicatorMargins
+        appliedHorizontalIndicatorInsets = horizontalIndicatorMargins
 
         scrollView.contentInset = baseContentInsets.adding(contentMargins)
         scrollView.verticalScrollIndicatorInsets = baseVerticalIndicatorInsets
-            .adding(indicatorMargins)
+            .adding(verticalIndicatorMargins)
         scrollView.horizontalScrollIndicatorInsets = baseHorizontalIndicatorInsets
-            .adding(indicatorMargins)
+            .adding(horizontalIndicatorMargins)
 
         if shouldKeepContentAtStart {
             (scrollView as? QuickLayoutScrollView)?
@@ -268,6 +341,11 @@ extension QuickLayoutScrollView {
     @MainActor
     func quickLayoutUpdateContentMarginDirectionIfNeeded() {
         quickLayoutContentMarginState.updateLayoutDirectionIfNeeded(on: self)
+    }
+
+    @MainActor
+    func quickLayoutUpdateContentMarginAxis() {
+        quickLayoutContentMarginState.updateAxis(on: self)
     }
 
     @MainActor
@@ -293,8 +371,17 @@ extension UIScrollView {
     }
 
     var quickLayoutAppliedIndicatorMarginInsets: UIEdgeInsets {
-        (self as? QuickLayoutScrollView)?
-            .quickLayoutContentMarginState.appliedIndicatorInsets ?? .zero
+        guard let scrollView = self as? QuickLayoutScrollView else {
+            return .zero
+        }
+        switch scrollView.axis {
+        case .vertical:
+            return scrollView.quickLayoutContentMarginState
+                .appliedVerticalIndicatorInsets
+        case .horizontal:
+            return scrollView.quickLayoutContentMarginState
+                .appliedHorizontalIndicatorInsets
+        }
     }
 }
 
@@ -359,6 +446,38 @@ extension UIEdgeInsets {
     }
 }
 
+private extension UIScrollView {
+
+    var quickLayoutAutomaticContentInsetAdjustment: UIEdgeInsets {
+        UIEdgeInsets(
+            top: max(0, adjustedContentInset.top - contentInset.top),
+            left: max(0, adjustedContentInset.left - contentInset.left),
+            bottom: max(0, adjustedContentInset.bottom - contentInset.bottom),
+            right: max(0, adjustedContentInset.right - contentInset.right)
+        )
+    }
+
+    func quickLayoutMissingSafeAreaInsets(
+        specified: UIEdgeInsets,
+        automaticAdjustment: UIEdgeInsets
+    ) -> UIEdgeInsets {
+        UIEdgeInsets(
+            top: specified.top == 0
+                ? 0
+                : max(0, safeAreaInsets.top - automaticAdjustment.top),
+            left: specified.left == 0
+                ? 0
+                : max(0, safeAreaInsets.left - automaticAdjustment.left),
+            bottom: specified.bottom == 0
+                ? 0
+                : max(0, safeAreaInsets.bottom - automaticAdjustment.bottom),
+            right: specified.right == 0
+                ? 0
+                : max(0, safeAreaInsets.right - automaticAdjustment.right)
+        )
+    }
+}
+
 private func sanitizedContentMargin(_ value: CGFloat) -> CGFloat {
-    value.isFinite ? max(0, value) : 0
+    value.isFinite ? value : 0
 }

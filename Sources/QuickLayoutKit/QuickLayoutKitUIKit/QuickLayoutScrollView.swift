@@ -62,6 +62,7 @@ open class QuickLayoutScrollView:
                 self.pendingScroll = nil
             }
             configureAxisBehavior()
+            quickLayoutUpdateContentMarginAxis()
             setNeedsQuickLayout()
         }
     }
@@ -71,6 +72,26 @@ open class QuickLayoutScrollView:
         didSet {
             guard showsIndicators != oldValue else { return }
             configureIndicators()
+        }
+    }
+
+    /// The attachment and layout semantic direction policy for this scroll host.
+    ///
+    /// The default `.preserve` protects locally fixed semantics. Set
+    /// `.followEnclosingContainer` when the scroll view can be detached or
+    /// moved between containers during runtime language switching.
+    open var quickLayoutSemanticDirectionBehavior:
+        QuickLayoutSemanticDirectionBehavior = .preserve {
+        didSet {
+            guard quickLayoutSemanticDirectionBehavior != oldValue else {
+                return
+            }
+            synchronizeQuickLayoutSemanticDirectionIfNeeded(
+                for: self,
+                behavior: quickLayoutSemanticDirectionBehavior
+            )
+            quickLayoutEnvironmentState.update(self)
+            setNeedsQuickLayout()
         }
     }
 
@@ -96,6 +117,7 @@ open class QuickLayoutScrollView:
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
     private var pendingScroll: (edge: Edge, animated: Bool)?
     private var needsContentMarginStartPosition = false
+    private var lastResolvedAdjustedContentInset: UIEdgeInsets?
     let quickLayoutContentMarginState = QuickLayoutContentMarginState()
 
     // MARK: - Initialization
@@ -143,6 +165,15 @@ open class QuickLayoutScrollView:
 
     open override func didMoveToWindow() {
         super.didMoveToWindow()
+        guard window != nil else { return }
+        synchronizeQuickLayoutSemanticDirectionIfNeeded(
+            for: self,
+            behavior: quickLayoutSemanticDirectionBehavior
+        )
+        quickLayoutContentMarginState.updateSafeArea(
+            on: self,
+            keepsContentAtStart: true
+        )
         quickLayoutEnvironmentState.update(self)
         setNeedsQuickLayout()
     }
@@ -151,13 +182,30 @@ open class QuickLayoutScrollView:
         _ previousTraitCollection: UITraitCollection?
     ) {
         super.traitCollectionDidChange(previousTraitCollection)
-        quickLayoutEnvironmentState.update(self)
+        quickLayoutEnvironmentState.update(
+            self,
+            explicitReason: .traitCollection
+        )
         setNeedsQuickLayout()
     }
 
     open override func safeAreaInsetsDidChange() {
+        let previousAdjustedContentInset = lastResolvedAdjustedContentInset
+        let wasAtContentStart = previousAdjustedContentInset.map {
+            quickLayoutIsAtContentStart(adjustedContentInset: $0)
+        } ?? false
+
         super.safeAreaInsetsDidChange()
+        quickLayoutContentMarginState.updateSafeArea(
+            on: self,
+            keepsContentAtStart: false
+        )
         quickLayoutEnvironmentState.update(self, explicitReason: .safeArea)
+
+        if wasAtContentStart,
+           previousAdjustedContentInset != adjustedContentInset {
+            quickLayoutKeepContentAtStartAfterMarginChange()
+        }
     }
 
     open override func layoutMarginsDidChange() {
@@ -193,44 +241,92 @@ open class QuickLayoutScrollView:
 
     // MARK: - Layout
 
-    override open func layoutSubviews() {
-        super.layoutSubviews()
-
+    /// Returns the viewport size that best fits the hosted scroll content.
+    ///
+    /// A horizontal scroll view uses its content's natural height while its
+    /// width continues to come from the enclosing container. This mirrors the
+    /// cross-axis sizing behavior of SwiftUI's `ScrollView` and lets localized
+    /// or Dynamic Type content determine a carousel's height without caching a
+    /// fixed value in the owner.
+    func quickLayoutViewportSizeThatFits(_ size: CGSize) -> CGSize {
+        synchronizeQuickLayoutSemanticDirectionIfNeeded(
+            for: self,
+            behavior: quickLayoutSemanticDirectionBehavior
+        )
         quickLayoutEnvironmentState.update(self)
         quickLayoutUpdateContentMarginDirectionIfNeeded()
-        let layoutDirection = quickLayoutDirection
-        let layoutProposal = proposedContentSize
+
+        let containerSize = measurementContainerSize(for: size)
         let safeAreaRegionInsets = quickLayoutSafeAreaRegionInsets
-        let measuredContentSize = withQuickLayoutContainerSize(
-            bounds.size,
-            insets: safeAreaRegionInsets.container,
-            keyboardInsets: safeAreaRegionInsets.keyboard
-        ) {
-            _QuickLayoutViewImplementation.sizeThatFits(
-                self,
-                size: layoutProposal
-            ) ?? .zero
+        let measuredContentSize = withQuickLayoutManagedViewState {
+            withQuickLayoutContainerSize(
+                containerSize,
+                insets: safeAreaRegionInsets.container,
+                keyboardInsets: safeAreaRegionInsets.keyboard
+            ) {
+                _QuickLayoutViewImplementation.sizeThatFits(
+                    self,
+                    size: measurementContentProposal(for: containerSize)
+                ) ?? .zero
+            }
         }
-        let contentLayoutSize = resolvedContentLayoutSize(measuredContentSize)
 
-        withQuickLayoutContainerSize(
-            bounds.size,
-            insets: safeAreaRegionInsets.container,
-            keyboardInsets: safeAreaRegionInsets.keyboard
-        ) {
-            body.applyFrame(
-                CGRect(origin: .zero, size: contentLayoutSize),
-                alignment: contentAlignment,
-                layoutDirection: layoutDirection
+        return CGSize(
+            width: resolvedViewportLength(
+                proposed: size.width,
+                fallback: measuredContentSize.width
+            ),
+            height: measuredContentSize.height
+        )
+    }
+
+    override open func layoutSubviews() {
+        synchronizeQuickLayoutSemanticDirectionIfNeeded(
+            for: self,
+            behavior: quickLayoutSemanticDirectionBehavior
+        )
+        super.layoutSubviews()
+
+        withQuickLayoutManagedViewState {
+            quickLayoutEnvironmentState.update(self)
+            quickLayoutUpdateContentMarginDirectionIfNeeded()
+            let layoutDirection = quickLayoutDirection
+            let layoutProposal = proposedContentSize
+            let safeAreaRegionInsets = quickLayoutSafeAreaRegionInsets
+            let measuredContentSize = withQuickLayoutContainerSize(
+                bounds.size,
+                insets: safeAreaRegionInsets.container,
+                keyboardInsets: safeAreaRegionInsets.keyboard
+            ) {
+                _QuickLayoutViewImplementation.sizeThatFits(
+                    self,
+                    size: layoutProposal
+                ) ?? .zero
+            }
+            let contentLayoutSize = resolvedContentLayoutSize(
+                measuredContentSize
             )
-        }
 
-        if contentSize != contentLayoutSize {
-            contentSize = contentLayoutSize
-        }
+            withQuickLayoutContainerSize(
+                bounds.size,
+                insets: safeAreaRegionInsets.container,
+                keyboardInsets: safeAreaRegionInsets.keyboard
+            ) {
+                body.applyFrame(
+                    CGRect(origin: .zero, size: contentLayoutSize),
+                    alignment: contentAlignment,
+                    layoutDirection: layoutDirection
+                )
+            }
 
-        applyContentMarginStartPositionIfPossible()
-        applyPendingScrollIfPossible()
+            if contentSize != contentLayoutSize {
+                contentSize = contentLayoutSize
+            }
+
+            applyContentMarginStartPositionIfPossible()
+            applyPendingScrollIfPossible()
+            lastResolvedAdjustedContentInset = adjustedContentInset
+        }
     }
 
     /// Invalidates the hosted scroll content.
@@ -276,6 +372,56 @@ open class QuickLayoutScrollView:
         }
     }
 
+    private func measurementContainerSize(for proposedSize: CGSize) -> CGSize {
+        CGSize(
+            width: resolvedMeasurementContainerLength(
+                proposed: proposedSize.width,
+                current: bounds.width
+            ),
+            height: resolvedMeasurementContainerLength(
+                proposed: proposedSize.height,
+                current: bounds.height
+            )
+        )
+    }
+
+    private func measurementContentProposal(
+        for containerSize: CGSize
+    ) -> CGSize {
+        let insets = quickLayoutAppliedContentMarginInsets
+        let viewportSize = CGSize(
+            width: max(0, containerSize.width - insets.left - insets.right),
+            height: max(0, containerSize.height - insets.top - insets.bottom)
+        )
+
+        switch axis {
+        case .vertical:
+            return CGSize(width: viewportSize.width, height: .infinity)
+        case .horizontal:
+            return CGSize(
+                width: CGFloat.infinity,
+                height: CGFloat.infinity
+            )
+        }
+    }
+
+    private func resolvedMeasurementContainerLength(
+        proposed: CGFloat,
+        current: CGFloat
+    ) -> CGFloat {
+        if proposed.isFinite {
+            return max(0, proposed)
+        }
+        return max(0, current)
+    }
+
+    private func resolvedViewportLength(
+        proposed: CGFloat,
+        fallback: CGFloat
+    ) -> CGFloat {
+        proposed.isFinite ? max(0, proposed) : max(0, fallback)
+    }
+
     private var contentMarginViewportSize: CGSize {
         let insets = quickLayoutAppliedContentMarginInsets
         return CGSize(
@@ -288,17 +434,28 @@ open class QuickLayoutScrollView:
         container: UIEdgeInsets,
         keyboard: UIEdgeInsets
     ) {
+        // UIKit may omit a physical horizontal safe area from
+        // adjustedContentInset even though the full-screen scroll view still
+        // intersects it. Preserve every automatic bar/content adjustment, but
+        // never publish less than the scroll view's physical safe area to
+        // QuickLayout content.
+        let resolvedContainerInsets = UIEdgeInsets(
+            top: max(adjustedContentInset.top, safeAreaInsets.top),
+            left: max(adjustedContentInset.left, safeAreaInsets.left),
+            bottom: max(adjustedContentInset.bottom, safeAreaInsets.bottom),
+            right: max(adjustedContentInset.right, safeAreaInsets.right)
+        )
         let keyboardDelta = max(0, quickLayoutKeyboardInsetDelta)
         guard keyboardDelta > 0 else {
-            return (adjustedContentInset, .zero)
+            return (resolvedContainerInsets, .zero)
         }
 
-        var containerInsets = adjustedContentInset
+        var containerInsets = resolvedContainerInsets
         containerInsets.bottom = max(0, containerInsets.bottom - keyboardDelta)
         let keyboardInsets = UIEdgeInsets(
             top: 0,
             left: 0,
-            bottom: adjustedContentInset.bottom,
+            bottom: resolvedContainerInsets.bottom,
             right: 0
         )
         return (containerInsets, keyboardInsets)
@@ -356,9 +513,14 @@ open class QuickLayoutScrollView:
         contentElements = content
     }
 
-    func quickLayoutIsAtContentStart() -> Bool {
+    func quickLayoutIsAtContentStart(
+        adjustedContentInset: UIEdgeInsets? = nil
+    ) -> Bool {
         let edge: Edge = axis == .vertical ? .top : .leading
-        let target = targetOffset(for: edge)
+        let target = targetOffset(
+            for: edge,
+            adjustedContentInset: adjustedContentInset
+        )
 
         switch axis {
         case .vertical:
@@ -422,8 +584,11 @@ open class QuickLayoutScrollView:
         }
     }
 
-    private func targetOffset(for edge: Edge) -> CGPoint {
-        let inset = adjustedContentInset
+    private func targetOffset(
+        for edge: Edge,
+        adjustedContentInset customAdjustedContentInset: UIEdgeInsets? = nil
+    ) -> CGPoint {
+        let inset = customAdjustedContentInset ?? adjustedContentInset
 
         switch edge {
         case .top:

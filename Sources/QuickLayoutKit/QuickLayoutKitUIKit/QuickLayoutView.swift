@@ -11,6 +11,54 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
     private var contentProvider: (() -> Layout)?
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
 
+    /// An explicit override for the host's horizontal sizing flexibility.
+    ///
+    /// The default `nil` derives flexibility from `body`, preserving the
+    /// sizing semantics expressed by the hosted layout. Set a value only when
+    /// the host itself needs to override those semantics for its container.
+    open var quickLayoutHorizontalFlexibility: Flexibility? {
+        didSet {
+            guard quickLayoutHorizontalFlexibility != oldValue else { return }
+            invalidateIntrinsicContentSize()
+            setNeedsQuickLayout()
+            superview?.setNeedsLayout()
+        }
+    }
+
+    /// An explicit override for the host's vertical sizing flexibility.
+    ///
+    /// The default `nil` derives flexibility from `body`, preserving the
+    /// sizing semantics expressed by the hosted layout. Set a value only when
+    /// the host itself needs to override those semantics for its container.
+    open var quickLayoutVerticalFlexibility: Flexibility? {
+        didSet {
+            guard quickLayoutVerticalFlexibility != oldValue else { return }
+            invalidateIntrinsicContentSize()
+            setNeedsQuickLayout()
+            superview?.setNeedsLayout()
+        }
+    }
+
+    /// The attachment, layout, and measurement direction policy for this host.
+    ///
+    /// The default `.preserve` keeps local playback or spatial semantics.
+    /// Select `.followEnclosingContainer` for detachable application-content
+    /// hosts that must recover the latest container direction when reattached.
+    open var quickLayoutSemanticDirectionBehavior:
+        QuickLayoutSemanticDirectionBehavior = .preserve {
+        didSet {
+            guard quickLayoutSemanticDirectionBehavior != oldValue else {
+                return
+            }
+            synchronizeQuickLayoutSemanticDirectionIfNeeded(
+                for: self,
+                behavior: quickLayoutSemanticDirectionBehavior
+            )
+            quickLayoutEnvironmentState.update(self)
+            setNeedsQuickLayout()
+        }
+    }
+
     /// The semantic role used to resolve the hosted layout direction.
     ///
     /// App-level language switching commonly updates this property directly.
@@ -63,12 +111,20 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
 
     open override func didMoveToWindow() {
         super.didMoveToWindow()
+        guard window != nil else { return }
+        synchronizeQuickLayoutSemanticDirectionIfNeeded(
+            for: self,
+            behavior: quickLayoutSemanticDirectionBehavior
+        )
         quickLayoutEnvironmentState.update(self)
     }
 
     open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
-        quickLayoutEnvironmentState.update(self)
+        quickLayoutEnvironmentState.update(
+            self,
+            explicitReason: .traitCollection
+        )
     }
 
     open override func safeAreaInsetsDidChange() {
@@ -82,25 +138,49 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
     }
 
     open override func layoutSubviews() {
+        synchronizeQuickLayoutSemanticDirectionIfNeeded(
+            for: self,
+            behavior: quickLayoutSemanticDirectionBehavior
+        )
         super.layoutSubviews()
         quickLayoutEnvironmentState.update(self)
         QuickLayoutDiagnostics.recordLayoutPass(for: String(describing: Self.self), measuredSize: bounds.size)
-        withQuickLayoutContainerSize(bounds.size) {
-            _QuickLayoutViewImplementation.layoutSubviews(self)
+        withQuickLayoutManagedViewState {
+            withQuickLayoutContainerSize(bounds.size) {
+                _QuickLayoutViewImplementation.layoutSubviews(self)
+            }
         }
     }
 
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
         // Self-sizing can run before the next layout pass after a locale or
         // direction switch, so measurement must observe the latest environment.
+        synchronizeQuickLayoutSemanticDirectionIfNeeded(
+            for: self,
+            behavior: quickLayoutSemanticDirectionBehavior
+        )
         quickLayoutEnvironmentState.update(self)
-        return withQuickLayoutContainerSize(size) {
-            _QuickLayoutViewImplementation.sizeThatFits(self, size: size) ?? super.sizeThatFits(size)
+        return withQuickLayoutManagedViewState {
+            withQuickLayoutContainerSize(size) {
+                _QuickLayoutViewImplementation.sizeThatFits(
+                    self,
+                    size: size
+                ) ?? super.sizeThatFits(size)
+            }
         }
     }
 
     open override func quick_flexibility(for axis: Axis) -> Flexibility {
-        _QuickLayoutViewImplementation.quick_flexibility(self, for: axis) ?? super.quick_flexibility(for: axis)
+        let explicitFlexibility: Flexibility? = switch axis {
+        case .horizontal:
+            quickLayoutHorizontalFlexibility
+        case .vertical:
+            quickLayoutVerticalFlexibility
+        }
+
+        return explicitFlexibility
+            ?? _QuickLayoutViewImplementation.quick_flexibility(self, for: axis)
+            ?? super.quick_flexibility(for: axis)
     }
 
     /// Invalidates the hosted layout.

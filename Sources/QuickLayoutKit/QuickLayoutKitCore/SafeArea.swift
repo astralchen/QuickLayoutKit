@@ -266,16 +266,17 @@ public extension Element {
 
     /// Adds fixed padding to selected safe-area edges.
     ///
-    /// Passing `nil` uses QuickLayoutKit's platform-style default of 16 points.
+    /// Passing `nil` adds no spacing, matching QuickLayout's zero-spacing
+    /// default.
     ///
     /// - Parameters:
     ///   - edges: The safe-area edges to pad.
-    ///   - length: The additional spacing, or `nil` for 16 points.
+    ///   - length: The additional spacing, or `nil` for zero.
     func safeAreaPadding(
         _ edges: EdgeSet = .all,
         _ length: CGFloat? = nil
     ) -> Element & Layout {
-        let value = sanitized(length ?? 16)
+        let value = sanitized(length ?? 0)
         return SafeAreaPaddingElement(
             child: self,
             edges: edges,

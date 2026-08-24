@@ -218,25 +218,140 @@
         }
       }
     },
+    "counter.controls.subtitle" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حدّث العدد بعد كل كوب للحفاظ على دقة تقدمك."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update the total after each glass to keep your progress accurate."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每喝完一杯就更新记录，让今日进度保持准确。"
+          }
+        }
+      }
+    },
+    "counter.controls.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سجّل كوباً"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log a glass"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记录一杯水"
+          }
+        }
+      }
+    },
     "counter.decrement" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تقليل"
+            "value" : "إزالة كوب"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Decrement"
+            "value" : "Remove"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "减少"
+            "value" : "减少一杯"
+          }
+        }
+      }
+    },
+    "counter.eyebrow" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "هدف اليوم"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TODAY'S GOAL"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日目标"
+          }
+        }
+      }
+    },
+    "counter.goal" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الهدف: %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Goal: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目标：%lld 杯"
+          }
+        }
+      }
+    },
+    "counter.headline" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حافظ على ترطيبك"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stay hydrated"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保持充足饮水"
           }
         }
       }
@@ -247,19 +362,341 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "زيادة"
+            "value" : "إضافة كوب"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Increment"
+            "value" : "Add glass"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "增加"
+            "value" : "记录一杯"
+          }
+        }
+      }
+    },
+    "counter.progress" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld من %lld أكواب"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld of %lld glasses"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已完成 %lld / %lld 杯"
+          }
+        }
+      }
+    },
+    "counter.reset" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إعادة ضبط تقدم اليوم"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset today's progress"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置今日进度"
+          }
+        }
+      }
+    },
+    "counter.reset.action" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إعادة ضبط"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置"
+          }
+        }
+      }
+    },
+    "counter.reset.cancel" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إلغاء"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
+          }
+        }
+      }
+    },
+    "counter.reset.confirm.message" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سيعود عدد الأكواب المسجلة اليوم إلى الصفر."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today's logged glasses will return to zero."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天已记录的饮水杯数将归零。"
+          }
+        }
+      }
+    },
+    "counter.reset.confirm.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إعادة ضبط تقدم اليوم؟"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset today's progress?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置今天的进度？"
+          }
+        }
+      }
+    },
+    "counter.status.complete.message" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "عمل رائع. لقد حققت هدف الترطيب اليومي."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nice work. You reached your hydration goal for today."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "做得很好，今天的饮水目标已经完成。"
+          }
+        }
+      }
+    },
+    "counter.status.complete.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اكتمل الهدف اليومي"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily goal reached"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日目标已完成"
+          }
+        }
+      }
+    },
+    "counter.status.progress.message" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تبقى %lld أكواب للوصول إلى هدف اليوم."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld glasses to go before you reach today's goal."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再喝 %lld 杯就能完成今天的目标。"
+          }
+        }
+      }
+    },
+    "counter.status.progress.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استمر"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep it going"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续保持"
+          }
+        }
+      }
+    },
+    "counter.status.ready.message" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سجّل كوبك الأول لبدء تقدم اليوم."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log your first glass to start today's progress."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记录第一杯水，开始今天的饮水进度。"
+          }
+        }
+      }
+    },
+    "counter.status.ready.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ابدأ عندما تكون مستعداً"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ready when you are"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "准备好就开始"
+          }
+        }
+      }
+    },
+    "counter.subtitle" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سجّل كل كوب وابنِ عادة يومية صحية."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Track every glass and build a healthier daily routine."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记录每一杯水，养成更健康的每日习惯。"
+          }
+        }
+      }
+    },
+    "counter.unit" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أكواب مسجلة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "glasses logged"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已记录杯数"
           }
         }
       }
@@ -446,6 +883,245 @@
             "value" : "键盘表单"
           }
         }
+      }
+    },
+    "horizontal.explore.card.accessibilityHint" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اضغط مرتين لعرض تفاصيل الرحلة."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Double-tap for trip details."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻点两下查看行程详情。"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.bamboo.location" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "آنجي · تشجيانغ" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Anji · Zhejiang" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "安吉 · 浙江" } }
+      }
+    },
+    "horizontal.explore.destination.bamboo.price" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "٥٢٠ ر.س." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "$142" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "¥980" } }
+      }
+    },
+    "horizontal.explore.destination.bamboo.summary" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "إقامة بين الخيزران مع مسار صباحي وعشاء موسمي هادئ." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "A bamboo retreat with a morning trail and a quiet seasonal dinner." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "住进竹林深处，清晨徒步，傍晚吃一顿山野料理。" } }
+      }
+    },
+    "horizontal.explore.destination.bamboo.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "ملاذ غابة الخيزران" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Bamboo Forest Escape" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "竹林里的慢生活" } }
+      }
+    },
+    "horizontal.explore.destination.city.location" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "شنغهاي" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Shanghai" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "上海" } }
+      }
+    },
+    "horizontal.explore.destination.city.price" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "٤٧٠ ر.س." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "$128" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "¥899" } }
+      }
+    },
+    "horizontal.explore.destination.city.summary" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "معارض صغيرة ومقاهٍ محلية وممشى ليلي على ضفة النهر." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Independent galleries, neighborhood cafés, and a riverside night walk." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "逛独立展览和街区咖啡馆，夜晚沿江散步看城市灯光。" } }
+      }
+    },
+    "horizontal.explore.destination.city.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "جولة الفن في المدينة" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The City Art Walk" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "城市艺术漫游" } }
+      }
+    },
+    "horizontal.explore.destination.coast.location" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "نينغبو · تشجيانغ" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ningbo · Zhejiang" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "宁波 · 浙江" } }
+      }
+    },
+    "horizontal.explore.destination.coast.price" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "٥٩٠ ر.س." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "$160" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "¥1,080" } }
+      }
+    },
+    "horizontal.explore.destination.coast.summary" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "شروق فوق البحر ومأكولات محلية وظهيرة بلا جدول مزدحم." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "A sea-view sunrise, local seafood, and an afternoon with no agenda." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "看一次海上日出，吃本地海鲜，把下午留给没有安排的海风。" } }
+      }
+    },
+    "horizontal.explore.destination.coast.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "استراحة على الساحل" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "A Coastal Reset" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "去海边重新充电" } }
+      }
+    },
+    "horizontal.explore.destination.garden.location" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "سوتشو · جيانغسو" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Suzhou · Jiangsu" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "苏州 · 江苏" } }
+      }
+    },
+    "horizontal.explore.destination.garden.price" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "٤٤٠ ر.س." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "$120" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "¥820" } }
+      }
+    },
+    "horizontal.explore.destination.garden.summary" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "حدائق كلاسيكية وقنوات هادئة وفطور في حي قديم." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Classical gardens, quiet canals, and breakfast in an old neighborhood." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "清早逛园林，午后沿河慢走，再去老街吃一顿苏式早餐。" } }
+      }
+    },
+    "horizontal.explore.destination.garden.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "القنوات والحدائق" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Canals & Gardens" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "园林与水巷之间" } }
+      }
+    },
+    "horizontal.explore.destination.lakeside.location" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "هانغتشو · تشجيانغ" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Hangzhou · Zhejiang" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "杭州 · 浙江" } }
+      }
+    },
+    "horizontal.explore.destination.lakeside.price" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "٤٣٠ ر.س." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "$118" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "¥860" } }
+      }
+    },
+    "horizontal.explore.destination.lakeside.summary" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "دراجة عند الفجر وشاي قرب الماء وعشاء في زقاق هادئ." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "A sunrise ride, tea by the water, and dinner down a quiet lane." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "清晨骑行看湖光，午后临水喝茶，晚上去小巷里吃杭帮菜。" } }
+      }
+    },
+    "horizontal.explore.destination.lakeside.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "عطلة هادئة بجوار البحيرة" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "A Slow Weekend by West Lake" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "西湖边的慢周末" } }
+      }
+    },
+    "horizontal.explore.eyebrow" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "اختيارات نهاية الأسبوع" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "WEEKEND PICKS" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "周末精选" } }
+      }
+    },
+    "horizontal.explore.headline" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "رحلة قصيرة من دون عناء التخطيط" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "A short trip, without the planning stress" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "两天时间，也能好好出发" } }
+      }
+    },
+    "horizontal.explore.hint" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "مرر لاكتشاف الوجهات" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Swipe to explore destinations" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "左右滑动，发现更多目的地" } }
+      }
+    },
+    "horizontal.explore.page" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "%1$lld من %2$lld" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%1$lld of %2$lld" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%1$lld / %2$lld" } }
+      }
+    },
+    "horizontal.explore.priceCaption" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "للشخص، ابتداءً من" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Per person from" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "人均起" } }
+      }
+    },
+    "horizontal.explore.subtitle" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "خطط خفيفة ومنسقة بعناية لرحلات قريبة تستغرق يومين." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Thoughtful two-day escapes, curated close to home." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "从附近出发，用一份轻量行程重新找回周末。" } }
+      }
+    },
+    "horizontal.explore.tag" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "رحلة ليومين" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "2-day escape" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "2 日行程" } }
       }
     },
     "demo.horizontalScroll.title" : {

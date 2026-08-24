@@ -4,8 +4,223 @@ import UIKit
 @testable import QuickLayoutKitCore
 @testable import QuickLayoutKitUIKit
 
-@Suite
+// UIKit layout probes initialize process-wide screen metrics. Running those
+// probes concurrently can deadlock Swift Testing when one worker initializes
+// UIScreen-backed state while a MainActor test waits on the same static once.
+@Suite(.serialized)
 struct QuickLayoutKitTests {
+
+    @MainActor
+    @Test func quickLayoutButtonMeasuresAndLaysOutExternalLabelUI() {
+        let iconView = UIImageView(
+            image: UIImage(systemName: "checkmark")
+        )
+        let titleLabel = UILabel()
+        titleLabel.text = "Save changes"
+        titleLabel.font = .preferredFont(forTextStyle: .body)
+        let backgroundView = UIView()
+
+        let button = QuickLayoutButton(action: {}) {
+            HStack(spacing: 8) {
+                iconView
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 18, height: 18)
+                titleLabel
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background { backgroundView }
+        }
+
+        let size = button.sizeThatFits(
+            CGSize(
+                width: 320,
+                height: CGFloat.greatestFiniteMagnitude
+            )
+        )
+        button.frame = CGRect(origin: .zero, size: size)
+        button.setNeedsLayout()
+        button.layoutIfNeeded()
+
+        #expect(size.width > titleLabel.intrinsicContentSize.width)
+        #expect(size.height >= titleLabel.intrinsicContentSize.height + 24)
+        #expect(iconView.frame.width == 18)
+        #expect(titleLabel.frame.minX > iconView.frame.maxX)
+        #expect(backgroundView.frame == button.bounds)
+        #expect(button.hitTest(titleLabel.center, with: nil) === button)
+        #expect(button.isAccessibilityElement)
+        #expect(button.accessibilityTraits.contains(.button))
+    }
+
+    @MainActor
+    @Test func quickLayoutButtonSupportsBodyOverride() {
+        let button = QuickLayoutButtonBodyProbe()
+        let size = button.sizeThatFits(
+            CGSize(
+                width: 240,
+                height: CGFloat.greatestFiniteMagnitude
+            )
+        )
+        button.frame = CGRect(origin: .zero, size: size)
+        button.layoutIfNeeded()
+
+        #expect(size.width >= button.titleLabel.intrinsicContentSize.width + 32)
+        #expect(size.height >= button.titleLabel.intrinsicContentSize.height + 20)
+        #expect(button.titleLabel.superview === button)
+    }
+
+    @MainActor
+    @Test func quickLayoutButtonPerformsPrimaryActionAndHonorsDisabledState() {
+        let titleLabel = UILabel()
+        titleLabel.text = "Continue"
+        var actionCount = 0
+        let button = QuickLayoutButton {
+            actionCount += 1
+        } label: {
+            titleLabel.padding(.all, 12)
+        }
+
+        button.performAction()
+        #expect(actionCount == 1)
+
+        button.isEnabled = false
+        button.performAction()
+        #expect(actionCount == 1)
+        #expect(button.accessibilityTraits.contains(.notEnabled))
+        #expect(!button.accessibilityActivate())
+
+        button.isEnabled = true
+        #expect(!button.accessibilityTraits.contains(.notEnabled))
+        #expect(button.accessibilityActivate())
+        #expect(actionCount == 2)
+    }
+
+    @MainActor
+    @Test func quickLayoutButtonPublishesStateWithoutApplyingVisualStyle() {
+        let titleLabel = UILabel()
+        titleLabel.text = "Delete"
+        let button = QuickLayoutButton(
+            role: .destructive,
+            action: {}
+        ) {
+            titleLabel.padding(.all, 10)
+        }
+        var states: [QuickLayoutButtonState] = []
+        button.stateUpdateHandler = { states.append($0) }
+
+        button.isHighlighted = true
+        button.isHighlighted = true
+        button.isHighlighted = false
+        button.isSelected = true
+        button.isEnabled = false
+
+        #expect(states.count == 5)
+        #expect(states[0].role == .destructive)
+        #expect(!states[0].isPressed)
+        #expect(states[1].isPressed)
+        #expect(!states[2].isPressed)
+        #expect(states[3].isSelected)
+        #expect(!states[4].isEnabled)
+        #expect(titleLabel.alpha == 1)
+        #expect(button.backgroundColor == nil)
+    }
+
+    @MainActor
+    @Test func quickLayoutButtonRestoresDirectionAfterReattachment() {
+        let first = UIView()
+        let second = UIView()
+        let button = QuickLayoutButton(action: {}) {
+            HStack(spacing: 8) {
+                first.frame(width: 20, height: 20)
+                second.frame(width: 20, height: 20)
+            }
+        }
+        button.quickLayoutSemanticDirectionBehavior =
+            .followEnclosingContainer
+
+        let container = UIView(
+            frame: CGRect(x: 0, y: 0, width: 120, height: 44)
+        )
+        container.semanticContentAttribute = .forceLeftToRight
+        container.addSubview(button)
+        button.frame = container.bounds
+        button.setNeedsLayout()
+        button.layoutIfNeeded()
+
+        #expect(button.semanticContentAttribute == .forceLeftToRight)
+        #expect(first.frame.minX < second.frame.minX)
+
+        button.removeFromSuperview()
+        container.semanticContentAttribute = .forceRightToLeft
+        container.addSubview(button)
+        _ = button.sizeThatFits(container.bounds.size)
+        button.setNeedsLayout()
+        button.layoutIfNeeded()
+
+        #expect(button.semanticContentAttribute == .forceRightToLeft)
+        #expect(first.frame.minX > second.frame.minX)
+    }
+
+    @MainActor
+    @Test func scrollViewFillsItsProposedViewportByDefault() {
+        let scrollView = QuickLayoutScrollView()
+        let element = ScrollView(scrollView) {}
+        let frame = CGRect(x: 0, y: 0, width: 844, height: 390)
+        let safeAreaInsets = UIEdgeInsets(
+            top: 0,
+            left: 59,
+            bottom: 21,
+            right: 47
+        )
+
+        withPhysicalSafeArea(
+            containerSize: frame.size,
+            containerInsets: safeAreaInsets
+        ) {
+            element.applyFrame(
+                frame,
+                alignment: .center,
+                layoutDirection: .leftToRight
+            )
+        }
+
+        #expect(scrollView.frame == frame)
+    }
+
+    @MainActor
+    @Test func nestedScrollViewFillsItsParentsViewport() {
+        let outerScrollView = QuickLayoutScrollView()
+        let innerScrollView = QuickLayoutScrollView(.horizontal)
+        let element = ScrollView(outerScrollView) {
+            ScrollView(innerScrollView, .horizontal) {
+                UIView().frame(width: 300, height: 80)
+            }
+            .frame(height: 80)
+        }
+        let frame = CGRect(x: 0, y: 0, width: 200, height: 100)
+
+        withPhysicalSafeArea(
+            containerSize: frame.size,
+            containerInsets: UIEdgeInsets(
+                top: 0,
+                left: 20,
+                bottom: 0,
+                right: 20
+            )
+        ) {
+            element.applyFrame(
+                frame,
+                alignment: .center,
+                layoutDirection: .leftToRight
+            )
+        }
+        outerScrollView.layoutIfNeeded()
+        innerScrollView.layoutIfNeeded()
+
+        #expect(outerScrollView.frame == frame)
+        #expect(innerScrollView.frame.width == outerScrollView.bounds.width)
+    }
 
     @MainActor
     @Test func collectionCellDefaultsToBodyContent() {
@@ -425,6 +640,54 @@ struct QuickLayoutKitTests {
     }
 
     @MainActor
+    @Test func horizontalScrollViewUsesItsContentsNaturalHeight() {
+        let scrollView = QuickLayoutScrollView(.horizontal)
+        scrollView.contentInsetAdjustmentBehavior = .never
+        let shortView = UIView().frame(width: 120, height: 44)
+        let tallView = UIView().frame(width: 120, height: 86)
+        let element = ScrollView(scrollView, .horizontal) {
+            HStack(alignment: .top, spacing: 12) {
+                shortView
+                tallView
+            }
+        }
+
+        let size = element.sizeThatFits(
+            CGSize(width: 300, height: CGFloat.infinity)
+        )
+
+        #expect(size == CGSize(width: 300, height: 86))
+        #expect(element.quick_flexibility(for: .horizontal) == .fullyFlexible)
+        #expect(element.quick_flexibility(for: .vertical) == .fixedSize)
+    }
+
+    @MainActor
+    @Test func quickLayoutViewSupportsExplicitAxisFlexibility() {
+        let hostedView = QuickLayoutView {
+            UIView()
+                .resizable(axis: .horizontal)
+                .frame(height: 44)
+        }
+
+        #expect(hostedView.quickLayoutHorizontalFlexibility == nil)
+        #expect(hostedView.quickLayoutVerticalFlexibility == nil)
+        #expect(hostedView.quick_flexibility(for: .horizontal) == .fullyFlexible)
+        #expect(hostedView.quick_flexibility(for: .vertical) == .fixedSize)
+
+        hostedView.quickLayoutHorizontalFlexibility = .fixedSize
+        hostedView.quickLayoutVerticalFlexibility = .fullyFlexible
+
+        #expect(hostedView.quick_flexibility(for: .horizontal) == .fixedSize)
+        #expect(hostedView.quick_flexibility(for: .vertical) == .fullyFlexible)
+
+        hostedView.quickLayoutHorizontalFlexibility = nil
+        hostedView.quickLayoutVerticalFlexibility = nil
+
+        #expect(hostedView.quick_flexibility(for: .horizontal) == .fullyFlexible)
+        #expect(hostedView.quick_flexibility(for: .vertical) == .fixedSize)
+    }
+
+    @MainActor
     @Test func contentMarginsReduceTheScrollViewsCrossAxisProposal() {
         let scrollView = QuickLayoutScrollView(.vertical)
         scrollView.contentInsetAdjustmentBehavior = .never
@@ -442,6 +705,166 @@ struct QuickLayoutKitTests {
 
         #expect(content.bounds.width == 260)
         #expect(scrollView.contentSize.width == 260)
+    }
+
+    @MainActor
+    @Test func contentMarginsAddToTheResolvedSafeArea() {
+        let scrollView = AdjustedContentInsetQuickLayoutScrollView(
+            safeAreaInsets: UIEdgeInsets(
+                top: 62,
+                left: 0,
+                bottom: 34,
+                right: 0
+            )
+        )
+        scrollView.axis = .vertical
+        scrollView.frame = CGRect(x: 0, y: 0, width: 300, height: 200)
+
+        _ = ScrollView(scrollView, .vertical) {
+            UIView().frame(width: 300, height: 400)
+        }
+        .contentMargins(.vertical, 20, for: .scrollContent)
+
+        scrollView.layoutIfNeeded()
+
+        #expect(
+            scrollView.contentInset
+                == UIEdgeInsets(top: 20, left: 0, bottom: 20, right: 0)
+        )
+        #expect(
+            scrollView.adjustedContentInset
+                == UIEdgeInsets(top: 82, left: 0, bottom: 54, right: 0)
+        )
+        #expect(scrollView.contentOffset.y == -82)
+    }
+
+    @MainActor
+    @Test func contentMarginsSupplySafeAreaWhenUIKitAdjustmentIsDisabled() {
+        let scrollView = SafeAreaContentMarginQuickLayoutScrollView(
+            safeAreaInsets: UIEdgeInsets(
+                top: 0,
+                left: 40,
+                bottom: 0,
+                right: 50
+            )
+        )
+        scrollView.axis = .horizontal
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.frame = CGRect(x: 0, y: 0, width: 300, height: 100)
+        let card = UIView()
+
+        _ = ScrollView(scrollView, .horizontal) {
+            HStack(spacing: 0) {
+                card
+                    .resizable()
+                    .containerRelativeFrame(.horizontal)
+                    .frame(height: 40)
+                UIView().frame(width: 300, height: 40)
+            }
+        }
+        .contentMargins(.horizontal, 20, for: .scrollContent)
+
+        scrollView.layoutIfNeeded()
+
+        #expect(
+            scrollView.contentInset
+                == UIEdgeInsets(top: 0, left: 60, bottom: 0, right: 70)
+        )
+        #expect(card.bounds.width == 170)
+        #expect(scrollView.contentOffset.x == -60)
+
+        scrollView.updateSafeAreaInsets(
+            UIEdgeInsets(top: 0, left: 24, bottom: 0, right: 30)
+        )
+        scrollView.layoutIfNeeded()
+
+        #expect(
+            scrollView.contentInset
+                == UIEdgeInsets(top: 0, left: 44, bottom: 0, right: 50)
+        )
+        #expect(card.bounds.width == 206)
+        #expect(scrollView.contentOffset.x == -44)
+
+        scrollView.contentOffset.x = 80
+        scrollView.updateSafeAreaInsets(
+            UIEdgeInsets(top: 0, left: 12, bottom: 0, right: 18)
+        )
+        scrollView.layoutIfNeeded()
+
+        #expect(scrollView.contentOffset.x == 80)
+    }
+
+    @MainActor
+    @Test func scrollContentReceivesSafeAreaMissingFromAdjustedInsets() {
+        let scrollView = SafeAreaContentMarginQuickLayoutScrollView(
+            safeAreaInsets: UIEdgeInsets(
+                top: 0,
+                left: 40,
+                bottom: 0,
+                right: 50
+            )
+        )
+        scrollView.axis = .vertical
+        scrollView.frame = CGRect(x: 0, y: 0, width: 300, height: 100)
+        let content = UIView()
+
+        _ = ScrollView(scrollView) {
+            content
+                .frame(maxWidth: .infinity)
+                .frame(height: 40)
+                .safeAreaPadding(.horizontal, 20)
+        }
+
+        scrollView.layoutIfNeeded()
+
+        #expect(scrollView.frame.width == 300)
+        #expect(content.frame.minX == 60)
+        #expect(content.frame.maxX == 230)
+    }
+
+    @MainActor
+    @Test func contentMarginsFollowRuntimeSafeAreaChanges() {
+        let scrollView = AdjustedContentInsetQuickLayoutScrollView(
+            safeAreaInsets: UIEdgeInsets(
+                top: 62,
+                left: 0,
+                bottom: 34,
+                right: 0
+            )
+        )
+        scrollView.axis = .vertical
+        scrollView.frame = CGRect(x: 0, y: 0, width: 300, height: 200)
+
+        _ = ScrollView(scrollView, .vertical) {
+            UIView().frame(width: 300, height: 400)
+        }
+        .contentMargins(.vertical, 20, for: .scrollContent)
+
+        scrollView.layoutIfNeeded()
+        #expect(scrollView.contentOffset.y == -82)
+
+        scrollView.updateSafeAreaInsets(
+            UIEdgeInsets(top: 44, left: 0, bottom: 21, right: 0)
+        )
+        scrollView.layoutIfNeeded()
+
+        #expect(
+            scrollView.adjustedContentInset
+                == UIEdgeInsets(top: 64, left: 0, bottom: 41, right: 0)
+        )
+        #expect(scrollView.contentOffset.y == -64)
+
+        scrollView.contentOffset.y = 80
+        scrollView.updateSafeAreaInsets(
+            UIEdgeInsets(top: 30, left: 0, bottom: 12, right: 0)
+        )
+        scrollView.layoutIfNeeded()
+
+        #expect(
+            scrollView.adjustedContentInset
+                == UIEdgeInsets(top: 50, left: 0, bottom: 32, right: 0)
+        )
+        #expect(scrollView.contentOffset.y == 80)
     }
 
     @MainActor
@@ -639,6 +1062,369 @@ struct QuickLayoutKitTests {
 
         #expect(hostingView.child.frame == leftToRightFrame)
         #expect(hostingView.child.superview === hostingView)
+    }
+
+    @MainActor
+    @Test func quickLayoutViewPublishesContainerSizeOnlyWhenBoundsChange() {
+        let hostingView = DirectionRecordingQuickLayoutView()
+        hostingView.frame = CGRect(x: 0, y: 0, width: 100, height: 40)
+        hostingView.layoutIfNeeded()
+
+        let initialCount = hostingView.environmentChangeReasons.count
+        hostingView.frame.size = CGSize(width: 120, height: 40)
+        hostingView.setNeedsLayout()
+        hostingView.layoutIfNeeded()
+
+        #expect(
+            hostingView.environmentChangeReasons.count == initialCount + 1
+        )
+        #expect(
+            hostingView.environmentChangeReasons.last?
+                .contains(.containerSize) == true
+        )
+        #expect(hostingView.quickLayoutEnvironment.containerSize == hostingView.bounds.size)
+
+        let changedCount = hostingView.environmentChangeReasons.count
+        hostingView.setNeedsLayout()
+        hostingView.layoutIfNeeded()
+        #expect(hostingView.environmentChangeReasons.count == changedCount)
+    }
+
+    @MainActor
+    @Test func traitCallbackAlwaysPublishesGenericInvalidationOnce() {
+        let hostingView = DirectionRecordingQuickLayoutView()
+        hostingView.frame = CGRect(x: 0, y: 0, width: 100, height: 40)
+        hostingView.layoutIfNeeded()
+        let initialCount = hostingView.environmentChangeReasons.count
+
+        hostingView.traitCollectionDidChange(hostingView.traitCollection)
+
+        #expect(
+            hostingView.environmentChangeReasons.count == initialCount + 1
+        )
+        #expect(
+            hostingView.environmentChangeReasons.last == [.traitCollection]
+        )
+    }
+
+    @MainActor
+    @Test func standaloneHostsPreserveLocalSemanticDirectionByDefault() {
+        let container = UIView()
+        container.semanticContentAttribute = .forceRightToLeft
+        let hostingView = QuickLayoutView()
+        let scrollView = QuickLayoutScrollView()
+        hostingView.semanticContentAttribute = .forceLeftToRight
+        scrollView.semanticContentAttribute = .playback
+        container.addSubview(hostingView)
+        container.addSubview(scrollView)
+
+        let viewController = UIViewController()
+        viewController.view = container
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 200, height: 100))
+        window.rootViewController = viewController
+        window.isHidden = false
+        defer { window.isHidden = true }
+
+        #expect(hostingView.semanticContentAttribute == .forceLeftToRight)
+        #expect(scrollView.semanticContentAttribute == .playback)
+    }
+
+    @MainActor
+    @Test func detachedHostsRecoverLatestContainerDirectionWhenReattached() {
+        let pair = (UIView(), UIView())
+        let hostingView = DirectionRecordingQuickLayoutView()
+        hostingView.quickLayoutSemanticDirectionBehavior =
+            .followEnclosingContainer
+        let scrollView = QuickLayoutScrollView(.horizontal) {
+            pair.0.frame(width: 60, height: 20)
+            pair.1.frame(width: 60, height: 20)
+        }
+        scrollView.quickLayoutSemanticDirectionBehavior =
+            .followEnclosingContainer
+
+        let container = UIView(
+            frame: CGRect(x: 0, y: 0, width: 240, height: 120)
+        )
+        container.semanticContentAttribute = .forceLeftToRight
+        hostingView.frame = CGRect(x: 0, y: 0, width: 100, height: 40)
+        scrollView.frame = CGRect(x: 0, y: 50, width: 100, height: 40)
+        container.addSubview(hostingView)
+        container.addSubview(scrollView)
+
+        let viewController = UIViewController()
+        viewController.view = container
+        let window = UIWindow(frame: container.bounds)
+        window.rootViewController = viewController
+        window.isHidden = false
+        defer { window.isHidden = true }
+        window.layoutIfNeeded()
+
+        #expect(hostingView.effectiveUserInterfaceLayoutDirection == .leftToRight)
+        #expect(scrollView.effectiveUserInterfaceLayoutDirection == .leftToRight)
+
+        hostingView.removeFromSuperview()
+        scrollView.removeFromSuperview()
+        container.semanticContentAttribute = .forceRightToLeft
+        // Detached hosts intentionally keep their last state until an owner
+        // measures them or an attachment hook supplies a current container.
+        #expect(hostingView.semanticContentAttribute == .forceLeftToRight)
+        #expect(scrollView.semanticContentAttribute == .forceLeftToRight)
+
+        let viewDirectionChangeCount = hostingView.environmentChangeReasons.count
+        container.addSubview(hostingView)
+        container.addSubview(scrollView)
+        window.layoutIfNeeded()
+
+        #expect(hostingView.semanticContentAttribute == .forceRightToLeft)
+        #expect(scrollView.semanticContentAttribute == .forceRightToLeft)
+        #expect(hostingView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(scrollView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(
+            hostingView.environmentChangeReasons.count
+                == viewDirectionChangeCount + 1
+        )
+        #expect(
+            hostingView.environmentChangeReasons.last?
+                .contains(.layoutDirection) == true
+        )
+    }
+
+    @MainActor
+    @Test func offWindowHostResolvesDirectionWhenContainerEntersWindow() {
+        let container = UIView(
+            frame: CGRect(x: 0, y: 0, width: 160, height: 80)
+        )
+        container.semanticContentAttribute = .forceRightToLeft
+        let hostingView = QuickLayoutView()
+        hostingView.quickLayoutSemanticDirectionBehavior =
+            .followEnclosingContainer
+        hostingView.semanticContentAttribute = .forceLeftToRight
+        container.addSubview(hostingView)
+
+        #expect(hostingView.window == nil)
+        #expect(hostingView.semanticContentAttribute == .forceLeftToRight)
+
+        let viewController = UIViewController()
+        viewController.view = container
+        let window = UIWindow(frame: container.bounds)
+        window.rootViewController = viewController
+        window.isHidden = false
+        defer { window.isHidden = true }
+
+        #expect(hostingView.window === window)
+        #expect(hostingView.semanticContentAttribute == .forceRightToLeft)
+        #expect(hostingView.quickLayoutEnvironment.layoutDirection == .rightToLeft)
+    }
+
+    @MainActor
+    @Test func offWindowHostsResolveContainerDirectionBeforeMeasurementAndLayout() {
+        let container = UIView(
+            frame: CGRect(x: 0, y: 0, width: 160, height: 120)
+        )
+        container.semanticContentAttribute = .forceRightToLeft
+
+        let hostingView = QuickLayoutView()
+        hostingView.quickLayoutSemanticDirectionBehavior =
+            .followEnclosingContainer
+        hostingView.semanticContentAttribute = .forceLeftToRight
+        container.addSubview(hostingView)
+
+        let scrollView = QuickLayoutScrollView(.vertical) {
+            UIView().frame(width: 40, height: 40)
+        }
+        scrollView.quickLayoutSemanticDirectionBehavior =
+            .followEnclosingContainer
+        scrollView.semanticContentAttribute = .forceLeftToRight
+        scrollView.frame = CGRect(x: 0, y: 40, width: 100, height: 80)
+        container.addSubview(scrollView)
+
+        #expect(container.window == nil)
+
+        _ = hostingView.sizeThatFits(CGSize(width: 100, height: 40))
+        scrollView.layoutIfNeeded()
+
+        #expect(hostingView.semanticContentAttribute == .forceRightToLeft)
+        #expect(
+            hostingView.quickLayoutEnvironment.layoutDirection == .rightToLeft
+        )
+        #expect(scrollView.semanticContentAttribute == .forceRightToLeft)
+        #expect(
+            scrollView.quickLayoutEnvironment.layoutDirection == .rightToLeft
+        )
+    }
+
+    @MainActor
+    @Test func contentViewAppliesSupportedConfigurationsImmediately() {
+        let contentView = ConfigurationProbeContentView(
+            configuration: ConfigurationProbe(value: "initial")
+        )
+
+        #expect(contentView.appliedValues == ["initial"])
+        #expect(contentView.label.text == "initial")
+
+        contentView.configuration = ConfigurationProbe(value: "updated")
+
+        #expect(contentView.appliedValues == ["initial", "updated"])
+        #expect(contentView.label.text == "updated")
+    }
+
+    @MainActor
+    @Test func contentViewsResolveEveryPublicReusableBoundary() {
+        let boundaries: [UIView] = [
+            UITableViewCell(style: .default, reuseIdentifier: nil),
+            UITableViewHeaderFooterView(reuseIdentifier: nil),
+            UICollectionViewCell(frame: .zero),
+            UICollectionReusableView(frame: .zero),
+        ]
+        let root = UIView(
+            frame: CGRect(x: 0, y: 0, width: 320, height: 480)
+        )
+        let viewController = UIViewController()
+        viewController.view = root
+        let window = UIWindow(frame: root.bounds)
+        window.rootViewController = viewController
+        window.isHidden = false
+        defer { window.isHidden = true }
+
+        for (index, boundary) in boundaries.enumerated() {
+            boundary.frame = CGRect(
+                x: 0,
+                y: CGFloat(index * 80),
+                width: 320,
+                height: 64
+            )
+            boundary.semanticContentAttribute = .forceRightToLeft
+            root.addSubview(boundary)
+
+            // Simulates a UIKit-owned configuration host that retained an
+            // opposite direction. The content must resolve the public owner,
+            // rather than treating this intermediate view as authoritative.
+            let intermediateHost = UIView(frame: boundary.bounds)
+            intermediateHost.semanticContentAttribute = .forceLeftToRight
+            addToReusableBoundary(intermediateHost, boundary: boundary)
+
+            let contentView = ConfigurationProbeContentView(
+                configuration: ConfigurationProbe(value: "\(index)")
+            )
+            contentView.frame = intermediateHost.bounds
+            intermediateHost.addSubview(contentView)
+            contentView.setNeedsLayout()
+            contentView.layoutIfNeeded()
+
+            #expect(
+                contentView.semanticContentAttribute == .forceRightToLeft
+            )
+            #expect(
+                contentView.quickLayoutEnvironment.layoutDirection
+                    == .rightToLeft
+            )
+        }
+    }
+
+    @MainActor
+    @Test func contentConfigurationSynchronizesDirectionBeforeBusinessContent() {
+        let cell = UICollectionViewCell(
+            frame: CGRect(x: 0, y: 0, width: 240, height: 60)
+        )
+        cell.semanticContentAttribute = .forceLeftToRight
+        let intermediateHost = UIView(frame: cell.contentView.bounds)
+        intermediateHost.semanticContentAttribute = .forceLeftToRight
+        cell.contentView.addSubview(intermediateHost)
+        let contentView = ConfigurationProbeContentView(
+            configuration: ConfigurationProbe(value: "ltr")
+        )
+        contentView.frame = intermediateHost.bounds
+        intermediateHost.addSubview(contentView)
+
+        let viewController = UIViewController()
+        viewController.view.addSubview(cell)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 240, height: 80))
+        window.rootViewController = viewController
+        window.isHidden = false
+        defer { window.isHidden = true }
+        window.layoutIfNeeded()
+
+        let initialDirectionChangeCount = contentView
+            .environmentChangeReasons
+            .filter { $0.contains(.layoutDirection) }
+            .count
+        cell.semanticContentAttribute = .forceRightToLeft
+        contentView.configuration = ConfigurationProbe(value: "rtl")
+
+        #expect(contentView.appliedValues.last == "rtl")
+        #expect(contentView.appliedDirections.last == .rightToLeft)
+        #expect(
+            contentView.environmentChangeReasons
+                .filter { $0.contains(.layoutDirection) }
+                .count == initialDirectionChangeCount + 1
+        )
+
+        cell.semanticContentAttribute = .forceLeftToRight
+        contentView.configuration = ConfigurationProbe(value: "restored")
+
+        #expect(contentView.appliedDirections.last == .leftToRight)
+        #expect(
+            contentView.semanticContentAttribute == .forceLeftToRight
+        )
+    }
+
+    @MainActor
+    @Test func contentViewsRecoverAfterDetachAndCanPreserveFixedSemantics() {
+        let container = UIView(
+            frame: CGRect(x: 0, y: 0, width: 320, height: 160)
+        )
+        let cell = UITableViewCell(
+            style: .default,
+            reuseIdentifier: nil
+        )
+        cell.frame = CGRect(x: 0, y: 0, width: 320, height: 64)
+        cell.semanticContentAttribute = .forceRightToLeft
+        container.addSubview(cell)
+        let host = UIView(frame: cell.contentView.bounds)
+        cell.contentView.addSubview(host)
+        let contentView = ConfigurationProbeContentView(
+            configuration: ConfigurationProbe(value: "moving")
+        )
+        contentView.frame = host.bounds
+        host.addSubview(contentView)
+
+        let viewController = UIViewController()
+        viewController.view = container
+        let window = UIWindow(frame: container.bounds)
+        window.rootViewController = viewController
+        window.isHidden = false
+        defer { window.isHidden = true }
+        window.layoutIfNeeded()
+        contentView.layoutIfNeeded()
+
+        #expect(contentView.semanticContentAttribute == .forceRightToLeft)
+
+        contentView.removeFromSuperview()
+        cell.semanticContentAttribute = .forceLeftToRight
+        #expect(contentView.semanticContentAttribute == .forceRightToLeft)
+
+        host.addSubview(contentView)
+        contentView.layoutIfNeeded()
+        #expect(contentView.semanticContentAttribute == .forceLeftToRight)
+
+        cell.removeFromSuperview()
+        cell.semanticContentAttribute = .forceRightToLeft
+        #expect(contentView.window == nil)
+        #expect(contentView.semanticContentAttribute == .forceLeftToRight)
+
+        _ = contentView.sizeThatFits(
+            CGSize(width: 320, height: CGFloat.greatestFiniteMagnitude)
+        )
+        #expect(contentView.semanticContentAttribute == .forceRightToLeft)
+
+        contentView.quickLayoutSemanticDirectionBehavior = .preserve
+        contentView.semanticContentAttribute = .playback
+        cell.semanticContentAttribute = .forceRightToLeft
+        contentView.configuration = ConfigurationProbe(value: "fixed")
+        contentView.setNeedsLayout()
+        contentView.layoutIfNeeded()
+
+        #expect(contentView.semanticContentAttribute == .playback)
     }
 
     @MainActor
@@ -973,7 +1759,7 @@ struct QuickLayoutKitTests {
         let expected = UIEdgeInsets(top: 12, left: 0, bottom: 12, right: 0)
         #expect(scrollView.contentInset == .zero)
         #expect(scrollView.verticalScrollIndicatorInsets == expected)
-        #expect(scrollView.horizontalScrollIndicatorInsets == expected)
+        #expect(scrollView.horizontalScrollIndicatorInsets == .zero)
     }
 
     @MainActor
@@ -986,6 +1772,70 @@ struct QuickLayoutKitTests {
         let expected = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
         #expect(scrollView.contentInset == expected)
         #expect(scrollView.verticalScrollIndicatorInsets == expected)
+        #expect(scrollView.horizontalScrollIndicatorInsets == .zero)
+    }
+
+    @MainActor
+    @Test func nilContentMarginPreservesAnEarlierMargin() {
+        let scrollView = QuickLayoutScrollView(.horizontal)
+
+        _ = ScrollView(scrollView, .horizontal) {}
+            .contentMargins(.horizontal, 20, for: .scrollContent)
+            .contentMargins(.leading, nil, for: .scrollContent)
+
+        #expect(scrollView.contentInset.left == 20)
+        #expect(scrollView.contentInset.right == 20)
+    }
+
+    @MainActor
+    @Test func nilContentMarginUsesTheContainersExistingDefault() {
+        let scrollView = QuickLayoutScrollView(.horizontal)
+        scrollView.contentInset = UIEdgeInsets(
+            top: 0,
+            left: 7,
+            bottom: 0,
+            right: 9
+        )
+
+        _ = ScrollView(scrollView, .horizontal) {}
+            .contentMargins(.horizontal, nil, for: .scrollContent)
+
+        #expect(scrollView.contentInset.left == 7)
+        #expect(scrollView.contentInset.right == 9)
+    }
+
+    @MainActor
+    @Test func contentMarginsPreserveFiniteNegativeValues() {
+        let scrollView = QuickLayoutScrollView(.horizontal)
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.frame = CGRect(x: 0, y: 0, width: 100, height: 80)
+
+        _ = ScrollView(scrollView, .horizontal) {
+            UIView().frame(width: 200, height: 40)
+        }
+        .contentMargins(.horizontal, -20, for: .scrollContent)
+
+        scrollView.layoutIfNeeded()
+
+        #expect(scrollView.contentInset.left == -20)
+        #expect(scrollView.contentInset.right == -20)
+        #expect(scrollView.contentOffset.x == 20)
+    }
+
+    @MainActor
+    @Test func contentMarginsFollowTheActiveScrollIndicatorAxis() {
+        let scrollView = QuickLayoutScrollView(.vertical)
+
+        _ = ScrollView(scrollView, .vertical) {}
+            .contentMargins(.vertical, 12, for: .scrollIndicators)
+
+        let expected = UIEdgeInsets(top: 12, left: 0, bottom: 12, right: 0)
+        #expect(scrollView.verticalScrollIndicatorInsets == expected)
+        #expect(scrollView.horizontalScrollIndicatorInsets == .zero)
+
+        scrollView.axis = .horizontal
+
+        #expect(scrollView.verticalScrollIndicatorInsets == .zero)
         #expect(scrollView.horizontalScrollIndicatorInsets == expected)
     }
 
@@ -1240,14 +2090,85 @@ struct QuickLayoutKitTests {
         #expect(view.quickLayoutLayoutMargins.trailing == 13)
     }
 
-    @Test func safeAreaPaddingUsesDefaultSpacing() {
-        let element = IntrinsicTestElement(size: CGSize(width: 20, height: 30))
+    @Test func safeAreaPaddingNilUsesQuickLayoutZeroSpacing() {
+        let intrinsicSize = CGSize(width: 20, height: 30)
+        let proposal = CGSize(width: 200, height: 100)
+        let implicitNil = IntrinsicTestElement(size: intrinsicSize)
             .safeAreaPadding()
+        let explicitNil = IntrinsicTestElement(size: intrinsicSize)
+            .safeAreaPadding(.all, nil)
+        let explicitZero = IntrinsicTestElement(size: intrinsicSize)
+            .safeAreaPadding(.all, 0)
 
-        #expect(
+        #expect(implicitNil.sizeThatFits(proposal) == intrinsicSize)
+        #expect(explicitNil.sizeThatFits(proposal) == intrinsicSize)
+        #expect(explicitZero.sizeThatFits(proposal) == intrinsicSize)
+
+        let sizesWithSafeArea = withSafeArea(
+            containerSize: proposal,
+            containerInsets: EdgeInsets(
+                top: 20,
+                leading: 10,
+                bottom: 5,
+                trailing: 15
+            )
+        ) {
+            (
+                implicitNil.sizeThatFits(proposal),
+                explicitNil.sizeThatFits(proposal),
+                explicitZero.sizeThatFits(proposal)
+            )
+        }
+
+        #expect(sizesWithSafeArea.0 == CGSize(width: 45, height: 55))
+        #expect(sizesWithSafeArea.1 == sizesWithSafeArea.0)
+        #expect(sizesWithSafeArea.2 == sizesWithSafeArea.0)
+    }
+
+    @Test func safeAreaPaddingReevaluatesContainerAndKeyboardContext() {
+        let element = IntrinsicTestElement(
+            size: CGSize(width: 20, height: 30)
+        ).safeAreaPadding()
+
+        let first = withSafeArea(
+            containerSize: CGSize(width: 200, height: 100),
+            containerInsets: EdgeInsets(
+                top: 1,
+                leading: 2,
+                bottom: 3,
+                trailing: 4
+            )
+        ) {
             element.sizeThatFits(CGSize(width: 200, height: 100))
-                == CGSize(width: 52, height: 62)
-        )
+        }
+        let second = withSafeArea(
+            containerSize: CGSize(width: 240, height: 120),
+            containerInsets: EdgeInsets(
+                top: 10,
+                leading: 0,
+                bottom: 5,
+                trailing: 7
+            ),
+            keyboardInsets: EdgeInsets(
+                top: 0,
+                leading: 9,
+                bottom: 40,
+                trailing: 0
+            )
+        ) {
+            element.sizeThatFits(CGSize(width: 240, height: 120))
+        }
+        let third = withSafeArea(
+            containerSize: CGSize(width: 120, height: 80),
+            containerInsets: .zero,
+            keyboardInsets: .zero
+        ) {
+            element.sizeThatFits(CGSize(width: 120, height: 80))
+        }
+
+        #expect(first == CGSize(width: 26, height: 34))
+        #expect(second == CGSize(width: 36, height: 80))
+        #expect(third == CGSize(width: 20, height: 30))
     }
 
     @Test func ignoresSafeAreaExpandsContainerRelativeFrame() {
@@ -1318,6 +2239,59 @@ struct QuickLayoutKitTests {
         }
 
         #expect(size == CGSize(width: 46, height: 30))
+    }
+
+    @Test func safeAreaInsetNilUsesQuickLayoutZeroSpacingOnBothAxes() {
+        let proposal = CGSize(width: 200, height: 100)
+        let insets = EdgeInsets(
+            top: 0,
+            leading: 10,
+            bottom: 10,
+            trailing: 0
+        )
+        let verticalNil = IntrinsicTestElement(
+            size: CGSize(width: 20, height: 30)
+        ).safeAreaInset(edge: .bottom, spacing: nil) {
+            IntrinsicTestElement(size: CGSize(width: 50, height: 12))
+        }
+        let verticalZero = IntrinsicTestElement(
+            size: CGSize(width: 20, height: 30)
+        ).safeAreaInset(edge: .bottom, spacing: 0) {
+            IntrinsicTestElement(size: CGSize(width: 50, height: 12))
+        }
+        let horizontalNil = IntrinsicTestElement(
+            size: CGSize(width: 20, height: 30)
+        ).safeAreaInset(
+            edge: HorizontalEdge.leading,
+            spacing: nil
+        ) {
+            IntrinsicTestElement(size: CGSize(width: 12, height: 50))
+        }
+        let horizontalZero = IntrinsicTestElement(
+            size: CGSize(width: 20, height: 30)
+        ).safeAreaInset(
+            edge: HorizontalEdge.leading,
+            spacing: 0
+        ) {
+            IntrinsicTestElement(size: CGSize(width: 12, height: 50))
+        }
+
+        let sizes = withSafeArea(
+            containerSize: proposal,
+            containerInsets: insets
+        ) {
+            (
+                verticalNil.sizeThatFits(proposal),
+                verticalZero.sizeThatFits(proposal),
+                horizontalNil.sizeThatFits(proposal),
+                horizontalZero.sizeThatFits(proposal)
+            )
+        }
+
+        #expect(sizes.0 == sizes.1)
+        #expect(sizes.2 == sizes.3)
+        #expect(sizes.0 == CGSize(width: 20, height: 52))
+        #expect(sizes.2 == CGSize(width: 42, height: 30))
     }
 
     @MainActor
@@ -2064,16 +3038,145 @@ struct QuickLayoutKitTests {
     @Test func zIndexControlsLayerAndCustomLayoutOrdering() {
         let high = IntrinsicTestView(size: CGSize(width: 20, height: 20))
         let low = IntrinsicTestView(size: CGSize(width: 20, height: 20))
+        let sanitized = IntrinsicTestView(size: CGSize(width: 20, height: 20))
         let layout = CenteredOverlayLayout() {
             high.zIndex(10)
             low.zIndex(-2)
+            sanitized.zIndex(.nan)
         }
 
         let views = layout.views()
 
-        #expect(views == [low, high])
+        #expect(views == [low, sanitized, high])
         #expect(low.layer.zPosition == -2)
+        #expect(sanitized.layer.zPosition == 0)
         #expect(high.layer.zPosition == 10)
+    }
+
+    @MainActor
+    @Test func hostedZIndexRestoresOriginalLayerStateAcrossBodyChanges() {
+        let host = ZIndexLifecycleQuickLayoutView()
+        host.frame = CGRect(x: 0, y: 0, width: 100, height: 40)
+        host.child.layer.zPosition = 3
+
+        host.zIndexMode = .single(10)
+        host.layoutIfNeeded()
+        #expect(host.child.layer.zPosition == 10)
+
+        host.zIndexMode = .none
+        host.setNeedsQuickLayout()
+        host.layoutIfNeeded()
+        #expect(host.child.layer.zPosition == 3)
+
+        host.zIndexMode = .nested(inner: -2, outer: 7)
+        host.setNeedsQuickLayout()
+        host.layoutIfNeeded()
+        #expect(host.child.layer.zPosition == 7)
+
+        host.zIndexMode = .none
+        host.setNeedsQuickLayout()
+        host.layoutIfNeeded()
+        #expect(host.child.layer.zPosition == 3)
+    }
+
+    @MainActor
+    @Test func hostedZIndexOwnershipTransfersWithoutLeakingItsOldValue() {
+        let child = UIView()
+        child.layer.zPosition = 4
+        var firstHostIncludesChild = true
+        let firstHost = QuickLayoutView {
+            if firstHostIncludesChild {
+                child.frame(width: 20, height: 10).zIndex(12)
+            }
+        }
+        firstHost.frame = CGRect(x: 0, y: 0, width: 100, height: 40)
+        firstHost.layoutIfNeeded()
+        #expect(child.layer.zPosition == 12)
+
+        let secondHost = QuickLayoutView {
+            child.frame(width: 20, height: 10).zIndex(-5)
+        }
+        secondHost.frame = firstHost.frame
+        secondHost.layoutIfNeeded()
+
+        #expect(child.superview === secondHost)
+        #expect(child.layer.zPosition == -5)
+
+        // The old host no longer owns the view and must not overwrite the new
+        // host's managed value during a later pass.
+        firstHostIncludesChild = false
+        firstHost.setNeedsQuickLayout()
+        firstHost.layoutIfNeeded()
+        #expect(child.layer.zPosition == -5)
+    }
+
+    @MainActor
+    @Test func scrollHostRestoresManagedZIndexWhenModifierIsRemoved() {
+        let child = UIView()
+        child.layer.zPosition = 6
+        let scrollView = QuickLayoutScrollView(.vertical)
+        scrollView.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
+
+        _ = ScrollView(scrollView, .vertical) {
+            child.frame(width: 20, height: 20).zIndex(11)
+        }
+        scrollView.layoutIfNeeded()
+        #expect(child.layer.zPosition == 11)
+
+        _ = ScrollView(scrollView, .vertical) {
+            child.frame(width: 20, height: 20)
+        }
+        scrollView.setNeedsQuickLayout()
+        scrollView.layoutIfNeeded()
+        #expect(child.layer.zPosition == 6)
+    }
+
+    @MainActor
+    @Test func reusableCellSizingRestoresManagedZIndexBetweenPasses() {
+        let child = IntrinsicTestView(size: CGSize(width: 20, height: 20))
+        child.layer.zPosition = 8
+        var appliesZIndex = true
+        let cell = QuickLayoutCollectionViewCell {
+            if appliesZIndex {
+                child.zIndex(14)
+            } else {
+                child
+            }
+        }
+
+        _ = cell.sizeThatFits(CGSize(width: 100, height: 40))
+        #expect(child.layer.zPosition == 14)
+
+        appliesZIndex = false
+        _ = cell.sizeThatFits(CGSize(width: 100, height: 40))
+        #expect(child.layer.zPosition == 8)
+    }
+
+    @MainActor
+    @Test func swiftUIInspiredOptionalAPISurfaceCompiles() {
+        let content = UIView()
+        let scrollView = QuickLayoutScrollView(.vertical)
+
+        _ = content.safeAreaPadding()
+        _ = content.safeAreaPadding(.horizontal, nil)
+        _ = content.safeAreaPadding(.all, 0)
+        _ = content.safeAreaPadding(
+            EdgeInsets(top: 1, leading: 2, bottom: 3, trailing: 4)
+        )
+        _ = content.safeAreaInset(edge: .bottom, spacing: nil) {
+            UIView()
+        }
+        _ = ScrollView(scrollView, .vertical) { content }
+            .contentMargins(.horizontal, nil, for: .scrollContent)
+        _ = content.frame(
+            minWidth: nil,
+            idealWidth: nil,
+            maxWidth: .infinity,
+            minHeight: nil,
+            idealHeight: nil,
+            maxHeight: nil
+        )
+        _ = ProposedSize(width: nil, height: nil)
     }
 }
 
@@ -2091,6 +3194,97 @@ private final class DirectionRecordingQuickLayoutView: QuickLayoutView {
             .frame(width: 20, height: 10)
             .frame(width: 88, height: 40, alignment: .topLeading)
             .padding(.leading, 12)
+    }
+
+    override func quickLayoutEnvironmentDidChange(
+        _ environment: QuickLayoutEnvironment,
+        reason: QuickLayoutEnvironmentChangeReason
+    ) {
+        environmentChangeReasons.append(reason)
+        super.quickLayoutEnvironmentDidChange(environment, reason: reason)
+    }
+}
+
+@MainActor
+private final class ZIndexLifecycleQuickLayoutView: QuickLayoutView {
+
+    enum Mode {
+        case none
+        case single(Double)
+        case nested(inner: Double, outer: Double)
+    }
+
+    let child = UIView()
+    var zIndexMode: Mode = .none
+
+    @LayoutBuilder
+    override var body: Layout {
+        switch zIndexMode {
+        case .none:
+            child.frame(width: 20, height: 10)
+        case .single(let value):
+            child.frame(width: 20, height: 10).zIndex(value)
+        case .nested(let inner, let outer):
+            child
+                .frame(width: 20, height: 10)
+                .zIndex(inner)
+                .zIndex(outer)
+        }
+    }
+}
+
+private struct ConfigurationProbe: UIContentConfiguration, Equatable {
+
+    let value: String
+
+    func makeContentView() -> UIView & UIContentView {
+        ConfigurationProbeContentView(configuration: self)
+    }
+
+    func updated(for state: UIConfigurationState) -> Self {
+        self
+    }
+}
+
+@MainActor
+private final class ConfigurationProbeContentView:
+    QuickLayoutContentView {
+
+    let label = UILabel()
+    private(set) var appliedValues: [String] = []
+    private(set) var appliedDirections: [
+        UIUserInterfaceLayoutDirection
+    ] = []
+    private(set) var environmentChangeReasons: [
+        QuickLayoutEnvironmentChangeReason
+    ] = []
+
+    @LayoutBuilder
+    override var body: Layout {
+        label
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 8)
+            .frame(minHeight: 44)
+    }
+
+    init(configuration: ConfigurationProbe) {
+        super.init(configuration: configuration)
+        applyCurrentContentConfiguration()
+    }
+
+    override func applyContentConfiguration(
+        _ configuration: UIContentConfiguration
+    ) {
+        guard let configuration = configuration as? ConfigurationProbe else {
+            assertionFailure(
+                "Unexpected content configuration: \(type(of: configuration))"
+            )
+            return
+        }
+        appliedValues.append(configuration.value)
+        appliedDirections.append(effectiveUserInterfaceLayoutDirection)
+        label.text = configuration.value
+        super.applyContentConfiguration(configuration)
     }
 
     override func quickLayoutEnvironmentDidChange(
@@ -2408,6 +3602,65 @@ private final class SafeAreaProbeView: UIView {
 }
 
 @MainActor
+private final class AdjustedContentInsetQuickLayoutScrollView:
+    QuickLayoutScrollView {
+
+    private var reportedSafeAreaInsets: UIEdgeInsets
+
+    init(safeAreaInsets: UIEdgeInsets) {
+        reportedSafeAreaInsets = safeAreaInsets
+        super.init(frame: .zero)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var safeAreaInsets: UIEdgeInsets {
+        reportedSafeAreaInsets
+    }
+
+    override var adjustedContentInset: UIEdgeInsets {
+        UIEdgeInsets(
+            top: contentInset.top + reportedSafeAreaInsets.top,
+            left: contentInset.left + reportedSafeAreaInsets.left,
+            bottom: contentInset.bottom + reportedSafeAreaInsets.bottom,
+            right: contentInset.right + reportedSafeAreaInsets.right
+        )
+    }
+
+    func updateSafeAreaInsets(_ insets: UIEdgeInsets) {
+        reportedSafeAreaInsets = insets
+        safeAreaInsetsDidChange()
+    }
+}
+
+@MainActor
+private final class SafeAreaContentMarginQuickLayoutScrollView:
+    QuickLayoutScrollView {
+
+    private var reportedSafeAreaInsets: UIEdgeInsets
+
+    init(safeAreaInsets: UIEdgeInsets) {
+        reportedSafeAreaInsets = safeAreaInsets
+        super.init(frame: .zero)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var safeAreaInsets: UIEdgeInsets {
+        reportedSafeAreaInsets
+    }
+
+    func updateSafeAreaInsets(_ insets: UIEdgeInsets) {
+        reportedSafeAreaInsets = insets
+        safeAreaInsetsDidChange()
+    }
+}
+
+@MainActor
 private final class CollectionCellBodyProbe: QuickLayoutCollectionViewCell {
 
     let bodyView = IntrinsicTestView(
@@ -2677,6 +3930,21 @@ private func applyTestLayoutDirection(
 }
 
 @MainActor
+private func addToReusableBoundary(
+    _ view: UIView,
+    boundary: UIView
+) {
+    switch boundary {
+    case let cell as UITableViewCell:
+        cell.contentView.addSubview(view)
+    case let headerFooter as UITableViewHeaderFooterView:
+        headerFooter.contentView.addSubview(view)
+    default:
+        boundary.addSubview(view)
+    }
+}
+
+@MainActor
 private final class TableHeaderFooterDataSource:
     NSObject,
     UITableViewDataSource,
@@ -2723,6 +3991,32 @@ private final class TableHeaderFooterDataSource:
         heightForHeaderInSection section: Int
     ) -> CGFloat {
         60
+    }
+}
+
+@MainActor
+private final class QuickLayoutButtonBodyProbe: QuickLayoutButton {
+
+    let titleLabel = UILabel()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        titleLabel.text = "Subclass label"
+    }
+
+    convenience init() {
+        self.init(frame: .zero)
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        titleLabel.text = "Subclass label"
+    }
+
+    override var body: Layout {
+        titleLabel
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
     }
 }
 

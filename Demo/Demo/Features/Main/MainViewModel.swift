@@ -20,6 +20,7 @@ final class MainViewModel {
         }
 
         struct Route: Equatable {
+            let id: String
             let route: DemoRoute
             let title: String
         }
@@ -128,6 +129,7 @@ final class MainViewModel {
                     title: localizer.text(definition.titleKey),
                     routes: definition.routes.map { route in
                         State.Route(
+                            id: route.titleKey,
                             route: route,
                             title: localizer.text(route.titleKey)
                         )

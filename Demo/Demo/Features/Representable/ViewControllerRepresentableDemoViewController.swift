@@ -64,7 +64,8 @@ final class ViewControllerRepresentableDemoViewController: DemoQuickLayoutHostin
             titleKey: "representable.preferredSize"
         )
         updateButtonTitle(resetButton, titleKey: "representable.reset")
-        (lazyChild.ifLoaded?.viewController as? LoggingChildViewController)?.reloadLocalizedContent()
+        (lazyChild.ifLoaded?.viewController as? LoggingChildViewController)?
+            .applyLocalization(DemoLocalization.currentUIKitUpdate)
         refreshStateLabel()
     }
 
@@ -227,12 +228,25 @@ private extension ViewControllerRepresentableDemoViewController {
         _ direction: UIUserInterfaceLayoutDirection,
         to host: QuickLayoutViewControllerRepresentable
     ) {
-        let attribute = direction.appLayoutDirection.semanticContentAttribute
-        host.semanticContentAttribute = attribute
-        if let updating = host.viewController as? UserInterfaceLayoutDirectionUpdating {
-            updating.reloadLayoutDirection(direction)
+        let update = DemoLocalization.layoutDirectionUpdate(direction)
+        UIViewLayoutDirectionUpdater.apply(
+            update,
+            to: [UIViewLayoutDirectionTarget(host, policy: .followApplication)]
+        )
+        if let applying = host.viewController as? UIKitLocalizationApplying {
+            applying.applyLocalization(update)
         } else {
-            host.viewController?.viewIfLoaded?.semanticContentAttribute = attribute
+            if let childView = host.viewController?.viewIfLoaded {
+                UIViewLayoutDirectionUpdater.apply(
+                    update,
+                    to: [
+                        UIViewLayoutDirectionTarget(
+                            childView,
+                            policy: .followApplication
+                        )
+                    ]
+                )
+            }
         }
         host.setNeedsQuickLayout()
     }
@@ -332,7 +346,7 @@ private extension ViewControllerRepresentableDemoViewController {
     }
 }
 
-private final class LoggingChildViewController: UIViewController, LocalizedContentUpdating, UserInterfaceLayoutDirectionUpdating {
+private final class LoggingChildViewController: UIViewController, UIKitLocalizationApplying {
 
     let name: String
 
@@ -389,8 +403,7 @@ private final class LoggingChildViewController: UIViewController, LocalizedConte
         view.addSubview(subtitleLabel)
         view.addSubview(actionButton)
         self.view = view
-        reloadLocalizedContent()
-        reloadLayoutDirection(DemoLocalization.currentUIKitDirection)
+        applyLocalization(DemoLocalization.currentUIKitUpdate)
     }
 
     override func viewDidLoad() {
@@ -398,7 +411,19 @@ private final class LoggingChildViewController: UIViewController, LocalizedConte
         log("viewDidLoad")
     }
 
-    func reloadLocalizedContent() {
+    func applyLocalization(_ update: UIKitLocalizationUpdate) {
+        if update.requiresLayoutDirectionRefresh {
+            UIViewLayoutDirectionUpdater.apply(
+                update,
+                to: [
+                    UIViewLayoutDirectionTarget(view, policy: .followApplication),
+                    UIViewLayoutDirectionTarget(titleLabel, policy: .followApplication),
+                    UIViewLayoutDirectionTarget(subtitleLabel, policy: .followApplication),
+                    UIViewLayoutDirectionTarget(actionButton, policy: .followApplication)
+                ]
+            )
+        }
+        guard update.requiresLocalizedContentRefresh else { return }
         titleLabel.text = DemoLocalization.text("representable.child.title", name)
         subtitleLabel.text = DemoLocalization.text("representable.child.subtitle")
         if var configuration = actionButton.configuration {
@@ -409,16 +434,6 @@ private final class LoggingChildViewController: UIViewController, LocalizedConte
         } else {
             assertionFailure("Child action button requires UIButton.Configuration")
         }
-        viewIfLoaded?.setNeedsLayout()
-    }
-
-    func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
-        let attribute = direction.appLayoutDirection.semanticContentAttribute
-        viewIfLoaded?.semanticContentAttribute = attribute
-        [titleLabel, subtitleLabel, actionButton].forEach {
-            $0.semanticContentAttribute = attribute
-        }
-        actionButton.configuration = actionButton.configuration
         viewIfLoaded?.setNeedsLayout()
     }
 

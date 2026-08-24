@@ -1,12 +1,11 @@
 {
-  "originHash" : "73d6d107c2ade028e3bc2e7be5ef31b7722b053f1adb9c89cfb9f25e0a9da862",
+  "originHash" : "f278e1c6e755f8d316b53abf2904234b0036d79eeff5cd591edd0ffbf1d0f638",
   "pins" : [
     {
       "identity" : "quicklayout",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/facebookincubator/QuickLayout",
       "state" : {
-        "branch" : "main",
         "revision" : "62310c0a7f4ec43f3ea6ff89f3824ef6b23b2bb3"
       }
     },

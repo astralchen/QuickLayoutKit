@@ -33,6 +33,9 @@ public struct QuickLayoutEnvironment: Equatable {
     /// Layout margins expressed in QuickLayout leading/trailing terms.
     public let layoutMargins: EdgeInsets
 
+    /// The current bounds size of the QuickLayout host.
+    public let containerSize: CGSize
+
     /// Creates an environment snapshot.
     public init(
         layoutDirection: LayoutDirection,
@@ -42,7 +45,8 @@ public struct QuickLayoutEnvironment: Equatable {
         userInterfaceStyle: UIUserInterfaceStyle,
         displayScale: CGFloat,
         safeAreaInsets: EdgeInsets,
-        layoutMargins: EdgeInsets
+        layoutMargins: EdgeInsets,
+        containerSize: CGSize
     ) {
         self.layoutDirection = layoutDirection
         self.preferredContentSizeCategory = preferredContentSizeCategory
@@ -52,6 +56,7 @@ public struct QuickLayoutEnvironment: Equatable {
         self.displayScale = displayScale
         self.safeAreaInsets = safeAreaInsets
         self.layoutMargins = layoutMargins
+        self.containerSize = containerSize
     }
 
     public static func == (lhs: QuickLayoutEnvironment, rhs: QuickLayoutEnvironment) -> Bool {
@@ -63,6 +68,7 @@ public struct QuickLayoutEnvironment: Equatable {
             && lhs.displayScale == rhs.displayScale
             && lhs.safeAreaInsets.quickLayout_isEqual(to: rhs.safeAreaInsets)
             && lhs.layoutMargins.quickLayout_isEqual(to: rhs.layoutMargins)
+            && lhs.containerSize == rhs.containerSize
     }
 
     /// Returns the environment values that differ from an earlier snapshot.
@@ -92,6 +98,9 @@ public struct QuickLayoutEnvironment: Equatable {
         }
         if !layoutMargins.quickLayout_isEqual(to: previous.layoutMargins) {
             reason.insert(.layoutMargins)
+        }
+        if containerSize != previous.containerSize {
+            reason.insert(.containerSize)
         }
 
         return reason
@@ -129,6 +138,15 @@ public struct QuickLayoutEnvironmentChangeReason: OptionSet, Sendable {
     /// The layout margins changed.
     public static let layoutMargins = QuickLayoutEnvironmentChangeReason(rawValue: 1 << 6)
 
+    /// The host's bounds size changed.
+    public static let containerSize = QuickLayoutEnvironmentChangeReason(rawValue: 1 << 7)
+
+    /// UIKit reported a trait-collection change.
+    ///
+    /// This reason complements the individually tracked trait values so a new
+    /// or otherwise unmodeled UIKit trait still invalidates QuickLayout.
+    public static let traitCollection = QuickLayoutEnvironmentChangeReason(rawValue: 1 << 8)
+
     /// Every environment value tracked by QuickLayoutKit.
     public static let all: QuickLayoutEnvironmentChangeReason = [
         .layoutDirection,
@@ -138,6 +156,8 @@ public struct QuickLayoutEnvironmentChangeReason: OptionSet, Sendable {
         .displayScale,
         .safeArea,
         .layoutMargins,
+        .containerSize,
+        .traitCollection,
     ]
 }
 
@@ -197,7 +217,8 @@ extension UIView {
             userInterfaceStyle: traitCollection.userInterfaceStyle,
             displayScale: traitCollection.displayScale,
             safeAreaInsets: quickLayoutSafeAreaInsets,
-            layoutMargins: quickLayoutDirectionalLayoutMargins
+            layoutMargins: quickLayoutDirectionalLayoutMargins,
+            containerSize: bounds.size
         )
     }
 

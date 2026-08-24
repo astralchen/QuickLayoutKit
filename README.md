@@ -13,6 +13,28 @@ The package contains three modules:
 - `QuickLayoutKitCore` contains shared QuickLayout extensions.
 - `QuickLayoutKitUIKit` contains UIKit integration types.
 
+## SwiftUI-inspired API, QuickLayout semantics
+
+QuickLayoutKit uses familiar SwiftUI names and overload shapes where they make
+UIKit layouts easier to read. Those names are an API vocabulary, not a promise
+of SwiftUI's system-default spacing or pixel-for-pixel layout results. Layout
+measurement, stack and grid spacing, and `Spacer` behavior remain QuickLayout
+semantics.
+
+| API or value | QuickLayoutKit contract |
+| --- | --- |
+| Stack/grid/`Spacer` defaults | QuickLayout behavior; no dynamic `ViewSpacing` or implicit SwiftUI 8/16-point constants |
+| Optional pure numeric value | `nil` adds no extra numeric amount and resolves to `0` |
+| `safeAreaPadding(..., nil)` | Consume the current inherited safe area, adding `0` extra padding |
+| `safeAreaInset(..., spacing: nil)` | Reserve the inset content and current safe area with `0` extra spacing |
+| `contentMargins(..., nil)` | Configuration override signal: do not replace that edge's existing margin |
+| `ProposedSize` and frame min/ideal/max `nil` | Unspecified, not numeric zero |
+| `QuickLayoutButton` visuals | Entirely application-owned through `body`; no implicit padding, color, background, or state appearance |
+
+Prefer explicit stack, grid, inset, and margin values when a design requires a
+fixed distance. QuickLayoutKit does not use SwiftUI runtime defaults as a
+layout oracle.
+
 ## Demo architecture
 
 The iOS demo uses a lightweight UIKit MVVM structure for screens that own
@@ -158,6 +180,180 @@ let measured = hostedView.sizeThatFits(in: CGSize(width: 320, height: .infinity)
 
 You can also subclass `QuickLayoutView` and override `body` for reusable UIKit
 components.
+
+`QuickLayoutView` derives each axis's flexibility from `body` by default. This
+keeps a body with natural content height from being compressed just because its
+host participates in a flexible parent layout. Set
+`quickLayoutHorizontalFlexibility` or `quickLayoutVerticalFlexibility` only
+when the host must override the body's sizing contract; assign `nil` to return
+that axis to automatic body-derived behavior.
+
+```swift
+final class CarouselCardView: QuickLayoutView {
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        quickLayoutHorizontalFlexibility = .fullyFlexible
+        quickLayoutVerticalFlexibility = .fixedSize
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
+}
+```
+
+### `QuickLayoutButton`
+
+`QuickLayoutButton` is a `UIControl` and a `HasBody` host. It owns primary-action
+delivery, pressed/enabled/selected state, accessibility button semantics,
+QuickLayout measurement, and environment updates. The application owns the
+complete visual hierarchy.
+
+The layout-builder initializer is convenient when the caller already owns the
+label views:
+
+```swift
+let iconView = UIImageView(image: UIImage(systemName: "trash"))
+let titleLabel = UILabel()
+let backgroundView = UIView()
+
+titleLabel.text = "Delete"
+titleLabel.textColor = .white
+backgroundView.backgroundColor = .systemRed
+backgroundView.layer.cornerRadius = 12
+
+let deleteButton = QuickLayoutButton(
+    role: .destructive,
+    action: deleteItem
+) {
+    HStack(spacing: 8) {
+        iconView
+            .resizable()
+            .scaledToFit()
+            .frame(width: 18, height: 18)
+        titleLabel
+    }
+    .padding(.horizontal, 16)
+    .frame(minHeight: 44)
+    .background { backgroundView }
+}
+
+deleteButton.accessibilityLabel = titleLabel.text
+deleteButton.quickLayoutSemanticDirectionBehavior =
+    .followEnclosingContainer
+deleteButton.stateUpdateHandler = { [weak backgroundView] state in
+    backgroundView?.alpha = state.isPressed ? 0.72 : 1
+}
+```
+
+There is no framework button style. A destructive role is state information,
+not a request for a red tint, and disabling the control does not change the
+application's alpha. The state handler receives the current state immediately
+when installed, then receives only distinct changes. If a state or localized
+label update changes measurement, call `setNeedsQuickLayout()`.
+
+Reusable design-system controls can subclass the button and override `body`
+directly:
+
+```swift
+final class FilledActionButton: QuickLayoutButton {
+    private let titleLabel = UILabel()
+    private let backgroundView = UIView()
+
+    init(title: String, action: @escaping Action) {
+        super.init(action: action)
+        titleLabel.text = title
+        accessibilityLabel = title
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
+
+    override var body: Layout {
+        titleLabel
+            .padding(.horizontal, 16)
+            .frame(minHeight: 44)
+            .background { backgroundView }
+    }
+
+    override func quickLayoutButtonStateDidChange(
+        _ state: QuickLayoutButtonState
+    ) {
+        backgroundView.alpha = state.isPressed ? 0.72 : 1
+        super.quickLayoutButtonStateDidChange(state)
+    }
+}
+```
+
+Because the button is the `HasBody` host, its body views are inserted directly
+under the control instead of inside another hosting view. Hit testing still
+terminates at the control boundary, so label views cannot steal the button's
+touch sequence. Set an explicit `accessibilityLabel`; the visual label remains
+application-owned and is not introspected by the framework.
+
+### `QuickLayoutContentView`
+
+Use `QuickLayoutContentView` when a custom
+`UIContentConfiguration` renders QuickLayout content inside a system table or
+collection cell. The base owns UIKit's type-erased `UIContentView`
+configuration entry point and restores direction from the nearest public
+reusable owner before applying content, measuring, laying out, or attaching.
+The base intentionally remains non-generic because `UIContentView.configuration`
+is type-erased by UIKit. A business content view validates its concrete type at
+that one update boundary; it does not need to inspect its cell hierarchy or
+assign `semanticContentAttribute`.
+
+```swift
+struct MenuConfiguration: UIContentConfiguration {
+    var title: String
+
+    func makeContentView() -> UIView & UIContentView {
+        MenuContentView(configuration: self)
+    }
+
+    func updated(for state: UIConfigurationState) -> Self { self }
+}
+
+final class MenuContentView: QuickLayoutContentView {
+
+    private let titleLabel = UILabel()
+
+    override var body: Layout {
+        titleLabel
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .frame(minHeight: 44)
+    }
+
+    init(configuration: MenuConfiguration) {
+        super.init(configuration: configuration)
+        titleLabel.textAlignment = .natural
+        applyCurrentContentConfiguration()
+    }
+
+    override func applyContentConfiguration(
+        _ configuration: UIContentConfiguration
+    ) {
+        guard let configuration = configuration as? MenuConfiguration else {
+            assertionFailure("Unexpected content configuration")
+            return
+        }
+        titleLabel.text = configuration.title
+        super.applyContentConfiguration(configuration)
+    }
+}
+```
+
+The default `.followEnclosingReusableView` behavior supports
+`UITableViewCell`, `UICollectionViewCell`, `UITableViewHeaderFooterView`, and
+`UICollectionReusableView`, including UIKit configuration hosts between the
+owner and content. It also recovers during off-window self-sizing and after a
+detached view is reattached. Set
+`quickLayoutSemanticDirectionBehavior = .preserve` for an entire content view
+whose semantic role is intentionally fixed, such as playback or spatial
+content. Fixed-direction children can stay local without changing the content
+view's default behavior.
 
 ### Container-relative frames
 
@@ -319,7 +515,12 @@ direct child proxy.
 
 Use `position(_:)` or `position(x:y:)` to place an element's center at explicit
 parent coordinates. Use `zIndex(_:)` for overlapping content; larger values
-appear above smaller values, while equal values retain source order.
+appear above smaller values, while equal values retain source order. During a
+QuickLayoutKit host lifecycle, removing the modifier restores each `UIView`'s
+original `layer.zPosition`, including a nonzero value set by application code.
+This automatic restoration applies to `QuickLayoutView`, managed scroll views,
+and reusable list hosts. Raw QuickLayout manual layout outside those hosts keeps
+the underlying one-shot layer-write behavior.
 
 ### Content margins
 
@@ -349,6 +550,18 @@ indicators. Use `.scrollContent` or `.scrollIndicators` to target one
 placement. Leading and trailing margins follow the scroll view's effective
 layout direction. A scroll view's `containerRelativeFrame` viewport excludes
 its content margins, so relative cards size from the remaining visible area.
+Like SwiftUI, the scroll view resolves its safe area into the effective scroll
+margins, so an explicit margin is added to the corresponding safe-area inset.
+Runtime safe-area changes (including rotation and container resizing) trigger
+a new layout. Content at the scroll start remains anchored to the newly
+resolved safe-area-plus-margin boundary, while an existing scrolled position
+is preserved.
+Only the indicator for the configured scroll axis receives indicator margins.
+
+The optional-length overload also follows SwiftUI's override semantics:
+passing `nil` leaves those edges unspecified, allowing an earlier margin for
+the same placement or the container's existing default to remain in effect.
+Finite negative margins are preserved; non-finite values resolve to zero.
 
 ### Safe-area layout
 
@@ -362,8 +575,12 @@ contentView
 ```
 
 The overloads mirror SwiftUI and accept selected edges, one value for all
-edges, or directional `EdgeInsets`. Calling `safeAreaPadding()` uses a default
-spacing of 16 points.
+edges, or directional `EdgeInsets`. In QuickLayout's numeric convention,
+calling `safeAreaPadding()` (or passing `nil`) adds zero extra spacing while
+still consuming the inherited container and keyboard safe-area values. Those
+values are read again on every measurement/layout pass, so rotation, bar,
+container, keyboard, and RTL changes use the current environment. Pass an
+explicit length or `EdgeInsets` when extra spacing is required.
 
 Use `safeAreaInset` to place content beside a safe-area edge while reserving
 its measured size for the main content:
@@ -377,8 +594,9 @@ contentView.safeAreaInset(edge: .bottom, spacing: 8) {
 ```
 
 Vertical edges accept a `HorizontalAlignment`; horizontal edges accept a
-`VerticalAlignment`. Use `ignoresSafeArea` to expand selected regions and
-edges:
+`VerticalAlignment`. A `nil` inset spacing is the same as `0`, following
+QuickLayout's zero-spacing rule. Use `ignoresSafeArea` to expand selected
+regions and edges:
 
 ```swift
 backgroundView
@@ -506,6 +724,14 @@ layout should animate with UIKit.
 `QuickLayoutScrollView` is a `UIScrollView` that measures QuickLayout content
 and keeps its `contentSize` in sync during layout.
 
+Like SwiftUI's `ScrollView`, `ScrollView(...)` occupies its full proposed
+viewport. UIKit reports any intersecting safe area through adjusted scroll
+insets, which QuickLayout propagates while measuring the content. Use
+`safeAreaPadding` for non-scrolling header or footer content that must stay
+inside those boundaries. Use `contentMargins` when the first and last items of
+scrollable content must be reachable inside the safe area without shrinking the
+scroll view or its background.
+
 ```swift
 final class DynamicScrollViewController: QuickLayoutHostingController {
 
@@ -607,6 +833,29 @@ the physical right side. Use UIKit `semanticContentAttribute` for UIKit-owned
 behavior such as scroll view semantics, navigation bars, collection views, and
 system controls.
 
+Standalone `QuickLayoutView` and `QuickLayoutScrollView` default to preserving
+their current semantic role. This protects playback, spatial, and other locally
+fixed content. A host that can leave the hierarchy during an app-language
+switch should explicitly follow its enclosing container:
+
+```swift
+hostingView.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+scrollView.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+```
+
+On every `didMoveToWindow`, the host resolves the direct container's current
+effective direction before publishing its QuickLayout environment. This covers
+detached/re-add views, an off-window container that later enters a Window, and
+moving the same host between local LTR/RTL containers or Windows. The update is
+idempotent, so one semantic change publishes one environment direction change.
+Leave the default `.preserve` in place for `.playback`, `.spatial`, or a fixed
+LTR/RTL subtree.
+
+Reusable collection/table hosts continue to synchronize only the public views
+listed by `quickLayoutDirectionViews`; fixed-direction descendants must not be
+added to that list. QuickLayoutKit does not traverse private UIKit subviews and
+does not depend on AppLocalization.
+
 ### Keyboard helpers
 
 Use `QuickLayoutKeyboardObserver` when you only need parsed keyboard context,
@@ -684,11 +933,21 @@ direction-aware helpers over direct `safeAreaInsets.left` or
 `layoutMargins.right` access when the UI can run in RTL.
 
 `UIView.quickLayoutEnvironment` captures the current layout direction, dynamic
-type category, size classes, interface style, display scale, safe area, and
-layout margins. `QuickLayoutView` compares that environment during trait, safe
-area, margin, and window changes, then calls
+type category, size classes, interface style, display scale, safe area, layout
+margins, and host `containerSize`. `QuickLayoutView` compares that environment
+during bounds, trait, safe-area, margin, and window changes, then calls
 `quickLayoutEnvironmentDidChange(_:reason:)`. Override that hook for reusable
 views that need to refresh cached UIKit content before QuickLayout runs again.
+Every UIKit trait callback also carries `.traitCollection`, alongside concrete
+reasons such as content-size category, size class, style, or display scale, so
+traits not modeled as individual fields still invalidate layout once.
+
+UIKit cannot infer arbitrary application locale, text, font, or model changes.
+After changing those values, update the views used by `body` and call
+`setNeedsQuickLayout()`. The next body evaluation, intrinsic measurement,
+scroll content-size calculation, and geometry callback then use current state;
+QuickLayoutKit intentionally has no global locale singleton or notification
+dependency.
 
 ### Reusable list sizing helpers
 
@@ -766,6 +1025,7 @@ The `Demo` project contains examples for:
 - Debug diagnostics
 - Lazy view controller containment with `QuickLayoutViewControllerRepresentable`
 - Runtime language switching with String Catalogs and AppLocalization
+- Local AppLocalization package integration for framework and Demo development
 - QuickLayout-driven LTR/RTL layout direction for menu headers
 - UIKit, collection view, navigation, gesture, modal, and SwiftUI localization
   bridge examples

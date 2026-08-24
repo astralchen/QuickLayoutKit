@@ -31,6 +31,7 @@ final class SwiftUILocalizationBridgeDemoViewController: DemoViewController {
     }
 
     private func rebuildHostedView() {
+        let update = DemoLocalization.currentUIKitUpdate
         let root = AnyView(
             SwiftUILocalizationBridgeView(
                 localizationController: DemoLocalization.localizationController,
@@ -40,11 +41,29 @@ final class SwiftUILocalizationBridgeDemoViewController: DemoViewController {
         )
 
         if let hostingController {
+            UIViewLayoutDirectionUpdater.apply(
+                update,
+                to: [
+                    UIViewLayoutDirectionTarget(
+                        hostingController.view,
+                        policy: .followApplication
+                    )
+                ]
+            )
             hostingController.rootView = root
             return
         }
 
         let hostingController = UIHostingController(rootView: root)
+        UIViewLayoutDirectionUpdater.apply(
+            update,
+            to: [
+                UIViewLayoutDirectionTarget(
+                    hostingController.view,
+                    policy: .followApplication
+                )
+            ]
+        )
         addChild(hostingController)
         hostingController.view.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(hostingController.view)

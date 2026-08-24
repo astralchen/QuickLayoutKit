@@ -226,7 +226,7 @@
 			mainGroup = 7714E9632EFE2A9100F8BC60;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				3B7A03D02FCE600100D7A01A /* XCRemoteSwiftPackageReference "AppLocalization" */,
+				3B7A03D02FCE600100D7A01A /* XCLocalSwiftPackageReference "../../AppLocalization" */,
 				4C4B00012FD0000000000001 /* XCRemoteSwiftPackageReference "ListKit" */,
 				7714E9A02EFE2AB100F8BC60 /* XCLocalSwiftPackageReference ".." */,
 			);
@@ -615,6 +615,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		3B7A03D02FCE600100D7A01A /* XCLocalSwiftPackageReference "../../AppLocalization" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../AppLocalization;
+		};
 		7714E9A02EFE2AB100F8BC60 /* XCLocalSwiftPackageReference ".." */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ..;
@@ -622,14 +626,6 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		3B7A03D02FCE600100D7A01A /* XCRemoteSwiftPackageReference "AppLocalization" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/astralchen/AppLocalization.git";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
-		};
 		4C4B00012FD0000000000001 /* XCRemoteSwiftPackageReference "ListKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/astralchen/ListKit.git";
@@ -643,7 +639,7 @@
 /* Begin XCSwiftPackageProductDependency section */
 		3B7A03D12FCE600100D7A01A /* AppLocalization */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 3B7A03D02FCE600100D7A01A /* XCRemoteSwiftPackageReference "AppLocalization" */;
+			package = 3B7A03D02FCE600100D7A01A /* XCLocalSwiftPackageReference "../../AppLocalization" */;
 			productName = AppLocalization;
 		};
 		4C4B00022FD0000000000002 /* ListKit */ = {

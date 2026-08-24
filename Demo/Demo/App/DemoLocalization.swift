@@ -10,6 +10,9 @@ import AppLocalization
 
 @MainActor
 enum DemoLocalization {
+    private static let languageMenuItemAccessibilityIdentifier =
+        "demo.language.menu"
+
     static let localizationController = LocalizationController(
         supportedLocales: [.englishUS, .simplifiedChinese, .arabic],
         fallbackLocale: .englishUS,
@@ -26,7 +29,15 @@ enum DemoLocalization {
         }
     )
 
-    private static let sceneCoordinator = UIWindowSceneLocalizationCoordinator()
+    /// Reusable UIKit 内容每次配置或重新挂载时都通过该 context 读取最新
+    /// snapshot；context 本身不会缓存创建时的语言或方向。
+    static let reusableContext = UIKitLocalizationContext(
+        localizationController: localizationController
+    )
+
+    private static let sceneCoordinator = UIWindowSceneLocalizationCoordinator(
+        localizationController: localizationController
+    )
     private static var notificationToken: NSObjectProtocol?
 
     static var currentLayoutDirection: AppUserInterfaceLayoutDirection {
@@ -35,6 +46,25 @@ enum DemoLocalization {
 
     static var currentUIKitDirection: UIUserInterfaceLayoutDirection {
         currentLayoutDirection.uiLayoutDirection
+    }
+
+    static var currentUIKitUpdate: UIKitLocalizationUpdate {
+        .initial(snapshot: localizationController.currentSnapshot)
+    }
+
+    static func layoutDirectionUpdate(
+        _ direction: UIUserInterfaceLayoutDirection,
+        reasons: UIKitLocalizationUpdateReason = [.layoutDirection]
+    ) -> UIKitLocalizationUpdate {
+        let locale: AppLocale = direction == .rightToLeft ? .arabic : .englishUS
+        return UIKitLocalizationUpdate(
+            snapshot: LocalizationSnapshot(
+                locale: locale,
+                followsSystemLocale: false,
+                revision: localizationController.currentSnapshot.revision
+            ),
+            reasons: reasons
+        )
     }
 
     static func start() {
@@ -52,42 +82,28 @@ enum DemoLocalization {
             }
 
             Task { @MainActor in
-                let rootViewControllers = visibleRootViewControllers()
-                sceneCoordinator.reloadAllScenes(
-                    for: change,
-                    rebuildRootWindows: shouldRebuildRootWindows(
-                        for: change,
-                        rootViewControllers: rootViewControllers
-                    ),
-                    animateRootRebuild: true,
-                    updateAppearanceProxies: false
-                )
+                guard change.current.revision
+                    == localizationController.currentSnapshot.revision else {
+                    return
+                }
+                // The Demo deliberately opts into connected-scene discovery so
+                // interactive #Preview windows, which have no SceneDelegate,
+                // receive the same atomic update as the running application.
+                sceneCoordinator.reloadAllScenes(for: change)
             }
         }
     }
 
-    static func applyCurrentLayoutDirection(to window: UIWindow?) {
-        window?.semanticContentAttribute = currentLayoutDirection
-            .semanticContentAttribute
+    static func register(window: UIWindow) {
+        sceneCoordinator.register(window: window)
     }
 
-    static func shouldRebuildRootWindows(
-        for change: LocalizationChange,
-        rootViewControllers: [UIViewController]
-    ) -> Bool {
-        shouldRebuildRootWindows(
-            for: change,
-            hasPresentedViewController: rootViewControllers.contains {
-                containsPresentedViewController(in: $0)
-            }
-        )
+    static func unregister(window: UIWindow) {
+        sceneCoordinator.unregister(window: window)
     }
 
-    static func shouldRebuildRootWindows(
-        for change: LocalizationChange,
-        hasPresentedViewController: Bool
-    ) -> Bool {
-        change.layoutDirectionChanged && !hasPresentedViewController
+    static func synchronize(window: UIWindow) {
+        sceneCoordinator.synchronize(window: window)
     }
 
     @discardableResult
@@ -125,18 +141,44 @@ enum DemoLocalization {
     }
 
     static func installLanguageMenu(on viewController: UIViewController) {
+        // #Preview does not execute AppDelegate. Starting here is idempotent
+        // and ensures menu selections have an observer in both environments.
+        start()
         let item = UIBarButtonItem(
             image: UIImage(systemName: "globe"),
             primaryAction: nil,
             menu: languageMenu()
         )
         item.accessibilityLabel = text("language.menu.accessibility")
-        viewController.navigationItem.rightBarButtonItem = item
+        item.accessibilityIdentifier = languageMenuItemAccessibilityIdentifier
+        viewController.navigationItem.setBarButtonItem(
+            item,
+            side: .trailing,
+            layoutDirection: currentUIKitDirection
+        )
     }
 
     static func reloadLanguageMenu(on viewController: UIViewController) {
-        viewController.navigationItem.rightBarButtonItem?.menu = languageMenu()
-        viewController.navigationItem.rightBarButtonItem?.accessibilityLabel = text("language.menu.accessibility")
+        let navigationItem = viewController.navigationItem
+        guard let item = [
+            navigationItem.leftBarButtonItem,
+            navigationItem.rightBarButtonItem,
+        ]
+            .compactMap({ $0 })
+            .first(where: {
+                $0.accessibilityIdentifier
+                    == languageMenuItemAccessibilityIdentifier
+            }) else {
+            return
+        }
+
+        item.menu = languageMenu()
+        item.accessibilityLabel = text("language.menu.accessibility")
+        navigationItem.setBarButtonItem(
+            item,
+            side: .trailing,
+            layoutDirection: currentUIKitDirection
+        )
     }
 
     static func languageMenu() -> UIMenu {
@@ -169,31 +211,6 @@ enum DemoLocalization {
         )
     }
 
-    private static func visibleRootViewControllers() -> [UIViewController] {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap(\.windows)
-            .filter { !$0.isHidden }
-            .compactMap(\.rootViewController)
-    }
-
-    private static func containsPresentedViewController(in viewController: UIViewController) -> Bool {
-        if viewController.presentedViewController != nil {
-            return true
-        }
-
-        if let navigationController = viewController as? UINavigationController,
-           navigationController.viewControllers.contains(where: containsPresentedViewController(in:)) {
-            return true
-        }
-
-        if let tabBarController = viewController as? UITabBarController,
-           tabBarController.viewControllers?.contains(where: containsPresentedViewController(in:)) == true {
-            return true
-        }
-
-        return viewController.children.contains(where: containsPresentedViewController(in:))
-    }
 }
 
 extension UIViewController {
@@ -209,10 +226,9 @@ extension UIViewController {
 
     @MainActor
     func applyDemoLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
-        let attribute = direction.appLayoutDirection.semanticContentAttribute
-        view.semanticContentAttribute = attribute
-        view.setNeedsLayout()
-        navigationController?.view.semanticContentAttribute = attribute
-        navigationController?.navigationBar.semanticContentAttribute = attribute
+        UIViewLayoutDirectionUpdater.apply(
+            DemoLocalization.layoutDirectionUpdate(direction),
+            to: [UIViewLayoutDirectionTarget(view, policy: .followApplication)]
+        )
     }
 }

@@ -80,7 +80,10 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
 
     open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
-        quickLayoutEnvironmentState.update(self)
+        quickLayoutEnvironmentState.update(
+            self,
+            explicitReason: .traitCollection
+        )
     }
 
     open override func safeAreaInsetsDidChange() {
@@ -98,8 +101,10 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         super.layoutSubviews()
         quickLayoutEnvironmentState.update(self)
         QuickLayoutDiagnostics.recordLayoutPass(for: String(describing: Self.self), measuredSize: bounds.size)
-        withQuickLayoutContainerSize(bounds.size) {
-            _QuickLayoutViewImplementation.layoutSubviews(self)
+        withQuickLayoutManagedViewState {
+            withQuickLayoutContainerSize(bounds.size) {
+                _QuickLayoutViewImplementation.layoutSubviews(self)
+            }
         }
     }
 
@@ -158,11 +163,13 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         synchronizeLayoutDirectionFromCollectionViewIfNeeded()
         quickLayoutEnvironmentState.update(self)
         let proposedSize = quickLayoutSizeLimit(proposed: size)
-        return withQuickLayoutContainerSize(proposedSize) {
-            _QuickLayoutViewImplementation.sizeThatFits(
-                self,
-                size: proposedSize
-            )
+        return withQuickLayoutManagedViewState {
+            withQuickLayoutContainerSize(proposedSize) {
+                _QuickLayoutViewImplementation.sizeThatFits(
+                    self,
+                    size: proposedSize
+                )
+            }
         }
     }
 }
@@ -236,7 +243,10 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
 
     open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
-        quickLayoutEnvironmentState.update(self)
+        quickLayoutEnvironmentState.update(
+            self,
+            explicitReason: .traitCollection
+        )
     }
 
     open override func safeAreaInsetsDidChange() {
@@ -254,8 +264,10 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         super.layoutSubviews()
         quickLayoutEnvironmentState.update(self)
         QuickLayoutDiagnostics.recordLayoutPass(for: String(describing: Self.self), measuredSize: bounds.size)
-        withQuickLayoutContainerSize(bounds.size) {
-            _QuickLayoutViewImplementation.layoutSubviews(self)
+        withQuickLayoutManagedViewState {
+            withQuickLayoutContainerSize(bounds.size) {
+                _QuickLayoutViewImplementation.layoutSubviews(self)
+            }
         }
     }
 
@@ -310,11 +322,13 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
     private func quickLayoutSizeThatFits(_ size: CGSize) -> CGSize? {
         synchronizeLayoutDirectionFromTableIfNeeded()
         quickLayoutEnvironmentState.update(self)
-        return withQuickLayoutContainerSize(size) {
-            _QuickLayoutViewImplementation.sizeThatFits(
-                self,
-                size: size
-            )
+        return withQuickLayoutManagedViewState {
+            withQuickLayoutContainerSize(size) {
+                _QuickLayoutViewImplementation.sizeThatFits(
+                    self,
+                    size: size
+                )
+            }
         }
     }
 
@@ -412,7 +426,10 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
 
     open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
-        quickLayoutEnvironmentState.update(self)
+        quickLayoutEnvironmentState.update(
+            self,
+            explicitReason: .traitCollection
+        )
     }
 
     open override func safeAreaInsetsDidChange() {
@@ -434,22 +451,24 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
             for: String(describing: Self.self),
             measuredSize: containerBounds.size
         )
-        withQuickLayoutContainerSize(containerBounds.size) {
-            _QuickLayoutViewImplementation.layoutSubviews(self)
-            guard containerBounds != bounds else { return }
-            // QuickLayout mounts this body in contentView, while its generic
-            // bridge currently applies the frame using the reusable root's
-            // bounds. Reapply the same layout in the actual container bounds;
-            // the body keeps full control of its own sizing and alignment.
-            let layoutDirection: LayoutDirection =
-                effectiveUserInterfaceLayoutDirection == .rightToLeft
-                ? .rightToLeft
-                : .leftToRight
-            body.applyFrame(
-                containerBounds,
-                alignment: .center,
-                layoutDirection: layoutDirection
-            )
+        withQuickLayoutManagedViewState {
+            withQuickLayoutContainerSize(containerBounds.size) {
+                _QuickLayoutViewImplementation.layoutSubviews(self)
+                guard containerBounds != bounds else { return }
+                // QuickLayout mounts this body in contentView, while its generic
+                // bridge currently applies the frame using the reusable root's
+                // bounds. Reapply the same layout in the actual container bounds;
+                // the body keeps full control of its own sizing and alignment.
+                let layoutDirection: LayoutDirection =
+                    effectiveUserInterfaceLayoutDirection == .rightToLeft
+                    ? .rightToLeft
+                    : .leftToRight
+                body.applyFrame(
+                    containerBounds,
+                    alignment: .center,
+                    layoutDirection: layoutDirection
+                )
+            }
         }
     }
 
@@ -504,11 +523,13 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
     private func quickLayoutSizeThatFits(_ size: CGSize) -> CGSize? {
         synchronizeLayoutDirectionFromTableIfNeeded()
         quickLayoutEnvironmentState.update(self)
-        return withQuickLayoutContainerSize(size) {
-            _QuickLayoutViewImplementation.sizeThatFits(
-                self,
-                size: size
-            )
+        return withQuickLayoutManagedViewState {
+            withQuickLayoutContainerSize(size) {
+                _QuickLayoutViewImplementation.sizeThatFits(
+                    self,
+                    size: size
+                )
+            }
         }
     }
 
@@ -611,7 +632,10 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
 
     open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
-        quickLayoutEnvironmentState.update(self)
+        quickLayoutEnvironmentState.update(
+            self,
+            explicitReason: .traitCollection
+        )
     }
 
     open override func safeAreaInsetsDidChange() {
@@ -629,8 +653,10 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         super.layoutSubviews()
         quickLayoutEnvironmentState.update(self)
         QuickLayoutDiagnostics.recordLayoutPass(for: String(describing: Self.self), measuredSize: bounds.size)
-        withQuickLayoutContainerSize(bounds.size) {
-            _QuickLayoutViewImplementation.layoutSubviews(self)
+        withQuickLayoutManagedViewState {
+            withQuickLayoutContainerSize(bounds.size) {
+                _QuickLayoutViewImplementation.layoutSubviews(self)
+            }
         }
     }
 
@@ -679,8 +705,10 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
     private func quickLayoutSizeThatFits(_ size: CGSize) -> CGSize? {
         synchronizeLayoutDirectionFromCollectionViewIfNeeded()
         quickLayoutEnvironmentState.update(self)
-        return withQuickLayoutContainerSize(size) {
-            _QuickLayoutViewImplementation.sizeThatFits(self, size: size)
+        return withQuickLayoutManagedViewState {
+            withQuickLayoutContainerSize(size) {
+                _QuickLayoutViewImplementation.sizeThatFits(self, size: size)
+            }
         }
     }
 }

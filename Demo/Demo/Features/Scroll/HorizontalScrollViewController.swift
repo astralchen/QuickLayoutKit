@@ -10,56 +10,65 @@ import AppLocalization
 import QuickLayout
 import QuickLayoutKit
 
-class HorizontalScrollViewViewController: DemoQuickLayoutHostingController {
+struct HorizontalCarouselLayoutMetrics: Sendable {
+
+    nonisolated static let spacing: CGFloat = 16
+    nonisolated static let preferredMinimumCardWidth: CGFloat = 280
+    nonisolated static let nextCardPreviewWidth: CGFloat = 32
+    nonisolated static let maximumVisibleCardCount = 3
+
+    nonisolated static func visibleCardCount(
+        for containerWidth: CGFloat
+    ) -> Int {
+        guard containerWidth.isFinite, containerWidth > 0 else { return 1 }
+        let count = Int(
+            (containerWidth + spacing)
+                / (preferredMinimumCardWidth + spacing)
+        )
+        return min(maximumVisibleCardCount, max(1, count))
+    }
+
+    nonisolated static func cardWidth(for containerWidth: CGFloat) -> CGFloat {
+        let count = visibleCardCount(for: containerWidth)
+        if count == 1 {
+            return max(
+                0,
+                containerWidth - spacing - nextCardPreviewWidth
+            )
+        }
+        let totalSpacing = spacing * CGFloat(count - 1)
+        return max(0, (containerWidth - totalSpacing) / CGFloat(count))
+    }
+}
+
+final class HorizontalScrollViewViewController:
+    DemoQuickLayoutHostingController,
+    UIScrollViewDelegate {
 
     override var localizedTitleKey: String? { "demo.horizontalScroll.title" }
 
-    let scrollView = QuickLayoutScrollView(.horizontal)
+    let pageScrollView = QuickLayoutScrollView()
+    let scrollView = QuickLayoutScrollView(.horizontal, showsIndicators: false)
 
-    let views: [UIView] =  {
+    private let eyebrowLabel = UILabel()
+    private let headlineLabel = UILabel()
+    private let subtitleLabel = UILabel()
+    private let gestureIconView = UIImageView()
+    private let gestureLabel = UILabel()
+    private let pageLabel = UILabel()
 
-        let colors: [UIColor] = [.systemRed, .systemPink, .systemOrange, .systemPurple, .systemCyan]
-
-        return (1...10).map { _ in
-            let view = UIView()
-            view.backgroundColor = colors.randomElement()
-            view.layer.cornerRadius = 16
-            return view
+    let views: [HorizontalDestinationCardView] =
+        HorizontalDestinationCardView.Palette.allCases.map {
+            HorizontalDestinationCardView(palette: $0)
         }
 
-    }()
-
-    override var body: Layout {
-
-        ScrollView(scrollView, .horizontal) {
-            HStack(spacing: 16) {
-                ForEach(views) { cardView in
-                    cardView
-                        .resizable()
-                        .containerRelativeFrame(
-                            .horizontal,
-                            count: 3,
-                            span: 2,
-                            spacing: 16
-                        )
-                        .onGeometryChange(for: CGFloat.self) { geometry in
-                            min(24, max(12, geometry.size.width * 0.08))
-                        } action: { [weak cardView] cornerRadius in
-                            cardView?.layer.cornerRadius = cornerRadius
-                        }
-                }
-            }
-        }
-        .contentMargins(.horizontal, 16)
-        .safeAreaPadding(.horizontal, 0)
-        .safeAreaPadding(.vertical, 16)
-    }
-
+    private var currentPage = 0
+    private var needsLeadingScrollPosition = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        scrollView.contentInsetAdjustmentBehavior = .never
-        scrollView.backgroundColor = .systemGray6
+        configureViews()
+        reloadLocalizedContent()
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -67,10 +76,183 @@ class HorizontalScrollViewViewController: DemoQuickLayoutHostingController {
         prepareInitialScrollPosition()
     }
 
-    override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        applyPendingLeadingScrollPositionIfNeeded()
+    }
+
+    override func reloadLocalizedContent() {
+        super.reloadLocalizedContent()
+
+        eyebrowLabel.text = DemoLocalization.text("horizontal.explore.eyebrow")
+        headlineLabel.text = DemoLocalization.text("horizontal.explore.headline")
+        subtitleLabel.text = DemoLocalization.text("horizontal.explore.subtitle")
+        gestureLabel.text = DemoLocalization.text("horizontal.explore.hint")
+
+        zip(views, HorizontalDestinationCardView.Palette.allCases)
+            .forEach { cardView, palette in
+                let prefix = palette.localizationKeyPrefix
+                cardView.configure(
+                    .init(
+                        tag: DemoLocalization.text("horizontal.explore.tag"),
+                        title: DemoLocalization.text("\(prefix).title"),
+                        location: DemoLocalization.text("\(prefix).location"),
+                        summary: DemoLocalization.text("\(prefix).summary"),
+                        rating: palette.rating,
+                        price: DemoLocalization.text("\(prefix).price"),
+                        priceCaption: DemoLocalization.text(
+                            "horizontal.explore.priceCaption"
+                        ),
+                        accessibilityHint: DemoLocalization.text(
+                            "horizontal.explore.card.accessibilityHint"
+                        )
+                    )
+                )
+            }
+
+        updatePageLabel()
+        setNeedsQuickLayout()
+    }
+
+    override func reloadLayoutDirection(
+        _ direction: UIUserInterfaceLayoutDirection
+    ) {
         super.reloadLayoutDirection(direction)
-        scrollView.semanticContentAttribute = direction.appLayoutDirection.semanticContentAttribute
-        scrollView.scrollTo(.leading, animated: false)
+        let semanticContentAttribute = direction
+            .appLayoutDirection
+            .semanticContentAttribute
+        pageScrollView.semanticContentAttribute = semanticContentAttribute
+        scrollView.semanticContentAttribute = semanticContentAttribute
+        views.forEach {
+            $0.semanticContentAttribute = semanticContentAttribute
+            $0.setNeedsQuickLayout()
+        }
+        // The semantic change can rebuild the horizontal content during the
+        // parent layout pass. Resolve the logical leading edge afterwards so
+        // an old numeric LTR offset cannot survive an RTL relayout.
+        needsLeadingScrollPosition = true
+        view.setNeedsLayout()
+        currentPage = 0
+        updatePageLabel()
+    }
+
+    override var body: Layout {
+        ScrollView(pageScrollView) {
+            regularHeightContent
+        }
+    }
+
+    private var regularHeightContent: Layout {
+        VStack(alignment: .leading, spacing: 20) {
+            headerLayout
+                .safeAreaPadding(.horizontal, 20)
+
+            carouselLayout(
+                spacing: HorizontalCarouselLayoutMetrics.spacing
+            )
+
+            footerLayout
+                .safeAreaPadding(.horizontal, 20)
+        }
+        .padding(.vertical, 16)
+    }
+
+    private var headerLayout: Layout {
+        VStack(alignment: .leading, spacing: 8) {
+            eyebrowLabel
+            headlineLabel
+            subtitleLabel
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var footerLayout: Layout {
+        HStack(spacing: 8) {
+            gestureIconView
+                .resizable()
+                .scaledToFit()
+                .frame(width: 16, height: 16)
+            gestureLabel
+            Spacer()
+            pageLabel
+        }
+    }
+
+    private func carouselLayout(spacing: CGFloat) -> Layout {
+        ScrollView(scrollView, .horizontal, showsIndicators: false) {
+            HStack(alignment: .top, spacing: spacing) {
+                ForEach(views) { cardView in
+                    cardView
+                        .resizable(axis: .horizontal)
+                        .containerRelativeFrame(.horizontal) {
+                            containerWidth,
+                            _ in
+                            HorizontalCarouselLayoutMetrics.cardWidth(
+                                for: containerWidth
+                            )
+                        }
+                        .onGeometryChange(for: CGFloat.self) { geometry in
+                            min(24, max(12, geometry.size.width * 0.08))
+                        } action: { [weak cardView] cornerRadius in
+                            cardView?.updateCornerRadius(cornerRadius)
+                        }
+                }
+            }
+        }
+        .resizable(axis: .horizontal)
+        // QuickLayoutScrollView adds its current horizontal safe area to these
+        // margins. containerRelativeFrame therefore measures cards from the
+        // safe viewport, without constraining the scroll view's own frame.
+        .contentMargins(.horizontal, 16)
+    }
+
+    private func configureViews() {
+        view.backgroundColor = .systemGroupedBackground
+        pageScrollView.backgroundColor = .systemGroupedBackground
+        pageScrollView.showsVerticalScrollIndicator = false
+        pageScrollView.quickLayoutSemanticDirectionBehavior =
+            .followEnclosingContainer
+
+        scrollView.backgroundColor = .clear
+        scrollView.decelerationRate = .fast
+        scrollView.delegate = self
+        scrollView.quickLayoutSemanticDirectionBehavior =
+            .followEnclosingContainer
+
+        eyebrowLabel.font = .preferredFont(forTextStyle: .caption1)
+        eyebrowLabel.adjustsFontForContentSizeCategory = true
+        eyebrowLabel.textColor = .systemBlue
+
+        headlineLabel.font = .preferredFont(forTextStyle: .title2)
+        headlineLabel.adjustsFontForContentSizeCategory = true
+        headlineLabel.textColor = .label
+        headlineLabel.numberOfLines = 0
+
+        subtitleLabel.font = .preferredFont(forTextStyle: .subheadline)
+        subtitleLabel.adjustsFontForContentSizeCategory = true
+        subtitleLabel.textColor = .secondaryLabel
+        subtitleLabel.numberOfLines = 0
+
+        gestureIconView.image = UIImage(systemName: "hand.draw.fill")
+        gestureIconView.tintColor = .secondaryLabel
+        gestureIconView.contentMode = .scaleAspectFit
+
+        gestureLabel.font = .preferredFont(forTextStyle: .footnote)
+        gestureLabel.adjustsFontForContentSizeCategory = true
+        gestureLabel.textColor = .secondaryLabel
+
+        pageLabel.font = .monospacedDigitSystemFont(
+            ofSize: UIFont.preferredFont(forTextStyle: .footnote).pointSize,
+            weight: .semibold
+        )
+        pageLabel.adjustsFontForContentSizeCategory = true
+        pageLabel.textColor = .label
+
+        views.enumerated().forEach { index, cardView in
+            cardView.onSelect = { [weak self] in
+                self?.presentDestination(at: index)
+            }
+        }
     }
 
     private func prepareInitialScrollPosition() {
@@ -79,11 +261,71 @@ class HorizontalScrollViewViewController: DemoQuickLayoutHostingController {
             view.layoutIfNeeded()
             scrollView.scrollTo(.leading, animated: false)
             scrollView.layoutIfNeeded()
+            needsLeadingScrollPosition = false
+            currentPage = 0
+            updatePageLabel()
         }
     }
 
+    private func applyPendingLeadingScrollPositionIfNeeded() {
+        guard needsLeadingScrollPosition else { return }
+        scrollView.layoutIfNeeded()
+        scrollView.scrollTo(.leading, animated: false)
+        needsLeadingScrollPosition = false
+    }
+
+    private func presentDestination(at index: Int) {
+        guard views.indices.contains(index) else { return }
+        let cardView = views[index]
+        let alertController = UIAlertController(
+            title: cardView.destinationTitle,
+            message: cardView.destinationSummary,
+            preferredStyle: .alert
+        )
+        alertController.addAction(
+            UIAlertAction(
+                title: DemoLocalization.text("common.close"),
+                style: .cancel
+            )
+        )
+        present(alertController, animated: true)
+    }
+
+    private func updatePageLabel() {
+        pageLabel.text = DemoLocalization.text(
+            "horizontal.explore.page",
+            currentPage + 1,
+            views.count
+        )
+        pageLabel.accessibilityLabel = pageLabel.text
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        guard scrollView === self.scrollView,
+              scrollView.bounds.width > 0,
+              !views.isEmpty else {
+            return
+        }
+
+        let viewportCenter = CGPoint(
+            x: scrollView.bounds.midX,
+            y: scrollView.bounds.midY
+        )
+        let nearestIndex = views.indices.min { lhs, rhs in
+            let lhsFrame = views[lhs].convert(views[lhs].bounds, to: scrollView)
+            let rhsFrame = views[rhs].convert(views[rhs].bounds, to: scrollView)
+            return abs(lhsFrame.midX - viewportCenter.x)
+                < abs(rhsFrame.midX - viewportCenter.x)
+        }
+
+        guard let nearestIndex, nearestIndex != currentPage else { return }
+        currentPage = nearestIndex
+        updatePageLabel()
+    }
 }
 
 #Preview {
-    UINavigationController(rootViewController: HorizontalScrollViewViewController())
+    UINavigationController(
+        rootViewController: HorizontalScrollViewViewController()
+    )
 }

@@ -386,6 +386,7 @@ private final class DynamicScrollItemView: UIView {
         deleteHintLabel.isAccessibilityElement = false
         accentIconView.isAccessibilityElement = false
         deleteButton.isAccessibilityElement = true
+        deleteButton.accessibilityTraits.insert(.button)
 
         accentIconView.accessibilityIdentifier = "dynamic.item.\(itemID).icon"
         titleLabel.accessibilityIdentifier = "dynamic.item.\(itemID).title"

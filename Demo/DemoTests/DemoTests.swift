@@ -13,6 +13,7 @@ import QuickLayoutKit
 @testable import Demo
 
 @MainActor
+@Suite(.serialized)
 struct DemoTests {
 
     @Test func quickLayoutViewMeasuresHostedContent() {
@@ -249,7 +250,6 @@ struct DemoTests {
             origin: viewController.scrollView.contentOffset,
             size: viewController.scrollView.bounds.size
         )
-
         #expect(firstCardFrame.maxX <= visibleRect.maxX)
         #expect(firstCardFrame.maxX > visibleRect.maxX - 80)
     }
@@ -290,35 +290,426 @@ struct DemoTests {
     }
 
     @Test func horizontalScrollDemoUsesViewportRelativeCards() {
+        DemoLocalization.setLocale(identifier: "en-US")
+        defer {
+            DemoLocalization.setLocale(identifier: "en-US")
+        }
+
         let viewController = HorizontalScrollViewViewController()
         viewController.loadViewIfNeeded()
-        viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 300)
+        viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
         viewController.view.setNeedsLayout()
         viewController.view.layoutIfNeeded()
+        viewController.pageScrollView.layoutIfNeeded()
+        viewController.scrollView.layoutIfNeeded()
 
         let firstCard = viewController.views[0]
         let contentViewportWidth = viewController.scrollView.bounds.width
             - viewController.scrollView.adjustedContentInset.left
             - viewController.scrollView.adjustedContentInset.right
-        let expectedWidth = (contentViewportWidth - 16 * 2) / 3 * 2 + 16
+        let expectedWidth = HorizontalCarouselLayoutMetrics.cardWidth(
+            for: contentViewportWidth
+        )
         let expectedCornerRadius = min(24, max(12, expectedWidth * 0.08))
+        let portraitHeight = firstCard.bounds.height
+        let secondCard = viewController.views[1]
+        let secondCardFrame = secondCard.convert(
+            secondCard.bounds,
+            to: viewController.scrollView
+        )
+        let visibleTrailingEdge = viewController.scrollView.contentOffset.x
+            + viewController.scrollView.bounds.width
+            - viewController.scrollView.adjustedContentInset.right
+        let visibleSecondCardWidth = visibleTrailingEdge
+            - secondCardFrame.minX
 
         #expect(viewController.scrollView.contentInset.left == 16)
         #expect(viewController.scrollView.contentInset.right == 16)
         #expect(viewController.scrollView.contentOffset.x == -16)
+        #expect(
+            HorizontalCarouselLayoutMetrics.visibleCardCount(
+                for: contentViewportWidth
+            ) == 1
+        )
         #expect(abs(firstCard.bounds.width - expectedWidth) < 1)
+        #expect(firstCard.bounds.width < contentViewportWidth)
+        #expect(
+            abs(
+                visibleSecondCardWidth
+                    - HorizontalCarouselLayoutMetrics.nextCardPreviewWidth
+            ) < 1
+        )
+        #expect(portraitHeight > 0)
+        #expect(
+            abs(
+                viewController.scrollView.bounds.height
+                    - (viewController.views.map(\.bounds.height).max() ?? 0)
+            ) < 1
+        )
         #expect(abs(firstCard.layer.cornerRadius - expectedCornerRadius) < 1)
 
-        viewController.view.frame = CGRect(x: 0, y: 0, width: 844, height: 300)
+        viewController.view.frame = CGRect(x: 0, y: 0, width: 844, height: 390)
         viewController.view.setNeedsLayout()
         viewController.view.layoutIfNeeded()
+        viewController.view.setNeedsLayout()
+        viewController.view.layoutIfNeeded()
+        viewController.pageScrollView.layoutIfNeeded()
+        viewController.scrollView.layoutIfNeeded()
 
-        #expect(firstCard.bounds.width > expectedWidth)
+        let landscapeViewportWidth = viewController.scrollView.bounds.width
+            - viewController.scrollView.adjustedContentInset.left
+            - viewController.scrollView.adjustedContentInset.right
+        let expectedLandscapeWidth = HorizontalCarouselLayoutMetrics.cardWidth(
+            for: landscapeViewportWidth
+        )
+
+        #expect(
+            HorizontalCarouselLayoutMetrics.visibleCardCount(
+                for: landscapeViewportWidth
+            ) == 2
+        )
+        #expect(abs(firstCard.bounds.width - expectedLandscapeWidth) < 1)
+        #expect(firstCard.bounds.height > 0)
+        #expect(
+            abs(
+                viewController.scrollView.bounds.height
+                    - (viewController.views.map(\.bounds.height).max() ?? 0)
+            ) < 1
+        )
         #expect(firstCard.layer.cornerRadius == 24)
+        #expect(
+            viewController.pageScrollView.contentSize.height
+                > viewController.pageScrollView.bounds.height
+        )
+    }
+
+    @Test func horizontalDestinationCardHeightFollowsItsContent() {
+        let cardView = HorizontalDestinationCardView(palette: .lakeside)
+        #expect(cardView.quickLayoutHorizontalFlexibility == .fullyFlexible)
+        #expect(cardView.quickLayoutVerticalFlexibility == .fixedSize)
+        let baseContent = HorizontalDestinationCardContent(
+            tag: "2 day trip",
+            title: "Lakeside weekend",
+            location: "Hangzhou",
+            summary: "A short destination summary.",
+            rating: "4.9",
+            price: "$120",
+            priceCaption: "From",
+            accessibilityHint: "Open destination"
+        )
+        cardView.configure(baseContent)
+
+        let shortHeight = cardView.sizeThatFits(
+            CGSize(width: 280, height: CGFloat.infinity)
+        ).height
+
+        cardView.configure(
+            HorizontalDestinationCardContent(
+                tag: baseContent.tag,
+                title: "A lakeside weekend with a deliberately longer title",
+                location: baseContent.location,
+                summary: Array(
+                    repeating: "Localized details should determine height.",
+                    count: 5
+                ).joined(separator: " "),
+                rating: baseContent.rating,
+                price: baseContent.price,
+                priceCaption: baseContent.priceCaption,
+                accessibilityHint: baseContent.accessibilityHint
+            )
+        )
+
+        let longHeight = cardView.sizeThatFits(
+            CGSize(width: 280, height: CGFloat.infinity)
+        ).height
+
+        #expect(shortHeight > 0)
+        #expect(longHeight > shortHeight)
+    }
+
+    @Test func horizontalScrollDemoHasContentOnFirstNavigationLayout() throws {
+        DemoLocalization.setLocale(identifier: "en-US")
+        defer {
+            DemoLocalization.setLocale(identifier: "en-US")
+        }
+
+        let rootViewController = UIViewController()
+        let navigationController = UINavigationController(
+            rootViewController: rootViewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer {
+            window.isHidden = true
+        }
+
+        let viewController = HorizontalScrollViewViewController()
+        navigationController.pushViewController(
+            viewController,
+            animated: false
+        )
+        window.layoutIfNeeded()
+
+        #expect(viewController.pageScrollView.bounds.width > 0)
+        #expect(viewController.scrollView.bounds.height > 0)
+        #expect(viewController.views.first?.bounds.height ?? 0 > 0)
+    }
+
+    @Test func horizontalScrollDemoKeepsLandscapeContentInsideSafeArea() throws {
+        DemoLocalization.setLocale(identifier: "en-US")
+        defer {
+            DemoLocalization.setLocale(identifier: "en-US")
+        }
+
+        let viewController = HorizontalScrollViewViewController()
+        viewController.additionalSafeAreaInsets = UIEdgeInsets(
+            top: 0,
+            left: 47,
+            bottom: 21,
+            right: 59
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: viewController,
+            size: CGSize(width: 844, height: 390)
+        )
+        defer {
+            window.isHidden = true
+        }
+
+        viewController.view.setNeedsLayout()
+        window.layoutIfNeeded()
+        viewController.view.setNeedsLayout()
+        window.layoutIfNeeded()
+
+        let safeAreaInsets = viewController.view.safeAreaInsets
+        let pageFrame = viewController.pageScrollView.convert(
+            viewController.pageScrollView.bounds,
+            to: viewController.view
+        )
+        let carouselFrame = viewController.scrollView.convert(
+            viewController.scrollView.bounds,
+            to: viewController.view
+        )
+
+        #expect(pageFrame.approximatelyEquals(viewController.view.bounds))
+        #expect(abs(carouselFrame.minX - pageFrame.minX) < 1)
+        #expect(abs(carouselFrame.maxX - pageFrame.maxX) < 1)
+        #expect(
+            viewController.scrollView.adjustedContentInset.left
+                >= safeAreaInsets.left + 16
+        )
+        #expect(
+            viewController.scrollView.adjustedContentInset.right
+                >= safeAreaInsets.right + 16
+        )
+
+        let ltrFirstCard = try #require(viewController.views.first)
+        let ltrFirstCardFrame = ltrFirstCard.convert(
+            ltrFirstCard.bounds,
+            to: viewController.view
+        )
+        #expect(ltrFirstCardFrame.minX >= safeAreaInsets.left + 16 - 1)
+
+        let labels = viewController.view.allSubviews(of: UILabel.self)
+        let headlineLabel = try #require(
+            labels.first {
+                $0.text == DemoLocalization.text("horizontal.explore.headline")
+            }
+        )
+        let footerLabel = try #require(
+            labels.first {
+                $0.text == DemoLocalization.text("horizontal.explore.hint")
+            }
+        )
+        let headlineFrame = headlineLabel.convert(
+            headlineLabel.bounds,
+            to: viewController.view
+        )
+        #expect(headlineFrame.minX >= safeAreaInsets.left + 20 - 1)
+        #expect(
+            headlineFrame.maxX
+                <= viewController.view.bounds.maxX
+                    - safeAreaInsets.right
+                    - 20
+                    + 1
+        )
+
+        viewController.pageScrollView.scrollTo(.bottom, animated: false)
+        viewController.pageScrollView.layoutIfNeeded()
+        let footerFrame = footerLabel.convert(
+            footerLabel.bounds,
+            to: viewController.view
+        )
+        #expect(footerFrame.minX >= safeAreaInsets.left + 20 - 1)
+        #expect(
+            footerFrame.maxY
+                <= viewController.view.bounds.maxY
+                    - safeAreaInsets.bottom
+                    + 1
+        )
+
+        window.semanticContentAttribute = .forceRightToLeft
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.setNeedsLayout()
+        window.layoutIfNeeded()
+        viewController.view.setNeedsLayout()
+        window.layoutIfNeeded()
+
+        let firstCard = try #require(viewController.views.first)
+        let firstCardFrame = firstCard.convert(
+            firstCard.bounds,
+            to: viewController.scrollView
+        )
+        let visibleRect = CGRect(
+            origin: viewController.scrollView.contentOffset,
+            size: viewController.scrollView.bounds.size
+        )
+        let expectedTrailingEdge = visibleRect.maxX
+            - viewController.scrollView.adjustedContentInset.right
+        let artworkView = try #require(
+            firstCard.allSubviews(of: UIView.self).first { view in
+                view.layer.sublayers?.contains { $0 is CAGradientLayer } == true
+            }
+        )
+        let artworkFrame = artworkView.convert(artworkView.bounds, to: firstCard)
+
+        #expect(firstCard.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(firstCardFrame.maxX <= expectedTrailingEdge + 1)
+        #expect(firstCardFrame.maxX >= expectedTrailingEdge - 1)
+        #expect(abs(artworkFrame.minX - firstCard.bounds.minX) < 1)
+        #expect(abs(artworkFrame.width - firstCard.bounds.width) < 1)
+        #expect(abs(artworkFrame.minY - firstCard.bounds.minY) < 1)
+
+        let rtlPageFrame = viewController.pageScrollView.convert(
+            viewController.pageScrollView.bounds,
+            to: viewController.view
+        )
+        #expect(rtlPageFrame.approximatelyEquals(pageFrame))
+    }
+
+    @Test func horizontalScrollDemoModelsLocalizedDestinationDiscovery() throws {
+        DemoLocalization.setLocale(identifier: "en-US")
+        defer {
+            DemoLocalization.setLocale(identifier: "en-US")
+        }
+
+        let viewController = HorizontalScrollViewViewController()
+        let window = try makeVisibleTestWindow(
+            rootViewController: viewController,
+            size: CGSize(width: 402, height: 874)
+        )
+        defer {
+            window.isHidden = true
+        }
+
+        let firstCard = try #require(viewController.views.first)
+        let englishLabels = viewController.view.allSubviews(of: UILabel.self)
+        let measuredCardHeight = firstCard.sizeThatFits(
+            CGSize(
+                width: firstCard.bounds.width,
+                height: CGFloat.infinity
+            )
+        ).height
+
+        #expect(viewController.views.count == 5)
+        #expect(firstCard.bounds.height > 146)
+        #expect(abs(firstCard.bounds.height - measuredCardHeight) < 1)
+        #expect(
+            abs(
+                viewController.scrollView.bounds.height
+                    - (viewController.views.map(\.bounds.height).max() ?? 0)
+            ) < 1
+        )
+        #expect(
+            firstCard.accessibilityIdentifier
+                == "horizontal.destination.lakeside"
+        )
+        #expect(firstCard.accessibilityTraits.contains(.button))
+        #expect(
+            firstCard.destinationTitle
+                == DemoLocalization.text(
+                    "horizontal.explore.destination.lakeside.title"
+                )
+        )
+        #expect(
+            englishLabels.contains {
+                $0.text == DemoLocalization.text("horizontal.explore.headline")
+            }
+        )
+        #expect(
+            englishLabels.contains {
+                $0.text == DemoLocalization.text(
+                    "horizontal.explore.page",
+                    1,
+                    viewController.views.count
+                )
+            }
+        )
+
+        let secondCard = viewController.views[1]
+        let secondCardFrame = secondCard.convert(
+            secondCard.bounds,
+            to: viewController.scrollView
+        )
+        viewController.scrollView.setContentOffset(
+            CGPoint(
+                x: secondCardFrame.midX
+                    - viewController.scrollView.bounds.width / 2,
+                y: viewController.scrollView.contentOffset.y
+            ),
+            animated: false
+        )
+        viewController.scrollViewDidScroll(viewController.scrollView)
+
+        #expect(
+            englishLabels.contains {
+                $0.text == DemoLocalization.text(
+                    "horizontal.explore.page",
+                    2,
+                    viewController.views.count
+                )
+            }
+        )
+
+        DemoLocalization.setLocale(identifier: "ar")
+        window.semanticContentAttribute = .forceRightToLeft
+        viewController.reloadLocalizedContent()
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.setNeedsLayout()
+        viewController.scrollView.setNeedsLayout()
+        viewController.views.forEach { $0.setNeedsLayout() }
+        window.layoutIfNeeded()
+        viewController.scrollView.layoutIfNeeded()
+        viewController.views.forEach { $0.layoutIfNeeded() }
+
+        let firstCardFrame = viewController.views[0].convert(
+            viewController.views[0].bounds,
+            to: viewController.scrollView
+        )
+        let visibleRect = CGRect(
+            origin: viewController.scrollView.contentOffset,
+            size: viewController.scrollView.bounds.size
+        )
+
+        #expect(
+            viewController.views[0].destinationTitle
+                == DemoLocalization.text(
+                    "horizontal.explore.destination.lakeside.title"
+                )
+        )
+        #expect(
+            viewController.views[0].effectiveUserInterfaceLayoutDirection
+                == .rightToLeft
+        )
+        #expect(firstCardFrame.maxX <= visibleRect.maxX)
+        #expect(firstCardFrame.maxX > visibleRect.maxX - 80)
     }
 
     @Test func counterDemoFallsBackToVerticalActionsWhenNarrow() {
         DemoLocalization.setLocale(identifier: "en-US")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
         let viewController = CounterViewController()
         viewController.loadViewIfNeeded()
         viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 500)
@@ -331,6 +722,19 @@ struct DemoTests {
                     - viewController.incrementButton.frame.midY
             ) < 1
         )
+        #expect(viewController.counterLabel.text == "3")
+        #expect(
+            viewController.incrementButton.accessibilityLabel == "Add glass"
+        )
+        #expect(
+            viewController.decrementButton.accessibilityLabel == "Remove"
+        )
+        #expect(viewController.resetButton.isEnabled)
+
+        viewController.incrementButton.performAction()
+        #expect(viewController.counterLabel.text == "4")
+        viewController.decrementButton.performAction()
+        #expect(viewController.counterLabel.text == "3")
 
         viewController.view.frame = CGRect(x: 0, y: 0, width: 140, height: 500)
         viewController.view.setNeedsLayout()
@@ -1089,7 +1493,7 @@ struct DemoTests {
         viewController.view.frame = CGRect(
             x: 0,
             y: 0,
-            width: 390,
+            width: 402,
             height: 844
         )
         viewController.reloadLayoutDirection(.leftToRight)
@@ -1355,11 +1759,6 @@ struct DemoTests {
             indicatorInsets: UIEdgeInsets
         )] = [
             (
-                MainViewController(),
-                UIEdgeInsets(top: 16, left: 16, bottom: 24, right: 16),
-                UIEdgeInsets(top: 16, left: 0, bottom: 24, right: 0)
-            ),
-            (
                 LocalizationOverviewViewController(),
                 UIEdgeInsets(top: 20, left: 20, bottom: 20, right: 20),
                 UIEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
@@ -1367,7 +1766,7 @@ struct DemoTests {
             (
                 ProfileViewController(),
                 UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 16),
-                UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
+                .zero
             ),
             (
                 ViewControllerRepresentableDemoViewController(),
@@ -1411,7 +1810,7 @@ struct DemoTests {
             )
             #expect(
                 scrollView.horizontalScrollIndicatorInsets
-                    == example.indicatorInsets
+                    == .zero
             )
         }
     }
@@ -1466,8 +1865,11 @@ struct DemoTests {
         #expect(willHideContext.height == 0)
     }
 
-    @Test func keyboardContextResolvesVisibleIntersectionInTargetView() {
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+    @Test func keyboardContextResolvesVisibleIntersectionInTargetView() throws {
+        let window = try makeVisibleTestWindow(
+            rootViewController: UIViewController(),
+            size: CGSize(width: 390, height: 844)
+        )
         let fullScreenView = UIView(frame: window.bounds)
         let insetView = UIView(frame: CGRect(x: 0, y: 250, width: 390, height: 120))
         window.addSubview(fullScreenView)
@@ -1501,8 +1903,11 @@ struct DemoTests {
         #expect(floatingResolved.isFloatingOrSplitKeyboard)
     }
 
-    @Test func keyboardContextResolvesHardwareAndNonOverlappingKeyboardsToZero() {
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+    @Test func keyboardContextResolvesHardwareAndNonOverlappingKeyboardsToZero() throws {
+        let window = try makeVisibleTestWindow(
+            rootViewController: UIViewController(),
+            size: CGSize(width: 390, height: 844)
+        )
         let scrollView = UIScrollView(frame: CGRect(x: 0, y: 0, width: 390, height: 300))
         window.addSubview(scrollView)
 
@@ -1713,6 +2118,7 @@ struct DemoTests {
         #expect(environment.userInterfaceStyle == view.traitCollection.userInterfaceStyle)
         #expect(environment.displayScale == view.traitCollection.displayScale)
         #expect(environment.layoutMargins.leading == 12)
+        #expect(environment.containerSize == CGSize(width: 320, height: 480))
         #expect(view.quickLayoutDirection == .rightToLeft)
     }
 
@@ -1725,7 +2131,8 @@ struct DemoTests {
             userInterfaceStyle: .light,
             displayScale: 2,
             safeAreaInsets: .init(top: 0, leading: 0, bottom: 0, trailing: 0),
-            layoutMargins: .init(top: 8, leading: 8, bottom: 8, trailing: 8)
+            layoutMargins: .init(top: 8, leading: 8, bottom: 8, trailing: 8),
+            containerSize: CGSize(width: 375, height: 480)
         )
         let current = QuickLayoutEnvironment(
             layoutDirection: .rightToLeft,
@@ -1735,12 +2142,13 @@ struct DemoTests {
             userInterfaceStyle: .light,
             displayScale: 2,
             safeAreaInsets: .init(top: 0, leading: 0, bottom: 34, trailing: 0),
-            layoutMargins: .init(top: 8, leading: 8, bottom: 8, trailing: 8)
+            layoutMargins: .init(top: 8, leading: 8, bottom: 8, trailing: 8),
+            containerSize: CGSize(width: 320, height: 480)
         )
 
         let changes = current.changes(from: previous)
 
-        #expect(changes == [.layoutDirection, .safeArea])
+        #expect(changes == [.layoutDirection, .safeArea, .containerSize])
         #expect(QuickLayoutEnvironmentChangeReason.all.isSuperset(of: changes))
     }
 
@@ -2034,7 +2442,8 @@ struct DemoTests {
                 "navigation.edge.summary",
                 DemoLocalization.text("navigation.edge.right"),
                 "chevron.right"
-            ) == "حافة الرجوع: اليمين، علامة الاتجاه: chevron.right"
+            ).removingBidiIsolationMarks
+                == "حافة الرجوع: اليمين، علامة الاتجاه: chevron.right"
         )
         #expect(
             DemoLocalization.text("gesture.translation", Int64(0))
@@ -2044,7 +2453,7 @@ struct DemoTests {
             DemoLocalization.text(
                 "gesture.backSwipe",
                 DemoLocalization.text("common.boolean.false")
-            ) == "إيماءة الرجوع: لا"
+            ).removingBidiIsolationMarks == "إيماءة الرجوع: لا"
         )
         #expect(DemoLocalization.currentLayoutDirection == .rightToLeft)
 
@@ -2060,6 +2469,7 @@ struct DemoTests {
         let navigationTexts = navigation.view
             .allSubviews(of: UILabel.self)
             .compactMap(\.text)
+            .map(\.removingBidiIsolationMarks)
         #expect(
             navigationTexts.contains(
                 "حافة الرجوع: اليمين، علامة الاتجاه: chevron.right"
@@ -2071,6 +2481,7 @@ struct DemoTests {
         let gestureTexts = gesture.view
             .allSubviews(of: UILabel.self)
             .compactMap(\.text)
+            .map(\.removingBidiIsolationMarks)
         #expect(
             gestureTexts.contains(
                 "لم يتم السحب\nالإزاحة الأفقية: 0\nإيماءة الرجوع: لا"
@@ -2091,22 +2502,119 @@ struct DemoTests {
         #expect(!keyboardDiagnostics.contains("height:"))
     }
 
-    @Test func rootRebuildIsSkippedWhenPresentedControllerExists() {
-        let leftToRightChange = LocalizationChange(previousLocale: .englishUS, currentLocale: .simplifiedChinese)
-        let rightToLeftChange = LocalizationChange(previousLocale: .englishUS, currentLocale: .arabic)
+    @Test func directionalNavigationKeepsSystemBackButtonWithDemoItems() {
+        let root = UIViewController()
+        let navigationController = UINavigationController(
+            rootViewController: root
+        )
+        let destination = DirectionalNavigationDemoViewController()
 
-        #expect(!DemoLocalization.shouldRebuildRootWindows(
-            for: leftToRightChange,
-            hasPresentedViewController: false
-        ))
-        #expect(DemoLocalization.shouldRebuildRootWindows(
-            for: rightToLeftChange,
-            hasPresentedViewController: false
-        ))
-        #expect(!DemoLocalization.shouldRebuildRootWindows(
-            for: rightToLeftChange,
-            hasPresentedViewController: true
-        ))
+        navigationController.pushViewController(destination, animated: false)
+        destination.loadViewIfNeeded()
+
+        #expect(navigationController.viewControllers.count == 2)
+        #expect(destination.navigationItem.leftBarButtonItem != nil)
+        #expect(destination.navigationItem.leftItemsSupplementBackButton)
+        #expect(!destination.navigationItem.hidesBackButton)
+    }
+
+    @Test func localizationChangeSeparatesLocaleAndDirectionReasons() {
+        let leftToRightChange = LocalizationChange(
+            previous: LocalizationSnapshot(
+                locale: .englishUS,
+                followsSystemLocale: false,
+                revision: 0
+            ),
+            current: LocalizationSnapshot(
+                locale: .simplifiedChinese,
+                followsSystemLocale: false,
+                revision: 1
+            )
+        )
+        let rightToLeftChange = LocalizationChange(
+            previous: LocalizationSnapshot(
+                locale: .englishUS,
+                followsSystemLocale: false,
+                revision: 0
+            ),
+            current: LocalizationSnapshot(
+                locale: .arabic,
+                followsSystemLocale: false,
+                revision: 1
+            )
+        )
+
+        #expect(leftToRightChange.localeChanged)
+        #expect(!leftToRightChange.layoutDirectionChanged)
+        #expect(rightToLeftChange.localeChanged)
+        #expect(rightToLeftChange.layoutDirectionChanged)
+    }
+
+    @Test func languageMenuUsesSemanticTrailingEdgeAcrossDirectionChanges() {
+        let viewController = UIViewController()
+        defer {
+            DemoLocalization.setLocale(identifier: "en-US")
+        }
+
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        DemoLocalization.installLanguageMenu(on: viewController)
+
+        let languageItem = viewController.navigationItem.rightBarButtonItem
+        #expect(languageItem != nil)
+        #expect(viewController.navigationItem.leftBarButtonItem == nil)
+
+        DemoLocalization.setLocale(identifier: "ar")
+        DemoLocalization.reloadLanguageMenu(on: viewController)
+
+        #expect(viewController.navigationItem.leftBarButtonItem === languageItem)
+        #expect(viewController.navigationItem.rightBarButtonItem == nil)
+
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        DemoLocalization.reloadLanguageMenu(on: viewController)
+
+        #expect(viewController.navigationItem.rightBarButtonItem === languageItem)
+        #expect(viewController.navigationItem.leftBarButtonItem == nil)
+    }
+
+    @Test func plainNavigationPreviewReceivesLanguageMenuSelections() async throws {
+        DemoLocalization.setLocale(identifier: "en-US")
+
+        let profileViewController = ProfileViewController()
+        let navigationController = UINavigationController(
+            rootViewController: profileViewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+
+        defer {
+            DemoLocalization.unregister(window: window)
+            window.isHidden = true
+            DemoLocalization.setLocale(identifier: "en-US")
+        }
+
+        #expect(profileViewController.title == "Profile")
+
+        DemoLocalization.setLocale(identifier: "ar")
+        let appliedArabic = await waitForCondition {
+            profileViewController.title
+                == DemoLocalization.text("demo.profile.title")
+                && window.semanticContentAttribute == .forceRightToLeft
+                && profileViewController.view.semanticContentAttribute
+                    == .forceRightToLeft
+        }
+        #expect(appliedArabic)
+
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        let appliedChinese = await waitForCondition {
+            profileViewController.title
+                == DemoLocalization.text("demo.profile.title")
+                && window.semanticContentAttribute == .forceLeftToRight
+                && profileViewController.view.semanticContentAttribute
+                    == .forceLeftToRight
+        }
+        #expect(appliedChinese)
     }
 
     @Test func localizationStringCatalogContainsSupportedLocales() throws {
@@ -2195,7 +2703,7 @@ struct DemoTests {
         #expect(localizations["ar"]?.stringUnit.value.isEmpty == false)
     }
 
-    @Test func mainMenuReloadsRouteTitlesAfterLanguageChange() {
+    @Test func mainMenuUsesListKitCellsWithQuickLayoutContentViews() throws {
         DemoLocalization.setLocale(identifier: "zh-Hans")
         let main = MainViewController()
         main.loadViewIfNeeded()
@@ -2203,15 +2711,94 @@ struct DemoTests {
         main.view.setNeedsLayout()
         main.view.layoutIfNeeded()
 
-        let buttonTitles = main.view
-            .allSubviews(of: UIButton.self)
-            .compactMap { $0.configuration?.title }
+        #expect(main.view is QuickLayoutView)
+        #expect(main.collectionView.superview === main.view)
+        #expect(main.view.allSubviews(of: QuickLayoutScrollView.self).isEmpty)
+        #expect(main.collectionView.numberOfSections == 3)
+        #expect(main.collectionView.numberOfItems(inSection: 0) == 10)
+        #expect(main.collectionView.numberOfItems(inSection: 1) == 1)
+        #expect(main.collectionView.numberOfItems(inSection: 2) == 6)
 
-        #expect(buttonTitles.contains("语言中心"))
-        #expect(buttonTitles.contains("UIKit 本地化"))
-        #expect(buttonTitles.contains("SwiftUI 桥接"))
+        let cell = try mainMenuCell(
+            at: IndexPath(item: 0, section: 0),
+            in: main
+        )
+        let configuration = try #require(
+            cell.contentConfiguration as? MainMenuContentConfiguration
+        )
+        let contentView = try #require(
+            cell
+                .allSubviews(of: MainMenuContentView.self)
+                .first
+        )
 
-        DemoLocalization.setLocale(identifier: "en-US")
+        #expect(configuration.title == "横向滚动")
+        #expect(contentView.titleLabel.text == configuration.title)
+        #expect(contentView.superview != nil)
+        #expect(
+            contentView.intrinsicContentSize
+                == CGSize(
+                    width: UIView.noIntrinsicMetric,
+                    height: UIView.noIntrinsicMetric
+                )
+        )
+
+        let narrowSize = contentView.sizeThatFits(
+            CGSize(width: 180, height: CGFloat.greatestFiniteMagnitude)
+        )
+        let wideSize = contentView.sizeThatFits(
+            CGSize(width: 320, height: CGFloat.greatestFiniteMagnitude)
+        )
+        #expect(abs(narrowSize.width - 180) < 1)
+        #expect(abs(wideSize.width - 320) < 1)
+        #expect(narrowSize.height >= 52)
+        #expect(wideSize.height >= 52)
+        #expect(cell.accessories.isEmpty)
+    }
+
+    @Test func mainMenuReloadsRouteTitlesAfterLanguageChange() throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        let main = MainViewController()
+        let testWindow = try makeVisibleTestWindow(
+            rootViewController: main,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer {
+            testWindow.isHidden = true
+            DemoLocalization.setLocale(identifier: "en-US")
+        }
+
+        let chineseTitles = try [0, 1, 4].map { item in
+            try mainMenuConfiguration(
+                at: IndexPath(item: item, section: 2),
+                in: main
+            ).title
+        }
+
+        #expect(chineseTitles == ["语言中心", "UIKit 本地化", "SwiftUI 桥接"])
+
+        DemoLocalization.setLocale(identifier: "ar")
+        main.reloadLocalizedContent()
+        main.reloadLayoutDirection(.rightToLeft)
+        main.view.layoutIfNeeded()
+
+        let arabicConfiguration = try mainMenuConfiguration(
+            at: IndexPath(item: 0, section: 2),
+            in: main
+        )
+        let arabicCell = try #require(
+            main.collectionView.cellForItem(
+                at: IndexPath(item: 0, section: 2)
+            ) as? UICollectionViewListCell
+        )
+
+        #expect(
+            arabicConfiguration.title
+                == DemoLocalizer.live.text("demo.localizationOverview.title")
+        )
+        #expect(
+            arabicCell.effectiveUserInterfaceLayoutDirection == .rightToLeft
+        )
     }
 
     @Test func allLoadedUIKitDemoButtonsUseConfigurations() throws {
@@ -2260,15 +2847,6 @@ struct DemoTests {
             navigationController.popViewController(animated: false)
         }
 
-        let main = MainViewController()
-        main.loadViewIfNeeded()
-        main.view.frame = testWindow.bounds
-        main.view.setNeedsLayout()
-        main.view.layoutIfNeeded()
-        let mainButtons = main.view.allSubviews(of: UIButton.self)
-        inspectedButtonCount += mainButtons.count
-
-        #expect(mainButtons.allSatisfy { $0.configuration != nil })
         #expect(inspectedButtonCount > 0)
     }
 
@@ -2281,14 +2859,27 @@ struct DemoTests {
         main.view.setNeedsLayout()
         main.view.layoutIfNeeded()
 
-        let quickLayoutHeader = try #require(
-            main.view.allSubviews(of: UILabel.self).first { $0.accessibilityIdentifier == "main.section.quicklayout" }
+        let headerView = try #require(
+            main.collectionView.supplementaryView(
+                forElementKind: UICollectionView.elementKindSectionHeader,
+                at: IndexPath(item: 0, section: 0)
+            ) as? MainMenuSectionHeaderView
         )
+        let quickLayoutHeader = headerView.titleLabel
 
         #expect(quickLayoutHeader.textAlignment == .natural)
-        #expect(quickLayoutHeader.semanticContentAttribute == .unspecified)
-        let rightToLeftFrame = quickLayoutHeader.convert(quickLayoutHeader.bounds, to: main.scrollView)
-        #expect(rightToLeftFrame.maxX > main.scrollView.bounds.width - 48)
+        #expect(
+            main.collectionView.semanticContentAttribute == .forceRightToLeft
+        )
+        #expect(
+            quickLayoutHeader.effectiveUserInterfaceLayoutDirection
+                == .rightToLeft
+        )
+        let rightToLeftFrame = quickLayoutHeader.convert(
+            quickLayoutHeader.bounds,
+            to: headerView
+        )
+        #expect(rightToLeftFrame.maxX > headerView.bounds.width - 32)
 
         DemoLocalization.setLocale(identifier: "zh-Hans")
         main.reloadLocalizedContent()
@@ -2296,17 +2887,31 @@ struct DemoTests {
         main.view.setNeedsLayout()
         main.view.layoutIfNeeded()
 
-        #expect(quickLayoutHeader.text == "QuickLayout 示例")
-        #expect(quickLayoutHeader.textAlignment == .natural)
-        #expect(quickLayoutHeader.semanticContentAttribute == .unspecified)
-        let leftToRightFrame = quickLayoutHeader.convert(quickLayoutHeader.bounds, to: main.scrollView)
-        #expect(leftToRightFrame.minX < 48)
+        let leftToRightHeaderView = try #require(
+            main.collectionView.supplementaryView(
+                forElementKind: UICollectionView.elementKindSectionHeader,
+                at: IndexPath(item: 0, section: 0)
+            ) as? MainMenuSectionHeaderView
+        )
+        let leftToRightHeader = leftToRightHeaderView.titleLabel
+
+        #expect(leftToRightHeader.text == "QuickLayout 示例")
+        #expect(leftToRightHeader.textAlignment == .natural)
+        #expect(
+            leftToRightHeader.effectiveUserInterfaceLayoutDirection
+                == .leftToRight
+        )
+        let leftToRightFrame = leftToRightHeader.convert(
+            leftToRightHeader.bounds,
+            to: leftToRightHeaderView
+        )
+        #expect(leftToRightFrame.minX < 32)
         #expect(leftToRightFrame.minX < rightToLeftFrame.minX)
 
         DemoLocalization.setLocale(identifier: "en-US")
     }
 
-    @Test func mainMenuReusesAndMirrorsItsQuickLayoutContentRoundTrip() throws {
+    @Test func mainMenuRebuildsAndMirrorsItsQuickLayoutContentRoundTrip() throws {
         let main = MainViewController()
         let testWindow = try makeVisibleTestWindow(
             rootViewController: main,
@@ -2315,49 +2920,129 @@ struct DemoTests {
         defer { testWindow.isHidden = true }
         main.reloadLayoutDirection(.leftToRight)
         main.view.layoutIfNeeded()
-        main.scrollView.layoutIfNeeded()
+        main.collectionView.layoutIfNeeded()
 
-        let header = try #require(
-            main.view.allSubviews(of: UILabel.self).first {
-                $0.accessibilityIdentifier == "main.section.quicklayout"
-            }
+        let indexPath = IndexPath(item: 0, section: 0)
+        let leftToRightCollectionView = main.collectionView
+        let leftToRightAnchor = try #require(
+            leftToRightCollectionView.captureLocalizationAnchor()
         )
-        let ltrFrame = header.convert(header.bounds, to: main.scrollView)
+        let ltrCell = try mainMenuCell(at: indexPath, in: main)
+        let contentView = try #require(
+            ltrCell
+                .allSubviews(of: MainMenuContentView.self)
+                .first
+        )
+        let ltrTitleFrame = contentView.titleLabel.convert(
+            contentView.titleLabel.bounds,
+            to: contentView
+        )
+        let ltrChevronFrame = contentView.disclosureImageView.convert(
+            contentView.disclosureImageView.bounds,
+            to: contentView
+        )
 
         main.reloadLayoutDirection(.rightToLeft)
         main.view.layoutIfNeeded()
-        main.scrollView.layoutIfNeeded()
-        let rtlHeader = try #require(
-            main.view.allSubviews(of: UILabel.self).first {
-                $0.accessibilityIdentifier == "main.section.quicklayout"
-            }
+        main.collectionView.layoutIfNeeded()
+        let rightToLeftCollectionView = main.collectionView
+        let rightToLeftAnchor = try #require(
+            rightToLeftCollectionView.captureLocalizationAnchor()
         )
-        let rtlFrame = rtlHeader.convert(rtlHeader.bounds, to: main.scrollView)
+        let rtlCell = try mainMenuCell(at: indexPath, in: main)
+        let rtlContentView = try #require(
+            rtlCell
+                .allSubviews(of: MainMenuContentView.self)
+                .first
+        )
+        let rtlTitleFrame = rtlContentView.titleLabel.convert(
+            rtlContentView.titleLabel.bounds,
+            to: rtlContentView
+        )
+        let rtlChevronFrame = rtlContentView.disclosureImageView.convert(
+            rtlContentView.disclosureImageView.bounds,
+            to: rtlContentView
+        )
 
-        #expect(rtlHeader === header)
-        #expect(main.scrollView.semanticContentAttribute == .forceRightToLeft)
-        #expect(header.effectiveUserInterfaceLayoutDirection == .rightToLeft)
-        #expect(rtlFrame.minX > ltrFrame.minX)
+        #expect(rightToLeftCollectionView !== leftToRightCollectionView)
+        #expect(leftToRightCollectionView.superview == nil)
+        #expect(rightToLeftAnchor.indexPath == leftToRightAnchor.indexPath)
         #expect(
-            isHorizontalMirror(
-                rtlFrame,
-                of: ltrFrame,
-                in: main.scrollView.contentSize.width
-            )
+            abs(
+                rightToLeftAnchor.offsetFromViewportTop
+                    - leftToRightAnchor.offsetFromViewportTop
+            ) < 1
         )
+        #expect(
+            rightToLeftCollectionView.semanticContentAttribute
+                == .forceRightToLeft
+        )
+        #expect(rtlCell.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(rtlContentView.quickLayoutEnvironment.layoutDirection == .rightToLeft)
+        #expect(rtlTitleFrame.minX > ltrTitleFrame.minX)
+        #expect(rtlChevronFrame.minX < ltrChevronFrame.minX)
 
         main.reloadLayoutDirection(.leftToRight)
         main.view.layoutIfNeeded()
-        main.scrollView.layoutIfNeeded()
+        main.collectionView.layoutIfNeeded()
+        let returnedCollectionView = main.collectionView
+        let returnedAnchor = try #require(
+            returnedCollectionView.captureLocalizationAnchor()
+        )
+        let restoredCell = try mainMenuCell(at: indexPath, in: main)
+        let restoredContentView = try #require(
+            restoredCell
+                .allSubviews(of: MainMenuContentView.self)
+                .first
+        )
 
-        #expect(header.effectiveUserInterfaceLayoutDirection == .leftToRight)
+        #expect(returnedCollectionView !== rightToLeftCollectionView)
+        #expect(rightToLeftCollectionView.superview == nil)
+        #expect(returnedAnchor.indexPath == leftToRightAnchor.indexPath)
         #expect(
-            header.convert(header.bounds, to: main.scrollView)
-                .approximatelyEquals(ltrFrame)
+            abs(
+                returnedAnchor.offsetFromViewportTop
+                    - leftToRightAnchor.offsetFromViewportTop
+            ) < 1
+        )
+        #expect(
+            returnedCollectionView.semanticContentAttribute
+                == .forceLeftToRight
+        )
+        #expect(restoredCell.effectiveUserInterfaceLayoutDirection == .leftToRight)
+        #expect(
+            restoredContentView.quickLayoutEnvironment.layoutDirection
+                == .leftToRight
+        )
+        #expect(
+            restoredContentView.titleLabel.convert(
+                restoredContentView.titleLabel.bounds,
+                to: restoredContentView
+            ).approximatelyEquals(ltrTitleFrame)
         )
     }
 
-    @Test func unspecifiedSubviewsInheritTheWindowDirectionRoundTrip() throws {
+    @Test func mainMenuSelectionRoutesThroughListKit() throws {
+        let router = RecordingDemoRouter()
+        let main = MainViewController(
+            viewModel: MainViewModel(),
+            router: router
+        )
+        main.loadViewIfNeeded()
+        main.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        main.view.layoutIfNeeded()
+
+        let indexPath = IndexPath(item: 0, section: 0)
+        _ = try mainMenuCell(at: indexPath, in: main)
+        main.collectionView.delegate?.collectionView?(
+            main.collectionView,
+            didSelectItemAt: indexPath
+        )
+
+        #expect(router.routes == [.horizontalScroll])
+    }
+
+    @Test func explicitViewTargetsFollowTheWindowDirectionRoundTrip() throws {
         let rootViewController = UIViewController()
         let window = try makeVisibleTestWindow(
             rootViewController: rootViewController,
@@ -2369,26 +3054,294 @@ struct DemoTests {
         inheritedContainer.addSubview(inheritedLabel)
         rootViewController.view.addSubview(inheritedContainer)
         window.semanticContentAttribute = .forceRightToLeft
+        UIViewLayoutDirectionUpdater.apply(
+            DemoLocalization.layoutDirectionUpdate(.rightToLeft),
+            to: [rootViewController.view, inheritedContainer, inheritedLabel]
+                .map {
+                    UIViewLayoutDirectionTarget(
+                        $0,
+                        policy: .followApplication
+                    )
+                }
+        )
         window.layoutIfNeeded()
 
         #expect(window.semanticContentAttribute == .forceRightToLeft)
-        #expect(rootViewController.view.semanticContentAttribute == .unspecified)
-        #expect(inheritedContainer.semanticContentAttribute == .unspecified)
-        #expect(inheritedLabel.semanticContentAttribute == .unspecified)
+        #expect(rootViewController.view.semanticContentAttribute == .forceRightToLeft)
+        #expect(inheritedContainer.semanticContentAttribute == .forceRightToLeft)
+        #expect(inheritedLabel.semanticContentAttribute == .forceRightToLeft)
         #expect(
             inheritedLabel.effectiveUserInterfaceLayoutDirection
                 == .rightToLeft
         )
 
         window.semanticContentAttribute = .forceLeftToRight
+        UIViewLayoutDirectionUpdater.apply(
+            DemoLocalization.layoutDirectionUpdate(.leftToRight),
+            to: [rootViewController.view, inheritedContainer, inheritedLabel]
+                .map {
+                    UIViewLayoutDirectionTarget(
+                        $0,
+                        policy: .followApplication
+                    )
+                }
+        )
         window.layoutIfNeeded()
 
         #expect(window.semanticContentAttribute == .forceLeftToRight)
-        #expect(inheritedContainer.semanticContentAttribute == .unspecified)
-        #expect(inheritedLabel.semanticContentAttribute == .unspecified)
+        #expect(inheritedContainer.semanticContentAttribute == .forceLeftToRight)
+        #expect(inheritedLabel.semanticContentAttribute == .forceLeftToRight)
         #expect(
             inheritedLabel.effectiveUserInterfaceLayoutDirection
                 == .leftToRight
+        )
+    }
+
+    @Test func profileComposesMeasuredSectionViewsWithoutIntrinsicSizeAssumptions() throws {
+        let viewController = ProfileViewController()
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: 390,
+            height: 1200
+        )
+        viewController.view.layoutIfNeeded()
+
+        let scrollView = try #require(
+            viewController.view
+                .allSubviews(of: QuickLayoutScrollView.self)
+                .first
+        )
+        scrollView.layoutIfNeeded()
+
+        let sections: [ProfileSectionView] = [
+            try #require(
+                viewController.view.allSubviews(of: ProfileHeroView.self).first
+            ),
+            try #require(
+                viewController.view.allSubviews(of: ProfileStatsView.self).first
+            ),
+            try #require(
+                viewController.view.allSubviews(of: ProfileAboutView.self).first
+            ),
+            try #require(
+                viewController.view.allSubviews(of: ProfileActivityView.self).first
+            ),
+            try #require(
+                viewController.view.allSubviews(of: ProfileSkillsView.self).first
+            ),
+            try #require(
+                viewController.view.allSubviews(of: ProfileActionsView.self).first
+            )
+        ]
+
+        #expect(sections.count == 6)
+        #expect(sections.allSatisfy { $0.bounds.width > 0 })
+        #expect(sections.allSatisfy { $0.bounds.height > 0 })
+        #expect(
+            sections.allSatisfy {
+                $0.quickLayoutSemanticDirectionBehavior
+                    == .followEnclosingContainer
+            }
+        )
+
+        let heroView = try #require(sections.first as? ProfileHeroView)
+        #expect(heroView.intrinsicContentSize.width == UIView.noIntrinsicMetric)
+        #expect(heroView.intrinsicContentSize.height == UIView.noIntrinsicMetric)
+        #expect(heroView.quickLayoutHorizontalFlexibility == nil)
+        #expect(heroView.quickLayoutVerticalFlexibility == nil)
+        #expect(heroView.quick_flexibility(for: .horizontal) == .partial)
+        #expect(heroView.quick_flexibility(for: .vertical) == .partial)
+        let measuredHeroSize = heroView.sizeThatFits(
+            CGSize(
+                width: heroView.bounds.width,
+                height: CGFloat.infinity
+            )
+        )
+        #expect(abs(heroView.bounds.height - measuredHeroSize.height) < 1)
+        #expect(heroView.layer.shadowPath != nil)
+    }
+
+    @Test func profileKeepsLandscapeSectionsInsideTheSafeViewport() throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer {
+            DemoLocalization.setLocale(identifier: "en-US")
+        }
+
+        let viewController = ProfileViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        navigationController.additionalSafeAreaInsets = UIEdgeInsets(
+            top: 0,
+            left: 47,
+            bottom: 21,
+            right: 59
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 844, height: 390)
+        )
+        defer {
+            window.isHidden = true
+        }
+
+        viewController.view.setNeedsLayout()
+        window.layoutIfNeeded()
+        viewController.view.setNeedsLayout()
+        window.layoutIfNeeded()
+
+        let scrollView = try #require(
+            viewController.view
+                .allSubviews(of: QuickLayoutScrollView.self)
+                .first
+        )
+        let sections = viewController.view.allSubviews(
+            of: ProfileSectionView.self
+        )
+        let safeAreaInsets = viewController.view.safeAreaInsets
+        let scrollFrame = scrollView.convert(
+            scrollView.bounds,
+            to: viewController.view
+        )
+
+        #expect(scrollFrame.approximatelyEquals(viewController.view.bounds))
+        #expect(sections.count >= 6)
+        #expect(safeAreaInsets.left >= 47)
+        #expect(safeAreaInsets.right >= 59)
+        #expect(scrollView.contentInset.left >= 16)
+        #expect(scrollView.contentInset.right >= 16)
+        #expect(
+            scrollView.adjustedContentInset.left
+                >= safeAreaInsets.left + 16
+        )
+        #expect(
+            scrollView.adjustedContentInset.right
+                >= safeAreaInsets.right + 16
+        )
+        #expect(
+            sections.allSatisfy { section in
+                let frame = section.convert(
+                    section.bounds,
+                    to: viewController.view
+                )
+                return frame.minX >= safeAreaInsets.left + 16 - 1
+                    && frame.maxX <= viewController.view.bounds.maxX
+                        - safeAreaInsets.right - 16 + 1
+            }
+        )
+    }
+
+    @Test func profileCardTitlesShareTheSameLogicalLeadingEdge() throws {
+        DemoLocalization.setLocale(identifier: "ar")
+        defer {
+            DemoLocalization.setLocale(identifier: "en-US")
+        }
+
+        let viewController = ProfileViewController()
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: 402,
+            height: 1200
+        )
+        viewController.view.layoutIfNeeded()
+
+        DemoLocalization.setLocale(identifier: "en-US")
+        viewController.applyLocalization(
+            .initial(
+                snapshot: DemoLocalization.localizationController.currentSnapshot
+            )
+        )
+
+        let cards: [ProfileCardView] = [
+            try #require(
+                viewController.view.allSubviews(of: ProfileAboutView.self).first
+            ),
+            try #require(
+                viewController.view.allSubviews(of: ProfileActivityView.self).first
+            ),
+            try #require(
+                viewController.view.allSubviews(of: ProfileSkillsView.self).first
+            )
+        ]
+        let titleTexts = [
+            DemoLocalization.text("profile.section.about"),
+            DemoLocalization.text("profile.section.activity"),
+            DemoLocalization.text("profile.section.skills")
+        ]
+        let titleLabels = try titleTexts.map { title in
+            try #require(
+                viewController.view.allSubviews(of: UILabel.self).first {
+                    $0.text == title
+                }
+            )
+        }
+        let aboutView = try #require(cards.first as? ProfileAboutView)
+        aboutView.configure(
+            title: titleTexts[0],
+            body: "Short localized body."
+        )
+
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+        let ltrLeadingEdges = zip(cards, titleLabels).map { card, label in
+            label.convert(label.bounds, to: card).minX
+        }
+
+        #expect(cards.allSatisfy { abs($0.bounds.width - 370) < 0.001 })
+        #expect(ltrLeadingEdges.allSatisfy { abs($0 - 16) < 0.001 })
+
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.layoutIfNeeded()
+        let rtlLeadingEdges = zip(cards, titleLabels).map { card, label in
+            card.bounds.maxX - label.convert(label.bounds, to: card).maxX
+        }
+
+        #expect(rtlLeadingEdges.allSatisfy { abs($0 - 16) < 0.001 })
+    }
+
+    @Test func profileSectionOwnedButtonsRecoverTheirDirectionRoundTrip() throws {
+        let viewController = ProfileViewController()
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: 390,
+            height: 1200
+        )
+
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.layoutIfNeeded()
+        let actionsView = try #require(
+            viewController.view
+                .allSubviews(of: ProfileActionsView.self)
+                .first
+        )
+        actionsView.layoutIfNeeded()
+        let buttons = actionsView.allSubviews(of: UIButton.self)
+
+        #expect(actionsView.semanticContentAttribute == .forceRightToLeft)
+        #expect(buttons.count == 2)
+        #expect(
+            buttons.allSatisfy {
+                $0.semanticContentAttribute == .forceRightToLeft
+                    && $0.effectiveUserInterfaceLayoutDirection == .rightToLeft
+            }
+        )
+
+        viewController.reloadLayoutDirection(.leftToRight)
+        viewController.view.layoutIfNeeded()
+        actionsView.layoutIfNeeded()
+
+        #expect(actionsView.semanticContentAttribute == .forceLeftToRight)
+        #expect(
+            buttons.allSatisfy {
+                $0.semanticContentAttribute == .forceLeftToRight
+                    && $0.effectiveUserInterfaceLayoutDirection == .leftToRight
+            }
         )
     }
 
@@ -2767,7 +3720,7 @@ struct DemoTests {
         )
 
         #expect(unspecifiedRow.effectiveUserInterfaceLayoutDirection == .rightToLeft)
-        #expect(unspecifiedRow.semanticContentAttribute == .unspecified)
+        #expect(unspecifiedRow.semanticContentAttribute == .forceRightToLeft)
         #expect(forcedLTRRow.effectiveUserInterfaceLayoutDirection == .leftToRight)
         #expect(forcedRTLRow.effectiveUserInterfaceLayoutDirection == .rightToLeft)
         #expect(
@@ -4055,6 +5008,35 @@ private struct TestStringUnit: Decodable {
 }
 
 @MainActor
+private func mainMenuCell(
+    at indexPath: IndexPath,
+    in viewController: MainViewController
+) throws -> UICollectionViewListCell {
+    viewController.collectionView.scrollToItem(
+        at: indexPath,
+        at: .centeredVertically,
+        animated: false
+    )
+    viewController.collectionView.setNeedsLayout()
+    viewController.collectionView.layoutIfNeeded()
+    return try #require(
+        viewController.collectionView.cellForItem(at: indexPath)
+            as? UICollectionViewListCell
+    )
+}
+
+@MainActor
+private func mainMenuConfiguration(
+    at indexPath: IndexPath,
+    in viewController: MainViewController
+) throws -> MainMenuContentConfiguration {
+    let cell = try mainMenuCell(at: indexPath, in: viewController)
+    return try #require(
+        cell.contentConfiguration as? MainMenuContentConfiguration
+    )
+}
+
+@MainActor
 private func makeVisibleTestWindow(
     rootViewController: UIViewController,
     size: CGSize,
@@ -4114,6 +5096,18 @@ private extension CGRect {
     }
 }
 
+private extension String {
+    /// Foundation may add Unicode bidi-isolation marks around formatted
+    /// substitutions on newer SDKs. They are correct for rendering but should
+    /// not make localized copy assertions SDK-dependent.
+    var removingBidiIsolationMarks: String {
+        replacingOccurrences(of: "\u{2066}", with: "")
+            .replacingOccurrences(of: "\u{2067}", with: "")
+            .replacingOccurrences(of: "\u{2068}", with: "")
+            .replacingOccurrences(of: "\u{2069}", with: "")
+    }
+}
+
 private extension UIView {
     func allSubviews<T: UIView>(of type: T.Type) -> [T] {
         subviews.flatMap { subview -> [T] in
@@ -4167,5 +5161,18 @@ private final class RepresentableTestChildViewController: UIViewController {
         let view = UIView()
         view.backgroundColor = .secondarySystemBackground
         self.view = view
+    }
+}
+
+@MainActor
+private final class RecordingDemoRouter: DemoRouting {
+
+    private(set) var routes: [DemoRoute] = []
+
+    func navigate(
+        to route: DemoRoute,
+        from sourceViewController: UIViewController
+    ) {
+        routes.append(route)
     }
 }

@@ -17,7 +17,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // If using a storyboard, the `window` property will automatically be initialized and attached to the scene.
         // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
         guard scene is UIWindowScene else { return }
-        DemoLocalization.applyCurrentLayoutDirection(to: window)
+        if let window {
+            DemoLocalization.register(window: window)
+        }
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
@@ -25,11 +27,17 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // This occurs shortly after the scene enters the background, or when its session is discarded.
         // Release any resources associated with this scene that can be re-created the next time the scene connects.
         // The scene may re-connect later, as its session was not necessarily discarded (see `application:didDiscardSceneSessions` instead).
+        if let window {
+            DemoLocalization.unregister(window: window)
+        }
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) {
         // Called when the scene has moved from an inactive state to an active state.
         // Use this method to restart any tasks that were paused (or not yet started) when the scene was inactive.
+        if let window {
+            DemoLocalization.synchronize(window: window)
+        }
     }
 
     func sceneWillResignActive(_ scene: UIScene) {

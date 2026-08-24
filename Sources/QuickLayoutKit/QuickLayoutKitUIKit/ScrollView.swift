@@ -18,6 +18,13 @@ import QuickLayout
 /// The explicit scroll view parameter supplies the stable UIKit identity that
 /// SwiftUI normally manages for its value-typed `ScrollView`.
 ///
+/// Like SwiftUI's `ScrollView`, the scroll view occupies its full proposed
+/// viewport. UIKit exposes any intersecting safe area through the scroll view's
+/// adjusted insets, and QuickLayout propagates those values to its content.
+/// Apply `safeAreaPadding` to non-scrolling content that must remain inside the
+/// safe area, or `contentMargins` when the scrollable content's leading and
+/// trailing edges must be reachable inside that area.
+///
 /// - Parameters:
 ///   - scrollView: The scroll view to use as the backing view.
 ///   - axis: The single axis along which the scroll view scrolls.
@@ -48,11 +55,22 @@ private struct ScrollElement: @MainActor Layout, @MainActor LeafElement {
     }
 
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode {
-        child.quick_layoutThatFits(proposedSize)
+        if child.axis == .horizontal {
+            return LayoutNode(
+                view: child,
+                dimensions: ElementDimensions(
+                    child.quickLayoutViewportSizeThatFits(proposedSize)
+                )
+            )
+        }
+        return child.quick_layoutThatFits(proposedSize)
     }
 
     func quick_flexibility(for axis: Axis) -> Flexibility {
-        child.quick_flexibility(for: axis)
+        if child.axis == .horizontal, axis == .vertical {
+            return .fixedSize
+        }
+        return child.quick_flexibility(for: axis)
     }
 
     func quick_layoutPriority() -> CGFloat {

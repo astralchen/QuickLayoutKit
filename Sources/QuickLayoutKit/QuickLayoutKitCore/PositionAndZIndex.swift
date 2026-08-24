@@ -18,7 +18,10 @@ public extension Element {
     /// Controls the display order of overlapping elements.
     ///
     /// Larger values appear in front of smaller values. Equal values retain
-    /// source order.
+    /// source order. QuickLayoutKit hosts restore a view's original
+    /// `layer.zPosition` when the modifier is removed or the view moves to a
+    /// different host. Raw QuickLayout layout outside a QuickLayoutKit host
+    /// keeps one-shot layer assignment behavior.
     func zIndex(_ value: Double) -> Element & Layout {
         ZIndexElement(child: self, value: value.isFinite ? value : 0)
     }
@@ -105,7 +108,13 @@ private struct ZIndexElement: Layout, _LayoutValueProvidingElement {
         let zPosition = CGFloat(value)
         MainActor.assumeIsolated {
             for view in views[startIndex...] {
-                view.layer.zPosition = zPosition
+                if let store = QuickLayoutManagedViewStateContext.current {
+                    store.applyZIndex(zPosition, to: view)
+                } else {
+                    // Raw QuickLayout manual integration has no host render
+                    // boundary, so preserve its existing one-shot behavior.
+                    view.layer.zPosition = zPosition
+                }
             }
         }
     }

@@ -20,6 +20,9 @@ final class MessageTableListView: UIView {
     )
     // 防止较早一次语言刷新晚完成后，重新调整已经进入新语言的列表。
     private var renderGeneration = 0
+    // ListKit 的异步 apply completion 必须沿用 Controller 最近一次明确应用的
+    // 方向；测试、局部容器以及未来 Scene provider 都不能被全局当前值覆盖。
+    private var lastAppliedLayoutDirection: UIUserInterfaceLayoutDirection?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -39,6 +42,8 @@ final class MessageTableListView: UIView {
     ) {
         renderGeneration &+= 1
         let generation = renderGeneration
+        let expectedRevision = DemoLocalization.localizationController
+            .currentSnapshot.revision
 
         adapter.apply(
             transaction: .disabled,
@@ -47,7 +52,9 @@ final class MessageTableListView: UIView {
                     completion?()
                     return
                 }
-                guard self.renderGeneration == generation else {
+                guard self.renderGeneration == generation,
+                      expectedRevision == DemoLocalization.localizationController
+                        .currentSnapshot.revision else {
                     completion?()
                     return
                 }
@@ -117,9 +124,10 @@ final class MessageTableListView: UIView {
     func applyLayoutDirection(
         _ direction: UIUserInterfaceLayoutDirection
     ) {
+        lastAppliedLayoutDirection = direction
         // 方向边界由 table 容器控制，同时保留用户当前看到的逻辑行。
-        tableView.applyUserInterfaceLayoutDirection(
-            direction.appLayoutDirection,
+        tableView.applyLocalization(
+            DemoLocalization.layoutDirectionUpdate(direction),
             preservingVisibleRow: true
         )
     }
@@ -132,9 +140,13 @@ final class MessageTableListView: UIView {
         // 等待 snapshot 后新增/复用的视图物化，再用 table 当前的最终方向
         // 统一触发 reusable host 和自动尺寸布局刷新。
         tableView.layoutIfNeeded()
-        tableView.applyUserInterfaceLayoutDirection(
-            tableView.effectiveUserInterfaceLayoutDirection
-                .appLayoutDirection,
+        let direction = lastAppliedLayoutDirection
+            ?? tableView.effectiveUserInterfaceLayoutDirection
+        tableView.applyLocalization(
+            DemoLocalization.layoutDirectionUpdate(
+                direction,
+                reasons: [.layoutDirection, .configuration]
+            ),
             preservingVisibleRow: true
         )
     }

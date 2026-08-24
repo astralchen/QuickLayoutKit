@@ -16,7 +16,10 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/facebookincubator/QuickLayout", branch: "main"),
+        .package(
+            url: "https://github.com/facebookincubator/QuickLayout",
+            revision: "62310c0a7f4ec43f3ea6ff89f3824ef6b23b2bb3"
+        ),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.

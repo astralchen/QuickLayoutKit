@@ -82,13 +82,18 @@ final class MesssageViewController: DemoViewController {
     private func render(_ state: MessageListViewModel.State) {
         renderGeneration &+= 1
         let generation = renderGeneration
+        let expectedRevision = DemoLocalization.localizationController
+            .currentSnapshot.revision
 
         adapter.apply(
             transaction: .disabled,
             completion: { [weak self] _ in
                 // 语言可能在异步 apply 期间再次变化，过期 completion 不能
                 // 用旧 snapshot 的时序覆盖当前方向。
-                guard let self, self.renderGeneration == generation else { return }
+                guard let self,
+                      self.renderGeneration == generation,
+                      expectedRevision == DemoLocalization.localizationController
+                        .currentSnapshot.revision else { return }
                 self.refreshMaterializedContentLayoutDirection()
             }
         ) {
@@ -140,8 +145,8 @@ final class MesssageViewController: DemoViewController {
         _ direction: UIUserInterfaceLayoutDirection
     ) {
         guard let collectionView else { return }
-        collectionView.applyUserInterfaceLayoutDirection(
-            direction.appLayoutDirection,
+        collectionView.applyLocalization(
+            DemoLocalization.layoutDirectionUpdate(direction),
             preservingVisibleItem: false,
             rebuildingLayoutWith: { [unowned self] in
                 adapter.makeCompositionalLayout()

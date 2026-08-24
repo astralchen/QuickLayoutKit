@@ -79,18 +79,23 @@ final class LocalizationOverviewViewController: DemoQuickLayoutHostingController
     ) {
         super.reloadLayoutDirection(direction)
 
-        let attribute = direction.appLayoutDirection.semanticContentAttribute
-        scrollView.semanticContentAttribute = attribute
-        [bodyLabel, currentLanguageLabel, directionLabel].forEach {
-            $0.semanticContentAttribute = attribute
-        }
-        languageButtons.forEach {
-            $0.semanticContentAttribute = attribute
-            // Reapply after the semantic change so UIKit refreshes the
-            // configuration's title/image placement.
-            $0.configuration = $0.configuration
-            $0.setNeedsLayout()
-        }
+        let update = DemoLocalization.layoutDirectionUpdate(direction)
+        UIViewLayoutDirectionUpdater.apply(
+            update,
+            to: [scrollView, bodyLabel, currentLanguageLabel, directionLabel]
+                .map {
+                    UIViewLayoutDirectionTarget(
+                        $0,
+                        policy: .followApplication
+                    )
+                }
+                + languageButtons.map {
+                    UIViewLayoutDirectionTarget(
+                        $0,
+                        policy: .followApplication
+                    )
+                }
+        )
         setNeedsQuickLayout()
     }
 
@@ -179,7 +184,10 @@ final class UIKitLocalizationShowcaseViewController: DemoViewController {
         return UIButton(configuration: configuration)
     }()
     private let collectionView: UICollectionView
-    private let cellReuseIdentifier = "LocalizationShowcaseCell"
+    private let cellRegistration: UICollectionView.CellRegistration<
+        LocalizationShowcaseCell,
+        Int
+    >
 
     init() {
         let layout = UICollectionViewFlowLayout()
@@ -187,6 +195,15 @@ final class UIKitLocalizationShowcaseViewController: DemoViewController {
         layout.minimumLineSpacing = 12
         layout.itemSize = CGSize(width: 132, height: 64)
         collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        cellRegistration = .localized(
+            using: DemoLocalization.reusableContext
+        ) { cell, _, item in
+            cell.configure(
+                text: DemoLocalization.text(
+                    "uikit.collection.\(item + 1)"
+                )
+            )
+        }
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -209,7 +226,7 @@ final class UIKitLocalizationShowcaseViewController: DemoViewController {
         collectionView.backgroundColor = .clear
         collectionView.showsHorizontalScrollIndicator = false
         collectionView.dataSource = self
-        collectionView.register(LocalizationShowcaseCell.self, forCellWithReuseIdentifier: cellReuseIdentifier)
+        collectionView.delegate = self
 
         let stack = UIStackView(arrangedSubviews: [titleLabel, subtitleLabel, modalButton, collectionView])
         stack.axis = .vertical
@@ -248,8 +265,8 @@ final class UIKitLocalizationShowcaseViewController: DemoViewController {
             $0.semanticContentAttribute = attribute
         }
         modalButton.configuration = modalButton.configuration
-        collectionView.applyUserInterfaceLayoutDirection(
-            direction.appLayoutDirection,
+        collectionView.applyLocalization(
+            DemoLocalization.layoutDirectionUpdate(direction),
             preservingVisibleItem: true
         )
     }
@@ -268,9 +285,21 @@ extension UIKitLocalizationShowcaseViewController: UICollectionViewDataSource {
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: cellReuseIdentifier, for: indexPath) as! LocalizationShowcaseCell
-        cell.configure(text: DemoLocalization.text("uikit.collection.\(indexPath.item + 1)"))
-        return cell
+        collectionView.dequeueConfiguredReusableCell(
+            using: cellRegistration,
+            for: indexPath,
+            item: indexPath.item
+        )
+    }
+}
+
+extension UIKitLocalizationShowcaseViewController: UICollectionViewDelegate {
+    func collectionView(
+        _ collectionView: UICollectionView,
+        willDisplay cell: UICollectionViewCell,
+        forItemAt indexPath: IndexPath
+    ) {
+        DemoLocalization.reusableContext.restoreOnAttachment(cell)
     }
 }
 
@@ -359,6 +388,11 @@ final class DirectionalNavigationDemoViewController: DemoViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
+        // The leading item is part of this demo, not a replacement for the
+        // navigation controller's back item. Keeping the system back item lets
+        // UIKit own its RTL mirroring, accessibility, and interactive-pop
+        // behavior.
+        navigationItem.leftItemsSupplementBackButton = true
         label.numberOfLines = 0
         label.font = .preferredFont(forTextStyle: .body)
         edgeLabel.font = .monospacedSystemFont(ofSize: 15, weight: .medium)

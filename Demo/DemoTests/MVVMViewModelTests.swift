@@ -9,6 +9,7 @@ import Testing
 @testable import Demo
 
 @MainActor
+@Suite(.serialized)
 struct MVVMViewModelTests {
 
     @Test func mainViewModelOwnsMenuStateAndEmitsPureRoutes() {
@@ -48,17 +49,62 @@ struct MVVMViewModelTests {
         viewModel.bind { renderedStates.append($0) }
 
         #expect(renderedStates == [viewModel.state])
+        #expect(viewModel.state.goal == 8)
+        #expect(viewModel.state.progress == 0.25)
+        #expect(viewModel.state.canDecrement)
         viewModel.increment()
         viewModel.increment()
         viewModel.decrement()
         #expect(viewModel.state.count == 3)
         #expect(viewModel.state.countText == "3")
+        #expect(viewModel.state.progress == 0.375)
+        #expect(
+            viewModel.state.statusTitle
+                == "first.counter.status.progress.title"
+        )
 
         strings.prefix = "second."
         viewModel.reloadLocalizedContent()
         #expect(viewModel.state.count == 3)
         #expect(viewModel.state.incrementTitle == "second.counter.increment")
         #expect(viewModel.state.decrementTitle == "second.counter.decrement")
+        #expect(viewModel.state.headline == "second.counter.headline")
+        #expect(
+            viewModel.state.progressText
+                == "second.counter.progress: 3 | 8"
+        )
+    }
+
+    @Test func counterViewModelClampsAtZeroAndPublishesGoalStates() {
+        let strings = MutableStrings(prefix: "")
+        let viewModel = CounterViewModel(
+            initialCount: 0,
+            goal: 2,
+            localizer: strings.localizer
+        )
+
+        viewModel.decrement()
+        #expect(viewModel.state.count == 0)
+        #expect(viewModel.state.progress == 0)
+        #expect(!viewModel.state.canDecrement)
+        #expect(!viewModel.state.canReset)
+        #expect(viewModel.state.statusTitle == "counter.status.ready.title")
+
+        viewModel.increment()
+        #expect(viewModel.state.count == 1)
+        #expect(viewModel.state.progress == 0.5)
+        #expect(viewModel.state.canDecrement)
+        #expect(viewModel.state.statusTitle == "counter.status.progress.title")
+
+        viewModel.increment()
+        viewModel.increment()
+        #expect(viewModel.state.count == 3)
+        #expect(viewModel.state.progress == 1)
+        #expect(viewModel.state.statusTitle == "counter.status.complete.title")
+
+        viewModel.reset()
+        #expect(viewModel.state.count == 0)
+        #expect(viewModel.state.statusTitle == "counter.status.ready.title")
     }
 
     @Test func dynamicScrollViewModelUsesStableValueItems() {
