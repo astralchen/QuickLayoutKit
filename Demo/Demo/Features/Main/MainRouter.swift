@@ -41,6 +41,8 @@ final class DemoRouter: DemoRouting {
         switch route {
         case .horizontalScroll:
             HorizontalScrollViewViewController()
+        case .positionAndZIndex:
+            PositionAndZIndexDemoViewController()
         case .profile:
             ProfileViewController()
         case .counter:

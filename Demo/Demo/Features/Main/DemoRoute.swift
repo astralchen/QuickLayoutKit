@@ -8,6 +8,7 @@
 /// 演示应用中不依赖 UIKit 的导航目标。
 enum DemoRoute: CaseIterable, Hashable, Sendable {
     case horizontalScroll
+    case positionAndZIndex
     case profile
     case counter
     case dynamicScroll
@@ -29,6 +30,8 @@ enum DemoRoute: CaseIterable, Hashable, Sendable {
         switch self {
         case .horizontalScroll:
             "demo.horizontalScroll.title"
+        case .positionAndZIndex:
+            "demo.positionAndZIndex.title"
         case .profile:
             "demo.profile.title"
         case .counter:

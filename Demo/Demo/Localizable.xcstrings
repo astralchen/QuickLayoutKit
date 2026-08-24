@@ -701,6 +701,29 @@
         }
       }
     },
+    "dashboard.achievement" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🏆 أفضل أداء"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🏆 Top Performer"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🏆 最佳表现"
+          }
+        }
+      }
+    },
     "dashboard.activity.badge.detail" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -812,52 +835,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最近动态"
-          }
-        }
-      }
-    },
-    "dashboard.achievement" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🏆 أفضل أداء"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🏆 Top Performer"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🏆 最佳表现"
-          }
-        }
-      }
-    },
-    "dashboard.name" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "جين سميث"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Jane Smith"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "李四"
           }
         }
       }
@@ -996,6 +973,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "7 天"
+          }
+        }
+      }
+    },
+    "dashboard.name" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "جين سميث"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jane Smith"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "李四"
           }
         }
       }
@@ -1253,245 +1253,6 @@
         }
       }
     },
-    "horizontal.explore.card.accessibilityHint" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "اضغط مرتين لعرض تفاصيل الرحلة."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Double-tap for trip details."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "轻点两下查看行程详情。"
-          }
-        }
-      }
-    },
-    "horizontal.explore.destination.bamboo.location" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "آنجي · تشجيانغ" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Anji · Zhejiang" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "安吉 · 浙江" } }
-      }
-    },
-    "horizontal.explore.destination.bamboo.price" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "٥٢٠ ر.س." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "$142" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "¥980" } }
-      }
-    },
-    "horizontal.explore.destination.bamboo.summary" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "إقامة بين الخيزران مع مسار صباحي وعشاء موسمي هادئ." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "A bamboo retreat with a morning trail and a quiet seasonal dinner." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "住进竹林深处，清晨徒步，傍晚吃一顿山野料理。" } }
-      }
-    },
-    "horizontal.explore.destination.bamboo.title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "ملاذ غابة الخيزران" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Bamboo Forest Escape" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "竹林里的慢生活" } }
-      }
-    },
-    "horizontal.explore.destination.city.location" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "شنغهاي" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Shanghai" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "上海" } }
-      }
-    },
-    "horizontal.explore.destination.city.price" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "٤٧٠ ر.س." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "$128" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "¥899" } }
-      }
-    },
-    "horizontal.explore.destination.city.summary" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "معارض صغيرة ومقاهٍ محلية وممشى ليلي على ضفة النهر." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Independent galleries, neighborhood cafés, and a riverside night walk." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "逛独立展览和街区咖啡馆，夜晚沿江散步看城市灯光。" } }
-      }
-    },
-    "horizontal.explore.destination.city.title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "جولة الفن في المدينة" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "The City Art Walk" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "城市艺术漫游" } }
-      }
-    },
-    "horizontal.explore.destination.coast.location" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "نينغبو · تشجيانغ" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ningbo · Zhejiang" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "宁波 · 浙江" } }
-      }
-    },
-    "horizontal.explore.destination.coast.price" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "٥٩٠ ر.س." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "$160" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "¥1,080" } }
-      }
-    },
-    "horizontal.explore.destination.coast.summary" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "شروق فوق البحر ومأكولات محلية وظهيرة بلا جدول مزدحم." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "A sea-view sunrise, local seafood, and an afternoon with no agenda." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "看一次海上日出，吃本地海鲜，把下午留给没有安排的海风。" } }
-      }
-    },
-    "horizontal.explore.destination.coast.title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "استراحة على الساحل" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "A Coastal Reset" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "去海边重新充电" } }
-      }
-    },
-    "horizontal.explore.destination.garden.location" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "سوتشو · جيانغسو" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Suzhou · Jiangsu" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "苏州 · 江苏" } }
-      }
-    },
-    "horizontal.explore.destination.garden.price" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "٤٤٠ ر.س." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "$120" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "¥820" } }
-      }
-    },
-    "horizontal.explore.destination.garden.summary" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "حدائق كلاسيكية وقنوات هادئة وفطور في حي قديم." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Classical gardens, quiet canals, and breakfast in an old neighborhood." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "清早逛园林，午后沿河慢走，再去老街吃一顿苏式早餐。" } }
-      }
-    },
-    "horizontal.explore.destination.garden.title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "القنوات والحدائق" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Canals & Gardens" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "园林与水巷之间" } }
-      }
-    },
-    "horizontal.explore.destination.lakeside.location" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "هانغتشو · تشجيانغ" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Hangzhou · Zhejiang" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "杭州 · 浙江" } }
-      }
-    },
-    "horizontal.explore.destination.lakeside.price" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "٤٣٠ ر.س." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "$118" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "¥860" } }
-      }
-    },
-    "horizontal.explore.destination.lakeside.summary" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "دراجة عند الفجر وشاي قرب الماء وعشاء في زقاق هادئ." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "A sunrise ride, tea by the water, and dinner down a quiet lane." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "清晨骑行看湖光，午后临水喝茶，晚上去小巷里吃杭帮菜。" } }
-      }
-    },
-    "horizontal.explore.destination.lakeside.title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "عطلة هادئة بجوار البحيرة" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "A Slow Weekend by West Lake" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "西湖边的慢周末" } }
-      }
-    },
-    "horizontal.explore.eyebrow" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "اختيارات نهاية الأسبوع" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "WEEKEND PICKS" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "周末精选" } }
-      }
-    },
-    "horizontal.explore.headline" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "رحلة قصيرة من دون عناء التخطيط" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "A short trip, without the planning stress" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "两天时间，也能好好出发" } }
-      }
-    },
-    "horizontal.explore.hint" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "مرر لاكتشاف الوجهات" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Swipe to explore destinations" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "左右滑动，发现更多目的地" } }
-      }
-    },
-    "horizontal.explore.page" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "%1$lld من %2$lld" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "%1$lld of %2$lld" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%1$lld / %2$lld" } }
-      }
-    },
-    "horizontal.explore.priceCaption" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "للشخص، ابتداءً من" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Per person from" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "人均起" } }
-      }
-    },
-    "horizontal.explore.subtitle" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "خطط خفيفة ومنسقة بعناية لرحلات قريبة تستغرق يومين." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Thoughtful two-day escapes, curated close to home." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "从附近出发，用一份轻量行程重新找回周末。" } }
-      }
-    },
-    "horizontal.explore.tag" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "رحلة ليومين" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "2-day escape" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "2 日行程" } }
-      }
-    },
     "demo.horizontalScroll.title" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1607,94 +1368,25 @@
         }
       }
     },
-    "demo.tableMessages.footer" : {
+    "demo.positionAndZIndex.title" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "يستخدم الرأس والتذييل أيضًا تخطيط UIKit التقليدي."
+            "value" : "Position و zIndex"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The header and footer also use traditional UIKit layout."
+            "value" : "Position & zIndex"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "页眉和页脚同样使用传统 UIKit 布局。"
-          }
-        }
-      }
-    },
-    "demo.tableMessages.header" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "رسائل ذاتية التحجيم"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Self-sizing Messages"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "自适应消息"
-          }
-        }
-      }
-    },
-    "demo.tableMessages.header.detail" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تستضيف الخلايا QuickLayout باستخدام تخطيط UIKit التقليدي."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cells host QuickLayout using traditional UIKit layout."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "单元格通过传统 UIKit 布局承载 QuickLayout。"
-          }
-        }
-      }
-    },
-    "demo.tableMessages.title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "رسائل الجدول"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Table Messages"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "表格消息列表"
+            "value" : "Position 与 zIndex"
           }
         }
       }
@@ -1810,6 +1502,98 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "SwiftUI 桥接"
+          }
+        }
+      }
+    },
+    "demo.tableMessages.footer" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يستخدم الرأس والتذييل أيضًا تخطيط UIKit التقليدي."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The header and footer also use traditional UIKit layout."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "页眉和页脚同样使用传统 UIKit 布局。"
+          }
+        }
+      }
+    },
+    "demo.tableMessages.header" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رسائل ذاتية التحجيم"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Self-sizing Messages"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自适应消息"
+          }
+        }
+      }
+    },
+    "demo.tableMessages.header.detail" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تستضيف الخلايا QuickLayout باستخدام تخطيط UIKit التقليدي."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cells host QuickLayout using traditional UIKit layout."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "单元格通过传统 UIKit 布局承载 QuickLayout。"
+          }
+        }
+      }
+    },
+    "demo.tableMessages.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رسائل الجدول"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Table Messages"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表格消息列表"
           }
         }
       }
@@ -2343,25 +2127,646 @@
         }
       }
     },
-    "keyboard.placeholder" : {
+    "horizontal.explore.card.accessibilityHint" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "أدخل نصاً"
+            "value" : "اضغط مرتين لعرض تفاصيل الرحلة."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enter text"
+            "value" : "Double-tap for trip details."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "输入文本"
+            "value" : "轻点两下查看行程详情。"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.bamboo.location" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "آنجي · تشجيانغ"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anji · Zhejiang"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安吉 · 浙江"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.bamboo.price" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "٥٢٠ ر.س."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "$142"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¥980"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.bamboo.summary" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إقامة بين الخيزران مع مسار صباحي وعشاء موسمي هادئ."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A bamboo retreat with a morning trail and a quiet seasonal dinner."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "住进竹林深处，清晨徒步，傍晚吃一顿山野料理。"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.bamboo.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ملاذ غابة الخيزران"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bamboo Forest Escape"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "竹林里的慢生活"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.city.location" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "شنغهاي"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shanghai"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上海"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.city.price" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "٤٧٠ ر.س."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "$128"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¥899"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.city.summary" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "معارض صغيرة ومقاهٍ محلية وممشى ليلي على ضفة النهر."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Independent galleries, neighborhood cafés, and a riverside night walk."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "逛独立展览和街区咖啡馆，夜晚沿江散步看城市灯光。"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.city.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "جولة الفن في المدينة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The City Art Walk"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "城市艺术漫游"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.coast.location" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نينغبو · تشجيانغ"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ningbo · Zhejiang"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "宁波 · 浙江"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.coast.price" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "٥٩٠ ر.س."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "$160"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¥1,080"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.coast.summary" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "شروق فوق البحر ومأكولات محلية وظهيرة بلا جدول مزدحم."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A sea-view sunrise, local seafood, and an afternoon with no agenda."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "看一次海上日出，吃本地海鲜，把下午留给没有安排的海风。"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.coast.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استراحة على الساحل"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A Coastal Reset"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "去海边重新充电"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.garden.location" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سوتشو · جيانغسو"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suzhou · Jiangsu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "苏州 · 江苏"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.garden.price" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "٤٤٠ ر.س."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "$120"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¥820"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.garden.summary" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حدائق كلاسيكية وقنوات هادئة وفطور في حي قديم."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classical gardens, quiet canals, and breakfast in an old neighborhood."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清早逛园林，午后沿河慢走，再去老街吃一顿苏式早餐。"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.garden.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "القنوات والحدائق"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Canals & Gardens"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "园林与水巷之间"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.lakeside.location" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "هانغتشو · تشجيانغ"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hangzhou · Zhejiang"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "杭州 · 浙江"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.lakeside.price" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "٤٣٠ ر.س."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "$118"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¥860"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.lakeside.summary" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "دراجة عند الفجر وشاي قرب الماء وعشاء في زقاق هادئ."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A sunrise ride, tea by the water, and dinner down a quiet lane."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清晨骑行看湖光，午后临水喝茶，晚上去小巷里吃杭帮菜。"
+          }
+        }
+      }
+    },
+    "horizontal.explore.destination.lakeside.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "عطلة هادئة بجوار البحيرة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A Slow Weekend by West Lake"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "西湖边的慢周末"
+          }
+        }
+      }
+    },
+    "horizontal.explore.eyebrow" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اختيارات نهاية الأسبوع"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WEEKEND PICKS"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "周末精选"
+          }
+        }
+      }
+    },
+    "horizontal.explore.headline" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رحلة قصيرة من دون عناء التخطيط"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A short trip, without the planning stress"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "两天时间，也能好好出发"
+          }
+        }
+      }
+    },
+    "horizontal.explore.hint" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مرر لاكتشاف الوجهات"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swipe to explore destinations"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左右滑动，发现更多目的地"
+          }
+        }
+      }
+    },
+    "horizontal.explore.page" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld من %2$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %2$lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld / %2$lld"
+          }
+        }
+      }
+    },
+    "horizontal.explore.priceCaption" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "للشخص، ابتداءً من"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per person from"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "人均起"
+          }
+        }
+      }
+    },
+    "horizontal.explore.subtitle" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "خطط خفيفة ومنسقة بعناية لرحلات قريبة تستغرق يومين."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thoughtful two-day escapes, curated close to home."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从附近出发，用一份轻量行程重新找回周末。"
+          }
+        }
+      }
+    },
+    "horizontal.explore.tag" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رحلة ليومين"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2-day escape"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 日行程"
           }
         }
       }
@@ -2477,6 +2882,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "键盘诊断"
+          }
+        }
+      }
+    },
+    "keyboard.placeholder" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أدخل نصاً"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter text"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入文本"
           }
         }
       }
@@ -3056,25 +3484,71 @@
         }
       }
     },
-    "profile.bio" : {
+    "positionAndZIndex.intro" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "يبني واجهات UIKit عملية باستخدام QuickLayout، مع اهتمام بتبديل اللغة وقت التشغيل، دعم RTL، وتجارب النماذج المتجاوبة مع لوحة المفاتيح."
+            "value" : "توضح هذه الصفحة موضع العناصر داخل المساحة المقترحة وكيفية ترتيب العناصر المتداخلة."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Builds practical UIKit interfaces with QuickLayout, focusing on runtime localization, RTL support, and keyboard-aware form experiences."
+            "value" : "This page shows how elements are placed inside the proposed space and how overlapping elements are ordered."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "使用 QuickLayout 构建实用的 UIKit 界面，关注运行时语言切换、RTL 支持和键盘响应式表单体验。"
+            "value" : "这个页面演示元素在建议空间内的定位方式，以及重叠元素的显示顺序。"
+          }
+        }
+      }
+    },
+    "positionAndZIndex.position.description" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يضع position مركز العنصر عند إحداثي فعلي. لذلك تبقى النقاط نفسها في تخطيطي LTR وRTL."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "position places an element's center at a physical coordinate, so the points stay unchanged in LTR and RTL layouts."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "position 将元素中心放到物理坐标点，因此切换 LTR 与 RTL 时这些坐标保持不变。"
+          }
+        }
+      }
+    },
+    "positionAndZIndex.zIndex.description" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تظهر القيمة الأكبر في المقدمة. تم تعريف B قبل C، لكن zIndex(3) يضع B فوق C."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Higher values appear in front. B is declared before C, but zIndex(3) still places B above C."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数值越大，显示层级越靠前。B 虽然在 C 之前声明，但 zIndex(3) 仍使 B 位于 C 上方。"
           }
         }
       }
@@ -3190,6 +3664,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "可参与 UIKit 产品项目"
+          }
+        }
+      }
+    },
+    "profile.bio" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يبني واجهات UIKit عملية باستخدام QuickLayout، مع اهتمام بتبديل اللغة وقت التشغيل، دعم RTL، وتجارب النماذج المتجاوبة مع لوحة المفاتيح."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Builds practical UIKit interfaces with QuickLayout, focusing on runtime localization, RTL support, and keyboard-aware form experiences."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 QuickLayout 构建实用的 UIKit 界面，关注运行时语言切换、RTL 支持和键盘响应式表单体验。"
           }
         }
       }
@@ -3792,29 +4289,6 @@
         }
       }
     },
-    "representable.replace" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "استبدال الطفل"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Replace Loaded Child"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "替换已加载 Child"
-          }
-        }
-      }
-    },
     "representable.preferredSize" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -3834,6 +4308,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "切换 preferredContentSize"
+          }
+        }
+      }
+    },
+    "representable.replace" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استبدال الطفل"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace Loaded Child"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "替换已加载 Child"
           }
         }
       }
@@ -3976,29 +4473,6 @@
         }
       }
     },
-    "semantic.leadingTrailing" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Leading ↔ Trailing"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Leading ↔ Trailing"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Leading ↔ Trailing"
-          }
-        }
-      }
-    },
     "semantic.leading" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -4022,25 +4496,25 @@
         }
       }
     },
-    "semantic.trailing" : {
+    "semantic.leadingTrailing" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trailing"
+            "value" : "Leading ↔ Trailing"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trailing"
+            "value" : "Leading ↔ Trailing"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trailing"
+            "value" : "Leading ↔ Trailing"
           }
         }
       }
@@ -4133,6 +4607,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "3. Force Right-to-Left"
+          }
+        }
+      }
+    },
+    "semantic.trailing" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trailing"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trailing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trailing"
           }
         }
       }

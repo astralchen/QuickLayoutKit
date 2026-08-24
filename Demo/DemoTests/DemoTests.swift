@@ -16,6 +16,82 @@ import QuickLayoutKit
 @Suite(.serialized)
 struct DemoTests {
 
+    @Test func positionAndZIndexDemoUsesPhysicalPointsAndLayerOrdering() throws {
+        DemoLocalization.setLocale(identifier: "en-US")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let viewController = PositionAndZIndexDemoViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        navigationController.view.layoutIfNeeded()
+        viewController.view.layoutIfNeeded()
+        viewController.positionCanvas.layoutIfNeeded()
+        viewController.zIndexCanvas.layoutIfNeeded()
+
+        #expect(viewController.positionCanvas.bounds.width > 0)
+        #expect(
+            center(
+                of: viewController.positionCanvas.firstBadge,
+                in: viewController.positionCanvas
+            ).approximatelyEquals(CGPoint(x: 60, y: 54))
+        )
+        #expect(
+            center(
+                of: viewController.positionCanvas.centerBadge,
+                in: viewController.positionCanvas
+            ).approximatelyEquals(CGPoint(x: 144, y: 100))
+        )
+        #expect(
+            center(
+                of: viewController.positionCanvas.lastBadge,
+                in: viewController.positionCanvas
+            ).approximatelyEquals(CGPoint(x: 228, y: 146))
+        )
+        #expect(
+            [
+                viewController.positionCanvas.firstBadge,
+                viewController.positionCanvas.centerBadge,
+                viewController.positionCanvas.lastBadge,
+            ].allSatisfy {
+                $0.bounds.width >= $0.intrinsicContentSize.width + 27
+                    && $0.bounds.height >= $0.intrinsicContentSize.height + 15
+            }
+        )
+
+        #expect(viewController.zIndexCanvas.backCard.layer.zPosition == 0)
+        #expect(viewController.zIndexCanvas.middleCard.layer.zPosition == 1)
+        #expect(viewController.zIndexCanvas.frontCard.layer.zPosition == 3)
+        #expect(
+            [
+                viewController.zIndexCanvas.backCard,
+                viewController.zIndexCanvas.middleCard,
+                viewController.zIndexCanvas.frontCard,
+            ].allSatisfy {
+                $0.bounds.width >= $0.intrinsicContentSize.width + 35
+                    && $0.bounds.height >= $0.intrinsicContentSize.height + 23
+            }
+        )
+
+        window.semanticContentAttribute = .forceRightToLeft
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.view.layoutIfNeeded()
+        viewController.positionCanvas.layoutIfNeeded()
+
+        #expect(
+            center(
+                of: viewController.positionCanvas.centerBadge,
+                in: viewController.positionCanvas
+            ).approximatelyEquals(CGPoint(x: 144, y: 100))
+        )
+    }
+
     @Test func quickLayoutViewMeasuresHostedContent() {
         let label = UILabel()
         label.text = "QuickLayoutKit"
@@ -5310,6 +5386,23 @@ private func isHorizontalMirror(
         && abs(frame.midY - originalFrame.midY) < tolerance
         && abs(frame.width - originalFrame.width) < tolerance
         && abs(frame.height - originalFrame.height) < tolerance
+}
+
+private func center(of view: UIView, in coordinateSpace: UIView) -> CGPoint {
+    view.convert(
+        CGPoint(x: view.bounds.midX, y: view.bounds.midY),
+        to: coordinateSpace
+    )
+}
+
+private extension CGPoint {
+    func approximatelyEquals(
+        _ other: CGPoint,
+        tolerance: CGFloat = 1
+    ) -> Bool {
+        abs(x - other.x) < tolerance
+            && abs(y - other.y) < tolerance
+    }
 }
 
 private extension CGRect {

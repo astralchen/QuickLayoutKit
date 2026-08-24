@@ -39,6 +39,7 @@ final class MainViewModel {
             titleKey: "main.section.quicklayout",
             routes: [
                 .horizontalScroll,
+                .positionAndZIndex,
                 .profile,
                 .counter,
                 .dynamicScroll,
