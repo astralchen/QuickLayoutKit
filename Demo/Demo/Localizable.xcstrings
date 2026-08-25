@@ -218,6 +218,144 @@
         }
       }
     },
+    "contentMargins.intro" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "بدّل بين التركيبات ومرّر منطقة المعاينة. تُظهر البطاقات موضع المحتوى، وتعرض القيم المواضع الفعلية للمحتوى والمؤشر."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch combinations and scroll the preview. The cards show content placement, while the values report the resolved content and indicator insets."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切换不同组合并滚动预览区域。卡片用于观察内容位置，下方数值显示内容与指示器最终生效的 inset。"
+          }
+        }
+      }
+    },
+    "contentMargins.next" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "التركيبة التالية"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next combination"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下一个组合"
+          }
+        }
+      }
+    },
+    "contentMargins.previous" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "التركيبة السابقة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous combination"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上一个组合"
+          }
+        }
+      }
+    },
+    "safeAreaPadding.intro" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "بدّل بين التركيبات ودوّر الجهاز لمراقبة حدود المنطقة الآمنة. يوضح الخط الأخضر المتقطع المنطقة الآمنة الحالية، وتعرض القيم الإطار الفعلي للصفحة."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch combinations and rotate the device to inspect the safe-area boundary. The dashed green line marks the current safe area, while the values report the page frame."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切换不同组合并旋转设备，观察安全区域边界。绿色虚线表示当前安全区域，下方数值显示页面最终 frame。"
+          }
+        }
+      }
+    },
+    "safeAreaPadding.next" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "التركيبة التالية"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next combination"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下一个组合"
+          }
+        }
+      }
+    },
+    "safeAreaPadding.previous" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "التركيبة السابقة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous combination"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上一个组合"
+          }
+        }
+      }
+    },
     "counter.controls.subtitle" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1253,6 +1391,29 @@
         }
       }
     },
+    "demo.contentMargins.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "هوامش المحتوى"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Content Margins"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内容边距"
+          }
+        }
+      }
+    },
     "demo.horizontalScroll.title" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1387,6 +1548,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Position 与 zIndex"
+          }
+        }
+      }
+    },
+    "demo.safeAreaPadding.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حشوة المنطقة الآمنة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Safe Area Padding"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全区域内边距"
           }
         }
       }

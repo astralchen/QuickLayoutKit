@@ -84,29 +84,29 @@ public final class QuickLayoutViewControllerRepresentable: UIView, QuickLayoutUp
         /// 事件类型。
         public let kind: EventKind
 
-        /// 事件涉及的父视图控制器。
+        /// 事件涉及的父视图控制器；当前事件不涉及父控制器时为 `nil`。
         public let parent: UIViewController?
 
-        /// 事件涉及的主要子视图控制器。
+        /// 事件涉及的主要子视图控制器；当前没有子控制器时为 `nil`。
         public let viewController: UIViewController?
 
-        /// 替换宿主控制器时的旧子视图控制器。
+        /// 替换宿主控制器时的旧子视图控制器；事件不是替换或此前为空时为 `nil`。
         public let oldViewController: UIViewController?
 
-        /// 替换宿主控制器时的新子视图控制器。
+        /// 替换宿主控制器时的新子视图控制器；事件不是替换或移除控制器时为 `nil`。
         public let newViewController: UIViewController?
 
-        /// 可选的诊断上下文。
+        /// 可选的诊断上下文；事件没有附加原因时为 `nil`。
         public let reason: String?
     }
 
-    /// 当前承载的子视图控制器。
+    /// 当前承载的子视图控制器；未设置或已移除时为 `nil`。
     public private(set) var viewController: UIViewController?
 
-    /// 接收包含关系和布局事件的闭包。
+    /// 接收包含关系和布局事件的闭包。设置为 `nil` 时不发送该应用回调。
     public var eventHandler: ((Event) -> Void)?
 
-    /// 接收包含父子控制器上下文的包含关系和布局事件闭包。
+    /// 接收包含父子控制器上下文的包含关系和布局事件闭包。设置为 `nil` 时不发送该应用回调。
     public var detailedEventHandler: ((DetailedEvent) -> Void)?
 
     /// 指示测量期间是否检测首选内容尺寸变化。

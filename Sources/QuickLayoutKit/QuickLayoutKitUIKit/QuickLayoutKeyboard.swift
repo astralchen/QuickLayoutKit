@@ -159,6 +159,7 @@ public struct QuickLayoutKeyboardContext: Equatable, Sendable {
     /// 根据 UIKit 键盘通知创建键盘上下文。
     ///
     /// - Parameter notification: `UIResponder` 发布的键盘通知。
+    /// - Returns: 有效的键盘上下文；通知缺少键盘结束 frame 时返回 `nil`。
     public init?(notification: Notification) {
         guard let endFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else {
             return nil
@@ -442,7 +443,7 @@ public final class QuickLayoutKeyboardAvoider {
 
     /// 设置需要保持在键盘上方可见的视图。
     ///
-    /// - Parameter view: 当前输入视图或焦点视图。
+    /// - Parameter view: 当前输入视图或焦点视图；传入 `nil` 表示清除当前目标。
     public func setActiveView(_ view: UIView?) {
         activeView = view
     }

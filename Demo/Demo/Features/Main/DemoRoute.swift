@@ -8,6 +8,8 @@
 /// 演示应用中不依赖 UIKit 的导航目标。
 enum DemoRoute: CaseIterable, Hashable, Sendable {
     case horizontalScroll
+    case safeAreaPadding
+    case contentMargins
     case positionAndZIndex
     case profile
     case counter
@@ -30,6 +32,10 @@ enum DemoRoute: CaseIterable, Hashable, Sendable {
         switch self {
         case .horizontalScroll:
             "demo.horizontalScroll.title"
+        case .safeAreaPadding:
+            "demo.safeAreaPadding.title"
+        case .contentMargins:
+            "demo.contentMargins.title"
         case .positionAndZIndex:
             "demo.positionAndZIndex.title"
         case .profile:

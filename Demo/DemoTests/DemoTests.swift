@@ -16,6 +16,327 @@ import QuickLayoutKit
 @Suite(.serialized)
 struct DemoTests {
 
+    @Test func safeAreaPaddingDemoCoversQuickLayoutCombinations() throws {
+        DemoLocalization.setLocale(identifier: "en-US")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let viewController = SafeAreaPaddingDemoViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+
+        func expectPageInsets(
+            _ expected: UIEdgeInsets,
+            sourceLocation: SourceLocation = #_sourceLocation
+        ) {
+            let frame = viewController.pageScrollView.convert(
+                viewController.pageScrollView.bounds,
+                to: viewController.view
+            )
+            let bounds = viewController.view.bounds
+            #expect(
+                abs(frame.minX - expected.left) < 1,
+                sourceLocation: sourceLocation
+            )
+            #expect(
+                abs(frame.minY - expected.top) < 1,
+                sourceLocation: sourceLocation
+            )
+            #expect(
+                abs(bounds.maxX - frame.maxX - expected.right) < 1,
+                sourceLocation: sourceLocation
+            )
+            #expect(
+                abs(bounds.maxY - frame.maxY - expected.bottom) < 1,
+                sourceLocation: sourceLocation
+            )
+            #expect(
+                abs(
+                    viewController.pageScrollView.contentOffset.y
+                        + viewController.pageScrollView
+                            .adjustedContentInset.top
+                ) < 1,
+                sourceLocation: sourceLocation
+            )
+        }
+
+        #expect(viewController.scenarioCount == 10)
+        expectPageInsets(.zero)
+
+        let safeArea = viewController.view.safeAreaInsets
+        viewController.selectScenario(
+            at: SafeAreaPaddingDemoViewController.Scenario.zeroAll.rawValue
+        )
+        layout(viewController, in: navigationController)
+        expectPageInsets(safeArea)
+
+        viewController.selectScenario(
+            at: SafeAreaPaddingDemoViewController.Scenario.nilAll.rawValue
+        )
+        layout(viewController, in: navigationController)
+        expectPageInsets(safeArea)
+
+        viewController.selectScenario(
+            at: SafeAreaPaddingDemoViewController.Scenario.allSixteen.rawValue
+        )
+        layout(viewController, in: navigationController)
+        expectPageInsets(
+            UIEdgeInsets(
+                top: safeArea.top + 16,
+                left: safeArea.left + 16,
+                bottom: safeArea.bottom + 16,
+                right: safeArea.right + 16
+            )
+        )
+
+        viewController.selectScenario(
+            at: SafeAreaPaddingDemoViewController.Scenario
+                .perEdgeInsets.rawValue
+        )
+        layout(viewController, in: navigationController)
+        expectPageInsets(
+            UIEdgeInsets(
+                top: safeArea.top + 8,
+                left: safeArea.left + 12,
+                bottom: safeArea.bottom + 20,
+                right: safeArea.right + 24
+            )
+        )
+
+        viewController.selectScenario(
+            at: SafeAreaPaddingDemoViewController.Scenario
+                .separateEdges.rawValue
+        )
+        layout(viewController, in: navigationController)
+        expectPageInsets(
+            UIEdgeInsets(
+                top: 0,
+                left: safeArea.left + 16,
+                bottom: safeArea.bottom + 24,
+                right: safeArea.right + 16
+            )
+        )
+
+        viewController.selectScenario(
+            at: SafeAreaPaddingDemoViewController.Scenario
+                .repeatedLeading.rawValue
+        )
+        layout(viewController, in: navigationController)
+        expectPageInsets(
+            UIEdgeInsets(
+                top: 0,
+                left: safeArea.left + 20,
+                bottom: 0,
+                right: 0
+            )
+        )
+
+        viewController.selectScenario(
+            at: SafeAreaPaddingDemoViewController.Scenario
+                .leadingThenNil.rawValue
+        )
+        layout(viewController, in: navigationController)
+        expectPageInsets(
+            UIEdgeInsets(
+                top: 0,
+                left: safeArea.left + 8,
+                bottom: 0,
+                right: 0
+            )
+        )
+
+        viewController.selectScenario(
+            at: SafeAreaPaddingDemoViewController.Scenario
+                .negativeLeading.rawValue
+        )
+        layout(viewController, in: navigationController)
+        expectPageInsets(
+            UIEdgeInsets(
+                top: 0,
+                left: safeArea.left,
+                bottom: 0,
+                right: 0
+            )
+        )
+
+        window.semanticContentAttribute = .forceRightToLeft
+        viewController.reloadLayoutDirection(.rightToLeft)
+        viewController.selectScenario(
+            at: SafeAreaPaddingDemoViewController.Scenario
+                .repeatedLeading.rawValue
+        )
+        layout(viewController, in: navigationController)
+        expectPageInsets(
+            UIEdgeInsets(
+                top: 0,
+                left: 0,
+                bottom: 0,
+                right: safeArea.right + 20
+            )
+        )
+    }
+
+    @Test func safeAreaPaddingDemoFollowsLandscapeSafeAreaChanges() throws {
+        let viewController = SafeAreaPaddingDemoViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        viewController.selectScenario(
+            at: SafeAreaPaddingDemoViewController.Scenario.allSixteen.rawValue
+        )
+        layout(viewController, in: navigationController)
+
+        viewController.additionalSafeAreaInsets = UIEdgeInsets(
+            top: 0,
+            left: 62,
+            bottom: 20,
+            right: 62
+        )
+        window.frame = CGRect(x: 0, y: 0, width: 844, height: 390)
+        navigationController.view.frame = window.bounds
+        layout(viewController, in: navigationController)
+
+        let safeArea = viewController.view.safeAreaInsets
+        let frame = viewController.pageScrollView.convert(
+            viewController.pageScrollView.bounds,
+            to: viewController.view
+        )
+        #expect(viewController.view.bounds.width > viewController.view.bounds.height)
+        #expect(safeArea.left >= 62)
+        #expect(safeArea.right >= 62)
+        #expect(abs(frame.minX - safeArea.left - 16) < 1)
+        #expect(abs(viewController.view.bounds.maxX - frame.maxX - safeArea.right - 16) < 1)
+        #expect(abs(frame.minY - safeArea.top - 16) < 1)
+        #expect(abs(viewController.view.bounds.maxY - frame.maxY - safeArea.bottom - 16) < 1)
+        #expect(viewController.pageScrollView.contentSize.height > 0)
+    }
+
+    @Test func contentMarginsDemoCoversSwiftUIPlacementCombinations() throws {
+        DemoLocalization.setLocale(identifier: "en-US")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let viewController = ContentMarginsDemoViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+
+        #expect(viewController.scenarioCount == 9)
+        #expect(
+            viewController.previewScrollView.contentInset
+                == UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
+        )
+        #expect(
+            viewController.previewScrollView.verticalScrollIndicatorInsets
+                == UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
+        )
+
+        viewController.selectScenario(
+            at: ContentMarginsDemoViewController.Scenario
+                .explicitContentWithAutomaticBottom.rawValue
+        )
+        layout(viewController, in: navigationController)
+
+        #expect(
+            viewController.previewScrollView.contentInset
+                == UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
+        )
+        #expect(
+            viewController.previewScrollView.verticalScrollIndicatorInsets
+                == UIEdgeInsets(top: 0, left: 0, bottom: 24, right: 0)
+        )
+
+        viewController.selectScenario(
+            at: ContentMarginsDemoViewController.Scenario
+                .sameScrollContentPlacement.rawValue
+        )
+        layout(viewController, in: navigationController)
+
+        #expect(
+            viewController.previewScrollView.contentInset
+                == UIEdgeInsets(top: 0, left: 16, bottom: 24, right: 16)
+        )
+        #expect(
+            viewController.previewScrollView.verticalScrollIndicatorInsets
+                == .zero
+        )
+
+        viewController.selectScenario(
+            at: ContentMarginsDemoViewController.Scenario
+                .explicitContentReplacesAutomatic.rawValue
+        )
+        layout(viewController, in: navigationController)
+
+        #expect(
+            viewController.previewScrollView.contentInset
+                == UIEdgeInsets(top: 0, left: 8, bottom: 0, right: 0)
+        )
+        #expect(
+            viewController.previewScrollView.verticalScrollIndicatorInsets
+                == UIEdgeInsets(top: 0, left: 24, bottom: 0, right: 24)
+        )
+
+        window.semanticContentAttribute = .forceRightToLeft
+        viewController.reloadLayoutDirection(.rightToLeft)
+        layout(viewController, in: navigationController)
+
+        #expect(
+            viewController.previewScrollView.contentInset
+                == UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 8)
+        )
+        #expect(
+            viewController.previewScrollView.verticalScrollIndicatorInsets
+                == UIEdgeInsets(top: 0, left: 24, bottom: 0, right: 24)
+        )
+    }
+
+    @Test func contentMarginsDemoRemainsReachableInLandscape() throws {
+        let viewController = ContentMarginsDemoViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 844, height: 390)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+
+        let pageScrollView = try #require(
+            viewController.view
+                .allSubviews(of: QuickLayoutScrollView.self)
+                .first { $0 !== viewController.previewScrollView }
+        )
+        #expect(viewController.previewScrollView.bounds.width > 600)
+        #expect(
+            viewController.previewScrollView.contentSize.height
+                > viewController.previewScrollView.bounds.height
+        )
+        #expect(
+            pageScrollView.contentSize.height > pageScrollView.bounds.height
+        )
+    }
+
     @Test func positionAndZIndexDemoUsesPhysicalPointsAndLayerOrdering() throws {
         DemoLocalization.setLocale(identifier: "en-US")
         defer { DemoLocalization.setLocale(identifier: "en-US") }
@@ -34,6 +355,15 @@ struct DemoTests {
         viewController.view.layoutIfNeeded()
         viewController.positionCanvas.layoutIfNeeded()
         viewController.zIndexCanvas.layoutIfNeeded()
+
+        let scrollView = try #require(
+            viewController.view
+                .allSubviews(of: QuickLayoutScrollView.self)
+                .first
+        )
+        #expect(scrollView.contentInset.bottom == 24)
+        #expect(scrollView.verticalScrollIndicatorInsets.bottom == 24)
+        #expect(scrollView.automaticallyAdjustsScrollIndicatorInsets)
 
         #expect(viewController.positionCanvas.bounds.width > 0)
         #expect(
@@ -79,6 +409,23 @@ struct DemoTests {
             }
         )
 
+        viewController.additionalSafeAreaInsets = UIEdgeInsets(
+            top: 0,
+            left: 62,
+            bottom: 20,
+            right: 62
+        )
+        window.frame = CGRect(x: 0, y: 0, width: 844, height: 390)
+        navigationController.view.frame = window.bounds
+        layout(viewController, in: navigationController)
+
+        #expect(viewController.view.bounds.width > viewController.view.bounds.height)
+        #expect(scrollView.safeAreaInsets.left >= 62)
+        #expect(scrollView.safeAreaInsets.right >= 62)
+        #expect(scrollView.contentInset.bottom == 24)
+        #expect(scrollView.verticalScrollIndicatorInsets.bottom == 24)
+        #expect(scrollView.automaticallyAdjustsScrollIndicatorInsets)
+
         window.semanticContentAttribute = .forceRightToLeft
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.layoutIfNeeded()
@@ -90,6 +437,17 @@ struct DemoTests {
                 in: viewController.positionCanvas
             ).approximatelyEquals(CGPoint(x: 144, y: 100))
         )
+    }
+
+    private func layout(
+        _ viewController: DemoQuickLayoutHostingController,
+        in navigationController: UINavigationController
+    ) {
+        navigationController.view.setNeedsLayout()
+        navigationController.view.layoutIfNeeded()
+        viewController.setNeedsQuickLayout()
+        viewController.quickLayoutIfNeeded()
+        viewController.view.layoutIfNeeded()
     }
 
     @Test func quickLayoutViewMeasuresHostedContent() {
@@ -2933,6 +3291,10 @@ struct DemoTests {
 
         for key in [
             "main.title",
+            "demo.safeAreaPadding.title",
+            "safeAreaPadding.intro",
+            "safeAreaPadding.previous",
+            "safeAreaPadding.next",
             "demo.localizationOverview.title",
             "demo.uikitLocalization.title",
             "demo.swiftUIBridge.title",
@@ -3019,7 +3381,7 @@ struct DemoTests {
         #expect(main.collectionView.superview === main.view)
         #expect(main.view.allSubviews(of: QuickLayoutScrollView.self).isEmpty)
         #expect(main.collectionView.numberOfSections == 3)
-        #expect(main.collectionView.numberOfItems(inSection: 0) == 10)
+        #expect(main.collectionView.numberOfItems(inSection: 0) == 13)
         #expect(main.collectionView.numberOfItems(inSection: 1) == 1)
         #expect(main.collectionView.numberOfItems(inSection: 2) == 6)
 

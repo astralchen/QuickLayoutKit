@@ -72,16 +72,29 @@ import QuickLayoutKit
 
 QuickLayoutKit 使用部分与 SwiftUI 相同的 API 名称和重载形式，目的是让 UIKit 布局代码
 更容易阅读。这些名称不表示框架会复制 SwiftUI 的运行时默认间距或逐像素布局结果。
+尤其不要为所有可选参数套用同一种 `nil` 解释；`nil` 的含义由各 API 的 QuickLayout
+契约决定。
 
 | API 或取值 | 当前契约 |
 | --- | --- |
 | `VStack`、`HStack`、网格和 `Spacer` | 保持 QuickLayout 的测量、间距和弹性语义 |
-| 普通可选数值 | `nil` 通常表示不增加额外数值，并按 `0` 处理 |
-| `safeAreaPadding(..., nil)` | 消耗继承的安全区域，但不添加额外间距 |
+| `aspectRatio(nil, contentMode:)` | 从元素的理想尺寸推导宽高比 |
+| 弹性 `frame` 的最小、理想、最大尺寸为 `nil` | 不为对应项目提供约束；理想尺寸只在父级没有有限建议时作为备用值 |
+| `ProposedSize` 的维度为 `nil` | 该轴未指定；转换为 QuickLayout 提案时使用无穷大，不表示数值零 |
+| `safeAreaPadding(..., nil)` | 消耗选中边缘继承的安全区域，但额外间距为 `0`；不采用 SwiftUI 的平台默认间距 |
 | `safeAreaInset(..., spacing: nil)` | 为插入内容和安全区域预留空间，额外间距为 `0` |
-| `contentMargins(..., nil)` | 表示不指定所选边缘，不覆盖同一位置的既有边距 |
-| `ProposedSize` 中的 `nil` | 表示该轴未指定，不表示数值零 |
-| 弹性 `frame` 中的理想尺寸 | 仅在父元素没有给出有限建议尺寸时作为备用值 |
+| `safeAreaInset` 内容构建结果为 `nil` | 使用空布局；选中边缘继承的安全区域仍会被消费和预留 |
+| `contentMargins(..., nil)` | 不指定所选边缘，不覆盖同一 placement 的既有边距或容器默认值 |
+| `QuickLayoutView` 的显式尺寸弹性为 `nil` | 从 `body` 推导对应轴的弹性 |
+| `QuickLayoutButton.role == nil` | 不发布 destructive/cancel 语义角色，也不会产生隐式样式 |
+| 状态或事件 handler 为 `nil` | 不发送相应应用回调；框架自身生命周期继续运行 |
+| `performLayoutUpdate(..., animations: nil)` | 只执行 QuickLayout 失效与布局，不追加应用动画闭包 |
+| `performLayoutUpdate(..., completion: nil)` | 动画完成后不发送应用完成回调 |
+| `QuickLayoutViewControllerRepresentable.setViewController(nil)` | 移除当前子控制器及其视图 |
+| representable 的 `DetailedEvent` 可选上下文为 `nil` | 当前事件不涉及该控制器或没有附加诊断原因 |
+| `QuickLayoutKeyboardContext(notification:)` 返回 `nil` | 通知缺少 UIKit 的键盘结束 frame，无法建立有效上下文 |
+| `QuickLayoutKeyboardAvoider.setActiveView(nil)` | 清除需要自动滚动到键盘上方的目标视图 |
+| 列表复用标识符为 `nil` | 原样交给 UIKit，表示该实例没有复用标识符 |
 | `QuickLayoutButton` 外观 | 完全由应用的 `body` 和状态回调提供，没有隐式按钮样式 |
 
 当设计要求固定距离时，应明确传入堆栈间距、内边距、内容边距和安全区域附加值。
@@ -374,6 +387,22 @@ ScrollView(scrollView) {
 - `.scrollContent`：仅应用到滚动内容。
 - `.scrollIndicators`：仅应用到滚动指示器。
 
+解析规则与 SwiftUI 一致：同一 placement 的多次调用按所选边缘合并，后一次调用覆盖
+同一边缘；一旦为 `.scrollContent` 或 `.scrollIndicators` 提供了显式值，该位置整体使用
+显式 placement，不再逐边继承 `.automatic`。例如：
+
+```swift
+ScrollView(scrollView) {
+    contentLayout
+}
+.contentMargins(.horizontal, 16, for: .scrollContent)
+.contentMargins(.bottom, 24)
+```
+
+这段代码为滚动内容设置左右 `16`，为指示器设置底部 `24`；内容不会再从
+`.automatic` 继承底部 `24`。如果内容底部也需要 `24`，应再对 `.scrollContent`
+显式设置 `.bottom`。
+
 前缘和后缘会根据 `effectiveUserInterfaceLayoutDirection` 解析。滚动视图会把与其相交的
 安全区域合并到有效内容边距，因此显式边距是在对应安全区域基础上继续增加的距离。
 `containerRelativeFrame` 使用扣除有效边距后的可见视口进行计算。
@@ -391,8 +420,13 @@ contentLayout
     .safeAreaPadding(.bottom, 12)
 ```
 
-无参数调用或传入 `nil` 会消耗继承的安全区域，但额外间距为零。安全区域值会在每次测量和
-布局时重新读取，因此旋转、系统栏、容器尺寸、键盘和 RTL 变化都使用当前环境。
+连续调用会按修饰器顺序逐边累加；不同边缘彼此独立。同一边缘先增加 `8`、再增加 `12`，
+最终会在继承安全区域之外再增加 `20`。负值与非有限值按 `0` 处理，不会把内容推出原始
+安全区域。
+
+无参数调用或传入 `nil` 会消耗继承的安全区域，但额外间距为零。这是 QuickLayout 的稳定
+契约，不采用 SwiftUI 在当前平台提供的默认间距。安全区域值会在每次测量和布局时重新读取，
+因此旋转、系统栏、容器尺寸、键盘和 RTL 变化都使用当前环境。
 
 ### `safeAreaInset` 与 `ignoresSafeArea`
 
@@ -593,7 +627,9 @@ print(snapshot.totalLayoutPasses)
 
 Demo 展示全屏集合视图根布局、背景与垂直滚动页面、外层垂直滚动与内层横向轮播、横屏和
 安全区域、动态字体、等高卡片、列表自适应尺寸、运行时 LTR/RTL 切换、键盘避让和子控制器
-包含关系。
+包含关系。`SafeAreaPaddingDemoViewController` 提供 10 种 `safeAreaPadding` 组合，并显示实时
+安全区域与页面 frame；`ContentMarginsDemoViewController` 分别验证内容和滚动指示器的
+placement、覆盖顺序及 QuickLayout `nil` 契约。
 
 运行 Swift Package 测试：
 

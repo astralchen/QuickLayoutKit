@@ -97,7 +97,8 @@ final class PositionAndZIndexDemoViewController: DemoQuickLayoutHostingControlle
             .padding(.vertical, 16)
         }
         .contentMargins(.horizontal, 16, for: .scrollContent)
-        .contentMargins(.bottom, 24)
+        .contentMargins(.bottom, 24, for: .scrollContent)
+        .contentMargins(.bottom, 24, for: .scrollIndicators)
     }
 
     private func configureBodyLabel(_ label: UILabel) {

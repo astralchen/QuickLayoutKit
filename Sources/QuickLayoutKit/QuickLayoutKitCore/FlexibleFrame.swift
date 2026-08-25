@@ -8,12 +8,12 @@ public extension Element {
     /// 理想尺寸用于替换对应轴上未指定的尺寸建议。父元素提供的有限尺寸建议仍具有更高优先级。
     ///
     /// - Parameters:
-    ///   - minWidth: 框架的最小宽度。
-    ///   - idealWidth: 未指定水平约束时使用的理想宽度。
-    ///   - maxWidth: 框架的最大宽度。
-    ///   - minHeight: 框架的最小高度。
-    ///   - idealHeight: 未指定垂直约束时使用的理想高度。
-    ///   - maxHeight: 框架的最大高度。
+    ///   - minWidth: 框架的最小宽度；`nil` 表示不设置最小宽度。
+    ///   - idealWidth: 未指定水平约束时使用的理想宽度；`nil` 表示不提供备用宽度。
+    ///   - maxWidth: 框架的最大宽度；`nil` 表示不设置最大宽度。
+    ///   - minHeight: 框架的最小高度；`nil` 表示不设置最小高度。
+    ///   - idealHeight: 未指定垂直约束时使用的理想高度；`nil` 表示不提供备用高度。
+    ///   - maxHeight: 框架的最大高度；`nil` 表示不设置最大高度。
     ///   - alignment: 元素在框架内的对齐方式。
     /// - Returns: 放置在弹性框架中的元素。
     func frame(

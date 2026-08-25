@@ -1805,6 +1805,18 @@ struct QuickLayoutKitTests {
     }
 
     @MainActor
+    @Test func nilSpecificPlacementDoesNotReplaceAutomaticMargins() {
+        let scrollView = QuickLayoutScrollView(.vertical)
+
+        _ = ScrollView(scrollView, .vertical) {}
+            .contentMargins(.bottom, 24)
+            .contentMargins(.horizontal, nil, for: .scrollContent)
+
+        #expect(scrollView.contentInset.bottom == 24)
+        #expect(scrollView.verticalScrollIndicatorInsets.bottom == 24)
+    }
+
+    @MainActor
     @Test func contentMarginsPreserveFiniteNegativeValues() {
         let scrollView = QuickLayoutScrollView(.horizontal)
         scrollView.contentInsetAdjustmentBehavior = .never
@@ -1840,7 +1852,7 @@ struct QuickLayoutKitTests {
     }
 
     @MainActor
-    @Test func specificContentMarginPlacementOverridesAutomaticPerEdge() {
+    @Test func specificContentMarginPlacementReplacesAutomaticForContent() {
         let scrollView = QuickLayoutScrollView(.horizontal)
 
         _ = ScrollView(scrollView, .horizontal) {}
@@ -1848,9 +1860,45 @@ struct QuickLayoutKitTests {
             .contentMargins(.leading, 8, for: .scrollContent)
 
         #expect(scrollView.contentInset.left == 8)
-        #expect(scrollView.contentInset.right == 20)
+        #expect(scrollView.contentInset.right == 0)
         #expect(scrollView.horizontalScrollIndicatorInsets.left == 20)
         #expect(scrollView.horizontalScrollIndicatorInsets.right == 20)
+    }
+
+    @MainActor
+    @Test func explicitPlacementsDoNotInheritOtherAutomaticEdges() {
+        let scrollView = QuickLayoutScrollView(.vertical)
+
+        _ = ScrollView(scrollView, .vertical) {}
+            .contentMargins(.horizontal, 16, for: .scrollContent)
+            .contentMargins(.bottom, 24)
+
+        #expect(
+            scrollView.contentInset
+                == UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
+        )
+        #expect(
+            scrollView.verticalScrollIndicatorInsets
+                == UIEdgeInsets(top: 0, left: 0, bottom: 24, right: 0)
+        )
+    }
+
+    @MainActor
+    @Test func explicitIndicatorPlacementReplacesAutomaticForIndicators() {
+        let scrollView = QuickLayoutScrollView(.vertical)
+
+        _ = ScrollView(scrollView, .vertical) {}
+            .contentMargins(.horizontal, 24)
+            .contentMargins(.bottom, 12, for: .scrollIndicators)
+
+        #expect(
+            scrollView.contentInset
+                == UIEdgeInsets(top: 0, left: 24, bottom: 0, right: 24)
+        )
+        #expect(
+            scrollView.verticalScrollIndicatorInsets
+                == UIEdgeInsets(top: 0, left: 0, bottom: 12, right: 0)
+        )
     }
 
     @MainActor
@@ -1924,6 +1972,61 @@ struct QuickLayoutKitTests {
         }
 
         #expect(size == CGSize(width: 51, height: 59))
+    }
+
+    @Test func repeatedSafeAreaPaddingAccumulatesPerEdge() {
+        let element = IntrinsicTestElement(size: CGSize(width: 20, height: 30))
+            .safeAreaPadding(.leading, 8)
+            .safeAreaPadding(.leading, 12)
+            .safeAreaPadding(.bottom, 6)
+
+        let size = withSafeArea(
+            containerSize: CGSize(width: 200, height: 100),
+            containerInsets: EdgeInsets(
+                top: 20,
+                leading: 10,
+                bottom: 5,
+                trailing: 15
+            )
+        ) {
+            element.sizeThatFits(CGSize(width: 200, height: 100))
+        }
+
+        #expect(size == CGSize(width: 50, height: 41))
+    }
+
+    @Test func safeAreaPaddingClampsNegativeAndNonFiniteValuesToZero() {
+        let intrinsicSize = CGSize(width: 20, height: 30)
+        let proposal = CGSize(width: 200, height: 100)
+        let negative = IntrinsicTestElement(size: intrinsicSize)
+            .safeAreaPadding(.leading, -6)
+        let perEdge = IntrinsicTestElement(size: intrinsicSize)
+            .safeAreaPadding(
+                EdgeInsets(
+                    top: -.infinity,
+                    leading: -4,
+                    bottom: .nan,
+                    trailing: 3
+                )
+            )
+
+        let sizes = withSafeArea(
+            containerSize: proposal,
+            containerInsets: EdgeInsets(
+                top: 20,
+                leading: 10,
+                bottom: 5,
+                trailing: 15
+            )
+        ) {
+            (
+                negative.sizeThatFits(proposal),
+                perEdge.sizeThatFits(proposal)
+            )
+        }
+
+        #expect(sizes.0 == CGSize(width: 30, height: 30))
+        #expect(sizes.1 == CGSize(width: 48, height: 55))
     }
 
     @MainActor
@@ -2292,6 +2395,42 @@ struct QuickLayoutKitTests {
         #expect(sizes.2 == sizes.3)
         #expect(sizes.0 == CGSize(width: 20, height: 52))
         #expect(sizes.2 == CGSize(width: 42, height: 30))
+    }
+
+    @Test func safeAreaInsetNilContentUsesEmptyLayoutAndKeepsSafeArea() {
+        let proposal = CGSize(width: 200, height: 100)
+        let insets = EdgeInsets(
+            top: 0,
+            leading: 10,
+            bottom: 10,
+            trailing: 0
+        )
+        let vertical = IntrinsicTestElement(
+            size: CGSize(width: 20, height: 30)
+        ).safeAreaInset(edge: .bottom, spacing: nil) {
+            nil as IntrinsicTestElement?
+        }
+        let horizontal = IntrinsicTestElement(
+            size: CGSize(width: 20, height: 30)
+        ).safeAreaInset(
+            edge: HorizontalEdge.leading,
+            spacing: nil
+        ) {
+            nil as IntrinsicTestElement?
+        }
+
+        let sizes = withSafeArea(
+            containerSize: proposal,
+            containerInsets: insets
+        ) {
+            (
+                vertical.sizeThatFits(proposal),
+                horizontal.sizeThatFits(proposal)
+            )
+        }
+
+        #expect(sizes.0 == CGSize(width: 20, height: 40))
+        #expect(sizes.1 == CGSize(width: 30, height: 30))
     }
 
     @MainActor

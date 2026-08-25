@@ -71,8 +71,18 @@ class DynamicScrollViewController: DemoQuickLayoutHostingController {
             Metrics.horizontalContentMargin,
             for: .scrollContent
         )
-        .contentMargins(.top, actionContentMargin)
-        .contentMargins(.bottom, Metrics.bottomContentMargin)
+        .contentMargins(.top, actionContentMargin, for: .scrollContent)
+        .contentMargins(
+            .bottom,
+            Metrics.bottomContentMargin,
+            for: .scrollContent
+        )
+        .contentMargins(.top, actionContentMargin, for: .scrollIndicators)
+        .contentMargins(
+            .bottom,
+            Metrics.bottomContentMargin,
+            for: .scrollIndicators
+        )
         .overlay(alignment: .topTrailing) {
             addButton
                 .safeAreaPadding(

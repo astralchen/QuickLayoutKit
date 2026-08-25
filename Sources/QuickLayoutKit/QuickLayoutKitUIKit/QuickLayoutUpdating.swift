@@ -19,8 +19,9 @@ extension QuickLayoutUpdating where Self: UIView {
     ///   - duration: 动画持续时间。
     ///   - delay: 动画开始前的延迟时间。
     ///   - options: UIKit 动画选项。
-    ///   - animations: 与布局更新同时执行的附加动画。
-    ///   - completion: 动画结束时调用的闭包。
+    ///   - animations: 与布局更新同时执行的附加动画；`nil` 表示只执行 QuickLayout
+    ///     失效与布局。
+    ///   - completion: 动画结束时调用的闭包；`nil` 表示不发送应用完成回调。
     public func performLayoutUpdate(
         duration: TimeInterval,
         delay: TimeInterval = 0,
@@ -50,8 +51,9 @@ extension QuickLayoutUpdating where Self: UIViewController {
     ///   - duration: 动画持续时间。
     ///   - delay: 动画开始前的延迟时间。
     ///   - options: UIKit 动画选项。
-    ///   - animations: 与布局更新同时执行的附加动画。
-    ///   - completion: 动画结束时调用的闭包。
+    ///   - animations: 与布局更新同时执行的附加动画；`nil` 表示只执行 QuickLayout
+    ///     失效与布局。
+    ///   - completion: 动画结束时调用的闭包；`nil` 表示不发送应用完成回调。
     public func performLayoutUpdate(
         duration: TimeInterval,
         delay: TimeInterval = 0,

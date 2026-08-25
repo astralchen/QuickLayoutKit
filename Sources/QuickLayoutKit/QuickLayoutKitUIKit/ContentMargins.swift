@@ -13,6 +13,8 @@ public struct ContentMarginPlacement: Hashable, Sendable {
     fileprivate let kind: Kind
 
     /// 将边距应用到容器支持的所有位置。
+    ///
+    /// 某个位置存在显式配置时，该位置使用显式配置，不再继承自动位置的其他边缘。
     public static var automatic: ContentMarginPlacement {
         ContentMarginPlacement(kind: .automatic)
     }
@@ -55,8 +57,8 @@ public extension Element {
 
     /// 在选定边缘上配置相同的内容边距。
     ///
-    /// 传入 `nil` 会保持选定边缘未指定，与 SwiftUI 的覆盖语义一致。因此，同一位置上
-    /// 先前设置的边距或容器默认值仍然有效。
+    /// 传入 `nil` 会保持选定边缘未指定。因此，同一位置上先前设置的边距或容器默认值
+    /// 仍然有效。这是 QuickLayout 的稳定契约，不采用平台默认边距。
     ///
     /// - Parameters:
     ///   - edges: 需要配置内容边距的边缘。
@@ -176,15 +178,6 @@ final class QuickLayoutContentMarginState {
             if edges.contains(.trailing) { trailing = insets.trailing }
         }
 
-        func overriding(_ fallback: Overrides) -> Overrides {
-            Overrides(
-                top: top ?? fallback.top,
-                leading: leading ?? fallback.leading,
-                bottom: bottom ?? fallback.bottom,
-                trailing: trailing ?? fallback.trailing
-            )
-        }
-
         var resolved: EdgeInsets {
             EdgeInsets(
                 top: top ?? 0,
@@ -201,6 +194,13 @@ final class QuickLayoutContentMarginState {
                 bottom: bottom == nil ? 0 : 1,
                 trailing: trailing == nil ? 0 : 1
             )
+        }
+
+        var isEmpty: Bool {
+            top == nil
+                && leading == nil
+                && bottom == nil
+                && trailing == nil
         }
     }
 
@@ -286,8 +286,16 @@ final class QuickLayoutContentMarginState {
             .subtracting(appliedHorizontalIndicatorInsets)
         let layoutDirection = scrollView.effectiveUserInterfaceLayoutDirection
 
-        let contentOverrides = scrollContent.overriding(automatic)
-        let indicatorOverrides = scrollIndicators.overriding(automatic)
+        // 与 SwiftUI.ContentMarginPlacement 对齐：显式 placement 按位置覆盖
+        // `.automatic`，而不是逐边回退。比如先为 `.scrollContent` 设置水平
+        // 16，再为 `.automatic` 设置底部 24，内容只保留水平 16；底部 24
+        // 仅由没有显式配置的滚动指示器采用。
+        let contentOverrides = scrollContent.isEmpty
+            ? automatic
+            : scrollContent
+        let indicatorOverrides = scrollIndicators.isEmpty
+            ? automatic
+            : scrollIndicators
         let automaticAdjustmentInsets = scrollView
             .quickLayoutAutomaticContentInsetAdjustment
         let contentMargins = contentOverrides.resolved

@@ -33,7 +33,7 @@ public struct QuickLayoutButtonState: Equatable, Sendable {
     ///   - isPressed: 指示按钮是否正被按压。
     ///   - isEnabled: 指示按钮是否可以执行操作。
     ///   - isSelected: 指示按钮是否处于选中状态。
-    ///   - role: 操作的语义角色。
+    ///   - role: 操作的语义角色；`nil` 表示没有 destructive 或 cancel 角色。
     public init(
         isPressed: Bool,
         isEnabled: Bool,
@@ -77,6 +77,8 @@ open class QuickLayoutButton:
     public var action: Action
 
     /// 向 ``stateUpdateHandler`` 公开的操作语义角色。
+    ///
+    /// `nil` 表示不提供 destructive 或 cancel 语义，且不会产生任何隐式样式。
     open var role: QuickLayoutButtonRole? {
         didSet {
             guard role != oldValue else { return }
@@ -100,7 +102,8 @@ open class QuickLayoutButton:
         }
     }
 
-    /// 设置时立即接收初始状态，此后接收每个不同的状态。
+    /// 设置时立即接收初始状态，此后接收每个不同的状态。设置为 `nil` 时停止应用回调，
+    /// 但不改变按钮自身的交互状态和生命周期。
     ///
     /// 该回调是框架为按压、禁用、选中和角色相关外观提供的唯一内置桥接。不要在按钮自身的
     /// 处理闭包中强引用按钮。
@@ -187,7 +190,7 @@ open class QuickLayoutButton:
     /// 创建由子类提供视觉层级的按钮。
     ///
     /// - Parameters:
-    ///   - role: 可选的操作语义角色；该值不会自动应用样式。
+    ///   - role: 可选的操作语义角色；`nil` 表示没有语义角色。该值不会自动应用样式。
     ///   - action: 按钮的主要操作。
     public init(
         role: QuickLayoutButtonRole? = nil,
@@ -202,7 +205,7 @@ open class QuickLayoutButton:
     /// 创建具有应用自有 QuickLayout 层级的按钮。
     ///
     /// - Parameters:
-    ///   - role: 可选的操作语义角色；该值不会自动应用样式。
+    ///   - role: 可选的操作语义角色；`nil` 表示没有语义角色。该值不会自动应用样式。
     ///   - action: 按钮的主要操作。
     ///   - label: 完整的视觉层级；框架不会隐式添加样式或内边距。
     public convenience init(

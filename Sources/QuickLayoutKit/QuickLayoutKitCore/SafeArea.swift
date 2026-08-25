@@ -264,6 +264,7 @@ public extension Element {
     /// 向元素可见的安全区域添加固定边距。
     ///
     /// 该修饰符先占用继承的安全区域边距，再添加指定间距并布局元素。
+    /// 负值与非有限值按 `0` 处理。
     ///
     /// - Parameter insets: 添加到各个安全区域边缘的间距。
     /// - Returns: 应用安全区域内边距后的元素。
@@ -271,13 +272,15 @@ public extension Element {
         SafeAreaPaddingElement(
             child: self,
             edges: .all,
-            additionalInsets: insets.sanitized
+            additionalInsets: insets.sanitizedSafeAreaPadding
         )
     }
 
     /// 向选定的安全区域边缘添加固定内边距。
     ///
-    /// 传入 `nil` 不会添加额外间距，与 QuickLayout 默认使用零间距的行为一致。
+    /// 传入 `nil` 不会添加额外间距，但仍会消费选中边缘继承的安全区域。这是
+    /// QuickLayout 的稳定契约，不采用 SwiftUI 的平台默认间距。负值与非有限值按 `0`
+    /// 处理。
     ///
     /// - Parameters:
     ///   - edges: 需要添加内边距的安全区域边缘。
@@ -287,7 +290,7 @@ public extension Element {
         _ edges: EdgeSet = .all,
         _ length: CGFloat? = nil
     ) -> Element & Layout {
-        let value = sanitized(length ?? 0)
+        let value = sanitizedSafeAreaPaddingValue(length ?? 0)
         return SafeAreaPaddingElement(
             child: self,
             edges: edges,
@@ -302,6 +305,8 @@ public extension Element {
 
     /// 向所有安全区域边缘添加相同的固定内边距。
     ///
+    /// 负值与非有限值按 `0` 处理。
+    ///
     /// - Parameter length: 添加到每个安全区域边缘的间距。
     /// - Returns: 应用安全区域内边距后的元素。
     func safeAreaPadding(_ length: CGFloat) -> Element & Layout {
@@ -310,7 +315,8 @@ public extension Element {
 
     /// 在安全区域的垂直边缘放置内容并为其预留空间。
     ///
-    /// `spacing` 为 `nil` 时按零处理。
+    /// `spacing` 为 `nil` 时按零处理。内容构建结果为 `nil` 时使用空布局，但仍消费并
+    /// 预留选中边缘继承的安全区域。
     ///
     /// - Parameters:
     ///   - edge: 放置内容的垂直边缘。
@@ -335,7 +341,8 @@ public extension Element {
 
     /// 在安全区域的水平边缘放置内容并为其预留空间。
     ///
-    /// `spacing` 为 `nil` 时按零处理。
+    /// `spacing` 为 `nil` 时按零处理。内容构建结果为 `nil` 时使用空布局，但仍消费并
+    /// 预留选中边缘继承的安全区域。
     ///
     /// - Parameters:
     ///   - edge: 放置内容的水平边缘。
@@ -588,6 +595,15 @@ private extension EdgeInsets {
         )
     }
 
+    var sanitizedSafeAreaPadding: EdgeInsets {
+        EdgeInsets(
+            top: sanitizedSafeAreaPaddingValue(top),
+            leading: sanitizedSafeAreaPaddingValue(leading),
+            bottom: sanitizedSafeAreaPaddingValue(bottom),
+            trailing: sanitizedSafeAreaPaddingValue(trailing)
+        )
+    }
+
     func value(for edge: Edge) -> CGFloat {
         switch edge {
         case .top: top
@@ -618,6 +634,10 @@ private func sanitized(_ value: CGFloat) -> CGFloat {
 
 private func sanitizedSafeAreaValue(_ value: CGFloat) -> CGFloat {
     sanitized(value)
+}
+
+private func sanitizedSafeAreaPaddingValue(_ value: CGFloat) -> CGFloat {
+    max(0, sanitized(value))
 }
 
 private func normalized(_ value: CGFloat) -> CGFloat {

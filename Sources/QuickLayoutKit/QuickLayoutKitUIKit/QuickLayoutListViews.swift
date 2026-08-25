@@ -208,7 +208,7 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
     ///
     /// - Parameters:
     ///   - style: 表格视图单元格样式。
-    ///   - reuseIdentifier: 单元格的复用标识符。
+    ///   - reuseIdentifier: 单元格的复用标识符；`nil` 原样交给 UIKit，表示没有复用标识符。
     ///   - content: 返回单元格内容的构建器闭包。
     public convenience init(
         style: UITableViewCell.CellStyle = .default,
@@ -393,7 +393,7 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
     /// 创建以内联方式提供 QuickLayout 内容的复用视图。
     ///
     /// - Parameters:
-    ///   - reuseIdentifier: 复用视图的复用标识符。
+    ///   - reuseIdentifier: 复用视图的复用标识符；`nil` 原样交给 UIKit，表示没有复用标识符。
     ///   - content: 返回复用内容的构建器闭包。
     public convenience init(
         reuseIdentifier: String? = nil,

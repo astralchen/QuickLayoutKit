@@ -41,6 +41,10 @@ final class DemoRouter: DemoRouting {
         switch route {
         case .horizontalScroll:
             HorizontalScrollViewViewController()
+        case .safeAreaPadding:
+            SafeAreaPaddingDemoViewController()
+        case .contentMargins:
+            ContentMarginsDemoViewController()
         case .positionAndZIndex:
             PositionAndZIndexDemoViewController()
         case .profile:
