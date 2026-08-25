@@ -42,6 +42,7 @@ final class MainViewModel {
                 .safeAreaPadding,
                 .contentMargins,
                 .positionAndZIndex,
+                .viewThatFits,
                 .profile,
                 .counter,
                 .dynamicScroll,

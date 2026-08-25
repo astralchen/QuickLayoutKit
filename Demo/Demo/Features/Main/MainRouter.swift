@@ -47,6 +47,8 @@ final class DemoRouter: DemoRouting {
             ContentMarginsDemoViewController()
         case .positionAndZIndex:
             PositionAndZIndexDemoViewController()
+        case .viewThatFits:
+            ViewThatFitsDemoViewController()
         case .profile:
             ProfileViewController()
         case .counter:

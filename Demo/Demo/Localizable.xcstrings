@@ -1805,6 +1805,29 @@
         }
       }
     },
+    "demo.viewThatFits.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ViewThatFits"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ViewThatFits"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ViewThatFits"
+          }
+        }
+      }
+    },
     "dynamic.addItem" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -5044,6 +5067,167 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "显示 Modal"
+          }
+        }
+      }
+    },
+    "viewThatFits.expected" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "المتوقع في SwiftUI: المرشح %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SwiftUI expected: Candidate %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SwiftUI 预期：候选项 %@"
+          }
+        }
+      }
+    },
+    "viewThatFits.height" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الارتفاع المقترح"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proposed height"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "建议高度"
+          }
+        }
+      }
+    },
+    "viewThatFits.intro" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "غيّر العرض والارتفاع المقترحين للتحقق من ترتيب المرشحين والمحاور المقيدة وقاعدة الرجوع المتوافقة مع SwiftUI.ViewThatFits."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resize the proposed width and height to verify candidate order, constrained axes, and fallback behavior against SwiftUI.ViewThatFits."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "调整建议宽高，验证候选顺序、约束轴和回退行为是否与 SwiftUI.ViewThatFits 一致。"
+          }
+        }
+      }
+    },
+    "viewThatFits.next" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "السيناريو التالي"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next scenario"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下一个场景"
+          }
+        }
+      }
+    },
+    "viewThatFits.previous" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "السيناريو السابق"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous scenario"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上一个场景"
+          }
+        }
+      }
+    },
+    "viewThatFits.selected" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "النتيجة الفعلية: المرشح %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Observed: Candidate %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实际结果：候选项 %@"
+          }
+        }
+      }
+    },
+    "viewThatFits.width" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "العرض المقترح"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proposed width"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "建议宽度"
           }
         }
       }

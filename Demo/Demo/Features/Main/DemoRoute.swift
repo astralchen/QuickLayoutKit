@@ -11,6 +11,7 @@ enum DemoRoute: CaseIterable, Hashable, Sendable {
     case safeAreaPadding
     case contentMargins
     case positionAndZIndex
+    case viewThatFits
     case profile
     case counter
     case dynamicScroll
@@ -38,6 +39,8 @@ enum DemoRoute: CaseIterable, Hashable, Sendable {
             "demo.contentMargins.title"
         case .positionAndZIndex:
             "demo.positionAndZIndex.title"
+        case .viewThatFits:
+            "demo.viewThatFits.title"
         case .profile:
             "demo.profile.title"
         case .counter:

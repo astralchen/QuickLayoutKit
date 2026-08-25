@@ -80,13 +80,20 @@ struct QuickLayoutKitTests {
         } label: {
             titleLabel.padding(.all, 12)
         }
+        var eventCount = 0
+        button.addAction(
+            UIAction { _ in eventCount += 1 },
+            for: .primaryActionTriggered
+        )
 
         button.performAction()
         #expect(actionCount == 1)
+        #expect(eventCount == 1)
 
         button.isEnabled = false
         button.performAction()
         #expect(actionCount == 1)
+        #expect(eventCount == 1)
         #expect(button.accessibilityTraits.contains(.notEnabled))
         #expect(!button.accessibilityActivate())
 
@@ -94,6 +101,7 @@ struct QuickLayoutKitTests {
         #expect(!button.accessibilityTraits.contains(.notEnabled))
         #expect(button.accessibilityActivate())
         #expect(actionCount == 2)
+        #expect(eventCount == 2)
     }
 
     @MainActor
@@ -2557,6 +2565,17 @@ struct QuickLayoutKitTests {
         let size = element.sizeThatFits(CGSize(width: 100, height: 80))
 
         #expect(size == CGSize(width: 150, height: 50))
+    }
+
+    @Test func viewThatFitsWithEmptyAxesAlwaysUsesFirstAlternative() {
+        let element = ViewThatFits(in: []) {
+            IntrinsicTestElement(size: CGSize(width: 240, height: 160))
+            IntrinsicTestElement(size: CGSize(width: 80, height: 40))
+        }
+
+        let size = element.sizeThatFits(CGSize(width: 100, height: 60))
+
+        #expect(size == CGSize(width: 240, height: 160))
     }
 
     @MainActor

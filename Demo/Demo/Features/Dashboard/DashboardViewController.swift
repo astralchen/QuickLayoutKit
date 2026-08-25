@@ -501,6 +501,7 @@ private final class DashboardWeeklyGoalCardView: QuickLayoutView {
             .appLayoutDirection
             .semanticContentAttribute
         semanticContentAttribute = attribute
+        cardBackgroundView.semanticContentAttribute = attribute
         // UIProgressView 没有公开的填充起始边 API。先固定其内部渲染方向，
         // 再根据应用本地化方向对控件进行一次镜像，避免重复翻转。
         progressView.semanticContentAttribute = .forceLeftToRight

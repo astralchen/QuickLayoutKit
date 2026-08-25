@@ -416,16 +416,13 @@ open class QuickLayoutButton:
         isAccessibilityElement = true
         accessibilityTraits.insert(.button)
 
-        addTarget(
-            self,
-            action: #selector(handlePrimaryAction),
+        addAction(
+            UIAction { [weak self] _ in
+                self?.action()
+            },
             for: .primaryActionTriggered
         )
         updateAccessibilityTraits()
-    }
-
-    @objc private func handlePrimaryAction() {
-        action()
     }
 
     private func synchronizeDirectionIfNeeded() {

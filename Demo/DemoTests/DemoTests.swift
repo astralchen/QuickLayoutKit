@@ -337,6 +337,175 @@ struct DemoTests {
         )
     }
 
+    @Test func viewThatFitsDemoCoversSwiftUISelectionContract() throws {
+        DemoLocalization.setLocale(identifier: "en-US")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let viewController = ViewThatFitsDemoViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+
+        #expect(viewController.scenarioCount == 6)
+        #expect(viewController.selectedCandidateIdentifier == "B")
+
+        for scenario in ViewThatFitsDemoViewController.Scenario.allCases {
+            viewController.selectScenario(at: scenario.rawValue)
+            layout(viewController, in: navigationController)
+
+            let expectedCandidate = try #require(
+                scenario.expectedCandidate(for: scenario.proposedSize)
+            )
+
+            #expect(
+                viewController.selectedCandidateIdentifier
+                    == expectedCandidate.identifier
+            )
+            #expect(
+                viewController.selectedCandidateSize
+                    == expectedCandidate.size
+            )
+            #expect(
+                viewController.expectedCandidateIdentifier
+                    == expectedCandidate.identifier
+            )
+            #expect(
+                viewController.expectedLabel.text
+                    == DemoLocalization.text(
+                        "viewThatFits.expected",
+                        expectedCandidate.identifier
+                    )
+            )
+            #expect(
+                viewController.metricsLabel.text
+                    == DemoLocalization.text(
+                        "viewThatFits.selected",
+                        expectedCandidate.identifier
+                    )
+            )
+            #expect(
+                viewController.previewView.bounds.size
+                    == scenario.proposedSize
+            )
+        }
+
+        viewController.selectScenario(
+            at: ViewThatFitsDemoViewController.Scenario
+                .defaultBothAxes.rawValue
+        )
+        viewController.setProposedSize(CGSize(width: 300, height: 140))
+        layout(viewController, in: navigationController)
+        #expect(viewController.selectedCandidateIdentifier == "A")
+        #expect(viewController.expectedCandidateIdentifier == "A")
+        #expect(
+            viewController.expectedLabel.text
+                == DemoLocalization.text("viewThatFits.expected", "A")
+        )
+        #expect(
+            viewController.selectedCandidateSize
+                == CGSize(width: 260, height: 120)
+        )
+        #expect(
+            viewController.previewView.bounds.size
+                == CGSize(width: 300, height: 140)
+        )
+
+        viewController.setProposedSize(CGSize(width: 200, height: 100))
+        layout(viewController, in: navigationController)
+        #expect(viewController.selectedCandidateIdentifier == "B")
+        #expect(viewController.expectedCandidateIdentifier == "B")
+        #expect(
+            viewController.expectedLabel.text
+                == DemoLocalization.text("viewThatFits.expected", "B")
+        )
+        #expect(
+            viewController.selectedCandidateSize
+                == CGSize(width: 180, height: 90)
+        )
+        #expect(
+            viewController.previewView.bounds.size
+                == CGSize(width: 200, height: 100)
+        )
+
+        viewController.setProposedSize(CGSize(width: 90, height: 50))
+        layout(viewController, in: navigationController)
+        #expect(viewController.selectedCandidateIdentifier == "C")
+        #expect(viewController.expectedCandidateIdentifier == "C")
+        #expect(
+            viewController.expectedLabel.text
+                == DemoLocalization.text("viewThatFits.expected", "C")
+        )
+        #expect(
+            viewController.selectedCandidateSize
+                == CGSize(width: 100, height: 60)
+        )
+        #expect(
+            viewController.previewView.bounds.size
+                == CGSize(width: 90, height: 50)
+        )
+
+        viewController.selectScenario(
+            at: ViewThatFitsDemoViewController.Scenario
+                .horizontalOnly.rawValue
+        )
+        viewController.setProposedSize(CGSize(width: 151, height: 200))
+        layout(viewController, in: navigationController)
+        #expect(viewController.expectedCandidateIdentifier == "B")
+        #expect(viewController.selectedCandidateIdentifier == "B")
+        #expect(
+            viewController.expectedLabel.text
+                == DemoLocalization.text("viewThatFits.expected", "B")
+        )
+        #expect(
+            viewController.metricsLabel.text
+                == DemoLocalization.text("viewThatFits.selected", "B")
+        )
+    }
+
+    @Test func viewThatFitsDemoRemainsScrollableInLandscape() throws {
+        let viewController = ViewThatFitsDemoViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 844, height: 390)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+
+        let scrollView = viewController.pageScrollView
+        #expect(scrollView.bounds.width > scrollView.bounds.height)
+        #expect(scrollView.contentSize.height > scrollView.bounds.height)
+        #expect(
+            viewController.previewView.bounds.size
+                == viewController.proposedSize
+        )
+
+        let maximumOffset = max(
+            0,
+            scrollView.contentSize.height
+                - scrollView.bounds.height
+                + scrollView.adjustedContentInset.bottom
+        )
+        scrollView.setContentOffset(
+            CGPoint(x: scrollView.contentOffset.x, y: maximumOffset),
+            animated: false
+        )
+        scrollView.layoutIfNeeded()
+
+        #expect(maximumOffset > 0)
+        #expect(scrollView.contentOffset.y > 0)
+    }
+
     @Test func positionAndZIndexDemoUsesPhysicalPointsAndLayerOrdering() throws {
         DemoLocalization.setLocale(identifier: "en-US")
         defer { DemoLocalization.setLocale(identifier: "en-US") }
@@ -3381,7 +3550,7 @@ struct DemoTests {
         #expect(main.collectionView.superview === main.view)
         #expect(main.view.allSubviews(of: QuickLayoutScrollView.self).isEmpty)
         #expect(main.collectionView.numberOfSections == 3)
-        #expect(main.collectionView.numberOfItems(inSection: 0) == 13)
+        #expect(main.collectionView.numberOfItems(inSection: 0) == 14)
         #expect(main.collectionView.numberOfItems(inSection: 1) == 1)
         #expect(main.collectionView.numberOfItems(inSection: 2) == 6)
 

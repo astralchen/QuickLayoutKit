@@ -351,7 +351,7 @@ private final class CounterControlsView: CounterCardView {
         button
             .resizable(axis: .horizontal)
             .frame(height: 52)
-            .frame(minWidth: 96)
+            .frame(minWidth: 96, idealWidth: 96)
     }
 
     private func verticalButton(_ button: QuickLayoutButton) -> Layout {
@@ -430,19 +430,39 @@ private final class CounterActionButton: QuickLayoutButton {
     }
 
     override var body: Layout {
-        HStack(spacing: 7) {
-            if imageView.image != nil {
-                imageView
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 17, height: 17)
+        buttonContent
+            .frame(maxWidth: .infinity, alignment: .center)
+            .frame(minHeight: 44)
+            .background { backgroundView }
+    }
+
+    @LayoutBuilder
+    private var buttonContent: Layout {
+        if imageView.image != nil {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 7) {
+                    buttonImage
+                    titleLabel
+                }
+                .padding(.horizontal, 16)
+
+                titleLabel
+                    .padding(.horizontal, 12)
+
+                buttonImage
+                    .padding(.horizontal, 12)
             }
+        } else {
             titleLabel
+                .padding(.horizontal, 16)
         }
-        .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.horizontal, 16)
-        .frame(minHeight: 44)
-        .background { backgroundView }
+    }
+
+    private var buttonImage: Layout {
+        imageView
+            .resizable()
+            .scaledToFit()
+            .frame(width: 17, height: 17)
     }
 
     private func configureAppearance() {
