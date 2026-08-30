@@ -9,7 +9,8 @@
 /* Begin PBXBuildFile section */
 		4C4B00032FD0000000000003 /* ListKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4C4B00022FD0000000000002 /* ListKit */; };
 		7714E9A22EFE2AB100F8BC60 /* QuickLayoutKit in Frameworks */ = {isa = PBXBuildFile; productRef = 7714E9A12EFE2AB100F8BC60 /* QuickLayoutKit */; };
-		77C1B20F303C3ACC001466FB /* AppLocalization in Frameworks */ = {isa = PBXBuildFile; productRef = 77C1B20E303C3ACC001466FB /* AppLocalization */; };
+		774E5D7F303ED45B00073AD4 /* AppLocalization in Frameworks */ = {isa = PBXBuildFile; productRef = 774E5D7E303ED45B00073AD4 /* AppLocalization */; };
+		77BB26A63040283A001C1ED9 /* AppLocalization in Frameworks */ = {isa = PBXBuildFile; productRef = 77BB26A53040283A001C1ED9 /* AppLocalization */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -72,7 +73,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				4C4B00032FD0000000000003 /* ListKit in Frameworks */,
-				77C1B20F303C3ACC001466FB /* AppLocalization in Frameworks */,
+				77BB26A63040283A001C1ED9 /* AppLocalization in Frameworks */,
+				774E5D7F303ED45B00073AD4 /* AppLocalization in Frameworks */,
 				7714E9A22EFE2AB100F8BC60 /* QuickLayoutKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -136,7 +138,8 @@
 			packageProductDependencies = (
 				4C4B00022FD0000000000002 /* ListKit */,
 				7714E9A12EFE2AB100F8BC60 /* QuickLayoutKit */,
-				77C1B20E303C3ACC001466FB /* AppLocalization */,
+				774E5D7E303ED45B00073AD4 /* AppLocalization */,
+				77BB26A53040283A001C1ED9 /* AppLocalization */,
 			);
 			productName = Demo;
 			productReference = 7714E96C2EFE2A9100F8BC60 /* Demo.app */;
@@ -225,7 +228,7 @@
 			packageReferences = (
 				4C4B00012FD0000000000001 /* XCRemoteSwiftPackageReference "ListKit" */,
 				7714E9A02EFE2AB100F8BC60 /* XCLocalSwiftPackageReference ".." */,
-				77C1B20D303C3ACC001466FB /* XCRemoteSwiftPackageReference "AppLocalization" */,
+				77BB26A430402839001C1ED9 /* XCRemoteSwiftPackageReference "AppLocalization" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7714E96D2EFE2A9100F8BC60 /* Products */;
@@ -308,6 +311,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = MP8ZV9A8HZ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Demo/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
@@ -341,6 +345,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = MP8ZV9A8HZ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Demo/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
@@ -627,7 +632,7 @@
 				kind = branch;
 			};
 		};
-		77C1B20D303C3ACC001466FB /* XCRemoteSwiftPackageReference "AppLocalization" */ = {
+		77BB26A430402839001C1ED9 /* XCRemoteSwiftPackageReference "AppLocalization" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/astralchen/AppLocalization";
 			requirement = {
@@ -647,9 +652,13 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = QuickLayoutKit;
 		};
-		77C1B20E303C3ACC001466FB /* AppLocalization */ = {
+		774E5D7E303ED45B00073AD4 /* AppLocalization */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 77C1B20D303C3ACC001466FB /* XCRemoteSwiftPackageReference "AppLocalization" */;
+			productName = AppLocalization;
+		};
+		77BB26A53040283A001C1ED9 /* AppLocalization */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 77BB26A430402839001C1ED9 /* XCRemoteSwiftPackageReference "AppLocalization" */;
 			productName = AppLocalization;
 		};
 /* End XCSwiftPackageProductDependency section */

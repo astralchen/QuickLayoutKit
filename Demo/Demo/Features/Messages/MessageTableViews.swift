@@ -62,7 +62,8 @@ final class MessageTableListView: UIView {
                 // apply 完成时 header/footer/cell 可能刚被创建或复用，必须在
                 // 最终视图集合上再次同步当前 table 方向。
                 self.refreshMaterializedContentLayoutDirection()
-                if summary.visibleSupplementaryRefreshCount > 0,
+                if summary.refreshMetrics
+                    .visibleReconfiguredSupplementaryCount > 0,
                    !summary.animation.layoutInvalidated {
                     // 可见 supplementary 已重配但 adapter 没有失效布局时，
                     // 主动触发自动高度计算，并在前后保持同一可见行锚点。

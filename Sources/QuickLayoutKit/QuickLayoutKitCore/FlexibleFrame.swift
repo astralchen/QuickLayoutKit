@@ -1,11 +1,19 @@
 import QuickLayout
+import OSLog
 import UIKit
+
+private let flexibleFrameRuntimeLogger = Logger(
+    subsystem: "com.astralchen.QuickLayoutKit",
+    category: "LayoutRuntimeIssues"
+)
 
 public extension Element {
 
     /// 将元素放置在具有最小、理想和最大尺寸的弹性框架中。
     ///
     /// 理想尺寸用于替换对应轴上未指定的尺寸建议。父元素提供的有限尺寸建议仍具有更高优先级。
+    /// 固定尺寸与弹性尺寸分属 SwiftUI 的两个重载；需要混合两个轴时，应按期望的布局顺序
+    /// 连续调用，例如 `.frame(minWidth: 96).frame(height: 42)`。
     ///
     /// - Parameters:
     ///   - minWidth: 框架的最小宽度；`nil` 表示不设置最小宽度。
@@ -25,7 +33,21 @@ public extension Element {
         maxHeight: CGFloat? = nil,
         alignment: Alignment = .center
     ) -> Element & Layout {
-        IdealFlexibleFrameElement(
+        if !flexibleFrameConstraintsAreNondecreasing(
+            minimum: minWidth,
+            ideal: idealWidth,
+            maximum: maxWidth
+        ) || !flexibleFrameConstraintsAreNondecreasing(
+            minimum: minHeight,
+            ideal: idealHeight,
+            maximum: maxHeight
+        ) {
+            // 对齐 SwiftUI：矛盾约束只记录非致命运行时问题，原始参数仍交给布局处理。
+            flexibleFrameRuntimeLogger.fault(
+                "Contradictory frame constraints specified."
+            )
+        }
+        return IdealFlexibleFrameElement(
             child: self,
             minWidth: minWidth,
             idealWidth: idealWidth,
@@ -36,6 +58,20 @@ public extension Element {
             alignment: alignment
         )
     }
+}
+
+/// 判断单个轴上的最小、理想和最大约束是否按非递减顺序排列。
+///
+/// `nil` 的替换方式与 SwiftUI 当前实现一致，仅用于诊断，不会修改实际传给布局的参数。
+internal func flexibleFrameConstraintsAreNondecreasing(
+    minimum: CGFloat?,
+    ideal: CGFloat?,
+    maximum: CGFloat?
+) -> Bool {
+    let resolvedMinimum = minimum ?? -.infinity
+    let resolvedIdeal = ideal ?? resolvedMinimum
+    let resolvedMaximum = maximum ?? resolvedIdeal
+    return resolvedMinimum <= resolvedIdeal && resolvedIdeal <= resolvedMaximum
 }
 
 private struct IdealFlexibleFrameElement: Layout, _LayoutValueProvidingElement {

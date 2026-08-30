@@ -57,6 +57,8 @@ final class DemoRouter: DemoRouting {
             DynamicScrollViewController()
         case .dashboard:
             DashboardViewController()
+        case .liveRoom:
+            LiveRoomViewController()
         case .messages:
             MesssageViewController()
         case .tableMessages:

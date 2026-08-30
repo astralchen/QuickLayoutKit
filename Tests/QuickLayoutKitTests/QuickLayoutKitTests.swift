@@ -11,6 +11,121 @@ import UIKit
 struct QuickLayoutKitTests {
 
     @MainActor
+    @Test func gradientViewUsesGradientAsItsRootLayerAndUpdatesConfiguration() {
+        let evenlyDistributedGradient = QuickLayoutGradient(
+            colors: [.systemPink, .systemPurple, .systemBlue]
+        )
+        #expect(
+            evenlyDistributedGradient.stops.map(\.location) == [0, 0.5, 1]
+        )
+
+        let view = QuickLayoutLinearGradientView(
+            stops: [
+                QuickLayoutGradient.Stop(color: .systemPink, location: 0.15),
+                QuickLayoutGradient.Stop(color: .systemBlue, location: 0.85),
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+        view.frame = CGRect(x: 0, y: 0, width: 240, height: 120)
+        view.layoutIfNeeded()
+
+        #expect(view.layer === view.gradientLayer)
+        #expect(view.gradientLayer.frame == view.bounds)
+        #expect(view.gradientLayer.colors?.count == 2)
+        #expect(view.gradient.stops.map(\.location) == [0.15, 0.85])
+        #expect(view.startPoint.x == UnitPoint.leading.x)
+        #expect(view.startPoint.y == UnitPoint.leading.y)
+        #expect(view.endPoint.x == UnitPoint.trailing.x)
+        #expect(view.endPoint.y == UnitPoint.trailing.y)
+        #expect(view.gradientLayer.startPoint == CGPoint(x: 0, y: 0.5))
+        #expect(view.gradientLayer.endPoint == CGPoint(x: 1, y: 0.5))
+        #expect(view.gradientLayer.type == .axial)
+        #expect(!view.isOpaque)
+
+        view.gradient = QuickLayoutGradient(stops: [
+            QuickLayoutGradient.Stop(color: .systemYellow, location: 0),
+            QuickLayoutGradient.Stop(color: .systemOrange, location: 0.4),
+            QuickLayoutGradient.Stop(color: .systemRed, location: 1),
+        ])
+        view.startPoint = .top
+        view.endPoint = .bottom
+
+        #expect(view.gradientLayer.colors?.count == 3)
+        #expect(
+            view.gradientLayer.locations?.map(\.doubleValue) == [0, 0.4, 1]
+        )
+        #expect(view.gradientLayer.startPoint == CGPoint(x: 0.5, y: 0))
+        #expect(view.gradientLayer.endPoint == CGPoint(x: 0.5, y: 1))
+        #expect(view.gradientLayer.type == .axial)
+
+        view.startPoint = .leading
+        view.endPoint = .trailing
+        view.semanticContentAttribute = .forceRightToLeft
+        view.layoutIfNeeded()
+        #expect(view.gradientLayer.startPoint == CGPoint(x: 1, y: 0.5))
+        #expect(view.gradientLayer.endPoint == CGPoint(x: 0, y: 0.5))
+    }
+
+    @MainActor
+    @Test func shapeViewBuildsPathFromBoundsAndMapsSwiftUIStyleStroke() {
+        struct InsetRectangle: QuickLayoutShape {
+            let inset: CGFloat
+
+            func path(in rect: CGRect) -> CGPath {
+                CGPath(
+                    rect: rect.insetBy(dx: inset, dy: inset),
+                    transform: nil
+                )
+            }
+        }
+
+        let view = QuickLayoutShapeView(
+            shape: InsetRectangle(inset: 6),
+            fillColor: .systemYellow,
+            strokeColor: .systemBlue,
+            strokeStyle: QuickLayoutStrokeStyle(
+                lineWidth: 4,
+                lineCap: .round,
+                lineJoin: .bevel,
+                miterLimit: 8,
+                dash: [6, 3],
+                dashPhase: 2
+            ),
+            fillStyle: QuickLayoutFillStyle(
+                eoFill: true,
+                antialiased: true
+            )
+        )
+        view.frame = CGRect(x: 0, y: 0, width: 120, height: 80)
+        view.layoutIfNeeded()
+
+        #expect(view.layer === view.shapeLayer)
+        #expect(view.shapeLayer.frame == view.bounds)
+        #expect(
+            view.shapeLayer.path?.boundingBoxOfPath
+                == CGRect(x: 6, y: 6, width: 108, height: 68)
+        )
+        #expect(view.shapeLayer.fillColor != nil)
+        #expect(view.shapeLayer.strokeColor != nil)
+        #expect(view.shapeLayer.lineWidth == 4)
+        #expect(view.shapeLayer.lineCap == .round)
+        #expect(view.shapeLayer.lineJoin == .bevel)
+        #expect(view.shapeLayer.miterLimit == 8)
+        #expect(view.shapeLayer.lineDashPattern?.map(\.doubleValue) == [6, 3])
+        #expect(view.shapeLayer.lineDashPhase == 2)
+        #expect(view.shapeLayer.fillRule == .evenOdd)
+        #expect(view.shapeLayer.allowsEdgeAntialiasing)
+
+        view.setShape(InsetRectangle(inset: 12))
+        view.layoutIfNeeded()
+        #expect(
+            view.shapeLayer.path?.boundingBoxOfPath
+                == CGRect(x: 12, y: 12, width: 96, height: 56)
+        )
+    }
+
+    @MainActor
     @Test func quickLayoutButtonMeasuresAndLaysOutExternalLabelUI() {
         let iconView = UIImageView(
             image: UIImage(systemName: "checkmark")
@@ -2933,6 +3048,58 @@ struct QuickLayoutKitTests {
         #expect(size == CGSize(width: 80, height: 40))
     }
 
+    @Test func flexibleFrameConstraintOrderingMatchesSwiftUIDiagnostics() {
+        #expect(
+            flexibleFrameConstraintsAreNondecreasing(
+                minimum: nil,
+                ideal: nil,
+                maximum: nil
+            )
+        )
+        #expect(
+            flexibleFrameConstraintsAreNondecreasing(
+                minimum: 40,
+                ideal: nil,
+                maximum: 100
+            )
+        )
+        #expect(
+            flexibleFrameConstraintsAreNondecreasing(
+                minimum: 40,
+                ideal: 60,
+                maximum: 100
+            )
+        )
+        #expect(
+            !flexibleFrameConstraintsAreNondecreasing(
+                minimum: 100,
+                ideal: nil,
+                maximum: 80
+            )
+        )
+        #expect(
+            !flexibleFrameConstraintsAreNondecreasing(
+                minimum: 100,
+                ideal: 80,
+                maximum: 160
+            )
+        )
+        #expect(
+            !flexibleFrameConstraintsAreNondecreasing(
+                minimum: 40,
+                ideal: 120,
+                maximum: 100
+            )
+        )
+        #expect(
+            !flexibleFrameConstraintsAreNondecreasing(
+                minimum: .nan,
+                ideal: nil,
+                maximum: nil
+            )
+        )
+    }
+
     @Test func flexibleFramePrefersFiniteProposalOverIdealSize() {
         let probe = FlexibleFrameProposalProbe()
         let element = FlexibleFrameProposalElement(probe: probe)
@@ -2944,15 +3111,15 @@ struct QuickLayoutKitTests {
         #expect(size == CGSize(width: 60, height: 30))
     }
 
-    @Test func flexibleFrameClampsIdealSizeToMinimumAndMaximum() {
+    @Test func flexibleFrameResolvesValidIdealSizeWithinMinimumAndMaximum() {
         let probe = FlexibleFrameProposalProbe()
         let element = FlexibleFrameProposalElement(probe: probe)
             .frame(
                 minWidth: 50,
-                idealWidth: 80,
+                idealWidth: 60,
                 maxWidth: 70,
                 minHeight: 20,
-                idealHeight: 10,
+                idealHeight: 40,
                 maxHeight: 60
             )
 
@@ -2960,8 +3127,8 @@ struct QuickLayoutKitTests {
             CGSize(width: CGFloat.infinity, height: CGFloat.infinity)
         )
 
-        #expect(probe.proposals == [CGSize(width: 70, height: 20)])
-        #expect(size == CGSize(width: 70, height: 20))
+        #expect(probe.proposals == [CGSize(width: 60, height: 40)])
+        #expect(size == CGSize(width: 60, height: 40))
     }
 
     @MainActor

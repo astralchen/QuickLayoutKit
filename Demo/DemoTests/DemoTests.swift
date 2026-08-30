@@ -16,6 +16,2385 @@ import QuickLayoutKit
 @Suite(.serialized)
 struct DemoTests {
 
+    @Test func liveRoomViewModelOwnsMessageGiftAndBalanceBusinessState() throws {
+        let viewModel = LiveRoomViewModel(initialGiftBalance: 1_000)
+
+        #expect(!viewModel.sendPublicMessage("   \n"))
+        #expect(viewModel.sendPublicMessage("  你好  "))
+        #expect(viewModel.sentPublicMessages == ["你好"])
+
+        let recipient = try #require(
+            viewModel.state.displayedSeats.first(where: { $0.isOccupied })
+        )
+        let gift = try #require(
+            LiveRoomGift.catalog.first(where: { $0.id == "heart" })
+        )
+        let request = LiveRoomGiftSendRequest(
+            gift: gift,
+            recipients: [recipient],
+            quantity: 10,
+            totalCost: 100
+        )
+
+        #expect(viewModel.processGiftSendRequest(request) == 900)
+        #expect(viewModel.giftBalance == 900)
+
+        let invalidRequest = LiveRoomGiftSendRequest(
+            gift: gift,
+            recipients: [recipient],
+            quantity: 10,
+            totalCost: 99
+        )
+        #expect(viewModel.processGiftSendRequest(invalidRequest) == nil)
+        #expect(viewModel.giftBalance == 900)
+        #expect(viewModel.recharge(by: 100) == 1_000)
+    }
+
+    @Test func liveRoomAudienceViewModelNormalizesServerSnapshot() {
+        let members = [
+            LiveRoomAudienceMember(
+                id: 8,
+                displayName: "收听用户",
+                avatarImageID: .two,
+                themeIndex: 2,
+                contributionScore: 9_999,
+                presence: .listening
+            ),
+            LiveRoomAudienceMember(
+                id: 2,
+                displayName: "麦上用户",
+                avatarImageID: .host,
+                themeIndex: 0,
+                contributionScore: 100,
+                presence: .onMicrophone(seatNumber: 1)
+            ),
+            LiveRoomAudienceMember(
+                id: 2,
+                displayName: "重复用户",
+                avatarImageID: .one,
+                themeIndex: 1,
+                contributionScore: 20_000,
+                presence: .listening
+            ),
+        ]
+
+        let viewModel = LiveRoomAudienceViewModel(
+            totalCount: 1,
+            members: members
+        )
+
+        #expect(viewModel.state.totalCount == 2)
+        #expect(viewModel.state.members.map(\.id) == [2, 8])
+    }
+
+    @Test func liveRoomGiftSheetViewModelKeepsSelectionAndSendRules() throws {
+        let recipients = LiveRoomViewModel().state.displayedSeats
+            .filter(\.isOccupied)
+        let viewModel = LiveRoomGiftSheetViewModel(
+            recipients: recipients,
+            gifts: LiveRoomGift.catalog,
+            initiallySelectedRecipientSeatIDs: [],
+            initialBalance: 1_000
+        )
+
+        #expect(viewModel.selectedRecipientIDs.isEmpty)
+        guard case .recipientRequired = viewModel.makeSendDecision() else {
+            Issue.record("未选择收礼人时不应生成赠送请求")
+            return
+        }
+        #expect(viewModel.showsRecipientRequiredPrompt)
+
+        let recipient = try #require(recipients.first)
+        #expect(viewModel.toggleRecipient(id: recipient.id))
+        #expect(viewModel.selectGiftQuantity(10))
+        guard case let .ready(request) = viewModel.makeSendDecision() else {
+            Issue.record("有效选择应生成赠送请求")
+            return
+        }
+        #expect(request.quantity == 10)
+        #expect(request.recipients.map(\.id) == [recipient.id])
+        #expect(request.totalCost == 100)
+    }
+
+    @Test func liveRoomGiftRecipientsUpdateByStableUserID() throws {
+        let recipients = LiveRoomViewModel().state.visibleRecipients
+        let first = try #require(recipients.first)
+        let second = try #require(recipients.dropFirst().first)
+        let firstUserID = try #require(first.userID)
+        let secondUserID = try #require(second.userID)
+        let viewModel = LiveRoomGiftSheetViewModel(
+            recipients: recipients,
+            gifts: LiveRoomGift.catalog,
+            initiallySelectedRecipientUserIDs: [firstUserID, secondUserID],
+            initialBalance: 8_888
+        )
+        #expect(viewModel.selectGiftQuantity(66))
+        let selectedGiftID = viewModel.selectedGiftID
+
+        let movedSecond = LiveRoomSeatAssignment(
+            seatID: LiveRoomSeatID(rawValue: "seat.moved"),
+            slotID: .audience(4),
+            position: .init(rawValue: 4),
+            occupant: second.occupant,
+            audioState: second.audioState,
+            score: second.score
+        )
+        viewModel.updateRecipients([movedSecond])
+
+        #expect(viewModel.recipients == [movedSecond])
+        #expect(viewModel.selectedRecipientUserIDs == [secondUserID])
+        #expect(!viewModel.selectedRecipientUserIDs.contains(firstUserID))
+        #expect(viewModel.selectedGiftID == selectedGiftID)
+        #expect(viewModel.selectedGiftQuantity == 66)
+        #expect(viewModel.giftBalance == 8_888)
+    }
+
+    @Test func liveRoomRechargeViewModelCommitsConfirmedTransaction() throws {
+        let viewModel = LiveRoomRechargeViewModel(
+            currentBalance: 100,
+            requiredBalance: 5_000
+        )
+        #expect(viewModel.selectedPackageAmount == 6_000)
+
+        let transaction = try #require(
+            viewModel.performRecharge { creditedAmount in
+                100 + creditedAmount
+            }
+        )
+        #expect(transaction.previousBalance == 100)
+        #expect(transaction.creditedAmount == 6_300)
+        #expect(transaction.updatedBalance == 6_400)
+        #expect(viewModel.currentBalance == 6_400)
+    }
+
+    @Test func liveRoomRechargeBalanceCardPreservesCompleteTextLines() throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let viewController = LiveRoomRechargeViewController(
+            currentBalance: 12_048,
+            requiredBalance: 88_888
+        )
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        viewController.view.setNeedsLayout()
+        viewController.view.layoutIfNeeded()
+        viewController.rechargeView.scrollView.layoutIfNeeded()
+
+        let balanceCardView = viewController.rechargeView
+            .contentView.balanceCardView
+        let balanceLabels = [
+            balanceCardView.captionLabel,
+            balanceCardView.valueLabel,
+            balanceCardView.requirementLabel,
+        ]
+        #expect(balanceLabels.allSatisfy { label in
+            label.bounds.height + 1 >= label.font.lineHeight
+        })
+
+        let minimumCardHeight = balanceLabels.reduce(CGFloat.zero) {
+            $0 + $1.font.lineHeight
+        } + 18 + 36
+        #expect(
+            balanceCardView.backgroundView.bounds.height + 1
+                >= minimumCardHeight
+        )
+        let statusLabel = viewController.rechargeView
+            .contentView.footerView.statusLabel
+        #expect(abs(statusLabel.bounds.height - 20) < 1)
+    }
+
+    @Test func liveRoomRechargePackageGridAdaptsToContainerAndPackageCount() {
+        let packageSectionView = LiveRoomRechargePackageSectionView(frame: .zero)
+        let allPackages = (1...9).map {
+            LiveRoomRechargePackage(amount: $0 * 1_000, bonus: $0 * 100)
+        }
+
+        for (availableWidth, columns) in [
+            (CGFloat(200), 1),
+            (CGFloat(284), 2),
+            (CGFloat(354), 3),
+            (CGFloat(460), 4),
+            (CGFloat(620), 5),
+        ] {
+            for count in [9, 2, 0, 4, 5, 1, 6, 7] {
+                let packages = Array(allPackages.prefix(count))
+                packageSectionView.configure(
+                    title: "选择充值档位",
+                    packages: packages,
+                    selectedAmount: packages.first?.amount ?? 0
+                )
+                let fittedSize = packageSectionView.sizeThatFits(
+                    CGSize(width: availableWidth, height: 1_000)
+                )
+                packageSectionView.frame = CGRect(
+                    origin: .zero,
+                    size: CGSize(
+                        width: availableWidth,
+                        height: fittedSize.height
+                    )
+                )
+                packageSectionView.layoutIfNeeded()
+
+                #expect(packageSectionView.packageButtons.count == count)
+                #expect(packageSectionView.packageButtons.allSatisfy {
+                    $0.superview === packageSectionView
+                })
+                #expect(packageSectionView.subviews.compactMap {
+                    $0 as? LiveRoomRechargePackageButton
+                }.count == count)
+
+                guard count > 0 else { continue }
+                let expectedWidth = (
+                    availableWidth - CGFloat(columns - 1) * 10
+                ) / CGFloat(columns)
+                #expect(packageSectionView.packageButtons.allSatisfy {
+                    abs($0.frame.width - expectedWidth) < 1
+                        && abs($0.frame.height - 88) < 1
+                })
+
+                let rowOrigins = Set(packageSectionView.packageButtons.map {
+                    Int($0.frame.minY.rounded())
+                })
+                #expect(
+                    rowOrigins.count
+                        == (count + columns - 1) / columns
+                )
+            }
+        }
+    }
+
+    @Test func liveRoomStageSnapshotsDriveBusinessLayouts() async {
+        let viewModel = LiveRoomViewModel()
+
+        #expect(viewModel.state.snapshot.businessMode == .party)
+        #expect(viewModel.state.displayedSeats.count == 9)
+        #expect(viewModel.state.displayedSeats.map(\.position.rawValue) == Array(0..<9))
+        let occupiedSeats = viewModel.state.displayedSeats.filter(\.isOccupied)
+        let avatarImageIDs = occupiedSeats.compactMap(\.avatarImageID)
+        #expect(occupiedSeats.count == 9)
+        #expect(avatarImageIDs == LiveRoomAvatarImageID.fixtures)
+        #expect(Set(avatarImageIDs).count == occupiedSeats.count)
+        #expect(occupiedSeats.allSatisfy { $0.avatarImage != nil })
+        #expect(
+            viewModel.state.displayedSeats
+                .filter { !$0.isOccupied }
+                .allSatisfy { $0.avatarImageID == nil }
+        )
+
+        #expect(
+            await viewModel.performBusinessCommand(
+                .switchRoomType(.individual)
+            )
+        )
+        #expect(viewModel.state.displayedSeats.count == 1)
+        #expect(viewModel.state.snapshot.audienceSeatState == .disabled)
+
+        #expect(
+            await viewModel.performBusinessCommand(
+                .setAudienceSeatsEnabled(true)
+            )
+        )
+        #expect(viewModel.state.displayedSeats.count == 5)
+
+        #expect(
+            await viewModel.performBusinessCommand(
+                .setAudienceSeatsEnabled(false)
+            )
+        )
+        #expect(viewModel.state.displayedSeats.count == 1)
+
+        #expect(
+            await viewModel.performBusinessCommand(.switchRoomType(.party))
+        )
+        #expect(viewModel.state.displayedSeats.count == 9)
+    }
+
+    @Test func liveRoomSeatMetricsRespondToWidthAndHeight() {
+        let regularMinimumWidth = LiveRoomSeatLayoutMetrics
+            .regularMinimumStageWidth
+
+        #expect(regularMinimumWidth == 346)
+        let regularMetrics = LiveRoomSeatLayoutMetrics.resolve(
+            availableWidth: regularMinimumWidth,
+            prefersCompactHeight: false
+        )
+        let narrowMetrics = LiveRoomSeatLayoutMetrics.resolve(
+            availableWidth: regularMinimumWidth - 1,
+            prefersCompactHeight: false
+        )
+        let shortMetrics = LiveRoomSeatLayoutMetrics.resolve(
+            availableWidth: 620,
+            prefersCompactHeight: true
+        )
+        let expandedMetrics = LiveRoomSeatLayoutMetrics.resolve(
+            availableWidth: 620,
+            prefersCompactHeight: false
+        )
+        let distributedPhoneMetrics = LiveRoomSeatLayoutMetrics.resolve(
+            availableWidth: 402,
+            prefersCompactHeight: false
+        )
+
+        #expect(regularMetrics.presentation == .regular)
+        #expect(narrowMetrics.presentation == .compact)
+        #expect(shortMetrics.presentation == .compact)
+        #expect(expandedMetrics.presentation == .expanded)
+        #expect(distributedPhoneMetrics.partyHorizontalSpacing == 28)
+        #expect(
+            distributedPhoneMetrics.partyHorizontalSpacing
+                > LiveRoomSeatLayoutMetrics.regular
+                    .partyHorizontalSpacing
+        )
+        #expect(expandedMetrics.partyHorizontalSpacing == 44)
+    }
+
+    @Test func liveRoomResolverMapsBusinessModeAndZeroBasedPositions() throws {
+        let assignments = LiveRoomViewModel.defaultAssignments
+        let party = try LiveRoomSeatLayoutResolver.resolve(
+            snapshot: LiveRoomViewModel.makeDefaultStageSnapshot(
+                businessMode: .party,
+                audienceSeatState: .enabled,
+                assignments: assignments
+            )
+        ).get()
+        #expect(party.layoutID == .partyNine)
+        #expect(party.variant == .standard)
+        #expect(party.visibleSlots.count == 9)
+        #expect(party.visibleSlots.map(\.position.rawValue) == Array(0..<9))
+        #expect(party.visibleSlots[0].styleID == .standardHost)
+
+        let collapsed = try LiveRoomSeatLayoutResolver.resolve(
+            snapshot: LiveRoomViewModel.makeDefaultStageSnapshot(
+                businessMode: .individual,
+                audienceSeatState: .disabled,
+                assignments: Array(assignments.prefix(5))
+            )
+        ).get()
+        #expect(collapsed.layoutID == .individualAudience)
+        #expect(collapsed.variant == .collapsed)
+        #expect(collapsed.visibleSlots.map(\.position.rawValue) == [0])
+        #expect(collapsed.visibleSlots[0].styleID == .emphasizedHost)
+
+        let expanded = try LiveRoomSeatLayoutResolver.resolve(
+            snapshot: LiveRoomViewModel.makeDefaultStageSnapshot(
+                businessMode: .individual,
+                audienceSeatState: .enabled,
+                assignments: Array(assignments.prefix(5).reversed())
+            )
+        ).get()
+        #expect(expanded.variant == .expanded)
+        #expect(expanded.visibleSlots.map(\.position.rawValue) == Array(0..<5))
+        #expect(
+            expanded.visibleAssignments.map(\.position.rawValue) == Array(0..<5)
+        )
+    }
+
+    @Test func liveRoomViewModelRejectsStaleAndUnsupportedSnapshots() {
+        let viewModel = LiveRoomViewModel()
+        let initial = viewModel.state
+
+        #expect(!viewModel.consumeStageSnapshot(initial.snapshot))
+        #expect(
+            !viewModel.consumeStageSnapshot(
+                LiveRoomStageSnapshot(
+                    revision: initial.snapshot.revision + 1,
+                    businessMode: .unsupported(rawValue: "future.video"),
+                    audienceSeatState: .enabled,
+                    assignments: initial.snapshot.assignments,
+                    capabilities: []
+                )
+            )
+        )
+        #expect(viewModel.state.stagePresentation == initial.stagePresentation)
+        #expect(viewModel.state.snapshot == initial.snapshot)
+    }
+
+    @Test func liveRoomBackendSnapshotStreamDrivesSeatUsers() async throws {
+        let provider = TestLiveRoomStageSnapshotProvider()
+        let viewModel = LiveRoomViewModel(stageSnapshotProvider: provider)
+        var assignments = LiveRoomViewModel.defaultAssignments
+        let previous = assignments[1]
+        let backendUser = LiveRoomSeatOccupant(
+            userID: LiveRoomUserID(rawValue: "backend.user.9527"),
+            nameKey: "liveRoom.seat.four",
+            avatarImageID: .four,
+            symbolName: "person.crop.circle.fill",
+            themeIndex: 7
+        )
+        assignments[1] = LiveRoomSeatAssignment(
+            seatID: previous.seatID,
+            slotID: previous.slotID,
+            position: previous.position,
+            occupant: backendUser,
+            audioState: .muted,
+            score: 9_527
+        )
+
+        viewModel.startObservingStageSnapshots()
+        provider.yield(
+            LiveRoomViewModel.makeDefaultStageSnapshot(
+                revision: viewModel.state.snapshot.revision + 1,
+                assignments: Array(assignments.reversed())
+            )
+        )
+
+        #expect(
+            await waitForCondition {
+                viewModel.state.snapshot.revision == 2
+            }
+        )
+        let renderedSeat = try #require(
+            viewModel.state.displayedSeats.first {
+                $0.position.rawValue == 1
+            }
+        )
+        #expect(renderedSeat.userID == backendUser.userID)
+        #expect(renderedSeat.avatarImageID == .four)
+        #expect(renderedSeat.score == 9_527)
+        #expect(renderedSeat.audioState == .muted)
+        #expect(
+            viewModel.state.displayedSeats.map(\.position.rawValue)
+                == Array(0..<9)
+        )
+
+        provider.finish()
+        viewModel.stopObservingStageSnapshots()
+    }
+
+    @Test func liveRoomResolverRejectsDuplicateAndInvalidPositions() {
+        let assignments = LiveRoomViewModel.defaultAssignments
+        var duplicatePositions = assignments
+        let source = assignments[1]
+        duplicatePositions[1] = LiveRoomSeatAssignment(
+            seatID: source.seatID,
+            slotID: source.slotID,
+            position: .init(rawValue: 0),
+            occupant: source.occupant,
+            audioState: source.audioState,
+            score: source.score
+        )
+        let duplicateSnapshot = LiveRoomViewModel.makeDefaultStageSnapshot(
+            assignments: duplicatePositions
+        )
+        #expect(
+            LiveRoomSeatLayoutResolver.resolve(snapshot: duplicateSnapshot)
+                == .failure(.duplicatePosition)
+        )
+
+        var overflowingPositions = assignments
+        let last = assignments[8]
+        overflowingPositions[8] = LiveRoomSeatAssignment(
+            seatID: last.seatID,
+            slotID: last.slotID,
+            position: .init(rawValue: 9),
+            occupant: last.occupant,
+            audioState: last.audioState,
+            score: last.score
+        )
+        #expect(
+            LiveRoomSeatLayoutResolver.resolve(
+                snapshot: LiveRoomViewModel.makeDefaultStageSnapshot(
+                    assignments: overflowingPositions
+                )
+            ) == .failure(.capacityExceeded)
+        )
+        #expect(
+            LiveRoomSeatLayoutResolver.resolve(
+                snapshot: LiveRoomViewModel.makeDefaultStageSnapshot(
+                    businessMode: .individual,
+                    assignments: assignments
+                )
+            ) == .failure(.capacityExceeded)
+        )
+    }
+
+    @Test func liveRoomSeatLayoutsExpandOnIPadWidth() throws {
+        let viewController = LiveRoomViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 768, height: 1_024)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+
+        let seatViews = try (0..<9).map { index in
+            try #require(
+                viewController.view.allSubviews(of: UIView.self).first {
+                    $0.accessibilityIdentifier == "liveRoom.seat.\(index)"
+                }
+            )
+        }
+        let seatFrames = seatViews.map {
+            $0.convert($0.bounds, to: viewController.view)
+        }
+
+        #expect(seatFrames.allSatisfy { abs($0.width - 104) < 1 })
+        #expect(seatFrames.dropFirst().prefix(4).allSatisfy {
+            abs($0.minY - seatFrames[1].minY) < 1
+        })
+        #expect(seatFrames.dropFirst(5).allSatisfy {
+            abs($0.minY - seatFrames[5].minY) < 1
+        })
+        #expect(seatFrames[5].minY > seatFrames[1].minY)
+
+        applyLiveRoomSnapshot(
+            to: viewController,
+            businessMode: .individual,
+            audienceSeatState: .enabled
+        )
+        layout(viewController, in: navigationController)
+        let fiveSeatViews = try (0..<5).map { index in
+            try #require(
+                viewController.view.allSubviews(of: UIView.self).first {
+                    $0.accessibilityIdentifier == "liveRoom.seat.\(index)"
+                }
+            )
+        }
+        let fiveSeatFrames = fiveSeatViews.map {
+            $0.convert($0.bounds, to: viewController.view)
+        }
+
+        #expect(abs(fiveSeatFrames[0].width - 192) < 1)
+        #expect(fiveSeatFrames.dropFirst().allSatisfy {
+            abs($0.width - 104) < 1
+        })
+        #expect(fiveSeatFrames.dropFirst().allSatisfy {
+            abs($0.minY - fiveSeatFrames[1].minY) < 1
+        })
+        #expect(fiveSeatFrames[0].width > fiveSeatFrames[1].width)
+    }
+
+    @Test func liveRoomPublicChatMessagesFillAvailableWidthOnIPad() throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let viewController = LiveRoomViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 768, height: 1_024)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+
+        let scrollView = viewController.publicChatScrollView
+        let firstMessageLabel = try #require(
+            viewController.view.allSubviews(of: UILabel.self).first {
+                $0.accessibilityIdentifier == "liveRoom.publicChat.message.0"
+            }
+        )
+        let scrollFrame = scrollView.convert(
+            scrollView.bounds,
+            to: viewController.view
+        )
+        let messageFrame = firstMessageLabel.convert(
+            firstMessageLabel.bounds,
+            to: viewController.view
+        )
+
+        #expect(firstMessageLabel.textAlignment == .natural)
+        #expect(abs(messageFrame.minX - scrollFrame.minX - 14) < 1)
+        #expect(abs(scrollFrame.maxX - messageFrame.maxX - 14) < 1)
+        #expect(messageFrame.width > scrollFrame.width * 0.9)
+        #expect(
+            viewController.view.allSubviews(of: UIScrollView.self)
+                .filter(\.isScrollEnabled).count == 1
+        )
+    }
+
+    @Test func liveRoomOccupiedSeatPresentsUserCardAndEmptySeatDoesNot() throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        let viewModel = LiveRoomViewModel(
+            stageSnapshot: LiveRoomViewModel.makeDefaultStageSnapshot(
+                assignments: liveRoomAssignments(vacating: 5)
+            )
+        )
+        let viewController = LiveRoomViewController(viewModel: viewModel)
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+
+        let occupiedSeatButton = try #require(
+            viewController.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.seat.button.1"
+            }
+        )
+        let emptySeatButton = try #require(
+            viewController.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.seat.button.5"
+            }
+        )
+
+        #expect(occupiedSeatButton.isEnabled)
+        #expect(!emptySeatButton.isEnabled)
+
+        activate(emptySeatButton)
+        #expect(viewController.presentedViewController == nil)
+
+        activate(occupiedSeatButton)
+
+        #expect(viewController.presentedUserCardSeatID == 1)
+        let presentedViewController = try #require(
+            viewController.presentedViewController
+        )
+        presentedViewController.loadViewIfNeeded()
+        presentedViewController.view.frame = window.bounds
+        presentedViewController.view.setNeedsLayout()
+        presentedViewController.view.layoutIfNeeded()
+        let userCardView = try #require(
+            presentedViewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.userCard.container"
+            }
+        )
+        let nameLabel = try #require(
+            presentedViewController.view.allSubviews(of: UILabel.self).first {
+                $0.accessibilityIdentifier == "liveRoom.userCard.name"
+            }
+        )
+        let scoreLabel = try #require(
+            presentedViewController.view.allSubviews(of: UILabel.self).first {
+                $0.accessibilityIdentifier == "liveRoom.userCard.score"
+            }
+        )
+        let microphoneLabel = try #require(
+            presentedViewController.view.allSubviews(of: UILabel.self).first {
+                $0.accessibilityIdentifier == "liveRoom.userCard.microphone"
+            }
+        )
+        let closeButton = try #require(
+            presentedViewController.view
+                .allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.userCard.close"
+            }
+        )
+
+        #expect(nameLabel.text == DemoLocalization.text("liveRoom.seat.one"))
+        #expect(
+            scoreLabel.text
+                == DemoLocalization.text("liveRoom.seat.score", 3_820)
+        )
+        #expect(
+            microphoneLabel.text
+                == DemoLocalization.text("liveRoom.seat.speaking")
+        )
+        let scoreIntrinsicSize = scoreLabel.sizeThatFits(
+            CGSize(
+                width: CGFloat.greatestFiniteMagnitude,
+                height: CGFloat.greatestFiniteMagnitude
+            )
+        )
+        #expect(scoreLabel.bounds.width - scoreIntrinsicSize.width >= 27)
+        #expect(scoreLabel.bounds.height - scoreIntrinsicSize.height >= 11)
+        #expect(abs(closeButton.layer.cornerRadius - 17.5) < 0.5)
+        #expect(closeButton.bounds.width >= 32)
+        #expect(closeButton.bounds.height >= 32)
+        #expect(abs(closeButton.bounds.width - closeButton.bounds.height) < 1)
+        #expect(userCardView.bounds.width <= 340)
+        #expect(
+            userCardView.convert(userCardView.bounds, to: window).minX >= 24
+        )
+    }
+
+    @Test func liveRoomAudienceButtonPresentsAdaptiveSheet() throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        let members = Array(LiveRoomViewModel().state.audienceMembers.prefix(7))
+        let viewModel = LiveRoomViewModel(
+            audienceCount: 42,
+            audienceMembers: members
+        )
+        let viewController = LiveRoomViewController(viewModel: viewModel)
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+        let audienceButton = try #require(
+            viewController.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.audience.button"
+            }
+        )
+        #expect(audienceButton.accessibilityLabel == "42 人在线")
+        #expect(audienceButton.accessibilityHint == "查看当前在线用户")
+
+        activate(audienceButton)
+
+        let sheetViewController = try #require(
+            viewController.presentedViewController
+                as? LiveRoomAudienceSheetViewController
+        )
+        sheetViewController.loadViewIfNeeded()
+        sheetViewController.view.setNeedsLayout()
+        sheetViewController.view.layoutIfNeeded()
+        let audienceHeaderView = try #require(
+            sheetViewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.audience.header"
+            }
+        )
+        let headerFrame = audienceHeaderView.convert(
+            audienceHeaderView.bounds,
+            to: sheetViewController.view
+        )
+        let safeAreaFrame = sheetViewController.view.safeAreaLayoutGuide
+            .layoutFrame
+
+        #expect(viewController.presentedAudienceMemberCount == 7)
+        #expect(sheetViewController.totalCount == 42)
+        #expect(headerFrame.minY >= safeAreaFrame.minY - 0.5)
+        #expect(
+            sheetViewController.sheetPresentationController?.detents.count
+                == 2
+        )
+        #expect(
+            sheetViewController.audienceCollectionView.numberOfItems(
+                inSection: 0
+            ) == 7
+        )
+        #expect(
+            sheetViewController.audienceCollectionView
+                .collectionViewLayout.collectionViewContentSize.height > 0
+        )
+        #expect(
+            sheetViewController.audienceCollectionView
+                .contentInsetAdjustmentBehavior == .always
+        )
+    }
+
+    @Test func liveRoomAudienceItemPushesUserProfile() async throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        let members = Array(LiveRoomViewModel().state.audienceMembers.prefix(7))
+        let viewModel = LiveRoomViewModel(
+            audienceCount: 42,
+            audienceMembers: members
+        )
+        let viewController = LiveRoomViewController(viewModel: viewModel)
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+        let audienceButton = try #require(
+            viewController.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.audience.button"
+            }
+        )
+        activate(audienceButton)
+
+        let sheetViewController = try #require(
+            viewController.presentedViewController
+                as? LiveRoomAudienceSheetViewController
+        )
+        sheetViewController.loadViewIfNeeded()
+        sheetViewController.view.frame = window.bounds
+        sheetViewController.view.setNeedsLayout()
+        sheetViewController.view.layoutIfNeeded()
+
+        let indexPath = IndexPath(item: 0, section: 0)
+        let selectedMember = try #require(
+            sheetViewController.viewModel.state.members.first
+        )
+        let memberCell = try #require(
+            sheetViewController.audienceCollectionView.cellForItem(
+                at: indexPath
+            ) as? LiveRoomAudienceMemberCell
+        )
+        #expect(memberCell.accessibilityTraits.contains(.button))
+        #expect(memberCell.accessibilityHint == "查看该用户的主页")
+
+        sheetViewController.audienceCollectionView.delegate?
+            .collectionView?(
+                sheetViewController.audienceCollectionView,
+                didSelectItemAt: indexPath
+            )
+        // dismiss completion 由 UIKit 投递；让出主线程后再校验导航结果。
+        await Task.yield()
+
+        let profileViewController = try #require(
+            navigationController.topViewController
+                as? LiveRoomAudienceProfileViewController
+        )
+        profileViewController.loadViewIfNeeded()
+        layout(profileViewController, in: navigationController)
+
+        #expect(viewController.presentedViewController == nil)
+        #expect(viewController.audienceSheetViewController == nil)
+        #expect(
+            viewController.pushedAudienceProfileViewController
+                === profileViewController
+        )
+        #expect(profileViewController.memberID == selectedMember.id)
+        #expect(profileViewController.displayName == selectedMember.displayName)
+        #expect(profileViewController.title == "用户主页")
+        #expect(!profileViewController.navigationItem.hidesBackButton)
+
+        let scrollFrame = profileViewController.profileScrollView.convert(
+            profileViewController.profileScrollView.bounds,
+            to: profileViewController.view
+        )
+        let safeAreaFrame = profileViewController.view.safeAreaLayoutGuide
+            .layoutFrame
+        #expect(scrollFrame.minY >= safeAreaFrame.minY - 0.5)
+        #expect(scrollFrame.maxY <= safeAreaFrame.maxY + 0.5)
+
+        let memberIDLabel = try #require(
+            profileViewController.view.allSubviews(of: UILabel.self).first {
+                $0.accessibilityIdentifier
+                    == "liveRoom.audience.profile.memberID"
+            }
+        )
+        #expect(memberIDLabel.text == String(selectedMember.id))
+
+        DemoLocalization.setLocale(identifier: "ar")
+        profileViewController.applyLocalization(
+            DemoLocalization.currentUIKitUpdate
+        )
+        #expect(profileViewController.title == "الملف الشخصي")
+        #expect(!profileViewController.navigationItem.hidesBackButton)
+        #expect(profileViewController.navigationItem.leftBarButtonItem == nil)
+        #expect(
+            profileViewController.navigationItem.rightBarButtonItem?
+                .accessibilityIdentifier == "demo.language.menu"
+        )
+    }
+
+    @Test func liveRoomAvatarPushesInformationController() throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        let roomInformation = LiveRoomInformation(
+            roomID: "TEST-9527",
+            hostDisplayName: "测试主播"
+        )
+        let viewModel = LiveRoomViewModel(
+            audienceCount: 42,
+            roomInformation: roomInformation
+        )
+        let viewController = LiveRoomViewController(viewModel: viewModel)
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+        let avatarButton = try #require(
+            viewController.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier
+                    == "liveRoom.room.avatar.button"
+            }
+        )
+        #expect(avatarButton.bounds.width >= 44)
+        #expect(avatarButton.bounds.height >= 44)
+        #expect(avatarButton.accessibilityLabel == "直播间头像")
+        #expect(avatarButton.accessibilityHint == "查看直播间信息")
+
+        activate(avatarButton)
+
+        let informationViewController = try #require(
+            navigationController.topViewController
+                as? LiveRoomInformationViewController
+        )
+        informationViewController.loadViewIfNeeded()
+        layout(informationViewController, in: navigationController)
+
+        #expect(navigationController.viewControllers.count == 2)
+        #expect(
+            viewController.pushedRoomInformationViewController
+                === informationViewController
+        )
+        #expect(informationViewController.roomID == "TEST-9527")
+        #expect(informationViewController.audienceCount == 42)
+        #expect(informationViewController.title == "直播间信息")
+        #expect(!informationViewController.navigationItem.hidesBackButton)
+
+        let scrollFrame = informationViewController.informationScrollView
+            .convert(
+                informationViewController.informationScrollView.bounds,
+                to: informationViewController.view
+            )
+        let safeAreaFrame = informationViewController.view
+            .safeAreaLayoutGuide.layoutFrame
+        #expect(scrollFrame.minY >= safeAreaFrame.minY - 0.5)
+        #expect(scrollFrame.maxY <= safeAreaFrame.maxY + 0.5)
+
+        let roomIDLabel = try #require(
+            informationViewController.view.allSubviews(of: UILabel.self).first {
+                $0.accessibilityIdentifier == "liveRoom.information.roomID"
+            }
+        )
+        let audienceLabel = try #require(
+            informationViewController.view.allSubviews(of: UILabel.self).first {
+                $0.accessibilityIdentifier
+                    == "liveRoom.information.audience"
+            }
+        )
+        #expect(roomIDLabel.text == "TEST-9527")
+        #expect(audienceLabel.text == "42 人在线")
+
+        DemoLocalization.setLocale(identifier: "ar")
+        informationViewController.applyLocalization(
+            DemoLocalization.currentUIKitUpdate
+        )
+        #expect(!informationViewController.navigationItem.hidesBackButton)
+        #expect(informationViewController.navigationItem.leftBarButtonItem == nil)
+        #expect(
+            informationViewController.navigationItem.rightBarButtonItem?
+                .accessibilityIdentifier == "demo.language.menu"
+        )
+
+        let poppedViewController = navigationController.popViewController(
+            animated: false
+        )
+        #expect(poppedViewController === informationViewController)
+        #expect(navigationController.topViewController === viewController)
+    }
+
+    @Test func liveRoomGiftFlowSelectsOccupiedRecipientAndCompletesFlight() async throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        let viewController = LiveRoomViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+        let backdropGradientView = try #require(
+            viewController.view
+                .allSubviews(of: QuickLayoutLinearGradientView.self)
+                .first
+        )
+        let backdropShapeView = try #require(
+            backdropGradientView
+                .allSubviews(of: QuickLayoutShapeView.self)
+                .first
+        )
+        #expect(backdropGradientView.layer is CAGradientLayer)
+        #expect(backdropShapeView.layer is CAShapeLayer)
+        #expect((backdropShapeView.layer as? CAShapeLayer)?.path != nil)
+        let giftButton = try #require(
+            viewController.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.button"
+            }
+        )
+        activate(giftButton)
+
+        let giftSheet = try #require(
+            viewController.giftSheetViewController
+        )
+        giftSheet.loadViewIfNeeded()
+        giftSheet.view.frame = window.bounds
+        giftSheet.view.setNeedsLayout()
+        giftSheet.view.layoutIfNeeded()
+
+        #expect(viewController.presentedGiftRecipientSeatIDs == [0, 1, 2, 3, 4])
+        #expect(viewController.presentedViewController == nil)
+        #expect(giftSheet.parent === viewController)
+        #expect(giftSheet.selectedRecipientSeatIDs.isEmpty)
+        #expect(giftSheet.selectedGiftID == "heart")
+        #expect(giftSheet.giftCount == 18)
+        #expect(giftSheet.visibleGiftCount == 18)
+        #expect(giftSheet.selectedGiftCategoryID == "all")
+        #expect(viewController.giftBalance == 12_800)
+        #expect(giftSheet.giftBalance == 12_800)
+        #expect(
+            giftSheet.balanceStatusText
+                == DemoLocalization.text("liveRoom.gift.balance", 12_800)
+        )
+        #expect(giftSheet.giftColumnCount == 4)
+        let giftScrollView = giftSheet.giftScrollView
+        let recipientScrollView = giftSheet.recipientScrollView
+        let categoryScrollView = giftSheet.giftCategoryScrollView
+        giftScrollView.layoutIfNeeded()
+        recipientScrollView.layoutIfNeeded()
+        categoryScrollView.layoutIfNeeded()
+        #expect(giftSheet.view.allSubviews(of: UIScrollView.self).count == 3)
+        #expect(giftScrollView.contentSize.height > giftScrollView.bounds.height)
+        #expect(recipientScrollView.alwaysBounceHorizontal)
+        #expect(!recipientScrollView.showsHorizontalScrollIndicator)
+        #expect(!categoryScrollView.alwaysBounceHorizontal)
+        #expect(!categoryScrollView.showsHorizontalScrollIndicator)
+        #expect(categoryScrollView.contentSize.width > categoryScrollView.bounds.width)
+        #expect(
+            giftSheet.view.allSubviews(of: LiveRoomTextButton.self).filter {
+                $0.accessibilityIdentifier?.hasPrefix(
+                    "liveRoom.gift.category."
+                ) == true
+            }.count == 7
+        )
+        #expect(
+            giftSheet.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.recipient.5"
+            } == nil
+        )
+
+        let luxuryCategoryButton = try #require(
+            giftSheet.view.allSubviews(of: LiveRoomTextButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.category.luxury"
+            }
+        )
+        let allCategoryButton = try #require(
+            giftSheet.view.allSubviews(of: LiveRoomTextButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.category.all"
+            }
+        )
+        let collectionCategoryButton = try #require(
+            giftSheet.view.allSubviews(of: LiveRoomTextButton.self).first {
+                $0.accessibilityIdentifier
+                    == "liveRoom.gift.category.collection"
+            }
+        )
+        let partyCategoryButton = try #require(
+            giftSheet.view.allSubviews(of: LiveRoomTextButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.category.party"
+            }
+        )
+        activate(luxuryCategoryButton)
+        #expect(giftSheet.selectedGiftCategoryID == "luxury")
+        #expect(giftSheet.visibleGiftCount == 4)
+        #expect(giftSheet.selectedGiftID == "galaxy")
+        activate(allCategoryButton)
+        #expect(giftSheet.selectedGiftCategoryID == "all")
+        #expect(giftSheet.visibleGiftCount == 18)
+        activate(collectionCategoryButton)
+        giftSheet.view.layoutIfNeeded()
+        #expect(giftSheet.selectedGiftCategoryID == "collection")
+        #expect(giftSheet.visibleGiftCount == 6)
+        let collectionFrame = collectionCategoryButton.convert(
+            collectionCategoryButton.bounds,
+            to: categoryScrollView
+        )
+        #expect(
+            abs(collectionFrame.maxX - categoryScrollView.bounds.maxX) < 1
+        )
+        activate(partyCategoryButton)
+        giftSheet.view.layoutIfNeeded()
+        #expect(giftSheet.selectedGiftCategoryID == "party")
+        #expect(giftSheet.visibleGiftCount == 6)
+        let partyCategoryFrame = partyCategoryButton.convert(
+            partyCategoryButton.bounds,
+            to: categoryScrollView
+        )
+        #expect(
+            abs(partyCategoryFrame.midX - categoryScrollView.bounds.midX) < 1
+        )
+        activate(allCategoryButton)
+        giftSheet.view.layoutIfNeeded()
+        #expect(giftSheet.selectedGiftCategoryID == "all")
+        let allCategoryFrame = allCategoryButton.convert(
+            allCategoryButton.bounds,
+            to: categoryScrollView
+        )
+        #expect(abs(allCategoryFrame.minX - categoryScrollView.bounds.minX) < 1)
+
+        let giftCollectionView = try #require(
+            giftScrollView as? UICollectionView
+        )
+        #expect(giftCollectionView.layer.cornerRadius == 0)
+        giftCollectionView.scrollToItem(
+            at: IndexPath(item: 17, section: 0),
+            at: .bottom,
+            animated: false
+        )
+        giftCollectionView.layoutIfNeeded()
+        #expect(
+            giftSheet.view.allSubviews(of: QuickLayoutButton.self).contains {
+                $0.accessibilityIdentifier == "liveRoom.gift.item.universe"
+            }
+        )
+        giftCollectionView.scrollToItem(
+            at: IndexPath(item: 5, section: 0),
+            at: .centeredVertically,
+            animated: false
+        )
+        giftCollectionView.layoutIfNeeded()
+
+        let recipientButton = try #require(
+            giftSheet.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.recipient.3"
+            }
+        )
+        let rocketButton = try #require(
+            giftSheet.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.item.rocket"
+            }
+        )
+        let secondRecipientButton = try #require(
+            giftSheet.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.recipient.4"
+            }
+        )
+        let sendButton = try #require(
+            giftSheet.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.send"
+            }
+        )
+        let selectAllButton = try #require(
+            giftSheet.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.selectAll"
+            }
+        )
+        let recipientAvatarView = try #require(
+            recipientButton.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.recipient.avatar"
+            }
+        )
+        let selectionBadgeView = try #require(
+            recipientButton.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier
+                    == "liveRoom.gift.recipient.selectionBadge"
+            }
+        )
+        #expect(recipientAvatarView.layer.borderWidth == 1.5)
+        #expect((recipientAvatarView.layer.borderColor?.alpha ?? 0) >= 0.45)
+        #expect(selectionBadgeView.isHidden)
+        activate(sendButton)
+        #expect(viewController.giftDeliveryCount == 0)
+        #expect(giftSheet.selectedRecipientSeatIDs.isEmpty)
+        #expect(
+            giftSheet.recipientStatusText
+                == DemoLocalization.text("liveRoom.gift.recipient.required")
+        )
+        activate(selectAllButton)
+        #expect(giftSheet.selectedRecipientSeatIDs == Array(0..<9))
+        #expect(
+            giftSheet.recipientStatusText
+                == DemoLocalization.text("liveRoom.gift.recipient.count", 9)
+        )
+        giftSheet.view.layoutIfNeeded()
+        #expect(recipientButton.layer.borderWidth == 0)
+        #expect(recipientAvatarView.layer.borderWidth == 3)
+        #expect(!selectionBadgeView.isHidden)
+        #expect(selectAllButton.bounds.width > selectAllButton.bounds.height)
+        #expect(
+            abs(
+                selectAllButton.layer.cornerRadius
+                    - selectAllButton.bounds.height / 2
+            ) < 1
+        )
+        #expect(
+            (selectAllButton as? LiveRoomGiftSelectAllButton)?.displayedTitle
+                == DemoLocalization.text("liveRoom.gift.selectAll")
+        )
+        #expect(!selectAllButton.isDescendant(of: recipientScrollView))
+        let recipientFogView = try #require(
+            giftSheet.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.recipientFog"
+            }
+        )
+        #expect(!recipientFogView.isUserInteractionEnabled)
+        #expect(recipientFogView.frame.intersects(recipientScrollView.frame))
+        activate(selectAllButton)
+        #expect(giftSheet.selectedRecipientSeatIDs.isEmpty)
+        #expect(recipientAvatarView.layer.borderWidth == 1.5)
+        #expect(selectionBadgeView.isHidden)
+        activate(recipientButton)
+        activate(secondRecipientButton)
+        activate(rocketButton)
+
+        #expect(giftSheet.selectedRecipientSeatIDs == [3, 4])
+        #expect(giftSheet.selectedGiftID == "rocket")
+        activate(sendButton)
+
+        #expect(await waitForCondition {
+            viewController.lastGiftRecipientSeatIDs == [3, 4]
+                && viewController.lastGiftID == "rocket"
+                && viewController.giftDeliveryCount == 1
+        })
+        #expect(viewController.giftBalance == 12_424)
+        #expect(giftSheet.giftBalance == 12_424)
+        #expect(
+            giftSheet.balanceStatusText
+                == DemoLocalization.text("liveRoom.gift.balance", 12_424)
+        )
+        #expect(viewController.giftSheetViewController === giftSheet)
+        #expect(viewController.isGiftSheetVisible)
+        #expect(viewController.giftEffectContainerView.subviews.count == 2)
+        let animationOrigin = try #require(
+            viewController.lastGiftAnimationOrigin
+        )
+        let targetPoints = viewController.lastGiftAnimationTargetPoints
+        #expect(targetPoints.count == 2)
+        #expect(
+            viewController.giftEffectContainerView.bounds.contains(
+                animationOrigin
+            )
+        )
+        #expect(targetPoints.allSatisfy {
+            viewController.giftEffectContainerView.bounds.contains($0)
+        })
+        #expect(targetPoints.allSatisfy { animationOrigin.y > $0.y })
+
+        activate(sendButton)
+        #expect(await waitForCondition {
+            viewController.giftDeliveryCount == 2
+                && viewController.lastGiftRecipientSeatIDs == [3, 4]
+                && viewController.lastGiftID == "rocket"
+        })
+        #expect(viewController.giftBalance == 12_048)
+        #expect(giftSheet.giftBalance == 12_048)
+        #expect(viewController.giftSheetViewController === giftSheet)
+        #expect(sendButton.isEnabled)
+        #expect(await waitForCondition {
+            viewController.activeGiftFlightCount == 0
+        })
+
+        giftCollectionView.scrollToItem(
+            at: IndexPath(item: 17, section: 0),
+            at: .bottom,
+            animated: false
+        )
+        giftCollectionView.layoutIfNeeded()
+        let universeButton = try #require(
+            giftSheet.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.item.universe"
+            }
+        )
+        activate(universeButton)
+        #expect(giftSheet.selectedGiftID == "universe")
+        activate(sendButton)
+
+        #expect(viewController.giftDeliveryCount == 2)
+        #expect(viewController.giftBalance == 12_048)
+        #expect(giftSheet.giftBalance == 12_048)
+        #expect(
+            giftSheet.balanceStatusText
+                == DemoLocalization.text(
+                    "liveRoom.gift.balance.insufficient",
+                    12_048
+                )
+        )
+        #expect(viewController.activeGiftFlightCount == 0)
+
+        let rechargeAlert = try #require(
+            viewController.presentedViewController as? UIAlertController
+        )
+        #expect(
+            rechargeAlert.title
+                == DemoLocalization.text("liveRoom.recharge.alert.title")
+        )
+        #expect(rechargeAlert.actions.count == 2)
+        #expect(
+            rechargeAlert.actions.last?.title
+                == DemoLocalization.text("liveRoom.recharge.alert.action")
+        )
+        viewController.proceedToRecharge()
+        #expect(await waitForCondition {
+            viewController.giftSheetViewController == nil
+                && viewController.presentedViewController == nil
+                && navigationController.topViewController
+                    is LiveRoomRechargeViewController
+        })
+
+        let rechargeViewController = try #require(
+            navigationController.topViewController
+                as? LiveRoomRechargeViewController
+        )
+        rechargeViewController.loadViewIfNeeded()
+        rechargeViewController.view.frame = window.bounds
+        rechargeViewController.view.setNeedsLayout()
+        rechargeViewController.view.layoutIfNeeded()
+        #expect(rechargeViewController.currentBalance == 12_048)
+        #expect(rechargeViewController.selectedPackageAmount == 30_000)
+        let rechargeBackgroundView = try #require(
+            rechargeViewController.view
+                .allSubviews(of: QuickLayoutLinearGradientView.self)
+                .first
+        )
+        #expect(rechargeBackgroundView.layer is CAGradientLayer)
+        #expect(rechargeBackgroundView.layer.frame == rechargeBackgroundView.bounds)
+        #expect(rechargeBackgroundView.gradient.stops.count == 3)
+        #expect(
+            rechargeBackgroundView.gradient.stops.map(\.location)
+                == [0, 0.56, 1]
+        )
+        let rechargePackageButtons = rechargeViewController.view
+            .allSubviews(of: LiveRoomRechargePackageButton.self)
+            .filter {
+                $0.accessibilityIdentifier?.hasPrefix(
+                    "liveRoom.recharge.package."
+                ) == true
+            }
+            .sorted {
+                ($0.accessibilityIdentifier ?? "")
+                    < ($1.accessibilityIdentifier ?? "")
+            }
+        #expect(rechargePackageButtons.count == 6)
+        let initialPackageFrames = rechargePackageButtons.map {
+            $0.convert($0.bounds, to: rechargeViewController.view)
+        }
+        let packageWidths = initialPackageFrames.map(\.width)
+        let packageHeights = initialPackageFrames.map(\.height)
+        #expect((packageWidths.max() ?? 0) - (packageWidths.min() ?? 0) < 1)
+        #expect((packageHeights.max() ?? 0) - (packageHeights.min() ?? 0) < 1)
+        #expect(packageHeights.allSatisfy { abs($0 - 88) < 1 })
+        #expect(rechargePackageButtons.allSatisfy { button in
+            button.allSubviews(of: UILabel.self).allSatisfy {
+                $0.numberOfLines == 1
+                    && $0.frame.height <= $0.font.lineHeight + 1
+            }
+        })
+
+        let largestPackageButton = try #require(
+            rechargePackageButtons.first {
+                $0.accessibilityIdentifier
+                    == "liveRoom.recharge.package.64800"
+            }
+        )
+        let recommendedPackageButton = try #require(
+            rechargePackageButtons.first {
+                $0.accessibilityIdentifier
+                    == "liveRoom.recharge.package.30000"
+            }
+        )
+        activate(largestPackageButton)
+        rechargeViewController.view.layoutIfNeeded()
+        let selectedPackageFrames = rechargePackageButtons.map {
+            $0.convert($0.bounds, to: rechargeViewController.view)
+        }
+        #expect(zip(selectedPackageFrames, initialPackageFrames).allSatisfy {
+            abs($0.minX - $1.minX) < 1
+                && abs($0.minY - $1.minY) < 1
+                && abs($0.width - $1.width) < 1
+                && abs($0.height - $1.height) < 1
+        })
+        activate(recommendedPackageButton)
+        rechargeViewController.view.layoutIfNeeded()
+        #expect(rechargeViewController.selectedPackageAmount == 30_000)
+        let rechargeBalanceLabel = try #require(
+            rechargeViewController.view.allSubviews(of: UILabel.self).first {
+                $0.accessibilityIdentifier == "liveRoom.recharge.balance"
+            }
+        )
+        let navigationBarFrame = navigationController.navigationBar.convert(
+            navigationController.navigationBar.bounds,
+            to: rechargeViewController.view
+        )
+        let rechargeBalanceFrame = rechargeBalanceLabel.convert(
+            rechargeBalanceLabel.bounds,
+            to: rechargeViewController.view
+        )
+        #expect(rechargeBalanceFrame.minY >= navigationBarFrame.maxY - 1)
+        let rechargeButton = try #require(
+            rechargeViewController.view
+                .allSubviews(of: LiveRoomTextButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.recharge.confirm"
+            }
+        )
+        UIView.setAnimationsEnabled(true)
+        activate(rechargeButton)
+        #expect(rechargeViewController.currentBalance == 44_448)
+        #expect(viewController.giftBalance == 44_448)
+        #expect(rechargeViewController.rechargeSuccessAnimationCount == 1)
+        #expect(
+            rechargeViewController.rechargeStatusText
+                == DemoLocalization.text("liveRoom.recharge.success", 32_400)
+        )
+        if !UIAccessibility.isReduceMotionEnabled {
+            #expect(rechargeViewController.isRechargeSuccessAnimationVisible)
+            #expect(!rechargeButton.isEnabled)
+            #expect(await waitForCondition {
+                !rechargeViewController.isRechargeSuccessAnimationVisible
+                    && rechargeButton.isEnabled
+            })
+        }
+        #expect(
+            rechargeBalanceLabel.text
+                == DemoLocalization.text(
+                    "liveRoom.recharge.balance.value",
+                    44_448
+                )
+        )
+        UIView.setAnimationsEnabled(false)
+
+        navigationController.popViewController(animated: false)
+        #expect(navigationController.topViewController === viewController)
+        activate(giftButton)
+        let reopenedGiftSheet = try #require(
+            viewController.giftSheetViewController
+        )
+        #expect(reopenedGiftSheet.giftBalance == 44_448)
+        #expect(
+            reopenedGiftSheet.balanceStatusText
+                == DemoLocalization.text("liveRoom.gift.balance", 44_448)
+        )
+    }
+
+    @Test func liveRoomGiftQuantityMenuUpdatesCostBalanceAndLayout() throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        let viewController = LiveRoomViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 402, height: 874)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+        viewController.presentGiftSheet(
+            initiallySelectedRecipientSeatIDs: [0, 1]
+        )
+        layout(viewController, in: navigationController)
+
+        let giftSheet = try #require(
+            viewController.giftSheetViewController
+        )
+        let quantityButton = try #require(
+            giftSheet.view.allSubviews(of: UIButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.quantity"
+            }
+        )
+        let sendButton = try #require(
+            giftSheet.view.allSubviews(of: LiveRoomTextButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.send"
+            }
+        )
+
+        #expect(giftSheet.selectedGiftQuantity == 1)
+        #expect(
+            giftSheet.giftQuantityValues
+                == [1, 10, 30, 66, 188, 520, 1_314]
+        )
+        #expect(quantityButton.configuration?.title == "×1")
+        #expect(sendButton.accessibilityLabel == "赠送")
+        #expect(quantityButton.showsMenuAsPrimaryAction)
+        let initialQuantityActions = try #require(
+            quantityButton.menu?.children as? [UIAction]
+        )
+        #expect(initialQuantityActions.count == 7)
+        #expect(
+            initialQuantityActions.map(\.title) == [
+                "1  一心一意",
+                "10  十全十美",
+                "30  闪闪发光",
+                "66  一切顺利",
+                "188  要抱抱",
+                "520  我爱你",
+                "1314  一生一世",
+            ]
+        )
+        #expect(initialQuantityActions.first?.state == .on)
+        #expect(!giftSheet.setSelectedGiftQuantity(2))
+        #expect(giftSheet.selectedGiftQuantity == 1)
+
+        #expect(giftSheet.setSelectedGiftQuantity(10))
+        layout(viewController, in: navigationController)
+        #expect(giftSheet.selectedGiftQuantity == 10)
+        #expect(quantityButton.configuration?.title == "×10")
+        #expect(sendButton.accessibilityLabel == "赠送")
+        let selectedQuantityActions = try #require(
+            quantityButton.menu?.children as? [UIAction]
+        )
+        #expect(
+            selectedQuantityActions.first {
+                $0.title.hasPrefix("10 ")
+            }?.state == .on
+        )
+
+        let quantityFrame = quantityButton.convert(
+            quantityButton.bounds,
+            to: giftSheet.view
+        )
+        let sendFrame = sendButton.convert(
+            sendButton.bounds,
+            to: giftSheet.view
+        )
+        #expect(sendFrame.minX - quantityFrame.maxX >= 5)
+        #expect(sendFrame.minX - quantityFrame.maxX <= 9)
+        // 赠送按钮保持内容宽度，剩余空间由余额区域吸收。
+        #expect(sendFrame.width < giftSheet.view.bounds.width * 0.50)
+
+        activate(sendButton)
+        #expect(viewController.giftDeliveryCount == 1)
+        #expect(viewController.lastGiftQuantity == 10)
+        #expect(viewController.lastGiftRecipientSeatIDs == [0, 1])
+        #expect(viewController.giftBalance == 12_600)
+        #expect(giftSheet.giftBalance == 12_600)
+        #expect(
+            giftSheet.balanceStatusText
+                == DemoLocalization.text("liveRoom.gift.balance", 12_600)
+        )
+
+        #expect(giftSheet.setSelectedGiftQuantity(1_314))
+        activate(sendButton)
+        #expect(viewController.giftDeliveryCount == 1)
+        #expect(viewController.giftBalance == 12_600)
+        #expect(giftSheet.giftBalance == 12_600)
+        #expect(
+            giftSheet.balanceStatusText
+                == DemoLocalization.text(
+                    "liveRoom.gift.balance.insufficient",
+                    12_600
+                )
+        )
+        #expect(viewController.presentedViewController is UIAlertController)
+    }
+
+    @Test func liveRoomGiftSheetMotionMovesFullyBelowContainer() {
+        #expect(
+            LiveRoomGiftSheetMotionMetrics.offscreenTranslation(
+                sheetHeight: 420,
+                safeAreaBottom: 0
+            ) == 432
+        )
+        #expect(
+            LiveRoomGiftSheetMotionMetrics.offscreenTranslation(
+                sheetHeight: 520,
+                safeAreaBottom: 34
+            ) == 566
+        )
+    }
+
+    @Test func liveRoomGiftSheetFitsIPhoneSEAndCurrentFiveSeatState() async throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        let viewController = LiveRoomViewController()
+        applyLiveRoomSnapshot(
+            to: viewController,
+            businessMode: .individual,
+            audienceSeatState: .disabled
+        )
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 320, height: 568)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+        let giftButton = try #require(
+            viewController.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.button"
+            }
+        )
+        activate(giftButton)
+
+        let giftSheet = try #require(
+            viewController.giftSheetViewController
+        )
+        giftSheet.loadViewIfNeeded()
+        giftSheet.view.frame = window.bounds
+        giftSheet.view.setNeedsLayout()
+        giftSheet.view.layoutIfNeeded()
+        let sheetView = try #require(
+            giftSheet.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.sheet"
+            }
+        )
+        let sheetFrame = sheetView.convert(sheetView.bounds, to: window)
+        let sheetBackgroundView = try #require(
+            sheetView.allSubviews(of: QuickLayoutLinearGradientView.self).first {
+                $0.accessibilityIdentifier
+                    == "liveRoom.gift.sheet.backgroundGradient"
+            }
+        )
+
+        #expect(viewController.presentedGiftRecipientSeatIDs == [0])
+        #expect(giftSheet.selectedRecipientSeatIDs.isEmpty)
+        #expect(giftSheet.giftColumnCount == 4)
+        #expect(abs(sheetFrame.minX - window.bounds.minX) < 1)
+        #expect(abs(sheetFrame.maxX - window.bounds.maxX) < 1)
+        #expect(sheetFrame.minY >= window.bounds.minY)
+        #expect(abs(sheetFrame.maxY - window.bounds.maxY) < 1)
+        #expect(sheetBackgroundView.frame == sheetView.bounds)
+        #expect(sheetBackgroundView.layer is CAGradientLayer)
+        #expect(giftSheet.view.allSubviews(of: UIScrollView.self).count == 3)
+        #expect(
+            giftSheet.giftScrollView.contentSize.height
+                > giftSheet.giftScrollView.bounds.height
+        )
+
+        #expect(
+            giftSheet.view.allSubviews(of: UIControl.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.close"
+            } == nil
+        )
+        let backdropButton = try #require(
+            giftSheet.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.backdrop"
+            }
+        )
+        let hostRecipientButton = try #require(
+            giftSheet.view.allSubviews(of: LiveRoomGiftRecipientButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.recipient.0"
+            }
+        )
+        activate(hostRecipientButton)
+        #expect(giftSheet.selectedRecipientSeatIDs == [0])
+        activate(hostRecipientButton)
+        #expect(giftSheet.selectedRecipientSeatIDs.isEmpty)
+        activate(backdropButton)
+        #expect(await waitForCondition {
+            viewController.giftSheetViewController == nil
+                && giftSheet.parent == nil
+        })
+    }
+
+    @Test func liveRoomGiftRecipientListScrollsWhenUsersExceedViewport() throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let recipients = (0..<12).map { index in
+            LiveRoomSeat(
+                id: index,
+                nameKey: "liveRoom.seat.host",
+                avatarImageID: LiveRoomAvatarImageID.fixtures[
+                    index % LiveRoomAvatarImageID.fixtures.count
+                ],
+                symbolName: "person.crop.circle.fill",
+                themeIndex: index,
+                score: 1_000 + index,
+                isMuted: false,
+                isOccupied: true
+            )
+        }
+        let giftSheet = LiveRoomGiftSheetViewController(
+            recipients: recipients
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: giftSheet,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        giftSheet.loadViewIfNeeded()
+        giftSheet.view.frame = window.bounds
+        giftSheet.view.setNeedsLayout()
+        giftSheet.view.layoutIfNeeded()
+
+        let recipientScrollView = giftSheet.recipientScrollView
+        recipientScrollView.layoutIfNeeded()
+        let selectAllButton = try #require(
+            giftSheet.view.allSubviews(of: LiveRoomGiftSelectAllButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.selectAll"
+            }
+        )
+        let lastRecipientButton = try #require(
+            giftSheet.view.allSubviews(of: LiveRoomGiftRecipientButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.recipient.11"
+            }
+        )
+
+        #expect(
+            recipientScrollView.contentSize.width
+                > recipientScrollView.bounds.width
+        )
+        #expect(!selectAllButton.isDescendant(of: recipientScrollView))
+        #expect(lastRecipientButton.isDescendant(of: recipientScrollView))
+        #expect(selectAllButton.isEnabled)
+
+        let maximumOffsetX = max(
+            -recipientScrollView.adjustedContentInset.left,
+            recipientScrollView.contentSize.width
+                - recipientScrollView.bounds.width
+                + recipientScrollView.adjustedContentInset.right
+        )
+        recipientScrollView.setContentOffset(
+            CGPoint(x: maximumOffsetX, y: 0),
+            animated: false
+        )
+        #expect(recipientScrollView.contentOffset.x > 0)
+    }
+
+    @Test func liveRoomGiftSheetAcceptsExternalRecipientSelection() throws {
+        let viewController = LiveRoomViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+        viewController.presentGiftSheet(
+            initiallySelectedRecipientSeatIDs: [4, 2, 99, 4]
+        )
+        let giftSheet = try #require(
+            viewController.giftSheetViewController
+        )
+
+        // 初始值与动态更新都只接受当前可送礼用户，并按麦位顺序输出。
+        #expect(giftSheet.selectedRecipientSeatIDs == [2, 4])
+        giftSheet.setSelectedRecipientSeatIDs([3, 99])
+        #expect(giftSheet.selectedRecipientSeatIDs == [3])
+        giftSheet.setSelectedRecipientSeatIDs([])
+        #expect(giftSheet.selectedRecipientSeatIDs.isEmpty)
+    }
+
+    @Test func liveRoomGiftGridExpandsColumnsInsideIPadContainer() throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        let viewController = LiveRoomViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 768, height: 1_024)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+        let giftButton = try #require(
+            viewController.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.button"
+            }
+        )
+        activate(giftButton)
+
+        let giftSheet = try #require(
+            viewController.giftSheetViewController
+        )
+        giftSheet.loadViewIfNeeded()
+        giftSheet.view.frame = window.bounds
+        giftSheet.view.setNeedsLayout()
+        giftSheet.view.layoutIfNeeded()
+
+        #expect(giftSheet.giftCount == 18)
+        #expect(giftSheet.giftColumnCount == 6)
+        #expect(giftSheet.view.allSubviews(of: UIScrollView.self).count == 2)
+        let categoryScrollView = giftSheet.giftCategoryScrollView
+        let allCategoryButton = try #require(
+            giftSheet.view.allSubviews(of: LiveRoomTextButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.category.all"
+            }
+        )
+        let allCategoryFrame = allCategoryButton.convert(
+            allCategoryButton.bounds,
+            to: categoryScrollView
+        )
+        #expect(
+            categoryScrollView.contentSize.width
+                <= categoryScrollView.bounds.width + 1
+        )
+        #expect(categoryScrollView.contentInset == .zero)
+        #expect(categoryScrollView.contentOffset.x == 0)
+        #expect(allCategoryFrame.midX < categoryScrollView.bounds.midX)
+        #expect(
+            giftSheet.giftScrollView.contentSize.height
+                > giftSheet.giftScrollView.bounds.height
+        )
+    }
+
+    @Test func liveRoomGiftGridUsesFiveColumnsInsideMediumContainer() throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        let viewController = LiveRoomViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 500, height: 900)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+        let giftButton = try #require(
+            viewController.view.allSubviews(of: QuickLayoutButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.gift.button"
+            }
+        )
+        activate(giftButton)
+
+        let giftSheet = try #require(
+            viewController.giftSheetViewController
+        )
+        giftSheet.loadViewIfNeeded()
+        giftSheet.view.frame = window.bounds
+        giftSheet.view.setNeedsLayout()
+        giftSheet.view.layoutIfNeeded()
+
+        #expect(giftSheet.giftColumnCount == 5)
+        #expect(giftSheet.giftScrollView.contentSize.height > 0)
+    }
+
+    @Test func liveRoomNineSeatSecondRowKeepsTextAtIdealSize() throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let viewModel = LiveRoomViewModel(
+            stageSnapshot: LiveRoomViewModel.makeDefaultStageSnapshot(
+                assignments: liveRoomAssignments(vacating: 6)
+            )
+        )
+        let viewController = LiveRoomViewController(viewModel: viewModel)
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+
+        for seatID in 1...4 {
+            let seatView = try #require(
+                viewController.view.allSubviews(of: UIView.self).first {
+                    $0.accessibilityIdentifier == "liveRoom.seat.\(seatID)"
+                }
+            )
+            let scoreLabel = try #require(
+                seatView.allSubviews(of: UILabel.self).first {
+                    $0.accessibilityIdentifier
+                        == "liveRoom.seat.score.\(seatID)"
+                }
+            )
+            let nameLabel = try #require(
+                seatView.allSubviews(of: UILabel.self).first {
+                    $0.accessibilityIdentifier
+                        == "liveRoom.seat.name.\(seatID)"
+                }
+            )
+            let interactionButton = try #require(
+                seatView.allSubviews(of: QuickLayoutButton.self).first {
+                    $0.accessibilityIdentifier
+                        == "liveRoom.seat.button.\(seatID)"
+                }
+            )
+            let waveformView = try #require(
+                seatView.allSubviews(of: UIView.self).first {
+                    $0.accessibilityIdentifier
+                        == "liveRoom.seat.waveform.\(seatID)"
+                }
+            )
+            let scoreIdealSize = scoreLabel.sizeThatFits(
+                CGSize(
+                    width: CGFloat.greatestFiniteMagnitude,
+                    height: CGFloat.greatestFiniteMagnitude
+                )
+            )
+            let nameIdealSize = nameLabel.sizeThatFits(
+                CGSize(
+                    width: CGFloat.greatestFiniteMagnitude,
+                    height: CGFloat.greatestFiniteMagnitude
+                )
+            )
+
+            #expect(scoreLabel.bounds.width >= scoreIdealSize.width - 1)
+            #expect(scoreLabel.bounds.height >= scoreIdealSize.height - 1)
+            #expect(nameLabel.bounds.width >= nameIdealSize.width - 1)
+            #expect(nameLabel.bounds.height >= nameIdealSize.height - 1)
+            #expect(interactionButton.frame == seatView.bounds)
+            if seatID == 3 {
+                #expect(waveformView.isHidden)
+                #expect(
+                    waveformView.layer.sublayers?.allSatisfy {
+                        $0.animationKeys()?.isEmpty != false
+                    } == true
+                )
+            } else {
+                #expect(!waveformView.isHidden)
+                #expect(waveformView.layer.sublayers?.count == 3)
+                if !UIAccessibility.isReduceMotionEnabled {
+                    #expect(
+                        waveformView.layer.sublayers?.allSatisfy {
+                            $0.animationKeys()?.isEmpty == false
+                        } == true
+                    )
+                }
+            }
+        }
+
+        let emptyWaveformView = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.seat.waveform.6"
+            }
+        )
+        #expect(emptyWaveformView.isHidden)
+        #expect(
+            emptyWaveformView.layer.sublayers?.allSatisfy {
+                $0.animationKeys()?.isEmpty != false
+            } == true
+        )
+    }
+
+    @Test func liveRoomFiveSeatLayoutUsesLargeHostAndFitsNarrowScreen() throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let viewController = LiveRoomViewController()
+        applyLiveRoomSnapshot(
+            to: viewController,
+            businessMode: .individual,
+            audienceSeatState: .enabled
+        )
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 320, height: 568)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+
+        #expect(viewController.displayedSeatCount == 5)
+        let scrollViews = viewController.view.allSubviews(of: UIScrollView.self)
+        #expect(scrollViews.count == 2)
+        #expect(scrollViews.contains { $0 === viewController.publicChatScrollView })
+        let seatCollectionView = try #require(
+            scrollViews.first {
+                $0.accessibilityIdentifier == "liveRoom.seat.collection"
+            } as? UICollectionView
+        )
+        #expect(!seatCollectionView.isScrollEnabled)
+        #expect(
+            viewController.publicChatScrollView.bounds.height > 0,
+            "view=\(viewController.view.bounds), safe=\(viewController.view.safeAreaInsets), chat=\(viewController.publicChatScrollView.frame)"
+        )
+        #expect(
+            viewController.publicChatScrollView.contentSize.height
+                > viewController.publicChatScrollView.bounds.height
+        )
+        let moreButton = try #require(
+            viewController.view.allSubviews(of: UIButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.more.button"
+            }
+        )
+        #expect(moreButton.showsMenuAsPrimaryAction)
+        #expect(moreButton.menu?.children.count == 2)
+        let stageView = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.seat.stage"
+            }
+        )
+        let chatView = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.publicChat.container"
+            }
+        )
+        let actionBarView = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.actionBar"
+            }
+        )
+        let stageFrame = stageView.convert(stageView.bounds, to: viewController.view)
+        let chatFrame = chatView.convert(chatView.bounds, to: viewController.view)
+        let actionBarFrame = actionBarView.convert(
+            actionBarView.bounds,
+            to: viewController.view
+        )
+        #expect(chatFrame.height >= 0)
+        #expect(abs(chatFrame.minY - stageFrame.maxY - 10) < 1)
+        #expect(abs(actionBarFrame.minY - chatFrame.maxY - 10) < 1)
+        let bottomSpacing = viewController.view.bounds.maxY
+            - viewController.view.safeAreaInsets.bottom
+            - actionBarFrame.maxY
+        let expectedBottomSpacing = LiveRoomViewController
+            .actionBarBottomSpacing(
+                for: viewController.view.safeAreaInsets.bottom
+            )
+        #expect(
+            abs(bottomSpacing - expectedBottomSpacing) < 1,
+            "stage=\(stageFrame), chat=\(chatFrame), action=\(actionBarFrame), bottom=\(bottomSpacing)"
+        )
+        let seatViews = try (0..<5).map { index in
+            try #require(
+                viewController.view.allSubviews(of: UIView.self).first {
+                    $0.accessibilityIdentifier == "liveRoom.seat.\(index)"
+                }
+            )
+        }
+        let seatFrames = seatViews.map { seatView in
+            seatView.convert(seatView.bounds, to: viewController.view)
+        }
+
+        #expect(seatFrames[0].width > seatFrames[1].width)
+        #expect(seatFrames[0].width >= 116)
+        #expect(seatFrames.dropFirst().allSatisfy { $0.width >= 60 })
+        #expect(
+            seatFrames.allSatisfy {
+                $0.minX >= -1 && $0.maxX <= viewController.view.bounds.width + 1
+            }
+        )
+        #expect(seatFrames.dropFirst().allSatisfy {
+            abs($0.minY - seatFrames[1].minY) < 1
+        })
+
+        applyLiveRoomSnapshot(
+            to: viewController,
+            businessMode: .party,
+            audienceSeatState: .enabled
+        )
+        layout(viewController, in: navigationController)
+        let nineSeatViews = try (0..<2).map { index in
+            try #require(
+                viewController.view.allSubviews(of: UIView.self).first {
+                    $0.accessibilityIdentifier == "liveRoom.seat.\(index)"
+                }
+            )
+        }
+        let nineSeatFrames = nineSeatViews.map { seatView in
+            seatView.convert(seatView.bounds, to: viewController.view)
+        }
+        #expect(viewController.displayedSeatCount == 9)
+        #expect(abs(nineSeatFrames[0].width - nineSeatFrames[1].width) < 1)
+        #expect(abs(nineSeatFrames[0].height - nineSeatFrames[1].height) < 1)
+    }
+
+    @Test func liveRoomMessageButtonSendsScrollsAndRemovesComposer() throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let viewController = LiveRoomViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 402, height: 874)
+        )
+        defer { window.isHidden = true }
+        viewController.overrideUserInterfaceStyle = .dark
+
+        layout(viewController, in: navigationController)
+        let initialLatestMessage = viewController.latestPublicChatMessage
+        let actionBarView = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.actionBar"
+            }
+        )
+        let defaultActionBarHeight = actionBarView.bounds.height
+        let defaultControlIdentifiers: Set<String> = [
+            "liveRoom.message.button",
+            "liveRoom.microphone.button",
+            "liveRoom.gift.button",
+            "liveRoom.more.button",
+        ]
+        let defaultControlViews = viewController.view
+            .allSubviews(of: UIControl.self)
+            .filter {
+                guard let identifier = $0.accessibilityIdentifier else {
+                    return false
+                }
+                return defaultControlIdentifiers.contains(identifier)
+            }
+        #expect(defaultControlViews.count == defaultControlIdentifiers.count)
+        #expect(
+            defaultControlViews.allSatisfy {
+                abs($0.bounds.height - 35) < 1
+            }
+        )
+        let hostSeatView = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.seat.0"
+            }
+        )
+        let regularHostSeatWidth = hostSeatView.bounds.width
+        let messageButton = try #require(
+            viewController.view
+                .allSubviews(of: LiveRoomIconTitleButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.message.button"
+            }
+        )
+        activate(messageButton)
+        layout(viewController, in: navigationController)
+
+        #expect(viewController.isShowingMessageComposer)
+        #expect(abs(actionBarView.bounds.height - defaultActionBarHeight) < 1)
+        let textField = try #require(
+            viewController.view.allSubviews(of: UITextField.self).first {
+                $0.accessibilityIdentifier == "liveRoom.message.input"
+            }
+        )
+        let inputContainer = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier
+                    == "liveRoom.message.input.container"
+            }
+        )
+        let sendButton = try #require(
+            viewController.view.allSubviews(of: LiveRoomTextButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.message.send"
+            }
+        )
+        let cancelButton = try #require(
+            viewController.view
+                .allSubviews(of: LiveRoomSymbolButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.message.cancel"
+            }
+        )
+
+        let keyboardFrameInWindow = CGRect(
+            x: 0,
+            y: 534,
+            width: window.bounds.width,
+            height: window.bounds.height - 534
+        )
+        let keyboardFrameInScreen = window.convert(
+            keyboardFrameInWindow,
+            to: nil
+        )
+        NotificationCenter.default.post(
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil,
+            userInfo: [
+                UIResponder.keyboardFrameBeginUserInfoKey: CGRect(
+                    x: 0,
+                    y: window.bounds.maxY,
+                    width: window.bounds.width,
+                    height: 0
+                ),
+                UIResponder.keyboardFrameEndUserInfoKey: keyboardFrameInScreen,
+                UIResponder.keyboardAnimationDurationUserInfoKey: 0.0,
+                UIResponder.keyboardAnimationCurveUserInfoKey:
+                    UInt(UIView.AnimationCurve.easeInOut.rawValue),
+            ]
+        )
+        layout(viewController, in: navigationController)
+
+        let textFieldFrame = textField.convert(
+            textField.bounds,
+            to: viewController.view
+        )
+        let inputContainerFrame = inputContainer.convert(
+            inputContainer.bounds,
+            to: viewController.view
+        )
+        let sendButtonFrame = sendButton.convert(
+            sendButton.bounds,
+            to: viewController.view
+        )
+        let cancelButtonFrame = cancelButton.convert(
+            cancelButton.bounds,
+            to: viewController.view
+        )
+        let keyboardTop = viewController.view.convert(
+            keyboardFrameInScreen,
+            from: nil
+        ).minY
+
+        #expect(textField.borderStyle == .none)
+        #expect(textField.backgroundColor == .clear)
+        #expect(textField.textColor == .white)
+        #expect(textField.keyboardAppearance == .dark)
+        #expect(abs(inputContainer.layer.cornerRadius - 8) < 0.5)
+        #expect(
+            inputContainer.layer.cornerRadius
+                < inputContainerFrame.height / 2
+        )
+        #expect(inputContainer.clipsToBounds)
+        #expect(inputContainerFrame.height >= 35)
+        #expect(
+            abs(textFieldFrame.height - inputContainerFrame.height) < 1
+        )
+        #expect(abs(sendButtonFrame.height - 35) < 1)
+        #expect(abs(cancelButtonFrame.height - 35) < 1)
+        #expect(abs(sendButton.layer.cornerRadius - 17.5) < 0.5)
+        #expect(textFieldFrame.width >= 96)
+        #expect(sendButtonFrame.minX - textFieldFrame.maxX >= 7)
+        #expect(cancelButtonFrame.minX - sendButtonFrame.maxX >= 7)
+        #expect(abs(textFieldFrame.midY - sendButtonFrame.midY) < 1)
+        #expect(abs(sendButtonFrame.midY - cancelButtonFrame.midY) < 1)
+        #expect(cancelButtonFrame.maxY <= keyboardTop - 7)
+        #expect(hostSeatView.bounds.width < regularHostSeatWidth)
+        #expect(!sendButton.isEnabled)
+        #expect(sendButton.layer.borderWidth == 1)
+        #expect((sendButton.backgroundColor?.cgColor.alpha ?? 0) >= 0.1)
+
+        textField.text = "   "
+        textField.sendActions(for: .editingChanged)
+        #expect(!sendButton.isEnabled)
+        activate(sendButton)
+        layout(viewController, in: navigationController)
+        #expect(viewController.isShowingMessageComposer)
+        #expect(viewController.latestPublicChatMessage == initialLatestMessage)
+
+        textField.text = "  新消息已发送  "
+        textField.sendActions(for: .editingChanged)
+        #expect(sendButton.isEnabled)
+        #expect((sendButton.backgroundColor?.cgColor.alpha ?? 0) == 1)
+        activate(sendButton)
+        layout(viewController, in: navigationController)
+
+        #expect(!viewController.isShowingMessageComposer)
+        #expect(viewController.latestPublicChatMessage == "我：新消息已发送")
+        #expect(
+            !viewController.view.allSubviews(of: UITextField.self).contains {
+                $0.accessibilityIdentifier == "liveRoom.message.input"
+            }
+        )
+        #expect(
+            viewController.view.allSubviews(of: QuickLayoutButton.self).contains {
+                $0.accessibilityIdentifier == "liveRoom.message.button"
+            }
+        )
+
+        let scrollView = viewController.publicChatScrollView
+        let bottomOffset = max(
+            -scrollView.contentInset.top,
+            scrollView.contentSize.height
+                - scrollView.bounds.height
+                + scrollView.contentInset.bottom
+        )
+        #expect(abs(scrollView.contentOffset.y - bottomOffset) < 1)
+        #expect(
+            viewController.view.allSubviews(of: UIScrollView.self)
+                .filter(\.isScrollEnabled).count == 1
+        )
+    }
+
+    @Test func liveRoomActionBarKeepsBottomSpacingOnIPhoneSESize() throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let viewController = LiveRoomViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 375, height: 667)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+
+        let actionBarView = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.actionBar"
+            }
+        )
+        let chatView = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.publicChat.container"
+            }
+        )
+        let actionBarFrame = actionBarView.convert(
+            actionBarView.bounds,
+            to: viewController.view
+        )
+        let chatFrame = chatView.convert(
+            chatView.bounds,
+            to: viewController.view
+        )
+        let safeAreaBottom = viewController.view.bounds.maxY
+            - viewController.view.safeAreaInsets.bottom
+        let bottomSpacing = safeAreaBottom - actionBarFrame.maxY
+        let screenBottomSpacing = viewController.view.bounds.maxY
+            - actionBarFrame.maxY
+        let expectedBottomSpacing = LiveRoomViewController
+            .actionBarBottomSpacing(
+                for: viewController.view.safeAreaInsets.bottom
+            )
+
+        #expect(
+            LiveRoomViewController.actionBarBottomSpacing(for: 0) == 8
+        )
+        #expect(
+            LiveRoomViewController.actionBarBottomSpacing(for: 34) == 0
+        )
+        #expect(abs(bottomSpacing - expectedBottomSpacing) < 1)
+        #expect(
+            abs(
+                screenBottomSpacing
+                    - viewController.view.safeAreaInsets.bottom
+                    - expectedBottomSpacing
+            ) < 1
+        )
+        #expect(abs(actionBarFrame.minY - chatFrame.maxY - 10) < 1)
+        #expect(
+            viewController.view.allSubviews(of: UIScrollView.self)
+                .filter(\.isScrollEnabled).count == 1
+        )
+    }
+
     @Test func safeAreaPaddingDemoCoversQuickLayoutCombinations() throws {
         DemoLocalization.setLocale(identifier: "en-US")
         defer { DemoLocalization.setLocale(identifier: "en-US") }
@@ -71,6 +2450,25 @@ struct DemoTests {
         expectPageInsets(.zero)
 
         let safeArea = viewController.view.safeAreaInsets
+        let safeAreaGuideView = try #require(
+            viewController.view
+                .allSubviews(of: QuickLayoutShapeView.self)
+                .first {
+                    $0.accessibilityIdentifier == "safeAreaPadding.guide"
+                }
+        )
+        let safeAreaGuideLayer = try #require(
+            safeAreaGuideView.layer as? CAShapeLayer
+        )
+        let guidePathBounds = try #require(
+            safeAreaGuideLayer.path?.boundingBoxOfPath
+        )
+        let expectedGuideBounds = safeAreaGuideView.bounds.inset(
+            by: safeAreaGuideView.safeAreaInsets
+        )
+        #expect(guidePathBounds.approximatelyEquals(expectedGuideBounds))
+        #expect(safeAreaGuideLayer.lineDashPattern?.map(\.intValue) == [6, 4])
+
         viewController.selectScenario(
             at: SafeAreaPaddingDemoViewController.Scenario.zeroAll.rawValue
         )
@@ -1400,9 +3798,7 @@ struct DemoTests {
         let expectedTrailingEdge = visibleRect.maxX
             - viewController.scrollView.adjustedContentInset.right
         let artworkView = try #require(
-            firstCard.allSubviews(of: UIView.self).first { view in
-                view.layer.sublayers?.contains { $0 is CAGradientLayer } == true
-            }
+            firstCard.allSubviews(of: QuickLayoutLinearGradientView.self).first
         )
         let artworkFrame = artworkView.convert(artworkView.bounds, to: firstCard)
 
@@ -3381,30 +5777,126 @@ struct DemoTests {
         #expect(rightToLeftChange.layoutDirectionChanged)
     }
 
-    @Test func languageMenuUsesSemanticTrailingEdgeAcrossDirectionChanges() {
+    @Test func languageMenuUsesUIKitMirroringAcrossDirectionChanges() throws {
         let viewController = UIViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
         defer {
+            window.isHidden = true
             DemoLocalization.setLocale(identifier: "en-US")
         }
 
         DemoLocalization.setLocale(identifier: "zh-Hans")
         DemoLocalization.installLanguageMenu(on: viewController)
+        navigationController.navigationBar.semanticContentAttribute =
+            .forceLeftToRight
+        navigationController.view.layoutIfNeeded()
 
         let languageItem = viewController.navigationItem.rightBarButtonItem
         #expect(languageItem != nil)
         #expect(viewController.navigationItem.leftBarButtonItem == nil)
+        let leftToRightItemView = try #require(
+            navigationController.navigationBar
+                .allSubviews(of: UIView.self)
+                .first {
+                    $0.accessibilityIdentifier == "demo.language.menu"
+                }
+        )
+        let leftToRightFrame = leftToRightItemView.convert(
+            leftToRightItemView.bounds,
+            to: navigationController.navigationBar
+        )
+        #expect(
+            leftToRightFrame.midX
+                > navigationController.navigationBar.bounds.midX
+        )
 
         DemoLocalization.setLocale(identifier: "ar")
         DemoLocalization.reloadLanguageMenu(on: viewController)
-
-        #expect(viewController.navigationItem.leftBarButtonItem === languageItem)
-        #expect(viewController.navigationItem.rightBarButtonItem == nil)
-
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        DemoLocalization.reloadLanguageMenu(on: viewController)
+        navigationController.navigationBar.semanticContentAttribute =
+            .forceRightToLeft
+        navigationController.navigationBar.setNeedsLayout()
+        navigationController.navigationBar.layoutIfNeeded()
 
         #expect(viewController.navigationItem.rightBarButtonItem === languageItem)
         #expect(viewController.navigationItem.leftBarButtonItem == nil)
+        #expect(!viewController.navigationItem.hidesBackButton)
+        let rightToLeftItemView = try #require(
+            navigationController.navigationBar
+                .allSubviews(of: UIView.self)
+                .first {
+                    $0.accessibilityIdentifier == "demo.language.menu"
+                }
+        )
+        let rightToLeftFrame = rightToLeftItemView.convert(
+            rightToLeftItemView.bounds,
+            to: navigationController.navigationBar
+        )
+        #expect(
+            rightToLeftFrame.midX
+                < navigationController.navigationBar.bounds.midX
+        )
+
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        DemoLocalization.reloadLanguageMenu(on: viewController)
+        navigationController.navigationBar.semanticContentAttribute =
+            .forceLeftToRight
+        navigationController.navigationBar.setNeedsLayout()
+        navigationController.navigationBar.layoutIfNeeded()
+
+        #expect(viewController.navigationItem.rightBarButtonItem === languageItem)
+        #expect(viewController.navigationItem.leftBarButtonItem == nil)
+        let returnedItemView = try #require(
+            navigationController.navigationBar
+                .allSubviews(of: UIView.self)
+                .first {
+                    $0.accessibilityIdentifier == "demo.language.menu"
+                }
+        )
+        let returnedFrame = returnedItemView.convert(
+            returnedItemView.bounds,
+            to: navigationController.navigationBar
+        )
+        #expect(
+            returnedFrame.midX
+                > navigationController.navigationBar.bounds.midX
+        )
+    }
+
+    @Test func liveRoomKeepsSystemBackButtonAfterSwitchingToArabic() {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let rootViewController = UIViewController()
+        let navigationController = UINavigationController(
+            rootViewController: rootViewController
+        )
+        let liveRoomViewController = LiveRoomViewController()
+        navigationController.pushViewController(
+            liveRoomViewController,
+            animated: false
+        )
+        liveRoomViewController.loadViewIfNeeded()
+
+        #expect(navigationController.viewControllers.count == 2)
+        #expect(liveRoomViewController.navigationItem.leftBarButtonItem == nil)
+        #expect(!liveRoomViewController.navigationItem.hidesBackButton)
+
+        DemoLocalization.setLocale(identifier: "ar")
+        DemoLocalization.reloadLanguageMenu(on: liveRoomViewController)
+
+        let languageItem = liveRoomViewController.navigationItem
+            .rightBarButtonItem
+        #expect(
+            languageItem?.accessibilityIdentifier == "demo.language.menu"
+        )
+        #expect(liveRoomViewController.navigationItem.leftBarButtonItem == nil)
+        #expect(!liveRoomViewController.navigationItem.hidesBackButton)
     }
 
     @Test func plainNavigationPreviewReceivesLanguageMenuSelections() async throws {
@@ -5826,6 +8318,50 @@ struct DemoTests {
     }
 }
 
+@MainActor
+@discardableResult
+private func applyLiveRoomSnapshot(
+    to viewController: LiveRoomViewController,
+    businessMode: LiveRoomBusinessMode,
+    audienceSeatState: LiveRoomAudienceSeatState
+) -> Bool {
+    let current = viewController.viewModel.state.snapshot
+    let capacity = businessMode == .individual ? 5 : 9
+    let assignments = LiveRoomViewModel.defaultAssignments.filter {
+        $0.position.rawValue < capacity
+    }
+    return viewController.viewModel.consumeStageSnapshot(
+        LiveRoomStageSnapshot(
+            revision: current.revision + 1,
+            businessMode: businessMode,
+            audienceSeatState: audienceSeatState,
+            assignments: assignments,
+            capabilities: LiveRoomBusinessCapability.defaults(
+                for: businessMode
+            )
+        )
+    )
+}
+
+@MainActor
+private func liveRoomAssignments(
+    vacating position: Int
+) -> [LiveRoomSeatAssignment] {
+    LiveRoomViewModel.defaultAssignments.map { assignment in
+        guard assignment.position.rawValue == position else {
+            return assignment
+        }
+        return LiveRoomSeatAssignment(
+            seatID: assignment.seatID,
+            slotID: assignment.slotID,
+            position: assignment.position,
+            occupant: nil,
+            audioState: .unavailable,
+            score: 0
+        )
+    }
+}
+
 private struct TestStringCatalog: Decodable {
     let strings: [String: TestStringCatalogEntry]
 }
@@ -5840,6 +8376,33 @@ private struct TestStringLocalization: Decodable {
 
 private struct TestStringUnit: Decodable {
     let value: String
+}
+
+/// 测试专用的后台麦位流，不向生产默认数据写入任何状态。
+private final class TestLiveRoomStageSnapshotProvider:
+    LiveRoomStageSnapshotProviding,
+    @unchecked Sendable {
+
+    private let stream: AsyncStream<LiveRoomStageSnapshot>
+    private let continuation: AsyncStream<LiveRoomStageSnapshot>.Continuation
+
+    init() {
+        let pair = AsyncStream<LiveRoomStageSnapshot>.makeStream()
+        stream = pair.stream
+        continuation = pair.continuation
+    }
+
+    func stageSnapshots() async -> AsyncStream<LiveRoomStageSnapshot> {
+        stream
+    }
+
+    func yield(_ snapshot: LiveRoomStageSnapshot) {
+        continuation.yield(snapshot)
+    }
+
+    func finish() {
+        continuation.finish()
+    }
 }
 
 @MainActor
@@ -5891,6 +8454,15 @@ private func makeVisibleTestWindow(
     rootViewController.view.setNeedsLayout()
     rootViewController.view.layoutIfNeeded()
     return window
+}
+
+@MainActor
+private func activate(_ control: UIControl) {
+    if let button = control as? QuickLayoutButton {
+        button.performAction()
+    } else {
+        control.sendActions(for: .touchUpInside)
+    }
 }
 
 @MainActor

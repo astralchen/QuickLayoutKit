@@ -16,6 +16,7 @@ enum DemoRoute: CaseIterable, Hashable, Sendable {
     case counter
     case dynamicScroll
     case dashboard
+    case liveRoom
     case messages
     case tableMessages
     case keyboard
@@ -49,6 +50,8 @@ enum DemoRoute: CaseIterable, Hashable, Sendable {
             "demo.dynamicScroll.title"
         case .dashboard:
             "demo.dashboard.title"
+        case .liveRoom:
+            "demo.liveRoom.title"
         case .messages:
             "demo.messages.title"
         case .tableMessages:

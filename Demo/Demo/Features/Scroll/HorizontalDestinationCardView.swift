@@ -352,45 +352,42 @@ final class HorizontalDestinationCardView: QuickLayoutView {
     }
 }
 
-private final class HorizontalDestinationArtworkView: UIView {
+private final class HorizontalDestinationArtworkView: QuickLayoutLinearGradientView {
 
-    private let gradientLayer = CAGradientLayer()
     private let glowLayer = CAGradientLayer()
 
     init(colors: [UIColor]) {
         super.init(frame: .zero)
-        gradientLayer.colors = colors.map(\.cgColor)
-        gradientLayer.startPoint = CGPoint(x: 0, y: 0)
-        gradientLayer.endPoint = CGPoint(x: 1, y: 1)
-        layer.addSublayer(gradientLayer)
-
-        glowLayer.type = .radial
-        glowLayer.colors = [
-            UIColor.white.withAlphaComponent(0.36).cgColor,
-            UIColor.white.withAlphaComponent(0).cgColor
-        ]
-        glowLayer.startPoint = CGPoint(x: 0.5, y: 0.5)
-        glowLayer.endPoint = CGPoint(x: 1, y: 1)
-        layer.addSublayer(glowLayer)
+        configure(colors: colors)
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
-        gradientLayer.colors = [
-            UIColor.systemBlue.cgColor,
-            UIColor.systemTeal.cgColor
-        ]
-        layer.addSublayer(gradientLayer)
+        configure(colors: [.systemBlue, .systemTeal])
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        gradientLayer.frame = bounds
         glowLayer.frame = CGRect(
             x: bounds.width * 0.34,
             y: -bounds.height * 0.45,
             width: bounds.width * 0.92,
             height: bounds.height * 1.36
         )
+    }
+
+    private func configure(colors: [UIColor]) {
+        gradient = QuickLayoutGradient(colors: colors)
+        startPoint = .topLeading
+        endPoint = .bottomTrailing
+
+        glowLayer.type = .radial
+        glowLayer.colors = [
+            UIColor.white.withAlphaComponent(0.36).cgColor,
+            UIColor.white.withAlphaComponent(0).cgColor,
+        ]
+        glowLayer.startPoint = CGPoint(x: 0.5, y: 0.5)
+        glowLayer.endPoint = CGPoint(x: 1, y: 1)
+        layer.addSublayer(glowLayer)
     }
 }

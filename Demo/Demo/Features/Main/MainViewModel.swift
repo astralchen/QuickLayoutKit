@@ -47,6 +47,7 @@ final class MainViewModel {
                 .counter,
                 .dynamicScroll,
                 .dashboard,
+                .liveRoom,
                 .messages,
                 .tableMessages,
                 .keyboard,

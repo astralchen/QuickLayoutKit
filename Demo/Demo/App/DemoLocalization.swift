@@ -151,8 +151,7 @@ enum DemoLocalization {
         item.accessibilityIdentifier = languageMenuItemAccessibilityIdentifier
         viewController.navigationItem.setBarButtonItem(
             item,
-            side: .trailing,
-            layoutDirection: currentUIKitDirection
+            side: .trailing
         )
     }
 
@@ -172,11 +171,7 @@ enum DemoLocalization {
 
         item.menu = languageMenu()
         item.accessibilityLabel = text("language.menu.accessibility")
-        navigationItem.setBarButtonItem(
-            item,
-            side: .trailing,
-            layoutDirection: currentUIKitDirection
-        )
+        navigationItem.setBarButtonItem(item, side: .trailing)
     }
 
     static func languageMenu() -> UIMenu {

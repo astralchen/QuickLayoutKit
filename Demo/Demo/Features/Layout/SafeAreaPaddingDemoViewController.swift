@@ -422,28 +422,34 @@ final class SafeAreaPaddingDemoViewController: DemoQuickLayoutHostingController 
     }
 }
 
-private final class SafeAreaPaddingGuideView: UIView {
-
-    private let safeAreaLayer = CAShapeLayer()
+private final class SafeAreaPaddingGuideView: QuickLayoutShapeView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        safeAreaLayer.fillColor = UIColor.clear.cgColor
-        safeAreaLayer.strokeColor = UIColor.systemGreen.cgColor
-        safeAreaLayer.lineWidth = 2
-        safeAreaLayer.lineDashPattern = [6, 4]
-        layer.addSublayer(safeAreaLayer)
+        fillColor = nil
+        strokeColor = .systemGreen
+        strokeStyle = QuickLayoutStrokeStyle(
+            lineWidth: 2,
+            dash: [6, 4]
+        )
+        updateSafeAreaShape()
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        let safeBounds = bounds.inset(by: safeAreaInsets)
-        safeAreaLayer.frame = bounds
-        safeAreaLayer.path = UIBezierPath(rect: safeBounds).cgPath
+    override func safeAreaInsetsDidChange() {
+        super.safeAreaInsetsDidChange()
+        updateSafeAreaShape()
+    }
+
+    private func updateSafeAreaShape() {
+        let insets = safeAreaInsets
+        // 路径仍以最新 bounds 计算，安全区变化时只更新不可变的 inset 输入。
+        shape = QuickLayoutAnyShape { bounds in
+            UIBezierPath(rect: bounds.inset(by: insets)).cgPath
+        }
     }
 }
 
