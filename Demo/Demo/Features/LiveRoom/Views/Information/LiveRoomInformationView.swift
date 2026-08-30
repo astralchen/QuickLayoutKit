@@ -12,47 +12,42 @@ import UIKit
 final class LiveRoomInformationView: QuickLayoutView {
 
     struct Content {
-        let roomTitle: String
-        let roomSubtitle: String
-        let avatarAccessibilityLabel: String
-        let liveStatus: String
-        let detailsTitle: String
-        let roomIDTitle: String
-        let roomID: String
-        let hostTitle: String
-        let hostDisplayName: String
-        let audienceTitle: String
-        let audienceValue: String
-        let announcementTitle: String
-        let announcement: String
+
+        struct Profile {
+            let roomTitle: String
+            let roomSubtitle: String
+            let avatarAccessibilityLabel: String
+            let liveStatus: String
+        }
+
+        struct Detail {
+            let title: String
+            let value: String
+        }
+
+        struct Details {
+            let title: String
+            let roomID: Detail
+            let host: Detail
+            let audience: Detail
+        }
+
+        struct Announcement {
+            let title: String
+            let value: String
+        }
+
+        let profile: Profile
+        let details: Details
+        let announcement: Announcement
     }
 
     let scrollView = QuickLayoutScrollView(.vertical)
 
     private let backdropView = LiveRoomBackdropView()
-    private let profileCardView = LiveRoomCardView()
-    private let detailsCardView = LiveRoomCardView()
-    private let announcementCardView = LiveRoomCardView()
-    private let avatarBackgroundView = UIView()
-    private let avatarImageView = UIImageView(
-        image: UIImage(systemName: "music.mic.circle.fill")
-    )
-    private let roomTitleLabel = UILabel()
-    private let roomSubtitleLabel = UILabel()
-    private let statusDotView = UIView()
-    private let liveStatusLabel = UILabel()
-    private let statusBackgroundView = UIView()
-    private let detailsTitleLabel = UILabel()
-    private let roomIDTitleLabel = UILabel()
-    private let roomIDValueLabel = UILabel()
-    private let hostTitleLabel = UILabel()
-    private let hostValueLabel = UILabel()
-    private let audienceTitleLabel = UILabel()
-    private let audienceValueLabel = UILabel()
-    private let firstDividerView = UIView()
-    private let secondDividerView = UIView()
-    private let announcementTitleLabel = UILabel()
-    private let announcementLabel = UILabel()
+    private let profileCardView = LiveRoomInformationProfileCardView()
+    private let detailsCardView = LiveRoomInformationDetailsCardView()
+    private let announcementCardView = LiveRoomInformationAnnouncementCardView()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -72,9 +67,10 @@ final class LiveRoomInformationView: QuickLayoutView {
 
             ScrollView(scrollView, .vertical) {
                 VStack(spacing: 14) {
-                    profileCard
-                    detailsCard
-                    announcementCard
+                    // 卡片只跟随容器宽度，纵向必须保留内容固有高度，避免滚动测量时被压缩。
+                    profileCardView.resizable(axis: .horizontal)
+                    detailsCardView.resizable(axis: .horizontal)
+                    announcementCardView.resizable(axis: .horizontal)
                 }
                 .frame(maxWidth: 620)
                 .padding(.horizontal, 16)
@@ -86,7 +82,50 @@ final class LiveRoomInformationView: QuickLayoutView {
         }
     }
 
-    private var profileCard: Layout {
+    func configure(content: Content) {
+        profileCardView.configure(content: content.profile)
+        detailsCardView.configure(content: content.details)
+        announcementCardView.configure(content: content.announcement)
+        setNeedsQuickLayout()
+    }
+
+    private func configureViews() {
+        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+        accessibilityIdentifier = "liveRoom.information.view"
+
+        scrollView.alwaysBounceVertical = false
+        scrollView.showsVerticalScrollIndicator = true
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.quickLayoutSemanticDirectionBehavior =
+            .followEnclosingContainer
+    }
+}
+
+/// 主播资料卡独立维护自身子视图，页面容器不感知其内部实现。
+private final class LiveRoomInformationProfileCardView: QuickLayoutView {
+
+    private let cardView = LiveRoomCardView()
+    private let avatarBackgroundView = UIView()
+    private let avatarImageView = UIImageView(
+        image: UIImage(systemName: "music.mic.circle.fill")
+    )
+    private let roomTitleLabel = UILabel()
+    private let roomSubtitleLabel = UILabel()
+    private let statusDotView = UIView()
+    private let liveStatusLabel = UILabel()
+    private let statusBackgroundView = UIView()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        configureViews()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configureViews()
+    }
+
+    override var body: Layout {
         VStack(spacing: 10) {
             ZStack {
                 avatarBackgroundView
@@ -97,10 +136,8 @@ final class LiveRoomInformationView: QuickLayoutView {
                     .scaledToFit()
                     .frame(width: 48, height: 48)
             }
-            roomTitleLabel
-                .resizable(axis: .horizontal)
-            roomSubtitleLabel
-                .resizable(axis: .horizontal)
+            roomTitleLabel.resizable(axis: .horizontal)
+            roomSubtitleLabel.resizable(axis: .horizontal)
             HStack(spacing: 6) {
                 statusDotView
                     .resizable()
@@ -114,75 +151,19 @@ final class LiveRoomInformationView: QuickLayoutView {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 18)
         .padding(.vertical, 22)
-        .background { profileCardView }
+        .background { cardView }
     }
 
-    private var detailsCard: Layout {
-        VStack(alignment: .leading, spacing: 0) {
-            detailsTitleLabel
-                .resizable(axis: .horizontal)
-                .padding(.bottom, 9)
-            detailRow(title: roomIDTitleLabel, value: roomIDValueLabel)
-            firstDividerView
-                .resizable()
-                .frame(height: 1)
-            detailRow(title: hostTitleLabel, value: hostValueLabel)
-            secondDividerView
-                .resizable()
-                .frame(height: 1)
-            detailRow(title: audienceTitleLabel, value: audienceValueLabel)
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 17)
-        .background { detailsCardView }
-    }
-
-    private var announcementCard: Layout {
-        VStack(alignment: .leading, spacing: 9) {
-            announcementTitleLabel
-                .resizable(axis: .horizontal)
-            announcementLabel
-                .resizable(axis: .horizontal)
-        }
-        .padding(18)
-        .background { announcementCardView }
-    }
-
-    private func detailRow(title: UILabel, value: UILabel) -> Layout {
-        HStack(alignment: .center, spacing: 16) {
-            title.fixedSize(axis: .horizontal)
-            Spacer(minLength: 12)
-            value.resizable(axis: .horizontal)
-        }
-        .padding(.vertical, 12)
-    }
-
-    func configure(content: Content) {
+    func configure(content: LiveRoomInformationView.Content.Profile) {
         roomTitleLabel.text = content.roomTitle
         roomSubtitleLabel.text = content.roomSubtitle
         avatarImageView.accessibilityLabel = content.avatarAccessibilityLabel
         liveStatusLabel.text = content.liveStatus
-        detailsTitleLabel.text = content.detailsTitle
-        roomIDTitleLabel.text = content.roomIDTitle
-        roomIDValueLabel.text = content.roomID
-        hostTitleLabel.text = content.hostTitle
-        hostValueLabel.text = content.hostDisplayName
-        audienceTitleLabel.text = content.audienceTitle
-        audienceValueLabel.text = content.audienceValue
-        announcementTitleLabel.text = content.announcementTitle
-        announcementLabel.text = content.announcement
         setNeedsQuickLayout()
     }
 
     private func configureViews() {
         quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
-        accessibilityIdentifier = "liveRoom.information.view"
-
-        scrollView.alwaysBounceVertical = false
-        scrollView.showsVerticalScrollIndicator = true
-        scrollView.contentInsetAdjustmentBehavior = .never
-        scrollView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
 
         avatarBackgroundView.backgroundColor = UIColor.systemPink
             .withAlphaComponent(0.24)
@@ -196,15 +177,13 @@ final class LiveRoomInformationView: QuickLayoutView {
         avatarImageView.isAccessibilityElement = true
         avatarImageView.accessibilityTraits = .image
 
-        configureLabel(
-            roomTitleLabel,
+        roomTitleLabel.configureLiveRoomInformation(
             font: .preferredFont(forTextStyle: .title2),
             color: .white,
             alignment: .center
         )
         roomTitleLabel.numberOfLines = 0
-        configureLabel(
-            roomSubtitleLabel,
+        roomSubtitleLabel.configureLiveRoomInformation(
             font: .preferredFont(forTextStyle: .subheadline),
             color: UIColor.white.withAlphaComponent(0.66),
             alignment: .center
@@ -213,42 +192,178 @@ final class LiveRoomInformationView: QuickLayoutView {
 
         statusDotView.backgroundColor = .systemGreen
         statusDotView.layer.cornerRadius = 4
-        liveStatusLabel.font = .preferredFont(forTextStyle: .caption1)
-        liveStatusLabel.textColor = .systemGreen
-        liveStatusLabel.adjustsFontForContentSizeCategory = true
+        liveStatusLabel.configureLiveRoomInformation(
+            font: .preferredFont(forTextStyle: .caption1),
+            color: .systemGreen
+        )
         statusBackgroundView.backgroundColor = UIColor.systemGreen
             .withAlphaComponent(0.13)
         statusBackgroundView.layer.cornerRadius = 14
         statusBackgroundView.layer.cornerCurve = .continuous
+    }
+}
 
-        configureLabel(
-            detailsTitleLabel,
+/// 详情卡只负责组合语义行，避免页面持有成组的标题、值与分隔线属性。
+private final class LiveRoomInformationDetailsCardView: QuickLayoutView {
+
+    private let cardView = LiveRoomCardView()
+    private let titleLabel = UILabel()
+    private let roomIDRowView = LiveRoomInformationDetailRowView(
+        valueAccessibilityIdentifier: "liveRoom.information.roomID"
+    )
+    private let hostRowView = LiveRoomInformationDetailRowView(
+        valueAccessibilityIdentifier: "liveRoom.information.host"
+    )
+    private let audienceRowView = LiveRoomInformationDetailRowView(
+        valueAccessibilityIdentifier: "liveRoom.information.audience"
+    )
+    private let firstDividerView = UIView()
+    private let secondDividerView = UIView()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        configureViews()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configureViews()
+    }
+
+    override var body: Layout {
+        VStack(alignment: .leading, spacing: 0) {
+            titleLabel
+                .resizable(axis: .horizontal)
+                .padding(.bottom, 9)
+            // 详情行同样只横向伸缩，Dynamic Type 下不能牺牲文本高度。
+            roomIDRowView.resizable(axis: .horizontal)
+            firstDividerView
+                .resizable()
+                .frame(height: 1)
+            hostRowView.resizable(axis: .horizontal)
+            secondDividerView
+                .resizable()
+                .frame(height: 1)
+            audienceRowView.resizable(axis: .horizontal)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 17)
+        .background { cardView }
+    }
+
+    func configure(content: LiveRoomInformationView.Content.Details) {
+        titleLabel.text = content.title
+        roomIDRowView.configure(
+            title: content.roomID.title,
+            value: content.roomID.value
+        )
+        hostRowView.configure(
+            title: content.host.title,
+            value: content.host.value
+        )
+        audienceRowView.configure(
+            title: content.audience.title,
+            value: content.audience.value
+        )
+        setNeedsQuickLayout()
+    }
+
+    private func configureViews() {
+        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+        titleLabel.configureLiveRoomInformation(
             font: .preferredFont(forTextStyle: .headline),
             color: .white
         )
-        configureDetailTitleLabel(roomIDTitleLabel)
-        configureDetailTitleLabel(hostTitleLabel)
-        configureDetailTitleLabel(audienceTitleLabel)
-        configureDetailValueLabel(roomIDValueLabel)
-        configureDetailValueLabel(hostValueLabel)
-        configureDetailValueLabel(audienceValueLabel)
-        roomIDValueLabel.accessibilityIdentifier =
-            "liveRoom.information.roomID"
-        hostValueLabel.accessibilityIdentifier =
-            "liveRoom.information.host"
-        audienceValueLabel.accessibilityIdentifier =
-            "liveRoom.information.audience"
         [firstDividerView, secondDividerView].forEach {
             $0.backgroundColor = UIColor.white.withAlphaComponent(0.09)
         }
+    }
+}
 
-        configureLabel(
-            announcementTitleLabel,
+private final class LiveRoomInformationDetailRowView: QuickLayoutView {
+
+    private let titleLabel = UILabel()
+    private let valueLabel = UILabel()
+
+    init(valueAccessibilityIdentifier: String) {
+        super.init(frame: .zero)
+        valueLabel.accessibilityIdentifier = valueAccessibilityIdentifier
+        configureViews()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configureViews()
+    }
+
+    override var body: Layout {
+        HStack(alignment: .center, spacing: 16) {
+            titleLabel.fixedSize(axis: .horizontal)
+            Spacer(minLength: 12)
+            valueLabel.resizable(axis: .horizontal)
+        }
+        .padding(.vertical, 12)
+    }
+
+    func configure(title: String, value: String) {
+        titleLabel.text = title
+        valueLabel.text = value
+        setNeedsQuickLayout()
+    }
+
+    private func configureViews() {
+        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+        titleLabel.configureLiveRoomInformation(
+            font: .preferredFont(forTextStyle: .subheadline),
+            color: UIColor.white.withAlphaComponent(0.58)
+        )
+        valueLabel.configureLiveRoomInformation(
+            font: .preferredFont(forTextStyle: .body),
+            color: .white
+        )
+        valueLabel.numberOfLines = 0
+        valueLabel.lineBreakMode = .byTruncatingMiddle
+    }
+}
+
+private final class LiveRoomInformationAnnouncementCardView: QuickLayoutView {
+
+    private let cardView = LiveRoomCardView()
+    private let titleLabel = UILabel()
+    private let announcementLabel = UILabel()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        configureViews()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configureViews()
+    }
+
+    override var body: Layout {
+        VStack(alignment: .leading, spacing: 9) {
+            titleLabel.resizable(axis: .horizontal)
+            announcementLabel.resizable(axis: .horizontal)
+        }
+        .padding(18)
+        .background { cardView }
+    }
+
+    func configure(content: LiveRoomInformationView.Content.Announcement) {
+        titleLabel.text = content.title
+        announcementLabel.text = content.value
+        setNeedsQuickLayout()
+    }
+
+    private func configureViews() {
+        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+        titleLabel.configureLiveRoomInformation(
             font: .preferredFont(forTextStyle: .headline),
             color: .white
         )
-        configureLabel(
-            announcementLabel,
+        announcementLabel.configureLiveRoomInformation(
             font: .preferredFont(forTextStyle: .body),
             color: UIColor.white.withAlphaComponent(0.76)
         )
@@ -256,35 +371,19 @@ final class LiveRoomInformationView: QuickLayoutView {
         announcementLabel.accessibilityIdentifier =
             "liveRoom.information.announcement"
     }
+}
 
-    private func configureDetailTitleLabel(_ label: UILabel) {
-        configureLabel(
-            label,
-            font: .preferredFont(forTextStyle: .subheadline),
-            color: UIColor.white.withAlphaComponent(0.58)
-        )
-    }
+private extension UILabel {
 
-    private func configureDetailValueLabel(_ label: UILabel) {
-        configureLabel(
-            label,
-            font: .preferredFont(forTextStyle: .body),
-            color: .white
-        )
-        label.numberOfLines = 0
-        label.lineBreakMode = .byTruncatingMiddle
-    }
-
-    private func configureLabel(
-        _ label: UILabel,
+    func configureLiveRoomInformation(
         font: UIFont,
         color: UIColor,
         alignment: NSTextAlignment = .natural
     ) {
-        label.font = font
-        label.textColor = color
-        label.textAlignment = alignment
-        label.adjustsFontForContentSizeCategory = true
+        self.font = font
+        textColor = color
+        textAlignment = alignment
+        adjustsFontForContentSizeCategory = true
     }
 }
 
@@ -294,21 +393,31 @@ private func makeLiveRoomInformationViewPreview() -> UIViewController {
     let informationView = LiveRoomInformationView()
     informationView.configure(
         content: LiveRoomInformationView.Content(
-            roomTitle: LiveRoomPreviewData.informationRoomTitle,
-            roomSubtitle: LiveRoomPreviewData.informationRoomSubtitle,
-            avatarAccessibilityLabel: "直播间头像",
-            liveStatus: LiveRoomPreviewData.informationLiveStatus,
-            detailsTitle: LiveRoomPreviewData.informationDetailsTitle,
-            roomIDTitle: LiveRoomPreviewData.informationRoomIDTitle,
-            roomID: LiveRoomPreviewData.roomInformation.roomID,
-            hostTitle: LiveRoomPreviewData.informationHostTitle,
-            hostDisplayName: LiveRoomPreviewData.roomInformation
-                .hostDisplayName,
-            audienceTitle: LiveRoomPreviewData.informationAudienceTitle,
-            audienceValue: LiveRoomPreviewData.informationAudienceValue,
-            announcementTitle: LiveRoomPreviewData
-                .informationAnnouncementTitle,
-            announcement: LiveRoomPreviewData.informationAnnouncement
+            profile: .init(
+                roomTitle: LiveRoomPreviewData.informationRoomTitle,
+                roomSubtitle: LiveRoomPreviewData.informationRoomSubtitle,
+                avatarAccessibilityLabel: "直播间头像",
+                liveStatus: LiveRoomPreviewData.informationLiveStatus
+            ),
+            details: .init(
+                title: LiveRoomPreviewData.informationDetailsTitle,
+                roomID: .init(
+                    title: LiveRoomPreviewData.informationRoomIDTitle,
+                    value: LiveRoomPreviewData.roomInformation.roomID
+                ),
+                host: .init(
+                    title: LiveRoomPreviewData.informationHostTitle,
+                    value: LiveRoomPreviewData.roomInformation.hostDisplayName
+                ),
+                audience: .init(
+                    title: LiveRoomPreviewData.informationAudienceTitle,
+                    value: LiveRoomPreviewData.informationAudienceValue
+                )
+            ),
+            announcement: .init(
+                title: LiveRoomPreviewData.informationAnnouncementTitle,
+                value: LiveRoomPreviewData.informationAnnouncement
+            )
         )
     )
     return QuickLayoutHostingController {

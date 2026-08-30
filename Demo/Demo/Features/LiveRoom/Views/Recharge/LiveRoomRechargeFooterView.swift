@@ -13,7 +13,7 @@ import UIKit
 final class LiveRoomRechargeFooterView: QuickLayoutView {
 
     let statusLabel = UILabel()
-    let rechargeButton = LiveRoomTextButton(frame: .zero)
+    let rechargeButton = LiveRoomCapsuleTextButton(frame: .zero)
 
     var rechargeDidTap: (() -> Void)?
     var statusText: String? { statusLabel.text }
@@ -55,7 +55,6 @@ final class LiveRoomRechargeFooterView: QuickLayoutView {
                 alpha: 1
             ),
             backgroundColor: .systemYellow,
-            cornerRadius: 26,
             contentInsets: EdgeInsets(
                 top: 12,
                 leading: 20,

@@ -42,98 +42,130 @@ final class LiveRoomViewModel {
     ///
     /// 图片资源标识只存在于 Mock/预览快照中，用于模拟后台头像 URL 映射结果；
     /// 生产 View 不会在本地创建或覆盖麦位用户。
-    static let defaultAssignments = [
-        LiveRoomSeatAssignment(
-            id: 0,
-            nameKey: "liveRoom.seat.host",
-            avatarImageID: .host,
-            symbolName: "person.crop.circle.fill",
-            themeIndex: 0,
-            score: 5_548,
-            isMuted: false,
-            isOccupied: true
-        ),
-        LiveRoomSeatAssignment(
-            id: 1,
-            nameKey: "liveRoom.seat.one",
+    /// 主播在派对房与个播房之间保持同一业务身份，保证 Cell 连续移动。
+    static let hostAssignment = occupiedAssignment(
+        position: 0,
+        userID: "host.user",
+        nameKey: "liveRoom.user.host",
+        avatarImageID: .host,
+        symbolName: "person.crop.circle.fill",
+        themeIndex: 0,
+        score: 5_548
+    )
+
+    /// 派对房确定性阵容：7 位用户、5 号普通空麦和专属座空麦。
+    static let partyAssignments = [
+        hostAssignment,
+        occupiedAssignment(
+            position: 1,
+            userID: "party.user.1",
+            nameKey: "liveRoom.user.party.1",
             avatarImageID: .one,
             symbolName: "person.crop.circle.badge.checkmark",
             themeIndex: 1,
-            score: 3_820,
-            isMuted: false,
-            isOccupied: true
+            score: 3_820
         ),
-        LiveRoomSeatAssignment(
-            id: 2,
-            nameKey: "liveRoom.seat.two",
+        occupiedAssignment(
+            position: 2,
+            userID: "party.user.2",
+            nameKey: "liveRoom.user.party.2",
             avatarImageID: .two,
             symbolName: "person.crop.circle.fill",
             themeIndex: 2,
-            score: 3_164,
-            isMuted: false,
-            isOccupied: true
+            score: 3_164
         ),
-        LiveRoomSeatAssignment(
-            id: 3,
-            nameKey: "liveRoom.seat.three",
+        occupiedAssignment(
+            position: 3,
+            userID: "party.user.3",
+            nameKey: "liveRoom.user.party.3",
             avatarImageID: .three,
             symbolName: "person.crop.circle.fill",
             themeIndex: 3,
             score: 2_906,
-            isMuted: true,
-            isOccupied: true
+            isMuted: true
         ),
-        LiveRoomSeatAssignment(
-            id: 4,
-            nameKey: "liveRoom.seat.four",
+        occupiedAssignment(
+            position: 4,
+            userID: "party.user.4",
+            nameKey: "liveRoom.user.party.4",
             avatarImageID: .four,
             symbolName: "person.crop.circle.badge.plus",
             themeIndex: 4,
-            score: 2_711,
-            isMuted: false,
-            isOccupied: true
+            score: 2_711
         ),
-        LiveRoomSeatAssignment(
-            id: 5,
-            nameKey: "liveRoom.seat.five",
-            avatarImageID: nil,
-            symbolName: "person.crop.circle",
-            themeIndex: 5,
-            score: 0,
-            isMuted: true,
-            isOccupied: false
-        ),
-        LiveRoomSeatAssignment(
-            id: 6,
-            nameKey: "liveRoom.seat.six",
+        vacantAssignment(position: 5),
+        occupiedAssignment(
+            position: 6,
+            userID: "party.user.5",
+            nameKey: "liveRoom.user.party.5",
             avatarImageID: .six,
             symbolName: "person.crop.circle",
             themeIndex: 6,
-            score: 1_666,
-            isMuted: false,
-            isOccupied: true
+            score: 1_666
         ),
-        LiveRoomSeatAssignment(
-            id: 7,
-            nameKey: "liveRoom.seat.seven",
+        occupiedAssignment(
+            position: 7,
+            userID: "party.user.6",
+            nameKey: "liveRoom.user.party.6",
             avatarImageID: .seven,
             symbolName: "person.crop.circle",
             themeIndex: 7,
-            score: 1_314,
-            isMuted: false,
-            isOccupied: true
+            score: 1_314
         ),
-        LiveRoomSeatAssignment(
-            id: 8,
-            nameKey: "liveRoom.seat.eight",
-            avatarImageID: nil,
-            symbolName: "sofa.fill",
+        vacantAssignment(position: 8),
+    ]
+
+    /// 个播房独立阵容；只有主播与派对房共享 `userID`。
+    static let individualAssignments = [
+        hostAssignment,
+        occupiedAssignment(
+            position: 1,
+            userID: "individual.user.1",
+            nameKey: "liveRoom.user.individual.1",
+            avatarImageID: .five,
+            symbolName: "person.crop.circle.fill",
+            themeIndex: 5,
+            score: 1_888
+        ),
+        occupiedAssignment(
+            position: 2,
+            userID: "individual.user.2",
+            nameKey: "liveRoom.user.individual.2",
+            avatarImageID: .eight,
+            symbolName: "person.crop.circle.fill",
             themeIndex: 8,
-            score: 0,
-            isMuted: true,
-            isOccupied: false
+            score: 1_520
+        ),
+        occupiedAssignment(
+            position: 3,
+            userID: "individual.user.3",
+            nameKey: "liveRoom.user.individual.3",
+            avatarImageID: .six,
+            symbolName: "person.crop.circle.fill",
+            themeIndex: 6,
+            score: 1_314
+        ),
+        occupiedAssignment(
+            position: 4,
+            userID: "individual.user.4",
+            nameKey: "liveRoom.user.individual.4",
+            avatarImageID: .seven,
+            symbolName: "person.crop.circle.fill",
+            themeIndex: 7,
+            score: 952
         ),
     ]
+
+    static func fixtureAssignments(
+        for businessMode: LiveRoomBusinessMode
+    ) -> [LiveRoomSeatAssignment] {
+        switch businessMode {
+        case .individual:
+            return individualAssignments
+        case .party, .pk, .unsupported:
+            return partyAssignments
+        }
+    }
 
     static func makeDefaultStageSnapshot(
         revision: Int64 = 1,
@@ -141,10 +173,8 @@ final class LiveRoomViewModel {
         audienceSeatState: LiveRoomAudienceSeatState = .enabled,
         assignments: [LiveRoomSeatAssignment]? = nil
     ) -> LiveRoomStageSnapshot {
-        let capacity = businessMode == .individual ? 5 : 9
-        let resolvedAssignments = assignments ?? defaultAssignments.filter {
-            $0.position.rawValue < capacity
-        }
+        let resolvedAssignments = assignments
+            ?? fixtureAssignments(for: businessMode)
         return LiveRoomStageSnapshot(
             revision: revision,
             businessMode: businessMode,
@@ -153,6 +183,45 @@ final class LiveRoomViewModel {
             capabilities: LiveRoomBusinessCapability.defaults(
                 for: businessMode
             )
+        )
+    }
+
+    private static func occupiedAssignment(
+        position: Int,
+        userID: String,
+        nameKey: String,
+        avatarImageID: LiveRoomAvatarImageID,
+        symbolName: String,
+        themeIndex: Int,
+        score: Int,
+        isMuted: Bool = false
+    ) -> LiveRoomSeatAssignment {
+        LiveRoomSeatAssignment(
+            seatID: LiveRoomSeatID(rawValue: "seat.\(position)"),
+            slotID: position == 0 ? .host : .audience(position),
+            position: LiveRoomSeatPosition(rawValue: position),
+            occupant: LiveRoomSeatOccupant(
+                userID: LiveRoomUserID(rawValue: userID),
+                nameKey: nameKey,
+                avatarImageID: avatarImageID,
+                symbolName: symbolName,
+                themeIndex: themeIndex
+            ),
+            audioState: isMuted ? .muted : .active,
+            score: score
+        )
+    }
+
+    private static func vacantAssignment(
+        position: Int
+    ) -> LiveRoomSeatAssignment {
+        LiveRoomSeatAssignment(
+            seatID: LiveRoomSeatID(rawValue: "seat.\(position)"),
+            slotID: position == 0 ? .host : .audience(position),
+            position: LiveRoomSeatPosition(rawValue: position),
+            occupant: nil,
+            audioState: .unavailable,
+            score: 0
         )
     }
 
@@ -245,7 +314,11 @@ final class LiveRoomViewModel {
             audienceMembers: resolvedAudienceMembers
         )
         self.businessCommandHandler = businessCommandHandler
-            ?? LiveRoomMockBusinessCommandHandler(snapshot: initialSnapshot)
+            ?? LiveRoomMockBusinessCommandHandler(
+                snapshot: initialSnapshot,
+                partyAssignments: Self.partyAssignments,
+                individualAssignments: Self.individualAssignments
+            )
         self.stageSnapshotProvider = stageSnapshotProvider
     }
 

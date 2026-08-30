@@ -9,11 +9,34 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
-/// 直播间通用的纯文字按钮。
+/// 直播间按钮共享的最小事件命中区域。
+///
+/// 仅重写 UIKit 命中测试，不参与 QuickLayout 测量，避免为了可点击性修改视觉尺寸。
+class LiveRoomHitTargetButton: QuickLayoutButton {
+
+    var minimumHitTargetSize = CGSize(width: 44, height: 44)
+
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        let horizontalExpansion = max(
+            0,
+            (minimumHitTargetSize.width - bounds.width) / 2
+        )
+        let verticalExpansion = max(
+            0,
+            (minimumHitTargetSize.height - bounds.height) / 2
+        )
+        return bounds.insetBy(
+            dx: -horizontalExpansion,
+            dy: -verticalExpansion
+        ).contains(point)
+    }
+}
+
+/// 直播间通用的纯文字胶囊按钮。
 ///
 /// 视觉层级由 QuickLayout 构建，交互状态由 `QuickLayoutButton` 统一发布，避免不同页面
 /// 分别依赖 `UIButton.Configuration` 产生不一致的测量和禁用态效果。
-final class LiveRoomTextButton: QuickLayoutButton {
+final class LiveRoomCapsuleTextButton: LiveRoomHitTargetButton {
 
     private let titleLabel = UILabel()
     private var enabledForegroundColor: UIColor = .white
@@ -45,6 +68,12 @@ final class LiveRoomTextButton: QuickLayoutButton {
             .padding(contentInsets)
     }
 
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // 胶囊半径依赖最终高度，不能由调用方根据字体和 contentInsets 手工同步。
+        layer.cornerRadius = min(bounds.width, bounds.height) / 2
+    }
+
     func configure(
         title: String,
         font: UIFont,
@@ -52,7 +81,6 @@ final class LiveRoomTextButton: QuickLayoutButton {
         backgroundColor: UIColor,
         borderColor: UIColor = .clear,
         borderWidth: CGFloat = 0,
-        cornerRadius: CGFloat,
         contentInsets: EdgeInsets = EdgeInsets(
             top: 6,
             leading: 10,
@@ -76,7 +104,6 @@ final class LiveRoomTextButton: QuickLayoutButton {
         self.disabledBorderColor = disabledBorderColor
             ?? borderColor.withAlphaComponent(0.62)
         self.contentInsets = contentInsets
-        layer.cornerRadius = cornerRadius
         layer.borderWidth = borderWidth
         setNeedsQuickLayout()
         apply(state: buttonState)
@@ -94,7 +121,7 @@ final class LiveRoomTextButton: QuickLayoutButton {
         titleLabel.adjustsFontSizeToFitWidth = true
         titleLabel.minimumScaleFactor = 0.72
         titleLabel.isUserInteractionEnabled = false
-        layer.cornerCurve = .continuous
+        layer.cornerCurve = .circular
     }
 
     private func apply(state: QuickLayoutButtonState) {
@@ -115,7 +142,7 @@ final class LiveRoomTextButton: QuickLayoutButton {
 }
 
 /// 直播间通用的 SF Symbol 圆形按钮。
-final class LiveRoomSymbolButton: QuickLayoutButton {
+final class LiveRoomSymbolButton: LiveRoomHitTargetButton {
 
     private let imageView = UIImageView()
     private var symbolSize: CGFloat = 18
@@ -142,13 +169,19 @@ final class LiveRoomSymbolButton: QuickLayoutButton {
             .padding(8)
     }
 
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // 圆形是该组件的结构约束，半径必须以最终布局结果为准，不能由调用方根据
+        // symbolSize 或 padding 猜测，否则外部尺寸变化后会退化成圆角矩形。
+        layer.cornerRadius = min(bounds.width, bounds.height) / 2
+    }
+
     func configure(
         symbolName: String,
         symbolSize: CGFloat = 18,
         weight: UIImage.SymbolWeight = .medium,
         tintColor: UIColor = .white,
-        backgroundColor: UIColor = UIColor.white.withAlphaComponent(0.14),
-        cornerRadius: CGFloat = 17.5
+        backgroundColor: UIColor = UIColor.white.withAlphaComponent(0.14)
     ) {
         self.symbolSize = symbolSize
         enabledTintColor = tintColor
@@ -162,7 +195,6 @@ final class LiveRoomSymbolButton: QuickLayoutButton {
                 weight: weight
             )
         )
-        layer.cornerRadius = cornerRadius
         setNeedsQuickLayout()
         apply(state: buttonState)
     }
@@ -177,7 +209,7 @@ final class LiveRoomSymbolButton: QuickLayoutButton {
     private func configureView() {
         imageView.contentMode = .scaleAspectFit
         imageView.isUserInteractionEnabled = false
-        layer.cornerCurve = .continuous
+        layer.cornerCurve = .circular
     }
 
     private func apply(state: QuickLayoutButtonState) {
@@ -261,13 +293,12 @@ private func makeLiveRoomButtonViewsPreview() -> UIViewController {
     messageButton.configure(title: "说点好听的…", symbolName: "message.fill")
     let symbolButton = LiveRoomSymbolButton(frame: .zero)
     symbolButton.configure(symbolName: "gift.fill")
-    let textButton = LiveRoomTextButton(frame: .zero)
+    let textButton = LiveRoomCapsuleTextButton(frame: .zero)
     textButton.configure(
         title: "赠送",
         font: .systemFont(ofSize: 16, weight: .semibold),
         foregroundColor: UIColor(red: 0.12, green: 0.10, blue: 0.04, alpha: 1),
-        backgroundColor: .systemYellow,
-        cornerRadius: 18
+        backgroundColor: .systemYellow
     )
     return QuickLayoutHostingController {
         ZStack {

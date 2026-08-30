@@ -45,7 +45,7 @@ final class LiveRoomGiftSheetView:
     let recipientFogView = LiveRoomGiftRecipientFogView(frame: .zero)
     let selectAllButton = LiveRoomGiftSelectAllButton(frame: .zero)
     let categoryButtons = LiveRoomGiftCategory.allCases.map { _ in
-        LiveRoomTextButton(frame: .zero)
+        LiveRoomCapsuleTextButton(frame: .zero)
     }
     let categoryCarouselScrollView = QuickLayoutScrollView(
         .horizontal,
@@ -62,7 +62,7 @@ final class LiveRoomGiftSheetView:
     }()
     let balanceLabel = UILabel()
     let quantityButton = UIButton(type: .system)
-    let sendButton = LiveRoomTextButton(frame: .zero)
+    let sendButton = LiveRoomCapsuleTextButton(frame: .zero)
     var categoryPendingCentering: LiveRoomGiftCategory? = .all
     var usesCompactMetrics = false
 
@@ -241,10 +241,9 @@ final class LiveRoomGiftSheetView:
             }
         }
         .padding(.horizontal, usesCompactMetrics ? 12 : 18)
-        .padding(.top, usesCompactMetrics ? 9 : 12)
+        .padding(.top, usesCompactMetrics ? 18 : 24)
         .padding(.bottom, usesCompactMetrics ? 10 : 14)
         .safeAreaPadding(.bottom, 0)
-        // 交给 QuickLayout 管理背景尺寸与层级，避免手动插入子视图和同步 frame。
         .background { backgroundGradientView }
     }
 
@@ -260,31 +259,31 @@ final class LiveRoomGiftSheetView:
     func configureViews() {
         quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
         accessibilityIdentifier = "liveRoom.gift.sheet"
-        backgroundColor = UIColor(
+        backgroundColor = .clear
+
+        backgroundGradientView.backgroundColor = UIColor(
             red: 0.055,
             green: 0.055,
             blue: 0.10,
             alpha: 0.94
         )
-        layer.cornerRadius = 28
-        layer.cornerCurve = .continuous
-        layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
-        layer.borderWidth = 1
-        layer.borderColor = UIColor.white.withAlphaComponent(0.14).cgColor
-        layer.shadowColor = UIColor.black.cgColor
-        layer.shadowOpacity = 0.42
-        layer.shadowRadius = 24
-        layer.shadowOffset = CGSize(width: 0, height: -8)
-
         backgroundGradientView.isUserInteractionEnabled = false
         backgroundGradientView.accessibilityIdentifier =
             "liveRoom.gift.sheet.backgroundGradient"
         backgroundGradientView.layer.cornerRadius = 28
+        backgroundGradientView.layer.cornerCurve = .continuous
         backgroundGradientView.layer.maskedCorners = [
             .layerMinXMinYCorner,
             .layerMaxXMinYCorner,
         ]
-        backgroundGradientView.clipsToBounds = true
+        backgroundGradientView.layer.borderWidth = 1
+        backgroundGradientView.layer.borderColor = UIColor.white
+            .withAlphaComponent(0.14)
+            .cgColor
+        backgroundGradientView.layer.shadowColor = UIColor.black.cgColor
+        backgroundGradientView.layer.shadowOpacity = 0.42
+        backgroundGradientView.layer.shadowRadius = 24
+        backgroundGradientView.layer.shadowOffset = CGSize(width: 0, height: -8)
 
         recipientTitleLabel.font = .preferredFont(forTextStyle: .subheadline)
         recipientTitleLabel.textColor = UIColor.white.withAlphaComponent(0.72)
@@ -403,8 +402,8 @@ private func makeLiveRoomGiftSheetViewPreview() -> UIViewController {
     var balance = 88_888
     let view = LiveRoomGiftSheetView(
         recipients: LiveRoomPreviewData.occupiedSeats,
-        gifts: LiveRoomPreviewData.gifts,
-        initiallySelectedRecipientSeatIDs: [0, 2],
+        gifts: LiveRoomGift.catalog,
+        initiallySelectedRecipientSeatIDs: [],
         initialBalance: balance
     )
     view.sendDidTap = { request in
@@ -412,12 +411,16 @@ private func makeLiveRoomGiftSheetViewPreview() -> UIViewController {
         balance -= request.totalCost
         return balance
     }
-    return QuickLayoutHostingController {
-        ZStack(alignment: .bottom) {
-            LiveRoomBackdropView()
-            view
-        }
+    let viewController = QuickLayoutHostingController {
+        // 组件预览只展示 Sheet 本身；横向跟随容器，纵向保持固有高度并贴底。
+        view
+            .resizable(axis: .horizontal)
+            .fixedSize(axis: .vertical)
+            .containerRelativeFrame(.horizontal)
+            .frame(maxHeight: .infinity, alignment: .bottom)
     }
+    viewController.view.backgroundColor = .clear
+    return viewController
 }
 
 #Preview("送礼面板内容") {

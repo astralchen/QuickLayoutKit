@@ -132,16 +132,7 @@ extension LiveRoomViewController {
     func applyKeyboardContext(_ context: QuickLayoutKeyboardContext) {
         guard isViewLoaded else { return }
         let resolved = context.resolved(in: view)
-        // 键盘出现时先压缩麦位舞台，为输入条留出聊天区域，避免只平移输入条后覆盖麦位。
-        let didChangeCompactPresentation = seatStageView.setCompactPresentation(
-            usesCompactPageLayout
-                || (resolved.height > 0 && actionBarView.isShowingMessageComposer)
-        )
-        if didChangeCompactPresentation {
-            // 键盘可能改变舞台 Metrics。旧动画坐标一旦失效，应立即提交最新布局，
-            // 避免继续使用键盘出现前的舞台和公屏 Frame。
-            seatTransitionCoordinator.finishImmediately()
-        }
+        // 键盘只负责输入条避让，不参与麦位 Metrics 与页面内容尺寸决策。
         let untransformedBottom = actionBarView.center.y
             + actionBarView.bounds.height / 2
         let overlap = resolved.height > 0

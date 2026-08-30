@@ -71,7 +71,6 @@ private func makeLiveRoomRechargeContentPreview() -> UIViewController {
                 .resizable(axis: .horizontal)
                 .fixedSize(axis: .vertical)
         }
-        .frame(width: 390, height: 650)
     }
 }
 

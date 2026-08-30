@@ -40,7 +40,7 @@ final class LiveRoomUserCardView: LiveRoomCardView {
                 titleLabel
                     .resizable(axis: .horizontal)
                 Spacer()
-                closeButton.expand(by: CGSize(width: 12, height: 12))
+                closeButton
             }
 
             ZStack {
@@ -131,8 +131,7 @@ final class LiveRoomUserCardView: LiveRoomCardView {
         closeButton.configure(
             symbolName: "xmark",
             symbolSize: 17,
-            backgroundColor: UIColor.white.withAlphaComponent(0.12),
-            cornerRadius: 17.5
+            backgroundColor: UIColor.white.withAlphaComponent(0.12)
         )
         closeButton.role = .cancel
         closeButton.accessibilityIdentifier = "liveRoom.userCard.close"

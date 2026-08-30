@@ -15,7 +15,7 @@ final class LiveRoomHeaderView: LiveRoomCardView {
     private let roomAvatarButton = LiveRoomSymbolButton(frame: .zero)
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
-    private let audienceButton = LiveRoomTextButton(frame: .zero)
+    private let audienceButton = LiveRoomCapsuleTextButton(frame: .zero)
     private let moreImageView = UIImageView(
         image: UIImage(systemName: "ellipsis")
     )
@@ -100,7 +100,6 @@ final class LiveRoomHeaderView: LiveRoomCardView {
             font: .preferredFont(forTextStyle: .caption1),
             foregroundColor: .white,
             backgroundColor: UIColor.white.withAlphaComponent(0.14),
-            cornerRadius: 13,
             contentInsets: EdgeInsets(
                 top: 6,
                 leading: 9,
@@ -120,8 +119,7 @@ final class LiveRoomHeaderView: LiveRoomCardView {
             symbolSize: 28,
             weight: .semibold,
             tintColor: .systemPink,
-            backgroundColor: UIColor.systemPink.withAlphaComponent(0.28),
-            cornerRadius: 23
+            backgroundColor: UIColor.systemPink.withAlphaComponent(0.28)
         )
         roomAvatarButton.accessibilityIdentifier =
             "liveRoom.room.avatar.button"

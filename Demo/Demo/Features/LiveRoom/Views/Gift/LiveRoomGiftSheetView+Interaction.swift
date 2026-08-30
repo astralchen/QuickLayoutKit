@@ -106,7 +106,7 @@ extension LiveRoomGiftSheetView {
     }
 
     func giftCategoryButtonContentFrame(
-        _ button: LiveRoomTextButton
+        _ button: LiveRoomCapsuleTextButton
     ) -> CGRect {
         // convert(to:) 返回视口坐标，补回 contentOffset 后才是稳定的内容坐标。
         button.convert(button.bounds, to: categoryCarouselScrollView)

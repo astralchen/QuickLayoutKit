@@ -136,10 +136,6 @@ final class LiveRoomViewController: DemoQuickLayoutHostingController {
         super.viewDidLayoutSubviews()
         let didChangeCompactPresentation = seatStageView.setCompactPresentation(
             usesCompactPageLayout
-                || (
-                    keyboardObserver.context.resolved(in: view).height > 0
-                        && actionBarView.isShowingMessageComposer
-                )
         )
         if didChangeCompactPresentation {
             seatTransitionCoordinator.finishImmediately()

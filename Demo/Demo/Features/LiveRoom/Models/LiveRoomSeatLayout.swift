@@ -158,6 +158,9 @@ enum LiveRoomSeatLayoutResolutionError: Equatable, Error {
     case duplicateSlotID
     case duplicateUserID
     case duplicatePosition
+    case invalidStableID
+    case invalidOccupantName
+    case invalidVacancyState
     case invalidPosition
     case slotPositionMismatch
     case capacityExceeded
@@ -169,6 +172,24 @@ enum LiveRoomSeatLayoutResolver {
     static func resolve(
         snapshot: LiveRoomStageSnapshot
     ) -> Result<LiveRoomSeatStagePresentation, LiveRoomSeatLayoutResolutionError> {
+        guard snapshot.assignments.allSatisfy({ assignment in
+            !assignment.seatID.rawValue.isEmpty
+                && !assignment.slotID.rawValue.isEmpty
+                && assignment.occupant?.userID.rawValue.isEmpty != true
+        }) else { return .failure(.invalidStableID) }
+        guard snapshot.assignments.allSatisfy({ assignment in
+            guard let nameKey = assignment.occupant?.nameKey else {
+                return true
+            }
+            return !nameKey.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            ).isEmpty
+        }) else { return .failure(.invalidOccupantName) }
+        guard snapshot.assignments.allSatisfy({ assignment in
+            assignment.occupant != nil
+                || (assignment.audioState == .unavailable
+                    && assignment.score == 0)
+        }) else { return .failure(.invalidVacancyState) }
         guard Set(snapshot.assignments.map(\.seatID)).count
                 == snapshot.assignments.count
         else { return .failure(.duplicateSeatID) }

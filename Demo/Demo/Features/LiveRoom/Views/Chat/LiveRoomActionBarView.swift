@@ -79,7 +79,7 @@ final class LiveRoomActionBarView: LiveRoomCardView, UITextFieldDelegate {
     // UIButton 暂时只保留在需要承载 UIMenu 的入口；QuickLayoutButton 不代理菜单 API。
     private let moreButton = UIButton(type: .system)
     private let messageInputView = LiveRoomMessageInputView()
-    private let sendButton = LiveRoomTextButton(frame: .zero)
+    private let sendButton = LiveRoomCapsuleTextButton(frame: .zero)
     private let cancelButton = LiveRoomSymbolButton(frame: .zero)
 
     private var messageTextField: LiveRoomMessageTextField {
@@ -187,7 +187,6 @@ final class LiveRoomActionBarView: LiveRoomCardView, UITextFieldDelegate {
             backgroundColor: .systemPink,
             borderColor: .clear,
             borderWidth: 1,
-            cornerRadius: 17.5,
             contentInsets: EdgeInsets(
                 top: 6,
                 leading: 14,

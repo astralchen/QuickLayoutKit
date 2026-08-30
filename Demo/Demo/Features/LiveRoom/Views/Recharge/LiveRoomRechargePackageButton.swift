@@ -112,9 +112,10 @@ private func makeLiveRoomRechargePackageButtonPreview() -> UIViewController {
     return QuickLayoutHostingController {
         ZStack {
             LiveRoomBackdropView().resizable()
-            button.resizable().frame(width: 176, height: 88)
+            button
+                .resizable()
+                .frame(width: 176, height: 88)
         }
-        .frame(width: 230, height: 136)
     }
 }
 

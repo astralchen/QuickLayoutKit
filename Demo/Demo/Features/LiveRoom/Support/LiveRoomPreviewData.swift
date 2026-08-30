@@ -18,7 +18,7 @@ enum LiveRoomPreviewData {
     static let seats: [LiveRoomSeat] = [
         seat(
             id: 0,
-            nameKey: "liveRoom.seat.host",
+            nameKey: "liveRoom.user.host",
             avatarImageID: .host,
             symbolName: "person.crop.circle.fill",
             themeIndex: 0,
@@ -26,7 +26,7 @@ enum LiveRoomPreviewData {
         ),
         seat(
             id: 1,
-            nameKey: "liveRoom.seat.one",
+            nameKey: "liveRoom.user.party.1",
             avatarImageID: .one,
             symbolName: "person.crop.circle.badge.checkmark",
             themeIndex: 1,
@@ -34,7 +34,7 @@ enum LiveRoomPreviewData {
         ),
         seat(
             id: 2,
-            nameKey: "liveRoom.seat.two",
+            nameKey: "liveRoom.user.party.2",
             avatarImageID: .two,
             symbolName: "person.crop.circle.fill",
             themeIndex: 2,
@@ -42,7 +42,7 @@ enum LiveRoomPreviewData {
         ),
         seat(
             id: 3,
-            nameKey: "liveRoom.seat.three",
+            nameKey: "liveRoom.user.party.3",
             avatarImageID: .three,
             symbolName: "person.crop.circle.fill",
             themeIndex: 3,
@@ -51,7 +51,7 @@ enum LiveRoomPreviewData {
         ),
         seat(
             id: 4,
-            nameKey: "liveRoom.seat.four",
+            nameKey: "liveRoom.user.party.4",
             avatarImageID: .four,
             symbolName: "person.crop.circle.badge.plus",
             themeIndex: 4,
@@ -59,7 +59,7 @@ enum LiveRoomPreviewData {
         ),
         seat(
             id: 5,
-            nameKey: "liveRoom.seat.five",
+            nameKey: "liveRoom.seat.available",
             avatarImageID: nil,
             symbolName: "person.crop.circle",
             themeIndex: 5,
@@ -69,7 +69,7 @@ enum LiveRoomPreviewData {
         ),
         seat(
             id: 6,
-            nameKey: "liveRoom.seat.six",
+            nameKey: "liveRoom.user.party.5",
             avatarImageID: .six,
             symbolName: "person.crop.circle",
             themeIndex: 6,
@@ -77,7 +77,7 @@ enum LiveRoomPreviewData {
         ),
         seat(
             id: 7,
-            nameKey: "liveRoom.seat.seven",
+            nameKey: "liveRoom.user.party.6",
             avatarImageID: .seven,
             symbolName: "person.crop.circle",
             themeIndex: 7,
@@ -85,7 +85,7 @@ enum LiveRoomPreviewData {
         ),
         seat(
             id: 8,
-            nameKey: "liveRoom.seat.eight",
+            nameKey: "liveRoom.seat.available",
             avatarImageID: nil,
             symbolName: "sofa.fill",
             themeIndex: 8,
@@ -209,18 +209,25 @@ enum LiveRoomPreviewData {
         audienceSeatState: LiveRoomAudienceSeatState = .enabled,
         balance: Int = 88_888
     ) -> LiveRoomViewModel {
-        let capacity = businessMode == .individual ? 5 : 9
+        let assignments = businessMode == .individual
+            ? LiveRoomViewModel.individualAssignments
+            : seats
         let snapshot = LiveRoomViewModel.makeDefaultStageSnapshot(
             businessMode: businessMode,
             audienceSeatState: audienceSeatState,
-            assignments: seats.filter { $0.position.rawValue < capacity }
+            assignments: assignments
         )
         return LiveRoomViewModel(
             initialGiftBalance: balance,
             stageSnapshot: snapshot,
             audienceCount: 8_888,
             audienceMembers: audienceMembers,
-            roomInformation: roomInformation
+            roomInformation: roomInformation,
+            businessCommandHandler: LiveRoomMockBusinessCommandHandler(
+                snapshot: snapshot,
+                partyAssignments: seats,
+                individualAssignments: LiveRoomViewModel.individualAssignments
+            )
         )
     }
 
@@ -242,15 +249,28 @@ enum LiveRoomPreviewData {
         isMuted: Bool = false,
         isOccupied: Bool = true
     ) -> LiveRoomSeat {
-        LiveRoomSeat(
-            id: id,
-            nameKey: nameKey,
-            avatarImageID: avatarImageID,
-            symbolName: symbolName,
-            themeIndex: themeIndex,
-            score: score,
-            isMuted: isMuted,
-            isOccupied: isOccupied
+        let partyUserIndex = id <= 4 ? id : id - 1
+        return LiveRoomSeatAssignment(
+            seatID: LiveRoomSeatID(rawValue: "seat.\(id)"),
+            slotID: id == 0 ? .host : .audience(id),
+            position: LiveRoomSeatPosition(rawValue: id),
+            occupant: isOccupied
+                ? LiveRoomSeatOccupant(
+                    userID: LiveRoomUserID(
+                        rawValue: id == 0
+                            ? "host.user"
+                            : "party.user.\(partyUserIndex)"
+                    ),
+                    nameKey: nameKey,
+                    avatarImageID: avatarImageID,
+                    symbolName: symbolName,
+                    themeIndex: themeIndex
+                )
+                : nil,
+            audioState: isOccupied
+                ? (isMuted ? .muted : .active)
+                : .unavailable,
+            score: score
         )
     }
 

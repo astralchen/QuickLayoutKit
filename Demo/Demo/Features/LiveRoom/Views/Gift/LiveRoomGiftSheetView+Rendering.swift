@@ -99,7 +99,6 @@ extension LiveRoomGiftSheetView {
                     ? UIColor.systemYellow.withAlphaComponent(0.85)
                     : .clear,
                 borderWidth: isSelected ? 1 : 0,
-                cornerRadius: 16,
                 contentInsets: EdgeInsets(
                     top: 5,
                     leading: usesCompactMetrics ? 5 : 9,
@@ -131,7 +130,6 @@ extension LiveRoomGiftSheetView {
                     alpha: 1
                 ),
                 backgroundColor: .systemYellow,
-                cornerRadius: 23,
                 contentInsets: EdgeInsets(
                     top: 8,
                     leading: 24,

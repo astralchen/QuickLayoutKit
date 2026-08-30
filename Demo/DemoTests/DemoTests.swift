@@ -273,10 +273,15 @@ struct DemoTests {
 
     @Test func liveRoomStageSnapshotsDriveBusinessLayouts() async {
         let viewModel = LiveRoomViewModel()
+        let initialPartyAssignments = viewModel.state.snapshot.assignments
+        let hostUserID = initialPartyAssignments.first?.userID
 
         #expect(viewModel.state.snapshot.businessMode == .party)
         #expect(viewModel.state.displayedSeats.count == 9)
-        #expect(viewModel.state.displayedSeats.map(\.position.rawValue) == Array(0..<9))
+        #expect(
+            viewModel.state.displayedSeats.map(\.position.rawValue)
+                == Array(0..<9)
+        )
         let occupiedSeats = viewModel.state.displayedSeats.filter(\.isOccupied)
         let avatarImageIDs = occupiedSeats.compactMap(\.avatarImageID)
         #expect(occupiedSeats.count == 7)
@@ -286,6 +291,11 @@ struct DemoTests {
         )
         #expect(Set(avatarImageIDs).count == occupiedSeats.count)
         #expect(occupiedSeats.allSatisfy { $0.avatarImage != nil })
+        #expect(
+            occupiedSeats.allSatisfy {
+                $0.occupantNameKey?.hasPrefix("liveRoom.user.") == true
+            }
+        )
         #expect(
             viewModel.state.displayedSeats
                 .filter { !$0.isOccupied }
@@ -304,6 +314,13 @@ struct DemoTests {
         )
         #expect(viewModel.state.displayedSeats.count == 1)
         #expect(viewModel.state.snapshot.audienceSeatState == .disabled)
+        #expect(viewModel.state.snapshot.assignments.count == 5)
+        #expect(viewModel.state.snapshot.assignments.first?.userID == hostUserID)
+        #expect(
+            viewModel.state.snapshot.assignments.dropFirst().compactMap(\.userID)
+                .map(\.rawValue)
+                == (1...4).map { "individual.user.\($0)" }
+        )
 
         #expect(
             await viewModel.performBusinessCommand(
@@ -311,6 +328,20 @@ struct DemoTests {
             )
         )
         #expect(viewModel.state.displayedSeats.count == 5)
+        #expect(
+            viewModel.state.displayedSeats.compactMap(\.avatarImageID)
+                == [.host, .five, .eight, .six, .seven]
+        )
+        #expect(
+            viewModel.state.displayedSeats.compactMap(\.occupantNameKey)
+                == [
+                    "liveRoom.user.host",
+                    "liveRoom.user.individual.1",
+                    "liveRoom.user.individual.2",
+                    "liveRoom.user.individual.3",
+                    "liveRoom.user.individual.4",
+                ]
+        )
 
         #expect(
             await viewModel.performBusinessCommand(
@@ -321,6 +352,26 @@ struct DemoTests {
 
         #expect(
             await viewModel.performBusinessCommand(.switchRoomType(.party))
+        )
+        #expect(viewModel.state.displayedSeats.count == 9)
+        #expect(viewModel.state.snapshot.assignments == initialPartyAssignments)
+    }
+
+    @Test func liveRoomInitialIndividualSnapshotCanRestorePartyFixture() async {
+        let viewModel = LiveRoomViewModel(
+            stageSnapshot: LiveRoomViewModel.makeDefaultStageSnapshot(
+                businessMode: .individual,
+                audienceSeatState: .disabled
+            )
+        )
+
+        #expect(viewModel.state.snapshot.assignments.count == 5)
+        #expect(
+            await viewModel.performBusinessCommand(.switchRoomType(.party))
+        )
+        #expect(
+            viewModel.state.snapshot.assignments
+                == LiveRoomViewModel.partyAssignments
         )
         #expect(viewModel.state.displayedSeats.count == 9)
     }
@@ -365,7 +416,7 @@ struct DemoTests {
     }
 
     @Test func liveRoomResolverMapsBusinessModeAndZeroBasedPositions() throws {
-        let assignments = LiveRoomViewModel.defaultAssignments
+        let assignments = LiveRoomViewModel.partyAssignments
         let party = try LiveRoomSeatLayoutResolver.resolve(
             snapshot: LiveRoomViewModel.makeDefaultStageSnapshot(
                 businessMode: .party,
@@ -383,7 +434,7 @@ struct DemoTests {
             snapshot: LiveRoomViewModel.makeDefaultStageSnapshot(
                 businessMode: .individual,
                 audienceSeatState: .disabled,
-                assignments: Array(assignments.prefix(5))
+                assignments: LiveRoomViewModel.individualAssignments
             )
         ).get()
         #expect(collapsed.layoutID == .individualAudience)
@@ -395,7 +446,9 @@ struct DemoTests {
             snapshot: LiveRoomViewModel.makeDefaultStageSnapshot(
                 businessMode: .individual,
                 audienceSeatState: .enabled,
-                assignments: Array(assignments.prefix(5).reversed())
+                assignments: Array(
+                    LiveRoomViewModel.individualAssignments.reversed()
+                )
             )
         ).get()
         #expect(expanded.variant == .expanded)
@@ -428,11 +481,11 @@ struct DemoTests {
     @Test func liveRoomBackendSnapshotStreamDrivesSeatUsers() async throws {
         let provider = TestLiveRoomStageSnapshotProvider()
         let viewModel = LiveRoomViewModel(stageSnapshotProvider: provider)
-        var assignments = LiveRoomViewModel.defaultAssignments
+        var assignments = LiveRoomViewModel.partyAssignments
         let previous = assignments[1]
         let backendUser = LiveRoomSeatOccupant(
             userID: LiveRoomUserID(rawValue: "backend.user.9527"),
-            nameKey: "liveRoom.seat.four",
+            nameKey: "liveRoom.user.party.4",
             avatarImageID: .four,
             symbolName: "person.crop.circle.fill",
             themeIndex: 7
@@ -478,7 +531,7 @@ struct DemoTests {
     }
 
     @Test func liveRoomResolverRejectsDuplicateAndInvalidPositions() {
-        let assignments = LiveRoomViewModel.defaultAssignments
+        let assignments = LiveRoomViewModel.partyAssignments
         var duplicatePositions = assignments
         let source = assignments[1]
         duplicatePositions[1] = LiveRoomSeatAssignment(
@@ -521,6 +574,70 @@ struct DemoTests {
                     assignments: assignments
                 )
             ) == .failure(.capacityExceeded)
+        )
+    }
+
+    @Test func liveRoomResolverRejectsInvalidOccupantAndVacancyData() throws {
+        let assignments = LiveRoomViewModel.partyAssignments
+        let occupied = assignments[1]
+        let occupant = try #require(occupied.occupant)
+
+        var emptyNameAssignments = assignments
+        emptyNameAssignments[1] = LiveRoomSeatAssignment(
+            seatID: occupied.seatID,
+            slotID: occupied.slotID,
+            position: occupied.position,
+            occupant: LiveRoomSeatOccupant(
+                userID: occupant.userID,
+                nameKey: "  ",
+                avatarImageID: occupant.avatarImageID,
+                symbolName: occupant.symbolName,
+                themeIndex: occupant.themeIndex
+            ),
+            audioState: occupied.audioState,
+            score: occupied.score
+        )
+        #expect(
+            LiveRoomSeatLayoutResolver.resolve(
+                snapshot: LiveRoomViewModel.makeDefaultStageSnapshot(
+                    assignments: emptyNameAssignments
+                )
+            ) == .failure(.invalidOccupantName)
+        )
+
+        var invalidVacancyAssignments = assignments
+        let vacancy = assignments[5]
+        invalidVacancyAssignments[5] = LiveRoomSeatAssignment(
+            seatID: vacancy.seatID,
+            slotID: vacancy.slotID,
+            position: vacancy.position,
+            occupant: nil,
+            audioState: .active,
+            score: 100
+        )
+        #expect(
+            LiveRoomSeatLayoutResolver.resolve(
+                snapshot: LiveRoomViewModel.makeDefaultStageSnapshot(
+                    assignments: invalidVacancyAssignments
+                )
+            ) == .failure(.invalidVacancyState)
+        )
+
+        var invalidIDAssignments = assignments
+        invalidIDAssignments[1] = LiveRoomSeatAssignment(
+            seatID: LiveRoomSeatID(rawValue: ""),
+            slotID: occupied.slotID,
+            position: occupied.position,
+            occupant: occupied.occupant,
+            audioState: occupied.audioState,
+            score: occupied.score
+        )
+        #expect(
+            LiveRoomSeatLayoutResolver.resolve(
+                snapshot: LiveRoomViewModel.makeDefaultStageSnapshot(
+                    assignments: invalidIDAssignments
+                )
+            ) == .failure(.invalidStableID)
         )
     }
 
@@ -694,12 +811,15 @@ struct DemoTests {
         )
         let closeButton = try #require(
             presentedViewController.view
-                .allSubviews(of: QuickLayoutButton.self).first {
+                .allSubviews(of: LiveRoomSymbolButton.self).first {
                 $0.accessibilityIdentifier == "liveRoom.userCard.close"
             }
         )
 
-        #expect(nameLabel.text == DemoLocalization.text("liveRoom.seat.one"))
+        #expect(
+            nameLabel.text
+                == DemoLocalization.text("liveRoom.user.party.1")
+        )
         #expect(
             scoreLabel.text
                 == DemoLocalization.text("liveRoom.seat.score", 3_820)
@@ -716,10 +836,26 @@ struct DemoTests {
         )
         #expect(scoreLabel.bounds.width - scoreIntrinsicSize.width >= 27)
         #expect(scoreLabel.bounds.height - scoreIntrinsicSize.height >= 11)
-        #expect(abs(closeButton.layer.cornerRadius - 17.5) < 0.5)
+        #expect(closeButton.layer.cornerCurve == .circular)
         #expect(closeButton.bounds.width >= 32)
         #expect(closeButton.bounds.height >= 32)
+        #expect(closeButton.bounds.width < 44)
+        #expect(closeButton.bounds.height < 44)
         #expect(abs(closeButton.bounds.width - closeButton.bounds.height) < 1)
+        #expect(
+            abs(
+                closeButton.layer.cornerRadius
+                    - min(closeButton.bounds.width, closeButton.bounds.height) / 2
+            ) < 0.5
+        )
+        let pointOutsideVisualBounds = CGPoint(
+            x: -1,
+            y: closeButton.bounds.midY
+        )
+        #expect(!closeButton.bounds.contains(pointOutsideVisualBounds))
+        #expect(
+            closeButton.point(inside: pointOutsideVisualBounds, with: nil)
+        )
         #expect(userCardView.bounds.width <= 340)
         #expect(
             userCardView.convert(userCardView.bounds, to: window).minX >= 24
@@ -751,12 +887,33 @@ struct DemoTests {
 
         layout(viewController, in: navigationController)
         let audienceButton = try #require(
-            viewController.view.allSubviews(of: QuickLayoutButton.self).first {
+            viewController.view
+                .allSubviews(of: LiveRoomCapsuleTextButton.self).first {
                 $0.accessibilityIdentifier == "liveRoom.audience.button"
             }
         )
         #expect(audienceButton.accessibilityLabel == "42 人在线")
         #expect(audienceButton.accessibilityHint == "查看当前在线用户")
+        #expect(audienceButton.layer.cornerCurve == .circular)
+        #expect(
+            abs(
+                audienceButton.layer.cornerRadius
+                    - min(
+                        audienceButton.bounds.width,
+                        audienceButton.bounds.height
+                    ) / 2
+            ) < 0.5
+        )
+        let audiencePointOutsideVisualBounds = CGPoint(
+            x: audienceButton.bounds.midX,
+            y: -1
+        )
+        #expect(
+            audienceButton.point(
+                inside: audiencePointOutsideVisualBounds,
+                with: nil
+            )
+        )
 
         activate(audienceButton)
 
@@ -937,13 +1094,20 @@ struct DemoTests {
 
         layout(viewController, in: navigationController)
         let avatarButton = try #require(
-            viewController.view.allSubviews(of: QuickLayoutButton.self).first {
+            viewController.view
+                .allSubviews(of: LiveRoomSymbolButton.self).first {
                 $0.accessibilityIdentifier
                     == "liveRoom.room.avatar.button"
             }
         )
         #expect(avatarButton.bounds.width >= 44)
         #expect(avatarButton.bounds.height >= 44)
+        #expect(
+            abs(
+                avatarButton.layer.cornerRadius
+                    - min(avatarButton.bounds.width, avatarButton.bounds.height) / 2
+            ) < 0.5
+        )
         #expect(avatarButton.accessibilityLabel == "直播间头像")
         #expect(avatarButton.accessibilityHint == "查看直播间信息")
 
@@ -989,6 +1153,25 @@ struct DemoTests {
         )
         #expect(roomIDLabel.text == "TEST-9527")
         #expect(audienceLabel.text == "42 人在线")
+
+        let profileLabels = try [
+            "星光音乐小屋",
+            "唱歌 · 聊天 · 遇见有趣的人",
+            "直播中"
+        ].map { text in
+            try #require(
+                informationViewController.view
+                    .allSubviews(of: UILabel.self)
+                    .first { $0.text == text }
+            )
+        }
+        let profileHostView = try #require(profileLabels.first?.superview)
+        for label in profileLabels {
+            #expect(label.superview === profileHostView)
+            #expect(label.bounds.height >= label.intrinsicContentSize.height - 0.5)
+            #expect(label.frame.minY >= -0.5)
+            #expect(label.frame.maxY <= profileHostView.bounds.height + 0.5)
+        }
 
         DemoLocalization.setLocale(identifier: "ar")
         informationViewController.applyLocalization(
@@ -1084,7 +1267,8 @@ struct DemoTests {
         #expect(!categoryScrollView.showsHorizontalScrollIndicator)
         #expect(categoryScrollView.contentSize.width > categoryScrollView.bounds.width)
         #expect(
-            giftSheet.view.allSubviews(of: LiveRoomTextButton.self).filter {
+            giftSheet.view
+                .allSubviews(of: LiveRoomCapsuleTextButton.self).filter {
                 $0.accessibilityIdentifier?.hasPrefix(
                     "liveRoom.gift.category."
                 ) == true
@@ -1097,23 +1281,27 @@ struct DemoTests {
         )
 
         let luxuryCategoryButton = try #require(
-            giftSheet.view.allSubviews(of: LiveRoomTextButton.self).first {
+            giftSheet.view
+                .allSubviews(of: LiveRoomCapsuleTextButton.self).first {
                 $0.accessibilityIdentifier == "liveRoom.gift.category.luxury"
             }
         )
         let allCategoryButton = try #require(
-            giftSheet.view.allSubviews(of: LiveRoomTextButton.self).first {
+            giftSheet.view
+                .allSubviews(of: LiveRoomCapsuleTextButton.self).first {
                 $0.accessibilityIdentifier == "liveRoom.gift.category.all"
             }
         )
         let collectionCategoryButton = try #require(
-            giftSheet.view.allSubviews(of: LiveRoomTextButton.self).first {
+            giftSheet.view
+                .allSubviews(of: LiveRoomCapsuleTextButton.self).first {
                 $0.accessibilityIdentifier
                     == "liveRoom.gift.category.collection"
             }
         )
         let partyCategoryButton = try #require(
-            giftSheet.view.allSubviews(of: LiveRoomTextButton.self).first {
+            giftSheet.view
+                .allSubviews(of: LiveRoomCapsuleTextButton.self).first {
                 $0.accessibilityIdentifier == "liveRoom.gift.category.party"
             }
         )
@@ -1445,7 +1633,7 @@ struct DemoTests {
         #expect(rechargeBalanceFrame.minY >= navigationBarFrame.maxY - 1)
         let rechargeButton = try #require(
             rechargeViewController.view
-                .allSubviews(of: LiveRoomTextButton.self).first {
+                .allSubviews(of: LiveRoomCapsuleTextButton.self).first {
                 $0.accessibilityIdentifier == "liveRoom.recharge.confirm"
             }
         )
@@ -1521,7 +1709,8 @@ struct DemoTests {
             }
         )
         let sendButton = try #require(
-            giftSheet.view.allSubviews(of: LiveRoomTextButton.self).first {
+            giftSheet.view
+                .allSubviews(of: LiveRoomCapsuleTextButton.self).first {
                 $0.accessibilityIdentifier == "liveRoom.gift.send"
             }
         )
@@ -1671,7 +1860,6 @@ struct DemoTests {
                     == "liveRoom.gift.sheet.backgroundGradient"
             }
         )
-
         #expect(viewController.presentedGiftRecipientSeatIDs == [0])
         #expect(giftSheet.selectedRecipientSeatIDs.isEmpty)
         #expect(giftSheet.giftColumnCount == 4)
@@ -1720,7 +1908,7 @@ struct DemoTests {
         let recipients = (0..<12).map { index in
             LiveRoomSeat(
                 id: index,
-                nameKey: "liveRoom.seat.host",
+                nameKey: "liveRoom.user.host",
                 avatarImageID: LiveRoomAvatarImageID.fixtures[
                     index % LiveRoomAvatarImageID.fixtures.count
                 ],
@@ -1845,7 +2033,8 @@ struct DemoTests {
         #expect(giftSheet.view.allSubviews(of: UIScrollView.self).count == 2)
         let categoryScrollView = giftSheet.giftCategoryScrollView
         let allCategoryButton = try #require(
-            giftSheet.view.allSubviews(of: LiveRoomTextButton.self).first {
+            giftSheet.view
+                .allSubviews(of: LiveRoomCapsuleTextButton.self).first {
                 $0.accessibilityIdentifier == "liveRoom.gift.category.all"
             }
         )
@@ -2003,6 +2192,52 @@ struct DemoTests {
             emptyWaveformView.layer.sublayers?.allSatisfy {
                 $0.animationKeys()?.isEmpty != false
             } == true
+        )
+    }
+
+    @Test func liveRoomSeatNamesSeparateOccupantsFromVacantSlots() throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let viewController = LiveRoomViewController(
+            viewModel: LiveRoomViewModel()
+        )
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+
+        func seatName(at position: Int) throws -> String? {
+            let nameLabel = try #require(
+                viewController.view.allSubviews(of: UILabel.self).first {
+                    $0.accessibilityIdentifier
+                        == "liveRoom.seat.name.\(position)"
+                }
+            )
+            return nameLabel.text
+        }
+
+        #expect(
+            try seatName(at: 6)
+                == DemoLocalization.text("liveRoom.user.party.5")
+        )
+        #expect(
+            try seatName(at: 7)
+                == DemoLocalization.text("liveRoom.user.party.6")
+        )
+        #expect(
+            try seatName(at: 5)
+                == DemoLocalization.text("liveRoom.userCard.guestSeat", 5)
+        )
+        #expect(
+            try seatName(at: 8)
+                == DemoLocalization.text("liveRoom.seat.eight")
         )
     }
 
@@ -2179,7 +2414,6 @@ struct DemoTests {
                 $0.accessibilityIdentifier == "liveRoom.seat.0"
             }
         )
-        let regularHostSeatWidth = hostSeatView.bounds.width
         let messageButton = try #require(
             viewController.view
                 .allSubviews(of: LiveRoomIconTitleButton.self).first {
@@ -2191,6 +2425,11 @@ struct DemoTests {
 
         #expect(viewController.isShowingMessageComposer)
         #expect(abs(actionBarView.bounds.height - defaultActionBarHeight) < 1)
+        let hostSeatWidthBeforeKeyboard = hostSeatView.bounds.width
+        let seatStageHeightBeforeKeyboard = viewController
+            .seatStageView.bounds.height
+        let messagesHeightBeforeKeyboard = viewController
+            .messagesView.bounds.height
         let textField = try #require(
             viewController.view.allSubviews(of: UITextField.self).first {
                 $0.accessibilityIdentifier == "liveRoom.message.input"
@@ -2203,7 +2442,8 @@ struct DemoTests {
             }
         )
         let sendButton = try #require(
-            viewController.view.allSubviews(of: LiveRoomTextButton.self).first {
+            viewController.view
+                .allSubviews(of: LiveRoomCapsuleTextButton.self).first {
                 $0.accessibilityIdentifier == "liveRoom.message.send"
             }
         )
@@ -2286,7 +2526,21 @@ struct DemoTests {
         #expect(abs(textFieldFrame.midY - sendButtonFrame.midY) < 1)
         #expect(abs(sendButtonFrame.midY - cancelButtonFrame.midY) < 1)
         #expect(cancelButtonFrame.maxY <= keyboardTop - 7)
-        #expect(hostSeatView.bounds.width < regularHostSeatWidth)
+        #expect(
+            abs(hostSeatView.bounds.width - hostSeatWidthBeforeKeyboard) < 1
+        )
+        #expect(
+            abs(
+                viewController.seatStageView.bounds.height
+                    - seatStageHeightBeforeKeyboard
+            ) < 1
+        )
+        #expect(
+            abs(
+                viewController.messagesView.bounds.height
+                    - messagesHeightBeforeKeyboard
+            ) < 1
+        )
         #expect(!sendButton.isEnabled)
         #expect(sendButton.layer.borderWidth == 1)
         #expect((sendButton.backgroundColor?.cgColor.alpha ?? 0) >= 0.1)
@@ -5980,6 +6234,17 @@ struct DemoTests {
             "navigation.edge.left",
             "navigation.edge.right",
             "navigation.edge.summary",
+            "liveRoom.user.host",
+            "liveRoom.user.individual.1",
+            "liveRoom.user.individual.2",
+            "liveRoom.user.individual.3",
+            "liveRoom.user.individual.4",
+            "liveRoom.user.party.1",
+            "liveRoom.user.party.2",
+            "liveRoom.user.party.3",
+            "liveRoom.user.party.4",
+            "liveRoom.user.party.5",
+            "liveRoom.user.party.6",
         ] {
             let localizations = try #require(catalog.strings[key]?.localizations)
             #expect(localizations["en"]?.stringUnit.value.isEmpty == false)
@@ -8329,10 +8594,9 @@ private func applyLiveRoomSnapshot(
     audienceSeatState: LiveRoomAudienceSeatState
 ) -> Bool {
     let current = viewController.viewModel.state.snapshot
-    let capacity = businessMode == .individual ? 5 : 9
-    let assignments = LiveRoomViewModel.defaultAssignments.filter {
-        $0.position.rawValue < capacity
-    }
+    let assignments = LiveRoomViewModel.fixtureAssignments(
+        for: businessMode
+    )
     return viewController.viewModel.consumeStageSnapshot(
         LiveRoomStageSnapshot(
             revision: current.revision + 1,
@@ -8350,7 +8614,7 @@ private func applyLiveRoomSnapshot(
 private func liveRoomAssignments(
     vacating position: Int
 ) -> [LiveRoomSeatAssignment] {
-    LiveRoomViewModel.defaultAssignments.map { assignment in
+    LiveRoomViewModel.partyAssignments.map { assignment in
         guard assignment.position.rawValue == position else {
             return assignment
         }

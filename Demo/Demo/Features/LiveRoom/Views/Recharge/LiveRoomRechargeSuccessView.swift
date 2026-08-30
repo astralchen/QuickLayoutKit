@@ -273,8 +273,8 @@ private func makeLiveRoomRechargeSuccessViewPreview() -> UIViewController {
                         trailing: 36
                     )
                 )
+                .frame(width: 310, height: 230)
         }
-        .frame(width: 310, height: 230)
     }
 }
 

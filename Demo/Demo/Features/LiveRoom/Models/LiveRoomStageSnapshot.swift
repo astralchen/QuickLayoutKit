@@ -99,11 +99,17 @@ actor LiveRoomMockBusinessCommandHandler:
     LiveRoomBusinessCommandHandling {
 
     private var snapshot: LiveRoomStageSnapshot
-    private let allAssignments: [LiveRoomSeatAssignment]
+    private let partyAssignments: [LiveRoomSeatAssignment]
+    private let individualAssignments: [LiveRoomSeatAssignment]
 
-    init(snapshot: LiveRoomStageSnapshot) {
+    init(
+        snapshot: LiveRoomStageSnapshot,
+        partyAssignments: [LiveRoomSeatAssignment],
+        individualAssignments: [LiveRoomSeatAssignment]
+    ) {
         self.snapshot = snapshot
-        allAssignments = snapshot.assignments
+        self.partyAssignments = partyAssignments
+        self.individualAssignments = individualAssignments
     }
 
     func send(_ command: LiveRoomBusinessCommand) async throws
@@ -134,15 +140,15 @@ actor LiveRoomMockBusinessCommandHandler:
             nextAudienceState = .enabled
         }
 
-        let capacity = nextMode == .individual ? 5 : 9
+        let nextAssignments = nextMode == .individual
+            ? individualAssignments
+            : partyAssignments
         snapshot = LiveRoomStageSnapshot(
             revision: snapshot.revision + 1,
             businessMode: nextMode,
             audienceSeatState: nextAudienceState,
-            // Mock 服务端按目标房型返回对应的零基位置集合，客户端不裁剪后台数据。
-            assignments: allAssignments.filter {
-                $0.position.rawValue < capacity
-            },
+            // Mock 服务端像真实后台一样返回目标玩法的完整确定性阵容。
+            assignments: nextAssignments,
             capabilities: LiveRoomBusinessCapability.defaults(for: nextMode)
         )
         return snapshot

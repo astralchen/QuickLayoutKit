@@ -235,11 +235,13 @@ final class LiveRoomSeatView: QuickLayoutView {
         scoreLabel.text = score > 0
             ? DemoLocalization.text("liveRoom.seat.score", score)
             : DemoLocalization.text("liveRoom.seat.available")
-        nameLabel.text = DemoLocalization.text(
-            assignment?.nameKey ?? emptySeatNameKey(
+        if let occupantNameKey = assignment?.occupantNameKey {
+            nameLabel.text = DemoLocalization.text(occupantNameKey)
+        } else {
+            nameLabel.text = emptySeatName(
                 for: slotPresentation.position.rawValue
             )
-        )
+        }
         accessibilityLabel = nameLabel.text
         accessibilityValue = DemoLocalization.text(
             isMuted ? "liveRoom.seat.muted" : "liveRoom.seat.speaking"
@@ -436,18 +438,20 @@ final class LiveRoomSeatView: QuickLayoutView {
         assignment?.avatarImageID == nil ? 0 : avatarDiameter / 2
     }
 
-    private func emptySeatNameKey(for position: Int) -> String {
+    /// 空麦文案只描述 Slot，不复用任何用户昵称 key。
+    private func emptySeatName(for position: Int) -> String {
         switch position {
-        case 0: return "liveRoom.seat.host"
-        case 1: return "liveRoom.seat.one"
-        case 2: return "liveRoom.seat.two"
-        case 3: return "liveRoom.seat.three"
-        case 4: return "liveRoom.seat.four"
-        case 5: return "liveRoom.seat.five"
-        case 6: return "liveRoom.seat.six"
-        case 7: return "liveRoom.seat.seven"
-        case 8: return "liveRoom.seat.eight"
-        default: return "liveRoom.seat.available"
+        case 0:
+            return DemoLocalization.text("liveRoom.userCard.hostSeat")
+        case 8:
+            return DemoLocalization.text("liveRoom.seat.eight")
+        case 1...7:
+            return DemoLocalization.text(
+                "liveRoom.userCard.guestSeat",
+                position
+            )
+        default:
+            return DemoLocalization.text("liveRoom.seat.available")
         }
     }
 

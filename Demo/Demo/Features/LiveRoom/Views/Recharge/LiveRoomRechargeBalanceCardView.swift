@@ -105,7 +105,6 @@ private func makeLiveRoomRechargeBalanceCardPreview() -> UIViewController {
                 .fixedSize(axis: .vertical)
                 .padding(20)
         }
-        .frame(width: 390, height: 210)
     }
 }
 

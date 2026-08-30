@@ -380,24 +380,48 @@ final class LiveRoomGiftSheetViewController:
 
 #if DEBUG
 @MainActor
+private final class LiveRoomGiftSheetPreviewNavigationController:
+    UINavigationController {
+
+    private let roomViewController: LiveRoomViewController
+    private var didPresentGiftSheet = false
+
+    init(roomViewController: LiveRoomViewController) {
+        self.roomViewController = roomViewController
+        super.init(rootViewController: roomViewController)
+    }
+
+    required init?(coder: NSCoder) {
+        return nil
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        guard
+            !didPresentGiftSheet,
+            roomViewController.viewIfLoaded?.bounds.isEmpty == false
+        else { return }
+        didPresentGiftSheet = true
+        // 预览复用正式入口；关闭动画后可稳定展示最终状态，且不产生中间帧差异。
+        UIView.performWithoutAnimation {
+            roomViewController.presentGiftSheet()
+        }
+    }
+}
+
+@MainActor
 private func makeLiveRoomGiftSheetControllerPreview() -> UIViewController {
-    var balance = 88_888
-    let viewController = LiveRoomGiftSheetViewController(
-        recipients: LiveRoomPreviewData.occupiedSeats,
-        gifts: LiveRoomPreviewData.gifts,
-        initiallySelectedRecipientSeatIDs: [0, 2],
-        initialBalance: balance
+    let viewModel = LiveRoomPreviewData.makeRoomViewModel(
+        businessMode: .party,
+        audienceSeatState: .enabled
     )
-    viewController.giftSendRequest = { request in
-        guard request.totalCost <= balance else { return nil }
-        balance -= request.totalCost
-        return balance
-    }
-    viewController.loadViewIfNeeded()
-    UIView.performWithoutAnimation {
-        viewController.animateIn()
-    }
-    return viewController
+    let roomViewController = LiveRoomViewController(
+        viewModel: viewModel,
+        initialGiftBalance: viewModel.giftBalance
+    )
+    return LiveRoomGiftSheetPreviewNavigationController(
+        roomViewController: roomViewController
+    )
 }
 
 #Preview("送礼面板") {

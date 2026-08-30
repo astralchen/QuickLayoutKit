@@ -131,30 +131,51 @@ final class LiveRoomWaveformView: UIView {
 
 #if DEBUG
 @MainActor
-private func makeLiveRoomWaveformPreview() -> UIViewController {
-    let view = LiveRoomWaveformView()
-    view.backgroundColor = .systemGreen
-    view.layer.cornerRadius = 16
-    view.setAnimating(true)
+private func makeLiveRoomWaveformPreview(
+    microphoneDiameter: CGFloat,
+    waveformDiameter: CGFloat
+) -> UIViewController {
+    let backgroundView = UIView()
+    backgroundView.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.92)
+    backgroundView.layer.cornerRadius = microphoneDiameter / 2
+
+    let waveformView = LiveRoomWaveformView()
+    waveformView.setAnimating(true)
+
     return QuickLayoutHostingController {
         ZStack {
-            LiveRoomBackdropView()
-            view
-                .resizable()
-                .padding(
-                    EdgeInsets(
-                        top: 20,
-                        leading: 32,
-                        bottom: 20,
-                        trailing: 32
+            LiveRoomBackdropView().resizable()
+            // 复刻麦位中的真实层级：圆形状态背景包裹透明波形视图。
+            ZStack {
+                backgroundView
+                    .resizable()
+                    .frame(
+                        width: microphoneDiameter,
+                        height: microphoneDiameter
                     )
-                )
+                waveformView
+                    .resizable()
+                    .frame(
+                        width: waveformDiameter,
+                        height: waveformDiameter
+                    )
+            }
         }
-        .frame(width: 96, height: 72)
+        .frame(width: 72, height: 72)
     }
 }
 
-#Preview("声音波纹") {
-    makeLiveRoomWaveformPreview()
+#Preview("声音波纹 · 常规麦位") {
+    makeLiveRoomWaveformPreview(
+        microphoneDiameter: 22,
+        waveformDiameter: 11
+    )
+}
+
+#Preview("声音波纹 · 放大麦位") {
+    makeLiveRoomWaveformPreview(
+        microphoneDiameter: 28,
+        waveformDiameter: 14
+    )
 }
 #endif

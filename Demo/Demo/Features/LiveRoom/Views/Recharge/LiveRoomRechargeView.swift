@@ -173,7 +173,8 @@ private func makeLiveRoomRechargeViewPreview() -> UIViewController {
         preservesStatus: false
     )
     return QuickLayoutHostingController {
-        view.resizable().frame(width: 390, height: 844)
+        view
+            .resizable()
     }
 }
 

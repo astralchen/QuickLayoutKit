@@ -44,33 +44,47 @@ final class LiveRoomInformationViewController:
         let state = viewModel.state
         informationView.configure(
             content: LiveRoomInformationView.Content(
-                roomTitle: DemoLocalization.text("liveRoom.room.title"),
-                roomSubtitle: DemoLocalization.text("liveRoom.room.subtitle"),
-                avatarAccessibilityLabel: DemoLocalization.text(
-                    "liveRoom.info.avatar.accessibility"
+                profile: .init(
+                    roomTitle: DemoLocalization.text("liveRoom.room.title"),
+                    roomSubtitle: DemoLocalization.text(
+                        "liveRoom.room.subtitle"
+                    ),
+                    avatarAccessibilityLabel: DemoLocalization.text(
+                        "liveRoom.info.avatar.accessibility"
+                    ),
+                    liveStatus: DemoLocalization.text(
+                        "liveRoom.info.status.live"
+                    )
                 ),
-                liveStatus: DemoLocalization.text(
-                    "liveRoom.info.status.live"
+                details: .init(
+                    title: DemoLocalization.text(
+                        "liveRoom.info.details.title"
+                    ),
+                    roomID: .init(
+                        title: DemoLocalization.text("liveRoom.info.roomID"),
+                        value: state.information.roomID
+                    ),
+                    host: .init(
+                        title: DemoLocalization.text("liveRoom.info.host"),
+                        value: state.information.hostDisplayName
+                    ),
+                    audience: .init(
+                        title: DemoLocalization.text(
+                            "liveRoom.info.audience"
+                        ),
+                        value: DemoLocalization.text(
+                            "liveRoom.room.audience",
+                            state.audienceCount
+                        )
+                    )
                 ),
-                detailsTitle: DemoLocalization.text(
-                    "liveRoom.info.details.title"
-                ),
-                roomIDTitle: DemoLocalization.text("liveRoom.info.roomID"),
-                roomID: state.information.roomID,
-                hostTitle: DemoLocalization.text("liveRoom.info.host"),
-                hostDisplayName: state.information.hostDisplayName,
-                audienceTitle: DemoLocalization.text(
-                    "liveRoom.info.audience"
-                ),
-                audienceValue: DemoLocalization.text(
-                    "liveRoom.room.audience",
-                    state.audienceCount
-                ),
-                announcementTitle: DemoLocalization.text(
-                    "liveRoom.info.announcement.title"
-                ),
-                announcement: DemoLocalization.text(
-                    "liveRoom.info.announcement.value"
+                announcement: .init(
+                    title: DemoLocalization.text(
+                        "liveRoom.info.announcement.title"
+                    ),
+                    value: DemoLocalization.text(
+                        "liveRoom.info.announcement.value"
+                    )
                 )
             )
         )

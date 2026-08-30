@@ -102,7 +102,8 @@ nonisolated struct LiveRoomSeatAssignment: Equatable, Sendable {
     var userID: LiveRoomUserID? { occupant?.userID }
     var isOccupied: Bool { occupant != nil }
     var isMuted: Bool { audioState != .active }
-    var nameKey: String { occupant?.nameKey ?? emptySeatNameKey }
+    var occupantNameKey: String? { occupant?.nameKey }
+    var nameKey: String { occupantNameKey ?? "liveRoom.seat.available" }
     var avatarImageID: LiveRoomAvatarImageID? { occupant?.avatarImageID }
     var symbolName: String {
         occupant?.symbolName ?? emptySeatSymbolName
@@ -117,21 +118,6 @@ nonisolated struct LiveRoomSeatAssignment: Equatable, Sendable {
     private var slotIndex: Int {
         if slotID == .host { return 0 }
         return Int(slotID.rawValue.split(separator: ".").last ?? "0") ?? 0
-    }
-
-    private var emptySeatNameKey: String {
-        switch slotIndex {
-        case 0: return "liveRoom.seat.host"
-        case 1: return "liveRoom.seat.one"
-        case 2: return "liveRoom.seat.two"
-        case 3: return "liveRoom.seat.three"
-        case 4: return "liveRoom.seat.four"
-        case 5: return "liveRoom.seat.five"
-        case 6: return "liveRoom.seat.six"
-        case 7: return "liveRoom.seat.seven"
-        case 8: return "liveRoom.seat.eight"
-        default: return "liveRoom.seat.available"
-        }
     }
 
     private var emptySeatSymbolName: String {

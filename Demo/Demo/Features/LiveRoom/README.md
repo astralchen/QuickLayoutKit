@@ -24,6 +24,8 @@
 9. `seatID` 标识服务端音频实体，`slotID` 标识布局语义位置，`userID` 标识用户；送礼选择和跨布局动画必须使用 `userID`，不能混用三种身份。
 10. 业务命令不乐观写入布局。客户端等待后台返回更高 `revision` 的合法快照后，才提交新的舞台 Presentation。
 11. 头像业务数据只保存 `LiveRoomAvatarImageID`，不把 `UIImage` 放入 Sendable 快照；Support 层统一解析 Asset Catalog，资源缺失或空麦时回退 SF Symbol。
+12. 用户昵称 key 只属于 `LiveRoomSeatOccupant`；空麦文案由 Slot 的角色和位置生成，禁止复用用户昵称 key。
+13. Demo 的派对房与个播房使用两套确定性阵容；只有主播共享 `userID`，玩法切换不得裁剪并复用同一用户数组。
 
 ## 舞台解析
 
@@ -31,6 +33,7 @@
 - `individual + disabled` 解析为 `individual.audience / collapsed`，只显示位置 `0` 的放大主播麦。
 - `individual + enabled` 解析为 `individual.audience / expanded`，显示位置 `0...4`。
 - 未注册的 PK 或未知业务模式不会进入 View 层；已有页面保留最后一个有效舞台，首次进入则使用受控的派对房回退。
+- 空麦必须使用 `.unavailable` 且积分为 `0`；空用户 ID、空昵称 key 和非法空麦状态会在 Resolver 层拒绝。
 - 服务端快照只携带业务语义和稳定 ID；具体尺寸、间距、宽屏与紧凑高度适配由客户端 `UICollectionViewLayout` 和 Metrics 负责。
 
 ## 麦位 Collection 架构
