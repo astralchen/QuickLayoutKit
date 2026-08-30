@@ -1,6 +1,19 @@
 import UIKit
 import QuickLayout
 
+private final class QuickLayoutKeyboardSafeAreaDependencies {
+    let notificationCenter: NotificationCenter
+    let dockingResolver: QuickLayoutKeyboardSafeAreaCoordinator.DockingResolver?
+
+    init(
+        notificationCenter: NotificationCenter = .default,
+        dockingResolver: QuickLayoutKeyboardSafeAreaCoordinator.DockingResolver? = nil
+    ) {
+        self.notificationCenter = notificationCenter
+        self.dockingResolver = dockingResolver
+    }
+}
+
 /// 承载 QuickLayout 内容的可复用视图。
 ///
 /// 需要将 QuickLayout 层级嵌入现有 UIKit 视图控制器、表格视图单元格、集合视图单元格
@@ -9,6 +22,31 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
 
     private var contentProvider: (() -> Layout)?
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
+    private var keyboardSafeAreaCoordinator:
+        QuickLayoutKeyboardSafeAreaCoordinator?
+    // 将 actor-isolated 测试闭包封装在具体引用类型内，避免它进入 open UIView
+    // 的跨文件子类元数据；生产实例始终使用默认依赖。
+    private var keyboardSafeAreaDependencies =
+        QuickLayoutKeyboardSafeAreaDependencies()
+
+    /// 宿主自动发布键盘安全区域的方式。
+    ///
+    /// 默认值为 ``QuickLayoutKeyboardSafeAreaBehavior/disabled``，不会改变已有宿主的
+    /// 布局。启用后，布局可以使用 `safeAreaPadding` 消费 `.keyboard` 区域，或使用
+    /// `ignoresSafeArea(.keyboard, edges:)` 选择性忽略它。
+    open var quickLayoutKeyboardSafeAreaBehavior:
+        QuickLayoutKeyboardSafeAreaBehavior = .disabled {
+        didSet {
+            guard quickLayoutKeyboardSafeAreaBehavior != oldValue else {
+                return
+            }
+            updateKeyboardSafeAreaObservation()
+        }
+    }
+
+    /// 当前向 QuickLayout 层级发布的物理键盘安全区域边距。
+    public private(set) var quickLayoutKeyboardSafeAreaInsets:
+        UIEdgeInsets = .zero
 
     /// 宿主水平尺寸弹性的显式覆盖值。
     ///
@@ -106,6 +144,7 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
 
     open override func didMoveToWindow() {
         super.didMoveToWindow()
+        keyboardSafeAreaCoordinator?.refresh()
         guard window != nil else { return }
         synchronizeQuickLayoutSemanticDirectionIfNeeded(
             for: self,
@@ -124,6 +163,7 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
 
     open override func safeAreaInsetsDidChange() {
         super.safeAreaInsetsDidChange()
+        keyboardSafeAreaCoordinator?.refresh()
         quickLayoutEnvironmentState.update(self, explicitReason: .safeArea)
     }
 
@@ -138,10 +178,14 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
             behavior: quickLayoutSemanticDirectionBehavior
         )
         super.layoutSubviews()
+        keyboardSafeAreaCoordinator?.refresh()
         quickLayoutEnvironmentState.update(self)
         QuickLayoutDiagnostics.recordLayoutPass(for: String(describing: Self.self), measuredSize: bounds.size)
         withQuickLayoutManagedViewState {
-            withQuickLayoutContainerSize(bounds.size) {
+            withQuickLayoutContainerSize(
+                bounds.size,
+                keyboardInsets: quickLayoutKeyboardSafeAreaInsets
+            ) {
                 _QuickLayoutViewImplementation.layoutSubviews(self)
             }
         }
@@ -155,7 +199,11 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         )
         quickLayoutEnvironmentState.update(self)
         return withQuickLayoutManagedViewState {
-            withQuickLayoutContainerSize(size) {
+            keyboardSafeAreaCoordinator?.refresh()
+            return withQuickLayoutContainerSize(
+                size,
+                keyboardInsets: quickLayoutKeyboardSafeAreaInsets
+            ) {
                 _QuickLayoutViewImplementation.sizeThatFits(
                     self,
                     size: size
@@ -210,6 +258,71 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         reason: QuickLayoutEnvironmentChangeReason
     ) {
         setNeedsQuickLayout()
+    }
+
+    func applyQuickLayoutKeyboardSafeAreaInsets(
+        _ insets: UIEdgeInsets,
+        context: QuickLayoutKeyboardContext?
+    ) {
+        guard quickLayoutKeyboardSafeAreaInsets != insets else { return }
+        quickLayoutKeyboardSafeAreaInsets = insets
+
+        guard let context, context.animationDuration > 0, window != nil else {
+            setNeedsQuickLayout()
+            return
+        }
+        performLayoutUpdate(
+            duration: context.animationDuration,
+            options: context.animationOptions.union([
+                .beginFromCurrentState,
+                .allowUserInteraction,
+            ])
+        )
+    }
+
+    private func updateKeyboardSafeAreaObservation() {
+        switch quickLayoutKeyboardSafeAreaBehavior {
+        case .disabled:
+            keyboardSafeAreaCoordinator?.stop()
+            keyboardSafeAreaCoordinator = nil
+            applyQuickLayoutKeyboardSafeAreaInsets(.zero, context: nil)
+        case .docked:
+            if keyboardSafeAreaCoordinator == nil {
+                keyboardSafeAreaCoordinator =
+                    QuickLayoutKeyboardSafeAreaCoordinator(
+                        hostView: self,
+                        notificationCenter:
+                            keyboardSafeAreaDependencies.notificationCenter,
+                        dockingResolver:
+                            keyboardSafeAreaDependencies.dockingResolver
+                    )
+            } else {
+                keyboardSafeAreaCoordinator?.refresh()
+            }
+        }
+    }
+
+    /// 替换键盘 safe-area 的事件源与 docked 判定器，仅供确定性测试使用。
+    ///
+    /// 必须在启用 ``quickLayoutKeyboardSafeAreaBehavior`` 前调用，测试仍通过公开行为属性
+    /// 启停完整的宿主协调链路，而不是绕过宿主直接构造协调器。
+    @_spi(Testing)
+    public final func configureQuickLayoutKeyboardSafeAreaForTesting(
+        notificationCenter: NotificationCenter,
+        dockingResolver: @MainActor @escaping (
+            QuickLayoutKeyboardContext,
+            UIView
+        ) -> Bool
+    ) {
+        precondition(
+            quickLayoutKeyboardSafeAreaBehavior == .disabled,
+            "Configure keyboard safe-area dependencies before enabling it."
+        )
+        keyboardSafeAreaDependencies =
+            QuickLayoutKeyboardSafeAreaDependencies(
+                notificationCenter: notificationCenter,
+                dockingResolver: dockingResolver
+            )
     }
 
 }

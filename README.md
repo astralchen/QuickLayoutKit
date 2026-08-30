@@ -593,6 +593,33 @@ final class ParentViewController: QuickLayoutHostingController {
 键盘通知中的框架是屏幕坐标；调用 `resolved(in:)` 后才会得到相对于具体视图或滚动视图的
 实际相交高度，从而正确处理浮动键盘、分离键盘、iPad 多窗口和外接键盘切换。
 
+普通 `QuickLayoutView` 和 `QuickLayoutHostingController` 可以选择自动把底部停靠键盘
+发布为 `.keyboard` 安全区域：
+
+```swift
+quickLayoutKeyboardSafeAreaBehavior = .docked(
+    usesBottomSafeArea: true
+)
+```
+
+`usesBottomSafeArea` 为 `true` 时，键盘隐藏、浮动、分离或未与宿主相交时，键盘区域
+使用宿主的底部安全区域；为 `false` 时使用宿主底边。停靠键盘显示时，两种配置都会
+发布键盘与宿主的完整相交高度。该能力不添加额外视觉间距，需要时应在布局中显式使用
+`padding`。
+
+宿主仍使用 `QuickLayoutKeyboardContext` 提供键盘高度与动画参数；内部只借助系统
+`UIKeyboardLayoutGuide` 判断键盘是否确实停靠在当前窗口，从而区分贴底的分离键盘，
+并避免其他窗口的键盘通知污染当前宿主。该 Layout Guide 不承载 QuickLayout 页面布局。
+
+布局可以分别选择容器与键盘区域。例如，下列底部内容只采用键盘区域，不重复采用容器
+底部安全区域：
+
+```swift
+actionBar
+    .safeAreaPadding(.bottom, 0)
+    .ignoresSafeArea(.container, edges: .bottom)
+```
+
 `QuickLayoutKeyboardAvoider` 把键盘相交高度应用到滚动视图边距，并保持当前输入视图可见：
 
 ```swift

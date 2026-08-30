@@ -3461,52 +3461,6 @@
         }
       }
     },
-    "liveRoom.audience.subtitle" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الأعضاء النشطون المعروضون حاليًا"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Active members currently loaded"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "当前已加载的活跃用户"
-          }
-        }
-      }
-    },
-    "liveRoom.audience.title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الموجودون الآن"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "People here now"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "当前在线"
-          }
-        }
-      }
-    },
     "liveRoom.audience.profile.about.title" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -3691,232 +3645,140 @@
         }
       }
     },
-    "liveRoom.info.announcement.title" : {
+    "liveRoom.audience.subtitle" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "إعلان الغرفة"
+            "value" : "الأعضاء النشطون المعروضون حاليًا"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Room announcement"
+            "value" : "Active members currently loaded"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "直播间公告"
+            "value" : "当前已加载的活跃用户"
           }
         }
       }
     },
-    "liveRoom.info.announcement.value" : {
+    "liveRoom.audience.title" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "مرحبًا بكم في الغرفة. احترموا بعضكم واستمتعوا بالموسيقى والدردشة."
+            "value" : "الموجودون الآن"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Welcome to the room. Be kind to one another and enjoy the music and conversation."
+            "value" : "People here now"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "欢迎来到直播间，请友善交流，一起享受音乐和聊天时光。"
+            "value" : "当前在线"
           }
         }
       }
     },
-    "liveRoom.info.audience" : {
+    "liveRoom.business.command.failure.message" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "المشاهدون"
+            "value" : "تعذر تحديث حالة الغرفة. حاول مرة أخرى لاحقاً."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Audience"
+            "value" : "The room state could not be updated. Try again later."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在线人数"
+            "value" : "房间状态更新失败，请稍后重试。"
           }
         }
       }
     },
-    "liveRoom.info.avatar.accessibility" : {
+    "liveRoom.business.command.failure.title" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "صورة غرفة البث"
+            "value" : "فشلت العملية"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Room avatar"
+            "value" : "Action Failed"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "直播间头像"
+            "value" : "操作失败"
           }
         }
       }
     },
-    "liveRoom.info.avatar.hint" : {
+    "liveRoom.business.pk.end" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "عرض معلومات الغرفة"
+            "value" : "إنهاء التحدي"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show room information"
+            "value" : "End PK"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "查看直播间信息"
+            "value" : "结束 PK"
           }
         }
       }
     },
-    "liveRoom.info.details.title" : {
+    "liveRoom.business.pk.start" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تفاصيل الغرفة"
+            "value" : "بدء التحدي"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Room details"
+            "value" : "Start PK"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "房间资料"
-          }
-        }
-      }
-    },
-    "liveRoom.info.host" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "المضيف"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Host"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "主播"
-          }
-        }
-      }
-    },
-    "liveRoom.info.navigationTitle" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "معلومات الغرفة"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Room information"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "直播间信息"
-          }
-        }
-      }
-    },
-    "liveRoom.info.roomID" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "معرّف الغرفة"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Room ID"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "房间号"
-          }
-        }
-      }
-    },
-    "liveRoom.info.status.live" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "مباشر الآن"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Live now"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "直播中"
+            "value" : "发起 PK"
           }
         }
       }
@@ -5186,66 +5048,234 @@
         }
       }
     },
-    "liveRoom.business.command.failure.message" : {
+    "liveRoom.info.announcement.title" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تعذر تحديث حالة الغرفة. حاول مرة أخرى لاحقاً."
+            "value" : "إعلان الغرفة"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The room state could not be updated. Try again later."
+            "value" : "Room announcement"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "房间状态更新失败，请稍后重试。"
+            "value" : "直播间公告"
           }
         }
       }
     },
-    "liveRoom.business.command.failure.title" : {
+    "liveRoom.info.announcement.value" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "فشلت العملية"
+            "value" : "مرحبًا بكم في الغرفة. احترموا بعضكم واستمتعوا بالموسيقى والدردشة."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Action Failed"
+            "value" : "Welcome to the room. Be kind to one another and enjoy the music and conversation."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "操作失败"
+            "value" : "欢迎来到直播间，请友善交流，一起享受音乐和聊天时光。"
           }
         }
       }
     },
-    "liveRoom.business.pk.end" : {
+    "liveRoom.info.audience" : {
       "extractionState" : "stale",
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "إنهاء التحدي" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "End PK" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "结束 PK" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "المشاهدون"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audience"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在线人数"
+          }
+        }
       }
     },
-    "liveRoom.business.pk.start" : {
+    "liveRoom.info.avatar.accessibility" : {
       "extractionState" : "stale",
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "بدء التحدي" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Start PK" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "发起 PK" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "صورة غرفة البث"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Room avatar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直播间头像"
+          }
+        }
+      }
+    },
+    "liveRoom.info.avatar.hint" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "عرض معلومات الغرفة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show room information"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看直播间信息"
+          }
+        }
+      }
+    },
+    "liveRoom.info.details.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تفاصيل الغرفة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Room details"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "房间资料"
+          }
+        }
+      }
+    },
+    "liveRoom.info.host" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "المضيف"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Host"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主播"
+          }
+        }
+      }
+    },
+    "liveRoom.info.navigationTitle" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "معلومات الغرفة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Room information"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直播间信息"
+          }
+        }
+      }
+    },
+    "liveRoom.info.roomID" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "معرّف الغرفة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Room ID"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "房间号"
+          }
+        }
+      }
+    },
+    "liveRoom.info.status.live" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مباشر الآن"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live now"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直播中"
+          }
+        }
       }
     },
     "liveRoom.layout.five" : {
@@ -6008,6 +6038,7 @@
       }
     },
     "liveRoom.user.host" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6030,6 +6061,7 @@
       }
     },
     "liveRoom.user.individual.1" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6052,6 +6084,7 @@
       }
     },
     "liveRoom.user.individual.2" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6074,6 +6107,7 @@
       }
     },
     "liveRoom.user.individual.3" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6096,6 +6130,7 @@
       }
     },
     "liveRoom.user.individual.4" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6118,6 +6153,7 @@
       }
     },
     "liveRoom.user.party.1" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6140,6 +6176,7 @@
       }
     },
     "liveRoom.user.party.2" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6162,6 +6199,7 @@
       }
     },
     "liveRoom.user.party.3" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6184,6 +6222,7 @@
       }
     },
     "liveRoom.user.party.4" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6206,6 +6245,7 @@
       }
     },
     "liveRoom.user.party.5" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6228,6 +6268,7 @@
       }
     },
     "liveRoom.user.party.6" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {

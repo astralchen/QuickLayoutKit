@@ -2,7 +2,13 @@ import Testing
 import QuickLayout
 import UIKit
 @testable import QuickLayoutKitCore
-@testable import QuickLayoutKitUIKit
+@_spi(Testing) @testable import QuickLayoutKitUIKit
+
+@MainActor
+private final class KeyboardDockingResolverState {
+    weak var window: UIWindow?
+    var treatsKeyboardAsSplitOrUndocked = false
+}
 
 // UIKit layout probes initialize process-wide screen metrics. Running those
 // probes concurrently can deadlock Swift Testing when one worker initializes
@@ -2397,6 +2403,225 @@ struct QuickLayoutKitTests {
         #expect(third == CGSize(width: 20, height: 30))
     }
 
+    @MainActor
+    @Test func quickLayoutViewKeyboardSafeAreaUsesConfiguredHiddenBaseline() {
+        let host = KeyboardSafeAreaProbeQuickLayoutView(
+            safeAreaInsets: UIEdgeInsets(
+                top: 0,
+                left: 0,
+                bottom: 34,
+                right: 0
+            )
+        )
+        host.frame = CGRect(x: 0, y: 0, width: 320, height: 480)
+
+        #expect(
+            host.quickLayoutKeyboardSafeAreaBehavior == .disabled
+        )
+        #expect(host.quickLayoutKeyboardSafeAreaInsets == .zero)
+
+        host.quickLayoutKeyboardSafeAreaBehavior = .docked(
+            usesBottomSafeArea: true
+        )
+        host.layoutIfNeeded()
+        #expect(host.quickLayoutKeyboardSafeAreaInsets.bottom == 34)
+        #expect(abs(host.keyboardSafeAreaView.frame.maxY - 446) < 1)
+        #expect(abs(host.containerSafeAreaView.frame.maxY - 446) < 1)
+
+        host.quickLayoutKeyboardSafeAreaBehavior = .docked(
+            usesBottomSafeArea: false
+        )
+        host.layoutIfNeeded()
+        #expect(host.quickLayoutKeyboardSafeAreaInsets.bottom == 0)
+        #expect(abs(host.keyboardSafeAreaView.frame.maxY - 480) < 1)
+        #expect(abs(host.containerSafeAreaView.frame.maxY - 446) < 1)
+
+        host.quickLayoutKeyboardSafeAreaBehavior = .disabled
+        #expect(host.quickLayoutKeyboardSafeAreaInsets == .zero)
+    }
+
+    @MainActor
+    @Test func quickLayoutViewKeyboardSafeAreaTracksOnlyDockedKeyboard() {
+        let notificationCenter = NotificationCenter()
+        let dockingState = KeyboardDockingResolverState()
+        let host = KeyboardSafeAreaProbeQuickLayoutView(
+            safeAreaInsets: UIEdgeInsets(
+                top: 0,
+                left: 0,
+                bottom: 34,
+                right: 0
+            )
+        )
+        let viewController = UIViewController()
+        let window = UIWindow(
+            frame: CGRect(x: 0, y: 0, width: 320, height: 480)
+        )
+        window.rootViewController = viewController
+        window.makeKeyAndVisible()
+        dockingState.window = window
+        defer { window.isHidden = true }
+        host.frame = viewController.view.bounds
+        viewController.view.addSubview(host)
+        host.configureQuickLayoutKeyboardSafeAreaForTesting(
+            notificationCenter: notificationCenter
+        ) { _, view in
+            !dockingState.treatsKeyboardAsSplitOrUndocked
+                && view.window === dockingState.window
+        }
+        host.quickLayoutKeyboardSafeAreaBehavior = .docked(
+            usesBottomSafeArea: true
+        )
+        host.layoutIfNeeded()
+
+        let dockedFrame = window.convert(
+            CGRect(x: 0, y: 300, width: 320, height: 180),
+            to: nil
+        )
+        notificationCenter.post(
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil,
+            userInfo: [
+                UIResponder.keyboardFrameEndUserInfoKey: dockedFrame,
+                UIResponder.keyboardAnimationDurationUserInfoKey: 0,
+            ]
+        )
+        host.layoutIfNeeded()
+
+        #expect(host.quickLayoutKeyboardSafeAreaInsets.bottom == 180)
+        #expect(abs(host.keyboardSafeAreaView.frame.maxY - 300) < 1)
+        #expect(abs(host.containerSafeAreaView.frame.maxY - 446) < 1)
+        host.quickLayoutKeyboardSafeAreaBehavior = .docked(
+            usesBottomSafeArea: false
+        )
+        #expect(host.quickLayoutKeyboardSafeAreaInsets.bottom == 180)
+
+        // 系统 guide 会把 split/undocked 键盘判为非 docked，即使通知只提供了一个
+        // 看起来与停靠键盘相同的满宽外接矩形。
+        dockingState.treatsKeyboardAsSplitOrUndocked = true
+        notificationCenter.post(
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: window.screen,
+            userInfo: [
+                UIResponder.keyboardFrameEndUserInfoKey: dockedFrame,
+                UIResponder.keyboardAnimationDurationUserInfoKey: 0,
+            ]
+        )
+        host.layoutIfNeeded()
+        #expect(host.quickLayoutKeyboardSafeAreaInsets.bottom == 0)
+
+        host.quickLayoutKeyboardSafeAreaBehavior = .docked(
+            usesBottomSafeArea: true
+        )
+        dockingState.treatsKeyboardAsSplitOrUndocked = false
+
+        let floatingFrame = window.convert(
+            CGRect(x: 40, y: 220, width: 220, height: 180),
+            to: nil
+        )
+        notificationCenter.post(
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil,
+            userInfo: [
+                UIResponder.keyboardFrameEndUserInfoKey: floatingFrame,
+                UIResponder.keyboardAnimationDurationUserInfoKey: 0,
+            ]
+        )
+        host.layoutIfNeeded()
+
+        #expect(host.quickLayoutKeyboardSafeAreaInsets.bottom == 34)
+        #expect(abs(host.keyboardSafeAreaView.frame.maxY - 446) < 1)
+        notificationCenter.post(
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil,
+            userInfo: [
+                UIResponder.keyboardFrameEndUserInfoKey: CGRect(
+                    x: 0,
+                    y: 480,
+                    width: 320,
+                    height: 0
+                ),
+                UIResponder.keyboardAnimationDurationUserInfoKey: 0,
+            ]
+        )
+        #expect(host.quickLayoutKeyboardSafeAreaInsets.bottom == 34)
+
+        // disabled 必须清零并取消监听；后续事件不能重新写入 keyboard safe-area。
+        host.quickLayoutKeyboardSafeAreaBehavior = .disabled
+        notificationCenter.post(
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: window.screen,
+            userInfo: [
+                UIResponder.keyboardFrameEndUserInfoKey: dockedFrame,
+                UIResponder.keyboardAnimationDurationUserInfoKey: 0,
+            ]
+        )
+        #expect(host.quickLayoutKeyboardSafeAreaInsets == .zero)
+
+        // 重新启用后通过公开属性重新建立监听，bounds 变化后使用新窗口几何解析。
+        host.quickLayoutKeyboardSafeAreaBehavior = .docked(
+            usesBottomSafeArea: true
+        )
+        window.frame = CGRect(x: 0, y: 0, width: 480, height: 320)
+        viewController.view.frame = window.bounds
+        host.frame = viewController.view.bounds
+        let rotatedDockedFrame = window.screen.coordinateSpace.convert(
+            CGRect(x: 0, y: 180, width: 480, height: 140),
+            from: window
+        )
+        notificationCenter.post(
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: window.screen,
+            userInfo: [
+                UIResponder.keyboardFrameEndUserInfoKey:
+                    rotatedDockedFrame,
+                UIResponder.keyboardAnimationDurationUserInfoKey: 0,
+            ]
+        )
+        host.layoutIfNeeded()
+        #expect(host.quickLayoutKeyboardSafeAreaInsets.bottom == 140)
+
+        // 同一屏幕上的另一个窗口收到键盘时，当前宿主必须回退隐藏基线；重新挂载到
+        // 键盘所属窗口后，再恢复 docked 几何。
+        let secondViewController = UIViewController()
+        let secondWindow = UIWindow(
+            frame: CGRect(x: 0, y: 0, width: 360, height: 500)
+        )
+        secondWindow.rootViewController = secondViewController
+        secondWindow.makeKeyAndVisible()
+        defer { secondWindow.isHidden = true }
+        host.removeFromSuperview()
+        host.frame = secondViewController.view.bounds
+        secondViewController.view.addSubview(host)
+        let secondDockedFrame = secondWindow.screen.coordinateSpace.convert(
+            CGRect(x: 0, y: 380, width: 360, height: 120),
+            from: secondWindow
+        )
+        notificationCenter.post(
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: secondWindow.screen,
+            userInfo: [
+                UIResponder.keyboardFrameEndUserInfoKey:
+                    secondDockedFrame,
+                UIResponder.keyboardAnimationDurationUserInfoKey: 0,
+            ]
+        )
+        host.layoutIfNeeded()
+        #expect(host.quickLayoutKeyboardSafeAreaInsets.bottom == 34)
+
+        dockingState.window = secondWindow
+        notificationCenter.post(
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: secondWindow.screen,
+            userInfo: [
+                UIResponder.keyboardFrameEndUserInfoKey:
+                    secondDockedFrame,
+                UIResponder.keyboardAnimationDurationUserInfoKey: 0,
+            ]
+        )
+        host.layoutIfNeeded()
+        #expect(host.quickLayoutKeyboardSafeAreaInsets.bottom == 120)
+    }
+
     @Test func ignoresSafeAreaExpandsContainerRelativeFrame() {
         let respectingSafeArea = IntrinsicTestElement(size: CGSize(width: 20, height: 30))
             .containerRelativeFrame(.horizontal)
@@ -3923,6 +4148,43 @@ private final class SafeAreaProbeView: UIView {
 
     override var safeAreaInsets: UIEdgeInsets {
         reportedSafeAreaInsets
+    }
+}
+
+@MainActor
+private class KeyboardSafeAreaProbeQuickLayoutView: QuickLayoutView {
+
+    private let fillView = UIView()
+    let containerSafeAreaView = UIView()
+    let keyboardSafeAreaView = UIView()
+    private let reportedSafeAreaInsets: UIEdgeInsets
+
+    init(safeAreaInsets: UIEdgeInsets) {
+        reportedSafeAreaInsets = safeAreaInsets
+        super.init(frame: .zero)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var safeAreaInsets: UIEdgeInsets {
+        reportedSafeAreaInsets
+    }
+
+    override var body: Layout {
+        ZStack(alignment: .bottom) {
+            fillView.resizable()
+            containerSafeAreaView
+                .frame(width: 20, height: 20)
+                .safeAreaPadding(.bottom, 0)
+                .ignoresSafeArea(.keyboard, edges: .bottom)
+            keyboardSafeAreaView
+                .frame(width: 20, height: 20)
+                .safeAreaPadding(.bottom, 0)
+                .ignoresSafeArea(.container, edges: .bottom)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

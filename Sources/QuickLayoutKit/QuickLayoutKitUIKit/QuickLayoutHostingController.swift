@@ -25,6 +25,39 @@ open class QuickLayoutHostingController: UIViewController, QuickLayoutUpdating {
         return view
     }()
 
+    /// 根 QuickLayout 宿主自动发布键盘安全区域的方式。
+    open var quickLayoutKeyboardSafeAreaBehavior:
+        QuickLayoutKeyboardSafeAreaBehavior {
+        get { containerView.quickLayoutKeyboardSafeAreaBehavior }
+        set { containerView.quickLayoutKeyboardSafeAreaBehavior = newValue }
+    }
+
+    /// 当前根宿主向 QuickLayout 层级发布的物理键盘安全区域边距。
+    public var quickLayoutKeyboardSafeAreaInsets: UIEdgeInsets {
+        containerView.quickLayoutKeyboardSafeAreaInsets
+    }
+
+    /// 替换根宿主的键盘事件源与 docked 判定器，仅供跨模块确定性测试使用。
+    ///
+    /// 该 SPI 会先停用现有协调器、注入依赖，再恢复原行为，确保测试覆盖公开行为属性
+    /// 的完整启停链路，而不是直接写入发布的 safe-area 值。
+    @_spi(Testing)
+    public final func configureQuickLayoutKeyboardSafeAreaForTesting(
+        notificationCenter: NotificationCenter,
+        dockingResolver: @MainActor @escaping (
+            QuickLayoutKeyboardContext,
+            UIView
+        ) -> Bool
+    ) {
+        let behavior = quickLayoutKeyboardSafeAreaBehavior
+        quickLayoutKeyboardSafeAreaBehavior = .disabled
+        containerView.configureQuickLayoutKeyboardSafeAreaForTesting(
+            notificationCenter: notificationCenter,
+            dockingResolver: dockingResolver
+        )
+        quickLayoutKeyboardSafeAreaBehavior = behavior
+    }
+
     // MARK: - 初始化
 
     /// 创建以内联方式提供 QuickLayout 内容的宿主控制器。

@@ -10,6 +10,7 @@ import Testing
 import UIKit
 import AppLocalization
 import QuickLayoutKit
+@_spi(Testing) import QuickLayoutKitUIKit
 @testable import Demo
 
 @MainActor
@@ -2314,12 +2315,8 @@ struct DemoTests {
         let bottomSpacing = viewController.view.bounds.maxY
             - viewController.view.safeAreaInsets.bottom
             - actionBarFrame.maxY
-        let expectedBottomSpacing = LiveRoomViewController
-            .actionBarBottomSpacing(
-                for: viewController.view.safeAreaInsets.bottom
-            )
         #expect(
-            abs(bottomSpacing - expectedBottomSpacing) < 1,
+            abs(bottomSpacing) < 1,
             "stage=\(stageFrame), chat=\(chatFrame), action=\(actionBarFrame), bottom=\(bottomSpacing)"
         )
         let seatViews = try (0..<5).map { index in
@@ -2371,6 +2368,9 @@ struct DemoTests {
         defer { DemoLocalization.setLocale(identifier: "en-US") }
 
         let viewController = LiveRoomViewController()
+        viewController.configureQuickLayoutKeyboardSafeAreaForTesting(
+            notificationCenter: .default
+        ) { _, _ in true }
         let navigationController = UINavigationController(
             rootViewController: viewController
         )
@@ -2502,6 +2502,10 @@ struct DemoTests {
             keyboardFrameInScreen,
             from: nil
         ).minY
+        let actionBarFrame = actionBarView.convert(
+            actionBarView.bounds,
+            to: viewController.view
+        )
 
         #expect(textField.borderStyle == .none)
         #expect(textField.backgroundColor == .clear)
@@ -2526,6 +2530,8 @@ struct DemoTests {
         #expect(abs(textFieldFrame.midY - sendButtonFrame.midY) < 1)
         #expect(abs(sendButtonFrame.midY - cancelButtonFrame.midY) < 1)
         #expect(cancelButtonFrame.maxY <= keyboardTop - 7)
+        #expect(abs(actionBarFrame.maxY - keyboardTop) < 1)
+        #expect(actionBarView.transform == .identity)
         #expect(
             abs(hostSeatView.bounds.width - hostSeatWidthBeforeKeyboard) < 1
         )
@@ -2587,7 +2593,7 @@ struct DemoTests {
         )
     }
 
-    @Test func liveRoomActionBarKeepsBottomSpacingOnIPhoneSESize() throws {
+    @Test func liveRoomActionBarUsesSafeAreaOrViewBottomWithoutExtraSpacing() throws {
         DemoLocalization.setLocale(identifier: "zh-Hans")
         defer { DemoLocalization.setLocale(identifier: "en-US") }
 
@@ -2626,23 +2632,11 @@ struct DemoTests {
         let bottomSpacing = safeAreaBottom - actionBarFrame.maxY
         let screenBottomSpacing = viewController.view.bounds.maxY
             - actionBarFrame.maxY
-        let expectedBottomSpacing = LiveRoomViewController
-            .actionBarBottomSpacing(
-                for: viewController.view.safeAreaInsets.bottom
-            )
-
-        #expect(
-            LiveRoomViewController.actionBarBottomSpacing(for: 0) == 8
-        )
-        #expect(
-            LiveRoomViewController.actionBarBottomSpacing(for: 34) == 0
-        )
-        #expect(abs(bottomSpacing - expectedBottomSpacing) < 1)
+        #expect(abs(bottomSpacing) < 1)
         #expect(
             abs(
                 screenBottomSpacing
                     - viewController.view.safeAreaInsets.bottom
-                    - expectedBottomSpacing
             ) < 1
         )
         #expect(abs(actionBarFrame.minY - chatFrame.maxY - 10) < 1)
@@ -2650,6 +2644,53 @@ struct DemoTests {
             viewController.view.allSubviews(of: UIScrollView.self)
                 .filter(\.isScrollEnabled).count == 1
         )
+    }
+
+    @Test func liveRoomActionBarIgnoresFloatingKeyboard() throws {
+        let viewController = LiveRoomViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 768, height: 1024)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+        let actionBarView = try #require(
+            viewController.view.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.actionBar"
+            }
+        )
+        let restingFrame = actionBarView.convert(
+            actionBarView.bounds,
+            to: viewController.view
+        )
+        let floatingFrameInScreen = window.convert(
+            CGRect(x: 180, y: 470, width: 360, height: 240),
+            to: nil
+        )
+
+        NotificationCenter.default.post(
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil,
+            userInfo: [
+                UIResponder.keyboardFrameEndUserInfoKey:
+                    floatingFrameInScreen,
+                UIResponder.keyboardAnimationDurationUserInfoKey: 0,
+            ]
+        )
+        layout(viewController, in: navigationController)
+
+        let floatingKeyboardActionBarFrame = actionBarView.convert(
+            actionBarView.bounds,
+            to: viewController.view
+        )
+        #expect(
+            abs(floatingKeyboardActionBarFrame.maxY - restingFrame.maxY) < 1
+        )
+        #expect(actionBarView.transform == .identity)
     }
 
     @Test func safeAreaPaddingDemoCoversQuickLayoutCombinations() throws {

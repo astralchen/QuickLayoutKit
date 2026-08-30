@@ -129,32 +129,6 @@ extension LiveRoomViewController {
         )
     }
 
-    func applyKeyboardContext(_ context: QuickLayoutKeyboardContext) {
-        guard isViewLoaded else { return }
-        let resolved = context.resolved(in: view)
-        // 键盘只负责输入条避让，不参与麦位 Metrics 与页面内容尺寸决策。
-        let untransformedBottom = actionBarView.center.y
-            + actionBarView.bounds.height / 2
-        let overlap = resolved.height > 0
-            ? max(
-                0,
-                untransformedBottom - resolved.intersection.minY + 8
-            )
-            : 0
-        let targetTransform = CGAffineTransform(
-            translationX: 0,
-            y: -overlap
-        )
-        guard actionBarView.transform != targetTransform else { return }
-        UIView.animate(
-            withDuration: context.animationDuration,
-            delay: 0,
-            options: context.animationOptions,
-            animations: {
-                self.actionBarView.transform = targetTransform
-            }
-        )
-    }
 }
 
 extension LiveRoomViewController: UIAdaptivePresentationControllerDelegate {

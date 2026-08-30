@@ -20,7 +20,8 @@ public struct SafeAreaRegions: OptionSet, Sendable {
 
     /// 软件键盘占用的安全区域。
     ///
-    /// `QuickLayoutKeyboardAvoider` 管理 `QuickLayoutScrollView` 时会发布该区域。
+    /// `QuickLayoutView` 启用 `quickLayoutKeyboardSafeAreaBehavior` 时会自动发布该区域；
+    /// `QuickLayoutKeyboardAvoider` 管理 `QuickLayoutScrollView` 时也会发布该区域。
     public static let keyboard = SafeAreaRegions(rawValue: 1 << 1)
 
     /// QuickLayoutKit 已知的所有安全区域类型。

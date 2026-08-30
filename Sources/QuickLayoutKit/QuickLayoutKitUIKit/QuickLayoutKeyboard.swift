@@ -32,6 +32,20 @@ public enum QuickLayoutKeyboardSafeAreaStrategy: Equatable, Sendable {
     case subtractExisting
 }
 
+/// QuickLayout 宿主发布键盘安全区域的方式。
+public enum QuickLayoutKeyboardSafeAreaBehavior: Equatable, Sendable {
+
+    /// 不观察键盘，也不向布局层级发布键盘安全区域。
+    case disabled
+
+    /// 只跟随停靠在宿主底边的键盘。
+    ///
+    /// 浮动键盘、分离键盘以及未与宿主相交的键盘均按隐藏状态处理。
+    /// `usesBottomSafeArea` 为 `true` 时，隐藏状态的键盘安全区域底边使用宿主的
+    /// `safeAreaInsets.bottom`；为 `false` 时使用宿主底边。
+    case docked(usesBottomSafeArea: Bool = true)
+}
+
 /// 针对具体视图解析后的键盘几何信息。
 public struct QuickLayoutResolvedKeyboardContext: Equatable, Sendable {
 
@@ -96,7 +110,7 @@ public extension Notification.Name {
 }
 
 /// 解析后的 UIKit 键盘通知。
-public struct QuickLayoutKeyboardContext: Equatable, Sendable {
+public struct QuickLayoutKeyboardContext: Equatable, @unchecked Sendable {
 
     /// 当前上下文对应的键盘事件类型。
     public typealias Event = QuickLayoutKeyboardEvent
@@ -121,6 +135,10 @@ public struct QuickLayoutKeyboardContext: Equatable, Sendable {
 
     /// 指示键盘是否可见的布尔值。
     public let isVisible: Bool
+
+    // iOS 16.1 起键盘通知会在 object 中携带来源屏幕。保留引用可以避免把外接屏幕
+    // 或其他屏幕上的键盘 frame 错误地转换到当前宿主；所有读取都发生在 MainActor。
+    private var sourceScreen: UIScreen?
 
     /// 键盘的有效高度。
     ///
@@ -154,12 +172,14 @@ public struct QuickLayoutKeyboardContext: Equatable, Sendable {
         self.animationDuration = animationDuration
         self.animationOptions = animationOptions
         self.isVisible = isVisible
+        sourceScreen = nil
     }
 
     /// 根据 UIKit 键盘通知创建键盘上下文。
     ///
     /// - Parameter notification: `UIResponder` 发布的键盘通知。
     /// - Returns: 有效的键盘上下文；通知缺少键盘结束 frame 时返回 `nil`。
+    @MainActor
     public init?(notification: Notification) {
         guard let endFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else {
             return nil
@@ -180,6 +200,7 @@ public struct QuickLayoutKeyboardContext: Equatable, Sendable {
             isVisible: visible,
             event: event
         )
+        sourceScreen = notification.object as? UIScreen
     }
 
     /// 针对目标视图解析键盘几何信息。
@@ -233,6 +254,19 @@ public struct QuickLayoutKeyboardContext: Equatable, Sendable {
 
     @MainActor
     private func convertedEndFrame(in view: UIView) -> CGRect {
+        if let sourceScreen {
+            guard
+                let window = view.window,
+                window.screen === sourceScreen
+            else {
+                return .null
+            }
+            return sourceScreen.coordinateSpace.convert(
+                endFrame,
+                to: view
+            )
+        }
+
         guard let window = view.window else {
             return view.convert(endFrame, from: nil)
         }
@@ -298,6 +332,168 @@ public final class QuickLayoutKeyboardObserver: ObservableObject {
                 .store(in: &cancellables)
         }
     }
+}
+
+@MainActor
+final class QuickLayoutKeyboardSafeAreaCoordinator {
+
+    typealias DockingResolver = @MainActor (
+        QuickLayoutKeyboardContext,
+        UIView
+    ) -> Bool
+
+    private weak var hostView: QuickLayoutView?
+    private let observer: QuickLayoutKeyboardObserver
+    private let dockingResolver: DockingResolver?
+    private var cancellable: AnyCancellable?
+    private let previousFollowsUndockedKeyboard: Bool
+    private let previousUsesBottomSafeArea: Bool?
+    private var isStopped = false
+
+    init(
+        hostView: QuickLayoutView,
+        notificationCenter: NotificationCenter = .default,
+        dockingResolver: DockingResolver? = nil
+    ) {
+        self.hostView = hostView
+        self.dockingResolver = dockingResolver
+        let keyboardLayoutGuide = hostView.keyboardLayoutGuide
+        previousFollowsUndockedKeyboard =
+            keyboardLayoutGuide.followsUndockedKeyboard
+        keyboardLayoutGuide.followsUndockedKeyboard = false
+        if #available(iOS 17.0, *) {
+            previousUsesBottomSafeArea =
+                keyboardLayoutGuide.usesBottomSafeArea
+            keyboardLayoutGuide.usesBottomSafeArea = true
+        } else {
+            previousUsesBottomSafeArea = nil
+        }
+        observer = QuickLayoutKeyboardObserver(
+            notificationCenter: notificationCenter
+        )
+        cancellable = observer.$context
+            .sink { [weak self] context in
+                self?.apply(context, animated: true)
+                // 键盘通知可能早于 UIKeyboardLayoutGuide 的最终 frame 更新。
+                // 保证 guide 变化后的下一次布局会重新解析最后一个 context。
+                self?.hostView?.setNeedsLayout()
+            }
+    }
+
+    /// 显式结束观察并恢复宿主原有的 keyboard layout guide 配置。
+    ///
+    /// UIKit 属性只能在 MainActor 上恢复，因此不能依赖 Swift 6 中非隔离的 `deinit`。
+    func stop() {
+        guard !isStopped else { return }
+        isStopped = true
+        cancellable = nil
+        guard let hostView else { return }
+        hostView.keyboardLayoutGuide.followsUndockedKeyboard =
+            previousFollowsUndockedKeyboard
+        if #available(iOS 17.0, *),
+            let previousUsesBottomSafeArea {
+            hostView.keyboardLayoutGuide.usesBottomSafeArea =
+                previousUsesBottomSafeArea
+        }
+    }
+
+    func refresh(animated: Bool = false) {
+        guard !isStopped else { return }
+        apply(observer.context, animated: animated)
+    }
+
+    private func apply(
+        _ context: QuickLayoutKeyboardContext,
+        animated: Bool
+    ) {
+        guard !isStopped, let hostView else { return }
+        let isDocked = dockingResolver?(context, hostView)
+            ?? Self.systemReportsDockedKeyboard(
+                for: context,
+                in: hostView
+            )
+        let insets = Self.insets(
+            for: context,
+            behavior: hostView.quickLayoutKeyboardSafeAreaBehavior,
+            in: hostView,
+            isDocked: isDocked
+        )
+        hostView.applyQuickLayoutKeyboardSafeAreaInsets(
+            insets,
+            context: animated ? context : nil
+        )
+    }
+
+    static func insets(
+        for context: QuickLayoutKeyboardContext,
+        behavior: QuickLayoutKeyboardSafeAreaBehavior,
+        in view: UIView,
+        isDocked dockedOverride: Bool? = nil
+    ) -> UIEdgeInsets {
+        guard case let .docked(usesBottomSafeArea) = behavior else {
+            return .zero
+        }
+
+        let hiddenBottomInset = usesBottomSafeArea
+            ? sanitizedKeyboardSafeAreaValue(view.safeAreaInsets.bottom)
+            : 0
+        let resolved = context.resolved(in: view)
+        let isGeometricallyDocked = resolved.height > 0
+            && !resolved.isFloatingOrSplitKeyboard
+            && !resolved.isHardwareKeyboardLikely
+            && abs(resolved.intersection.maxY - resolved.visibleBounds.maxY)
+                <= 0.5
+        let isDocked = isGeometricallyDocked
+            && (dockedOverride ?? true)
+
+        guard isDocked else {
+            return UIEdgeInsets(
+                top: 0,
+                left: 0,
+                bottom: hiddenBottomInset,
+                right: 0
+            )
+        }
+        return UIEdgeInsets(
+            top: 0,
+            left: 0,
+            bottom: sanitizedKeyboardSafeAreaValue(resolved.height),
+            right: 0
+        )
+    }
+
+    private static func systemReportsDockedKeyboard(
+        for context: QuickLayoutKeyboardContext,
+        in view: UIView
+    ) -> Bool {
+        guard view.window != nil else { return false }
+        let resolved = context.resolved(in: view)
+        guard
+            resolved.height > 0,
+            !resolved.isFloatingOrSplitKeyboard,
+            !resolved.isHardwareKeyboardLikely
+        else {
+            return false
+        }
+
+        // followsUndockedKeyboard=false 时，隐藏、浮动、分离以及未覆盖当前窗口的键盘
+        // 都会把 guide 顶边放回 safe-area 底边；只有当前窗口的停靠键盘会继续向上扩展。
+        let layoutFrame = view.keyboardLayoutGuide.layoutFrame
+        guard
+            !layoutFrame.isNull,
+            !layoutFrame.isEmpty,
+            abs(layoutFrame.maxY - view.bounds.maxY) <= 0.5
+        else {
+            return false
+        }
+        let hiddenTop = view.bounds.maxY
+            - sanitizedKeyboardSafeAreaValue(view.safeAreaInsets.bottom)
+        return layoutFrame.minY < hiddenTop - 0.5
+    }
+}
+
+private func sanitizedKeyboardSafeAreaValue(_ value: CGFloat) -> CGFloat {
+    value.isFinite ? max(0, value) : 0
 }
 
 /// 将键盘边距应用到滚动视图，并保持当前输入视图可见。

@@ -23,7 +23,6 @@ final class LiveRoomViewController: DemoQuickLayoutHostingController {
     let actionBarView = LiveRoomActionBarView()
     // 特效容器始终位于送礼面板之上，但不参与命中测试，连续赠送时不会挡住操作。
     let giftEffectOverlayView = UIView()
-    let keyboardObserver = QuickLayoutKeyboardObserver()
     var cancellables: Set<AnyCancellable> = []
     // 默认值对应 35pt 控件、上下各 10pt 内边距以及与公屏的 10pt 间距。
     // 首次测量后会按 Action Bar 的真实高度更新，避免紧凑屏幕出现额外空隙。
@@ -127,6 +126,9 @@ final class LiveRoomViewController: DemoQuickLayoutHostingController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        quickLayoutKeyboardSafeAreaBehavior = .docked(
+            usesBottomSafeArea: true
+        )
         configureViews()
         bindViewModel()
         viewModel.startObservingStageSnapshots()
@@ -149,9 +151,6 @@ final class LiveRoomViewController: DemoQuickLayoutHostingController {
         if didChangeActionBarReservedHeight {
             actionBarReservedHeight = requiredActionBarHeight
             setNeedsQuickLayout()
-        }
-        if keyboardObserver.isKeyboardVisible {
-            applyKeyboardContext(keyboardObserver.context)
         }
         if !didChangeCompactPresentation,
             !didChangeActionBarReservedHeight {
@@ -229,63 +228,62 @@ final class LiveRoomViewController: DemoQuickLayoutHostingController {
         ZStack {
             backdropView
                 .resizable()
-                .ignoresSafeArea(.container, edges: .all)
+                .ignoresSafeArea(.all, edges: .all)
 
-            ZStack(alignment: .bottom) {
-                VStack(spacing: 10) {
-                    roomHeaderView
-                        .resizable(axis: .horizontal)
-                        .fixedSize(axis: .vertical)
-                    seatStageView
-                        .resizable(axis: .horizontal)
-                        .fixedSize(axis: .vertical)
-                    messagesView
-                        .resizable()
-                        .frame(
-                            minHeight: usesCompactPageLayout ? 0 : 80,
-                            maxHeight: .infinity
-                        )
-                }
-                .padding(.bottom, actionBarReservedHeight)
-
-                actionBarView
+            VStack(spacing: 10) {
+                roomHeaderView
                     .resizable(axis: .horizontal)
                     .fixedSize(axis: .vertical)
+                seatStageView
+                    .resizable(axis: .horizontal)
+                    .fixedSize(axis: .vertical)
+                messagesView
+                    .resizable()
+                    .frame(
+                        minHeight: usesCompactPageLayout ? 0 : 80,
+                        maxHeight: .infinity
+                    )
             }
+            .padding(.bottom, actionBarReservedHeight)
             .frame(maxWidth: maximumContentWidth)
             .frame(maxHeight: .infinity)
             .padding(.horizontal, 14)
             .padding(.top, 8)
-            .padding(.bottom, actionBarBottomSpacing)
             .frame(maxWidth: .infinity)
             .safeAreaPadding(.all, 0)
+            // 主体只响应容器安全区域；键盘不会重新测量麦位或压缩公屏。
+            .ignoresSafeArea(.keyboard, edges: .bottom)
+
+            actionBarView
+                .resizable(axis: .horizontal)
+                .fixedSize(axis: .vertical)
+                .frame(maxWidth: maximumContentWidth)
+                .padding(.horizontal, 14)
+                .frame(maxWidth: .infinity)
+                .frame(maxHeight: .infinity, alignment: .bottom)
+                .safeAreaPadding(.all, 0)
+                // Action Bar 的底边只采用键盘区域。隐藏时该区域是否使用
+                // container bottom safe area 由宿主行为统一决定。
+                .ignoresSafeArea(.container, edges: .bottom)
 
             if let giftSheetHost {
                 // 面板覆盖直播间内容，但仍与直播间处于同一个 QuickLayout 层级。
                 giftSheetHost
                     .resizable()
-                    .ignoresSafeArea(.container, edges: .all)
+                    .ignoresSafeArea(.all, edges: .all)
             }
 
             // 放在 ZStack 最后一层，保证飞行动画和豪华横幅显示在面板上方。
             giftEffectOverlayView
                 .resizable()
-                .ignoresSafeArea(.container, edges: .all)
+                .ignoresSafeArea(.all, edges: .all)
         }
-    }
-
-    static func actionBarBottomSpacing(for safeAreaBottom: CGFloat) -> CGFloat {
-        safeAreaBottom > 0 ? 0 : 8
     }
 
     var usesCompactPageLayout: Bool {
         view.bounds.height < 780
             || traitCollection.preferredContentSizeCategory
                 .isAccessibilityCategory
-    }
-
-    var actionBarBottomSpacing: CGFloat {
-        Self.actionBarBottomSpacing(for: view.safeAreaInsets.bottom)
     }
 
     var maximumContentWidth: CGFloat {
@@ -318,11 +316,6 @@ final class LiveRoomViewController: DemoQuickLayoutHostingController {
         seatStageView.seatDidSelect = { [weak self] seat in
             self?.presentUserCard(for: seat)
         }
-        keyboardObserver.$context
-            .sink { [weak self] context in
-                self?.applyKeyboardContext(context)
-            }
-            .store(in: &cancellables)
         NotificationCenter.default.publisher(
             for: UIApplication.willResignActiveNotification
         )
