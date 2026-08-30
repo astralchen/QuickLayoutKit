@@ -279,10 +279,18 @@ struct DemoTests {
         #expect(viewModel.state.displayedSeats.map(\.position.rawValue) == Array(0..<9))
         let occupiedSeats = viewModel.state.displayedSeats.filter(\.isOccupied)
         let avatarImageIDs = occupiedSeats.compactMap(\.avatarImageID)
-        #expect(occupiedSeats.count == 9)
-        #expect(avatarImageIDs == LiveRoomAvatarImageID.fixtures)
+        #expect(occupiedSeats.count == 7)
+        #expect(
+            avatarImageIDs
+                == [.host, .one, .two, .three, .four, .six, .seven]
+        )
         #expect(Set(avatarImageIDs).count == occupiedSeats.count)
         #expect(occupiedSeats.allSatisfy { $0.avatarImage != nil })
+        #expect(
+            viewModel.state.displayedSeats
+                .filter { !$0.isOccupied }
+                .map(\.position.rawValue) == [5, 8]
+        )
         #expect(
             viewModel.state.displayedSeats
                 .filter { !$0.isOccupied }
@@ -625,12 +633,7 @@ struct DemoTests {
         UIView.setAnimationsEnabled(false)
         defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
 
-        let viewModel = LiveRoomViewModel(
-            stageSnapshot: LiveRoomViewModel.makeDefaultStageSnapshot(
-                assignments: liveRoomAssignments(vacating: 5)
-            )
-        )
-        let viewController = LiveRoomViewController(viewModel: viewModel)
+        let viewController = LiveRoomViewController()
         let navigationController = UINavigationController(
             rootViewController: viewController
         )
@@ -1221,10 +1224,10 @@ struct DemoTests {
                 == DemoLocalization.text("liveRoom.gift.recipient.required")
         )
         activate(selectAllButton)
-        #expect(giftSheet.selectedRecipientSeatIDs == Array(0..<9))
+        #expect(giftSheet.selectedRecipientSeatIDs == [0, 1, 2, 3, 4, 6, 7])
         #expect(
             giftSheet.recipientStatusText
-                == DemoLocalization.text("liveRoom.gift.recipient.count", 9)
+                == DemoLocalization.text("liveRoom.gift.recipient.count", 7)
         )
         giftSheet.view.layoutIfNeeded()
         #expect(recipientButton.layer.borderWidth == 0)

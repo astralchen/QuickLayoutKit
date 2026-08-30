@@ -96,12 +96,12 @@ final class LiveRoomViewModel {
         LiveRoomSeatAssignment(
             id: 5,
             nameKey: "liveRoom.seat.five",
-            avatarImageID: .five,
+            avatarImageID: nil,
             symbolName: "person.crop.circle",
             themeIndex: 5,
-            score: 1_888,
+            score: 0,
             isMuted: true,
-            isOccupied: true
+            isOccupied: false
         ),
         LiveRoomSeatAssignment(
             id: 6,
@@ -126,12 +126,12 @@ final class LiveRoomViewModel {
         LiveRoomSeatAssignment(
             id: 8,
             nameKey: "liveRoom.seat.eight",
-            avatarImageID: .eight,
+            avatarImageID: nil,
             symbolName: "sofa.fill",
             themeIndex: 8,
-            score: 952,
+            score: 0,
             isMuted: true,
-            isOccupied: true
+            isOccupied: false
         ),
     ]
 

@@ -523,7 +523,7 @@ private func makeLiveRoomSeatViewPreview(
 
 #Preview("普通麦位 · 未上麦") {
     makeLiveRoomSeatViewPreview(
-        seat: LiveRoomPreviewData.vacantSeat,
+        seat: LiveRoomPreviewData.seats[5],
         styleID: .standardGuest,
         size: CGSize(width: 120, height: 150)
     )

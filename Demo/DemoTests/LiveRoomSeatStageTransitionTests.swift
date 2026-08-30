@@ -15,24 +15,8 @@ import UIKit
 struct LiveRoomSeatStageTransitionTests {
 
     @Test func collectionItemIdentitySeparatesUsersFromVacancies() throws {
-        let assignments = LiveRoomViewModel.defaultAssignments.map {
-            assignment in
-            guard assignment.position.rawValue == 8 else {
-                return assignment
-            }
-            return LiveRoomSeatAssignment(
-                seatID: assignment.seatID,
-                slotID: assignment.slotID,
-                position: assignment.position,
-                occupant: nil,
-                audioState: .unavailable,
-                score: 0
-            )
-        }
         let resolvedPresentation = try presentation(
-            for: LiveRoomViewModel.makeDefaultStageSnapshot(
-                assignments: assignments
-            )
+            for: LiveRoomViewModel.makeDefaultStageSnapshot()
         )
         let items = resolvedPresentation.visibleSlots.map(
             LiveRoomSeatCollectionItem.init

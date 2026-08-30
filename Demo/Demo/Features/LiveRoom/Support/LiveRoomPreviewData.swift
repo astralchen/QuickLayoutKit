@@ -60,11 +60,12 @@ enum LiveRoomPreviewData {
         seat(
             id: 5,
             nameKey: "liveRoom.seat.five",
-            avatarImageID: .five,
+            avatarImageID: nil,
             symbolName: "person.crop.circle",
             themeIndex: 5,
-            score: 1_520,
-            isMuted: true
+            score: 0,
+            isMuted: true,
+            isOccupied: false
         ),
         seat(
             id: 6,
@@ -85,25 +86,14 @@ enum LiveRoomPreviewData {
         seat(
             id: 8,
             nameKey: "liveRoom.seat.eight",
-            avatarImageID: .eight,
+            avatarImageID: nil,
             symbolName: "sofa.fill",
             themeIndex: 8,
-            score: 520,
-            isMuted: true
+            score: 0,
+            isMuted: true,
+            isOccupied: false
         ),
     ]
-
-    /// 独立空麦 fixture，用于覆盖无人状态而不影响默认九麦头像展示。
-    static let vacantSeat = seat(
-        id: 5,
-        nameKey: "liveRoom.seat.five",
-        avatarImageID: nil,
-        symbolName: "person.crop.circle",
-        themeIndex: 5,
-        score: 0,
-        isMuted: true,
-        isOccupied: false
-    )
 
     static let gifts: [LiveRoomGift] = [
         gift(
