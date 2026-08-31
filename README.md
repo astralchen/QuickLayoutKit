@@ -611,6 +611,16 @@ quickLayoutKeyboardSafeAreaBehavior = .docked(
 `UIKeyboardLayoutGuide` 判断键盘是否确实停靠在当前窗口，从而区分贴底的分离键盘，
 并避免其他窗口的键盘通知污染当前宿主。该 Layout Guide 不承载 QuickLayout 页面布局。
 
+iOS 17 起，可以设置 `quickLayoutKeyboardDismissPadding`，扩大键盘上方可提前开始滚动
+收起手势的区域。该属性直接转发 `UIKeyboardLayoutGuide.keyboardDismissPadding`，不改变
+`.keyboard` 安全区域，也不添加布局间距；滚动视图仍需按需要设置
+`keyboardDismissMode`，例如 `.interactive`：
+
+```swift
+scrollView.keyboardDismissMode = .interactive
+quickLayoutKeyboardDismissPadding = inputBar.bounds.height
+```
+
 布局可以分别选择容器与键盘区域。例如，下列底部内容只采用键盘区域，不重复采用容器
 底部安全区域：
 

@@ -152,6 +152,15 @@ final class LiveRoomViewController: DemoQuickLayoutHostingController {
             actionBarReservedHeight = requiredActionBarHeight
             setNeedsQuickLayout()
         }
+        if #available(iOS 17.0, *) {
+            let dismissPadding = actionBarView.bounds.height
+            if abs(
+                quickLayoutKeyboardDismissPadding - dismissPadding
+            ) > 0.5 {
+                // 只扩展滚动收起手势的响应区域；不把 Action Bar 高度计入键盘 safe-area。
+                quickLayoutKeyboardDismissPadding = dismissPadding
+            }
+        }
         if !didChangeCompactPresentation,
             !didChangeActionBarReservedHeight {
             messagesView.commitPendingScrollToLatest()
@@ -292,6 +301,7 @@ final class LiveRoomViewController: DemoQuickLayoutHostingController {
 
     func configureViews() {
         view.backgroundColor = UIColor(red: 0.08, green: 0.05, blue: 0.24, alpha: 1)
+        publicChatScrollView.keyboardDismissMode = .interactive
         actionBarView.messageDidSend = { [weak self] message in
             self?.sendPublicMessage(message)
         }

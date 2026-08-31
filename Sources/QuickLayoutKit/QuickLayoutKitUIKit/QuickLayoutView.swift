@@ -48,6 +48,17 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
     public private(set) var quickLayoutKeyboardSafeAreaInsets:
         UIEdgeInsets = .zero
 
+    /// 键盘上方可提前开始滚动收起手势的区域高度。
+    ///
+    /// 该值直接转发到宿主的 `UIKeyboardLayoutGuide.keyboardDismissPadding`，只调整
+    /// `UIScrollView` 收起键盘手势的响应范围，不会改变 QuickLayout 发布的键盘安全区域
+    /// 或添加视觉间距。默认值和负值处理与 UIKit 保持一致。
+    @available(iOS 17.0, *)
+    open var quickLayoutKeyboardDismissPadding: CGFloat {
+        get { keyboardLayoutGuide.keyboardDismissPadding }
+        set { keyboardLayoutGuide.keyboardDismissPadding = newValue }
+    }
+
     /// 宿主水平尺寸弹性的显式覆盖值。
     ///
     /// 默认值 `nil` 表示从 `body` 推导尺寸弹性，从而保留宿主布局表达的尺寸语义。

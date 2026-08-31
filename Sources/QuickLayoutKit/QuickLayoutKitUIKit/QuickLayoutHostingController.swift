@@ -37,6 +37,15 @@ open class QuickLayoutHostingController: UIViewController, QuickLayoutUpdating {
         containerView.quickLayoutKeyboardSafeAreaInsets
     }
 
+    /// 键盘上方可提前开始滚动收起手势的区域高度。
+    ///
+    /// 该属性只影响 `UIScrollView` 的键盘收起交互，不改变 QuickLayout 键盘安全区域。
+    @available(iOS 17.0, *)
+    open var quickLayoutKeyboardDismissPadding: CGFloat {
+        get { containerView.quickLayoutKeyboardDismissPadding }
+        set { containerView.quickLayoutKeyboardDismissPadding = newValue }
+    }
+
     /// 替换根宿主的键盘事件源与 docked 判定器，仅供跨模块确定性测试使用。
     ///
     /// 该 SPI 会先停用现有协调器、注入依赖，再恢复原行为，确保测试覆盖公开行为属性

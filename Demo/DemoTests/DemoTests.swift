@@ -2389,6 +2389,18 @@ struct DemoTests {
             }
         )
         let defaultActionBarHeight = actionBarView.bounds.height
+        #expect(
+            viewController.publicChatScrollView.keyboardDismissMode
+                == .interactive
+        )
+        if #available(iOS 17.0, *) {
+            #expect(
+                abs(
+                    viewController.quickLayoutKeyboardDismissPadding
+                        - defaultActionBarHeight
+                ) < 1
+            )
+        }
         let defaultControlIdentifiers: Set<String> = [
             "liveRoom.message.button",
             "liveRoom.microphone.button",
@@ -2425,6 +2437,14 @@ struct DemoTests {
 
         #expect(viewController.isShowingMessageComposer)
         #expect(abs(actionBarView.bounds.height - defaultActionBarHeight) < 1)
+        if #available(iOS 17.0, *) {
+            #expect(
+                abs(
+                    viewController.quickLayoutKeyboardDismissPadding
+                        - actionBarView.bounds.height
+                ) < 1
+            )
+        }
         let hostSeatWidthBeforeKeyboard = hostSeatView.bounds.width
         let seatStageHeightBeforeKeyboard = viewController
             .seatStageView.bounds.height
@@ -2643,6 +2663,49 @@ struct DemoTests {
         #expect(
             viewController.view.allSubviews(of: UIScrollView.self)
                 .filter(\.isScrollEnabled).count == 1
+        )
+    }
+
+    @Test func liveRoomKeyboardDismissPaddingTracksActionBarLayoutChanges() throws {
+        guard #available(iOS 17.0, *) else { return }
+
+        let viewController = LiveRoomViewController()
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        func expectActionBarDismissPadding(
+            sourceLocation: SourceLocation = #_sourceLocation
+        ) {
+            #expect(
+                abs(
+                    viewController.quickLayoutKeyboardDismissPadding
+                        - viewController.actionBarView.bounds.height
+                ) < 1,
+                sourceLocation: sourceLocation
+            )
+        }
+
+        layout(viewController, in: navigationController)
+        expectActionBarDismissPadding()
+
+        viewController.traitOverrides.preferredContentSizeCategory =
+            .accessibilityExtraExtraExtraLarge
+        layout(viewController, in: navigationController)
+        expectActionBarDismissPadding()
+
+        window.frame = CGRect(x: 0, y: 0, width: 844, height: 390)
+        navigationController.view.frame = window.bounds
+        layout(viewController, in: navigationController)
+        expectActionBarDismissPadding()
+        #expect(
+            viewController.publicChatScrollView.keyboardDismissMode
+                == .interactive
         )
     }
 

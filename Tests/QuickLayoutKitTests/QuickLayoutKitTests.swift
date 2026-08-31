@@ -2441,6 +2441,53 @@ struct QuickLayoutKitTests {
     }
 
     @MainActor
+    @Test func quickLayoutHostsForwardKeyboardDismissPaddingIndependently() {
+        guard #available(iOS 17.0, *) else { return }
+
+        let host = KeyboardSafeAreaProbeQuickLayoutView(
+            safeAreaInsets: UIEdgeInsets(
+                top: 0,
+                left: 0,
+                bottom: 34,
+                right: 0
+            )
+        )
+        host.frame = CGRect(x: 0, y: 0, width: 320, height: 480)
+        host.layoutIfNeeded()
+        let initialKeyboardFrame = host.keyboardSafeAreaView.frame
+
+        #expect(host.quickLayoutKeyboardDismissPadding == 0)
+        host.quickLayoutKeyboardDismissPadding = 52
+        #expect(host.quickLayoutKeyboardDismissPadding == 52)
+        #expect(host.keyboardLayoutGuide.keyboardDismissPadding == 52)
+        #expect(host.quickLayoutKeyboardSafeAreaInsets == .zero)
+        host.layoutIfNeeded()
+        #expect(host.keyboardSafeAreaView.frame == initialKeyboardFrame)
+
+        host.quickLayoutKeyboardSafeAreaBehavior = .docked(
+            usesBottomSafeArea: true
+        )
+        host.layoutIfNeeded()
+        #expect(host.quickLayoutKeyboardDismissPadding == 52)
+        #expect(host.quickLayoutKeyboardSafeAreaInsets.bottom == 34)
+        host.quickLayoutKeyboardSafeAreaBehavior = .disabled
+        #expect(host.quickLayoutKeyboardDismissPadding == 52)
+        #expect(host.quickLayoutKeyboardSafeAreaInsets == .zero)
+
+        let hostingController = QuickLayoutHostingController {
+            EmptyLayout()
+        }
+        hostingController.loadViewIfNeeded()
+        #expect(hostingController.quickLayoutKeyboardDismissPadding == 0)
+        hostingController.quickLayoutKeyboardDismissPadding = 44
+        #expect(hostingController.quickLayoutKeyboardDismissPadding == 44)
+        #expect(
+            hostingController.view.keyboardLayoutGuide.keyboardDismissPadding
+                == 44
+        )
+    }
+
+    @MainActor
     @Test func quickLayoutViewKeyboardSafeAreaTracksOnlyDockedKeyboard() {
         let notificationCenter = NotificationCenter()
         let dockingState = KeyboardDockingResolverState()
