@@ -78,6 +78,131 @@ struct LiveRoomSeatStageTransitionTests {
         }
     }
 
+    @Test func seatRowsCenterWithinWideContainers() throws {
+        let containerWidth: CGFloat = 760
+        let partyPresentation = try presentation(
+            for: LiveRoomViewModel.makeDefaultStageSnapshot()
+        )
+        let partyMetrics = LiveRoomSeatLayoutMetrics.resolve(
+            availableWidth: containerWidth,
+            prefersCompactHeight: false
+        )
+        let availableWidth = containerWidth
+            - partyMetrics.stageHorizontalPadding * 2
+        let partyConfiguration = LiveRoomSeatCollectionGeometry.configuration(
+            presentation: partyPresentation,
+            items: partyPresentation.visibleSlots.map(
+                LiveRoomSeatCollectionItem.init
+            ),
+            metrics: partyMetrics,
+            availableWidth: availableWidth,
+            direction: .leftToRight
+        )
+
+        try expectRowsCentered(
+            positions: [0],
+            presentation: partyPresentation,
+            configuration: partyConfiguration,
+            availableWidth: availableWidth
+        )
+        try expectRowsCentered(
+            positions: [1, 2, 3, 4],
+            presentation: partyPresentation,
+            configuration: partyConfiguration,
+            availableWidth: availableWidth
+        )
+        try expectRowsCentered(
+            positions: [5, 6, 7, 8],
+            presentation: partyPresentation,
+            configuration: partyConfiguration,
+            availableWidth: availableWidth
+        )
+
+        let individualPresentation = try presentation(
+            for: LiveRoomViewModel.makeDefaultStageSnapshot(
+                businessMode: .individual,
+                audienceSeatState: .enabled
+            )
+        )
+        let individualConfiguration =
+            LiveRoomSeatCollectionGeometry.configuration(
+                presentation: individualPresentation,
+                items: individualPresentation.visibleSlots.map(
+                    LiveRoomSeatCollectionItem.init
+                ),
+                metrics: partyMetrics,
+                availableWidth: availableWidth,
+                direction: .leftToRight
+            )
+        try expectRowsCentered(
+            positions: [0],
+            presentation: individualPresentation,
+            configuration: individualConfiguration,
+            availableWidth: availableWidth
+        )
+        try expectRowsCentered(
+            positions: [1, 2, 3, 4],
+            presentation: individualPresentation,
+            configuration: individualConfiguration,
+            availableWidth: availableWidth
+        )
+    }
+
+    @Test func containerWidthChangesRecomputeFramesWithinSameMetrics() throws {
+        let initialWidth: CGFloat = 700
+        let resizedWidth: CGFloat = 760
+        #expect(
+            LiveRoomSeatLayoutMetrics.resolve(
+                availableWidth: initialWidth,
+                prefersCompactHeight: false
+            )
+                == LiveRoomSeatLayoutMetrics.resolve(
+                    availableWidth: resizedWidth,
+                    prefersCompactHeight: false
+                )
+        )
+
+        let resolvedPresentation = try presentation(
+            for: LiveRoomViewModel.makeDefaultStageSnapshot()
+        )
+        let stageView = LiveRoomSeatStageView(
+            frame: CGRect(x: 0, y: 0, width: initialWidth, height: 1_000)
+        )
+        stageView.apply(presentation: resolvedPresentation)
+        stageView.layoutIfNeeded()
+        let initialCollectionWidth = stageView.seatCollectionView.bounds.width
+        let initialHostFrame = try collectionFrame(
+            at: 0,
+            in: stageView.seatCollectionView
+        )
+
+        stageView.frame.size.width = resizedWidth
+        stageView.setNeedsLayout()
+        stageView.layoutIfNeeded()
+        let resizedCollectionWidth = stageView.seatCollectionView.bounds.width
+        let resizedHostFrame = try collectionFrame(
+            at: 0,
+            in: stageView.seatCollectionView
+        )
+        let firstGuestRowFrames = try (1...4).map {
+            try collectionFrame(at: $0, in: stageView.seatCollectionView)
+        }
+
+        #expect(resizedCollectionWidth > initialCollectionWidth)
+        #expect(
+            abs(initialHostFrame.midX - initialCollectionWidth / 2) < 0.5
+        )
+        #expect(
+            abs(resizedHostFrame.midX - resizedCollectionWidth / 2) < 0.5
+        )
+        #expect(resizedHostFrame.midX > initialHostFrame.midX)
+        let rowMinX = try #require(firstGuestRowFrames.map(\.minX).min())
+        let rowMaxX = try #require(firstGuestRowFrames.map(\.maxX).max())
+        #expect(
+            abs((rowMinX + rowMaxX) / 2 - resizedCollectionWidth / 2) < 0.5
+        )
+    }
+
     @Test func dataOnlyChangesDoNotCreateSceneTransition() throws {
         let sourceSnapshot = LiveRoomViewModel.makeDefaultStageSnapshot()
         let changedAssignments = sourceSnapshot.assignments.map { assignment in
@@ -364,6 +489,38 @@ private func presentation(
         Issue.record("无法解析测试舞台：\(error)")
         throw error
     }
+}
+
+private func expectRowsCentered(
+    positions: [Int],
+    presentation: LiveRoomSeatStagePresentation,
+    configuration: LiveRoomSeatCollectionLayoutConfiguration,
+    availableWidth: CGFloat
+) throws {
+    let frames = try positions.map { position in
+        let slot = try #require(
+            presentation.visibleSlots.first {
+                $0.position.rawValue == position
+            }
+        )
+        let itemID = LiveRoomSeatCollectionItem(slot: slot).id
+        return try #require(configuration.states[itemID]?.frame)
+    }
+    let minX = try #require(frames.map(\.minX).min())
+    let maxX = try #require(frames.map(\.maxX).max())
+    #expect(abs((minX + maxX) / 2 - availableWidth / 2) < 0.5)
+}
+
+private func collectionFrame(
+    at item: Int,
+    in collectionView: UICollectionView
+) throws -> CGRect {
+    collectionView.layoutIfNeeded()
+    return try #require(
+        collectionView.collectionViewLayout.layoutAttributesForItem(
+            at: IndexPath(item: item, section: 0)
+        )?.frame
+    )
 }
 
 private func replacingOccupant(

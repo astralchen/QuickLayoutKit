@@ -56,6 +56,7 @@ final class LiveRoomSeatStageView: LiveRoomCardView {
     private var layoutMetrics = LiveRoomSeatLayoutMetrics.regular
     private var prefersCompactHeight = false
     private var collectionHeight: CGFloat = 0
+    private var lastLayoutWidth: CGFloat?
     private var lastLayoutDirection: UIUserInterfaceLayoutDirection?
 
     var layoutMetricsDidChange: (() -> Void)?
@@ -450,12 +451,17 @@ final class LiveRoomSeatStageView: LiveRoomCardView {
     }
 
     private func updateLayoutEnvironmentIfNeeded(force: Bool = false) {
+        let layoutWidth = bounds.width
         let resolvedMetrics = LiveRoomSeatLayoutMetrics.resolve(
-            availableWidth: bounds.width,
+            availableWidth: layoutWidth,
             prefersCompactHeight: prefersCompactHeight
         )
         let direction = effectiveUserInterfaceLayoutDirection
+        let widthChanged = lastLayoutWidth.map {
+            abs($0 - layoutWidth) > 0.5
+        } ?? true
         guard force
+            || widthChanged
             || layoutMetrics != resolvedMetrics
             || lastLayoutDirection != direction
         else { return }
@@ -463,6 +469,7 @@ final class LiveRoomSeatStageView: LiveRoomCardView {
             finishTransitionImmediately()
         }
         layoutMetrics = resolvedMetrics
+        lastLayoutWidth = layoutWidth
         lastLayoutDirection = direction
         guard let currentPresentation else { return }
         let configuration = makeConfiguration(

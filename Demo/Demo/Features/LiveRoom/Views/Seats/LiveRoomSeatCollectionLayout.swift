@@ -195,12 +195,24 @@ enum LiveRoomSeatCollectionGeometry {
                 height: seatSize.height
             ),
         ]
+        let guestSlots = Array(slots.dropFirst())
+        let rowCapacity = 4
         for (offset, slot) in slots.dropFirst().enumerated() {
             guard let item = itemsBySlotID[slot.slotID] else { continue }
-            let row = offset / 4
-            let column = offset % 4
+            let row = offset / rowCapacity
+            let column = offset % rowCapacity
+            let itemCountInRow = min(
+                rowCapacity,
+                guestSlots.count - row * rowCapacity
+            )
+            let rowOriginX = centeredRowOriginX(
+                itemCount: itemCountInRow,
+                itemWidth: seatSize.width,
+                spacing: metrics.partyHorizontalSpacing,
+                availableWidth: availableWidth
+            )
             frames[item.id] = CGRect(
-                x: CGFloat(column)
+                x: rowOriginX + CGFloat(column)
                     * (seatSize.width + metrics.partyHorizontalSpacing),
                 y: seatSize.height
                     + metrics.partyVerticalSpacing
@@ -237,21 +249,46 @@ enum LiveRoomSeatCollectionGeometry {
                 height: hostSize.height
             ),
         ]
-        for (offset, slot) in slots.dropFirst().enumerated() {
-            guard let item = itemsBySlotID[slot.slotID] else { continue }
-            let seatSize = LiveRoomSeatView.fittingSize(
+        let guestSlots = Array(slots.dropFirst())
+        let guestSizes = guestSlots.map { slot in
+            LiveRoomSeatView.fittingSize(
                 styleID: slot.styleID,
                 presentation: metrics.presentation,
                 width: metrics.standardSeatWidth
             )
+        }
+        let guestRowWidth = guestSizes.reduce(0) { $0 + $1.width }
+            + metrics.guestHorizontalSpacing
+                * CGFloat(max(0, guestSizes.count - 1))
+        let guestRowOriginX = max(
+            0,
+            (availableWidth - guestRowWidth) / 2
+        )
+        var guestOriginX = guestRowOriginX
+        for (offset, slot) in slots.dropFirst().enumerated() {
+            guard let item = itemsBySlotID[slot.slotID] else { continue }
+            let seatSize = guestSizes[offset]
             frames[item.id] = CGRect(
-                x: CGFloat(offset)
-                    * (seatSize.width + metrics.guestHorizontalSpacing),
+                x: guestOriginX,
                 y: hostSize.height + metrics.stageSpacing,
                 width: seatSize.width,
                 height: seatSize.height
             )
+            guestOriginX += seatSize.width + metrics.guestHorizontalSpacing
         }
         return frames
+    }
+
+    /// 以容器可用宽度为准居中一排麦位，不依赖设备类型或屏幕尺寸。
+    private static func centeredRowOriginX(
+        itemCount: Int,
+        itemWidth: CGFloat,
+        spacing: CGFloat,
+        availableWidth: CGFloat
+    ) -> CGFloat {
+        guard itemCount > 0 else { return 0 }
+        let rowWidth = CGFloat(itemCount) * itemWidth
+            + CGFloat(itemCount - 1) * spacing
+        return max(0, (availableWidth - rowWidth) / 2)
     }
 }
