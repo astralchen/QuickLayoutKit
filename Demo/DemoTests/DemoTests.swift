@@ -2255,14 +2255,20 @@ struct DemoTests {
         let navigationController = UINavigationController(
             rootViewController: viewController
         )
+        // iPhone SE (3rd generation) portrait viewport after its 20-point
+        // status bar. UINavigationController remains responsible for its bar.
+        let viewportController = FixedViewportTestViewController(
+            childViewController: navigationController,
+            viewportSize: CGSize(width: 320, height: 548)
+        )
         let window = try makeVisibleTestWindow(
-            rootViewController: navigationController,
-            size: CGSize(width: 320, height: 568)
+            rootViewController: viewportController
         )
         defer { window.isHidden = true }
 
         layout(viewController, in: navigationController)
 
+        #expect(viewController.view.bounds.size == CGSize(width: 320, height: 548))
         #expect(viewController.displayedSeatCount == 5)
         let scrollViews = viewController.view.allSubviews(of: UIScrollView.self)
         #expect(scrollViews.count == 2)
@@ -8808,7 +8814,7 @@ private func mainMenuConfiguration(
 @MainActor
 private func makeVisibleTestWindow(
     rootViewController: UIViewController,
-    size: CGSize,
+    size: CGSize? = nil,
     semanticContentAttribute: UISemanticContentAttribute = .unspecified
 ) throws -> UIWindow {
     let windowScene = try #require(
@@ -8817,7 +8823,16 @@ private func makeVisibleTestWindow(
             .first
     )
     let window = UIWindow(windowScene: windowScene)
-    window.frame = CGRect(origin: .zero, size: size)
+    let sceneSize: CGSize
+    if #available(iOS 26.0, *) {
+        sceneSize = windowScene.effectiveGeometry.coordinateSpace.bounds.size
+    } else {
+        sceneSize = windowScene.coordinateSpace.bounds.size
+    }
+    window.frame = CGRect(
+        origin: .zero,
+        size: size ?? sceneSize
+    )
     window.semanticContentAttribute = semanticContentAttribute
     window.rootViewController = rootViewController
     window.isHidden = false
@@ -8825,6 +8840,42 @@ private func makeVisibleTestWindow(
     rootViewController.view.setNeedsLayout()
     rootViewController.view.layoutIfNeeded()
     return window
+}
+
+/// Hosts a deterministic device viewport inside the active scene's real safe
+/// area so tests do not inherit unrelated sensor-housing insets.
+private final class FixedViewportTestViewController: UIViewController {
+
+    private let childViewController: UIViewController
+    private let viewportSize: CGSize
+
+    init(childViewController: UIViewController, viewportSize: CGSize) {
+        self.childViewController = childViewController
+        self.viewportSize = viewportSize
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        addChild(childViewController)
+        view.addSubview(childViewController.view)
+        childViewController.didMove(toParent: self)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        childViewController.view.frame = CGRect(
+            origin: view.safeAreaLayoutGuide.layoutFrame.origin,
+            size: viewportSize
+        )
+        childViewController.view.setNeedsLayout()
+        childViewController.view.layoutIfNeeded()
+    }
 }
 
 @MainActor

@@ -42,4 +42,4 @@
 - Diffable Item 身份固定为“有用户用 `userID`、空麦用 `slotID`”；`seatID` 只标识音频实体，不参与视图移动身份。
 - `LiveRoomSeatCollectionGeometry` 根据已校验的 Presentation、客户端布局家族、Metrics 与 RTL 方向生成绝对 Frame，自定义 Layout 不读取 ViewModel。
 - 房型切换、上下麦和换麦直接动画真实 Cell 的 Frame、透明度与内容；不创建截图、镜像麦位或专用转场 Overlay。
-- 快速连续切换时，从当前 presentation layer 冻结的可见位置继续到最新合法快照；仅分数、音频状态等数据变化时只刷新 Cell，不重启场景动画。
+- 快速连续切换时，取消旧几何动画并无动画提交最新合法快照，避免反向续播过期房型；仅分数、音频状态等数据变化时只刷新 Cell，不中断当前场景动画。

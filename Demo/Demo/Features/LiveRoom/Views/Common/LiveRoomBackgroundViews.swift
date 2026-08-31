@@ -107,7 +107,6 @@ class LiveRoomCardView: QuickLayoutView {
     QuickLayoutHostingController {
         LiveRoomBackdropView()
             .resizable()
-            .frame(width: 390, height: 420)
     }
 }
 
@@ -116,8 +115,8 @@ class LiveRoomCardView: QuickLayoutView {
         ZStack {
             LiveRoomBackdropView().resizable()
             LiveRoomCardView().resizable().padding(16)
+                .frame(height: 180)
         }
-        .frame(width: 390, height: 180)
     }
 }
 #endif

@@ -371,7 +371,7 @@ private func makeLiveRoomMessageTextFieldPreview() -> UIViewController {
             LiveRoomBackdropView().resizable()
             view.resizable().padding(16)
         }
-        .frame(width: 390, height: 72)
+        .frame(width: .infinity, height: 72)
     }
 }
 
@@ -385,11 +385,13 @@ private func makeLiveRoomMessageInputViewPreview() -> UIViewController {
         ]
     )
     return QuickLayoutHostingController {
-        ZStack {
+        ZStack(alignment: .bottom) {
             LiveRoomBackdropView().resizable()
-            view.resizable().padding(16)
+            view.resizable(axis: .horizontal)
+                .frame(height: 35)
+                .safeAreaPadding(.horizontal, 16)
+                .safeAreaPadding()
         }
-        .frame(width: 390, height: 72)
     }
 }
 
@@ -406,11 +408,12 @@ private func makeLiveRoomActionBarPreview() -> UIViewController {
         cancel: "取消"
     )
     return QuickLayoutHostingController {
-        ZStack {
+        ZStack(alignment: .bottom) {
             LiveRoomBackdropView().resizable()
-            view.resizable().padding(16)
+            view.resizable(axis: .horizontal)
+                .safeAreaPadding(.horizontal, 18)
+                .safeAreaPadding()
         }
-        .frame(width: 390, height: 94)
     }
 }
 

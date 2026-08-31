@@ -165,9 +165,8 @@ private func makeLiveRoomHeaderViewPreview() -> UIViewController {
     return QuickLayoutHostingController {
         ZStack {
             LiveRoomBackdropView()
-            view.resizable().padding(16)
+            view.resizable(axis: .horizontal).padding(16)
         }
-        .frame(width: 390, height: 150)
     }
 }
 

@@ -202,3 +202,57 @@ final class LiveRoomSeatCollectionCell: QuickLayoutCollectionViewCell {
         return seatView.convert(point, to: self)
     }
 }
+
+#if DEBUG
+@MainActor
+private func makeLiveRoomSeatCollectionCellPreview(
+    seat: LiveRoomSeat,
+    styleID: LiveRoomSeatVisualStyleID
+) -> UIViewController {
+    let metrics = LiveRoomSeatLayoutMetrics.regular
+    let cell = LiveRoomSeatCollectionCell()
+    let slot = LiveRoomSeatSlotPresentation(
+        slotID: seat.slotID,
+        position: seat.position,
+        assignment: seat.isOccupied ? seat : nil,
+        role: seat.position.rawValue == 0
+            ? .host
+            : .guest(index: seat.position.rawValue),
+        styleID: styleID,
+        isVisible: true,
+        interaction: seat.isOccupied ? .showUserCard : .none
+    )
+    let size = LiveRoomSeatView.fittingSize(
+        styleID: styleID,
+        presentation: metrics.presentation,
+        width: metrics.standardSeatWidth
+    )
+    cell.configure(
+        item: LiveRoomSeatCollectionItem(slot: slot),
+        metrics: metrics,
+        seatDidSelect: { _ in }
+    )
+    return QuickLayoutHostingController {
+        ZStack {
+            LiveRoomBackdropView().resizable()
+            cell.resizable().frame(width: size.width, height: size.height)
+        }
+        .padding(16)
+        .frame(width: size.width + 32, height: size.height + 32)
+    }
+}
+
+#Preview("麦位 Cell · 已上麦") {
+    makeLiveRoomSeatCollectionCellPreview(
+        seat: LiveRoomPreviewData.seats[2],
+        styleID: .standardGuest
+    )
+}
+
+#Preview("麦位 Cell · 空麦") {
+    makeLiveRoomSeatCollectionCellPreview(
+        seat: LiveRoomPreviewData.seats[5],
+        styleID: .standardGuest
+    )
+}
+#endif

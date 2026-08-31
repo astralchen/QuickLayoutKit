@@ -206,13 +206,16 @@ struct LiveRoomSeatStageTransitionTests {
     @Test func dataOnlyChangesDoNotCreateSceneTransition() throws {
         let sourceSnapshot = LiveRoomViewModel.makeDefaultStageSnapshot()
         let changedAssignments = sourceSnapshot.assignments.map { assignment in
-            LiveRoomSeatAssignment(
+            let isOccupied = assignment.occupant != nil
+            return LiveRoomSeatAssignment(
                 seatID: assignment.seatID,
                 slotID: assignment.slotID,
                 position: assignment.position,
                 occupant: assignment.occupant,
-                audioState: assignment.audioState == .active ? .muted : .active,
-                score: assignment.score + 100
+                audioState: isOccupied
+                    ? (assignment.audioState == .active ? .muted : .active)
+                    : .unavailable,
+                score: isOccupied ? assignment.score + 100 : 0
             )
         }
         let destinationSnapshot = LiveRoomViewModel.makeDefaultStageSnapshot(
@@ -346,7 +349,7 @@ struct LiveRoomSeatStageTransitionTests {
         #expect(!viewController.seatStageView.seatCollectionView.isScrollEnabled)
     }
 
-    @Test func rapidReplacementStartsFromCurrentPresentationPosition() throws {
+    @Test func rapidGeometricReplacementCommitsLatestStateWithoutSecondAnimation() throws {
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(true)
         defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
@@ -370,6 +373,12 @@ struct LiveRoomSeatStageTransitionTests {
         }
         let hostID = try #require(
             viewModel.state.displayedSeats.first?.userID
+        )
+        let initialPoint = try #require(
+            viewController.seatStageView.giftTargetPoint(
+                forUserID: hostID,
+                in: viewController.view
+            )
         )
 
         #expect(
@@ -402,27 +411,23 @@ struct LiveRoomSeatStageTransitionTests {
                 )
             )
         )
-        let replacementAnimator = try #require(
-            viewController.seatTransitionCoordinator.testingAnimator
-        )
-        replacementAnimator.pauseAnimation()
-        replacementAnimator.fractionComplete = 0
-        let replacementStartPoint = try #require(
-            viewController.seatTransitionCoordinator.giftTargetPoint(
-                for: hostID,
+        let latestPoint = try #require(
+            viewController.seatStageView.giftTargetPoint(
+                forUserID: hostID,
                 in: viewController.view
             )
         )
 
+        #expect(viewController.seatTransitionCoordinator.testingAnimator == nil)
+        #expect(!viewController.seatTransitionCoordinator.isTransitioning)
         #expect(
-            viewController.seatTransitionCoordinator.testingActiveUserIDs
-                .contains(hostID)
+            viewController.seatTransitionCoordinator.testingActiveUserIDs.isEmpty
         )
         #expect(
-            distance(interruptedPoint, replacementStartPoint) <= 1.5,
-            "中断点 \(interruptedPoint)，替换动画起点 \(replacementStartPoint)"
+            distance(initialPoint, latestPoint) <= 1.5,
+            "初始最终点 \(initialPoint)，最新 revision 最终点 \(latestPoint)"
         )
-        #expect(viewController.seatTransitionCoordinator.isTransitioning)
+        #expect(distance(interruptedPoint, latestPoint) > 1.5)
         #expect(viewModel.state.snapshot.revision == 3)
     }
 

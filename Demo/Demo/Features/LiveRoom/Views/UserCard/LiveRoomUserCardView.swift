@@ -185,7 +185,7 @@ private func makeLiveRoomUserCardViewPreview() -> UIViewController {
         ZStack {
             LiveRoomBackdropView().resizable()
             view
-                .resizable()
+                .resizable(axis: .horizontal)
                 .padding(
                     EdgeInsets(
                         top: 48,
@@ -195,7 +195,7 @@ private func makeLiveRoomUserCardViewPreview() -> UIViewController {
                     )
                 )
         }
-        .frame(width: 390, height: 500)
+       
     }
 }
 

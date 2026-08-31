@@ -52,7 +52,6 @@ final class LiveRoomSeatStageView: LiveRoomCardView {
         LiveRoomSeatCollectionItemID: LiveRoomSeatCollectionItem
     ] = [:]
     private var pendingTransition: PendingTransition?
-    private var frozenSourceConfiguration: LiveRoomSeatCollectionLayoutConfiguration?
     private var layoutMetrics = LiveRoomSeatLayoutMetrics.regular
     private var prefersCompactHeight = false
     private var collectionHeight: CGFloat = 0
@@ -172,12 +171,10 @@ final class LiveRoomSeatStageView: LiveRoomCardView {
 
         let sourceItems = currentItems
         let destinationItems = makeItems(for: presentation)
-        let sourceConfiguration = frozenSourceConfiguration
-            ?? makeConfiguration(
-                presentation: sourcePresentation,
-                items: sourceItems
-            )
-        frozenSourceConfiguration = nil
+        let sourceConfiguration = makeConfiguration(
+            presentation: sourcePresentation,
+            items: sourceItems
+        )
         let destinationConfiguration = makeConfiguration(
             presentation: presentation,
             items: destinationItems
@@ -272,60 +269,6 @@ final class LiveRoomSeatStageView: LiveRoomCardView {
             completePreparedTransition()
             layoutIfNeeded()
         }
-    }
-
-    /// 将被替换动画的 presentation frame 冻结成下一段动画的 source 几何。
-    ///
-    /// 中断时只保留最新合法 Presentation 的 Item；已离场的旧 Item 立即清理，仍在
-    /// 场用户的 Cell Frame 和透明度从 presentation layer 连续承接。
-    func freezeTransitionAtCurrentPresentation() {
-        guard let pendingTransition else { return }
-        collectionView.layoutIfNeeded()
-        let destinationIDs = pendingTransition.destinationItems.map(\.id)
-        var states: [
-            LiveRoomSeatCollectionItemID: LiveRoomSeatCollectionLayoutState
-        ] = [:]
-        for itemID in destinationIDs {
-            guard let cell = collectionDataSource.cell(for: itemID) else {
-                if let fallback = pendingTransition
-                    .destinationConfiguration.states[itemID] {
-                    states[itemID] = fallback
-                }
-                continue
-            }
-            let presentationLayer = cell.layer.presentation() ?? cell.layer
-            states[itemID] = LiveRoomSeatCollectionLayoutState(
-                frame: presentationLayer.frame,
-                alpha: CGFloat(presentationLayer.opacity)
-            )
-        }
-
-        collectionView.visibleCells
-            .compactMap { $0 as? LiveRoomSeatCollectionCell }
-            .forEach {
-                $0.layer.removeAllAnimations()
-                $0.completeTransition()
-            }
-        currentPresentation = pendingTransition.destinationPresentation
-        currentItems = pendingTransition.destinationItems
-        itemsByID = Dictionary(
-            uniqueKeysWithValues: currentItems.map { ($0.id, $0) }
-        )
-        let frozenConfiguration = LiveRoomSeatCollectionLayoutConfiguration(
-            itemIDs: destinationIDs,
-            states: states,
-            contentSize: pendingTransition.destinationConfiguration.contentSize
-        )
-        seatLayout.apply(frozenConfiguration)
-        collectionDataSource.applySnapshot(itemIDs: destinationIDs)
-        self.pendingTransition = nil
-        frozenSourceConfiguration = frozenConfiguration
-        accessibilityElementsHidden = false
-        setSeatInteractionEnabled(true)
-        UIView.performWithoutAnimation {
-            collectionView.layoutIfNeeded()
-        }
-        updateAccessibilityElements()
     }
 
     func setSeatInteractionEnabled(_ isEnabled: Bool) {
@@ -509,8 +452,7 @@ final class LiveRoomSeatStageView: LiveRoomCardView {
 @MainActor
 private func makeLiveRoomSeatStagePreview(
     mode: LiveRoomBusinessMode,
-    audienceState: LiveRoomAudienceSeatState,
-    size: CGSize
+    audienceState: LiveRoomAudienceSeatState
 ) -> UIViewController {
     let view = LiveRoomSeatStageView()
     let snapshot = LiveRoomViewModel.makeDefaultStageSnapshot(
@@ -525,33 +467,29 @@ private func makeLiveRoomSeatStagePreview(
     return QuickLayoutHostingController {
         ZStack {
             LiveRoomBackdropView().resizable()
-            view.resizable().padding(16)
+            view.resizable(axis: .horizontal).padding(16)
         }
-        .frame(width: size.width, height: size.height)
     }
 }
 
 #Preview("派对九麦舞台") {
     makeLiveRoomSeatStagePreview(
         mode: .party,
-        audienceState: .enabled,
-        size: CGSize(width: 390, height: 520)
+        audienceState: .enabled
     )
 }
 
 #Preview("个播收起舞台") {
     makeLiveRoomSeatStagePreview(
         mode: .individual,
-        audienceState: .disabled,
-        size: CGSize(width: 390, height: 260)
+        audienceState: .disabled
     )
 }
 
 #Preview("个播五麦舞台") {
     makeLiveRoomSeatStagePreview(
         mode: .individual,
-        audienceState: .enabled,
-        size: CGSize(width: 390, height: 420)
+        audienceState: .enabled
     )
 }
 #endif

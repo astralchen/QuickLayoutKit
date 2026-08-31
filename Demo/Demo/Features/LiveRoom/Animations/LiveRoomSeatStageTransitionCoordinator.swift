@@ -55,8 +55,21 @@ final class LiveRoomSeatStageTransitionCoordinator {
     ) {
         guard let stageView, let messagesView else { return }
 
-        if isTransitioning, !animated {
-            stageView.applyDataUpdate(presentation: presentation)
+        if isTransitioning {
+            if !animated {
+                stageView.applyDataUpdate(presentation: presentation)
+                return
+            }
+
+            // 几何切换期间只提交最新合法 revision，不续播第二段方向相反的动画。
+            // 取舍掉半帧 Hero 续接，可以避免 Cell 内部内容与 Layout Frame 分别冻结
+            // 造成的视觉锚点断层，也不会积累过期房型的临时内容层。
+            finishImmediately()
+            UIView.performWithoutAnimation {
+                stageView.apply(presentation: presentation)
+                applyFinalLayout()
+                rootView.layoutIfNeeded()
+            }
             return
         }
 
@@ -71,28 +84,9 @@ final class LiveRoomSeatStageTransitionCoordinator {
             return
         }
 
-        var sourceStageFrame: CGRect
-        var sourceMessagesFrame: CGRect
-        if isTransitioning {
-            animator?.pauseAnimation()
-            sourceStageFrame = visualFrame(of: stageView, in: rootView)
-            sourceMessagesFrame = visualFrame(of: messagesView, in: rootView)
-            stageView.freezeTransitionAtCurrentPresentation()
-            generation &+= 1
-            animator?.stopAnimation(true)
-            animator = nil
-            stageView.layer.removeAllAnimations()
-            messagesView.layer.removeAllAnimations()
-            setFrame(sourceStageFrame, for: stageView, in: rootView)
-            setFrame(sourceMessagesFrame, for: messagesView, in: rootView)
-            isTransitioning = false
-            usesReducedMotionTransition = false
-            finalLayout = nil
-        } else {
-            rootView.layoutIfNeeded()
-            sourceStageFrame = visualFrame(of: stageView, in: rootView)
-            sourceMessagesFrame = visualFrame(of: messagesView, in: rootView)
-        }
+        rootView.layoutIfNeeded()
+        let sourceStageFrame = visualFrame(of: stageView, in: rootView)
+        let sourceMessagesFrame = visualFrame(of: messagesView, in: rootView)
 
         if isReduceMotionEnabled() {
             performReducedMotionTransition(
@@ -112,8 +106,11 @@ final class LiveRoomSeatStageTransitionCoordinator {
             applyFinalLayout()
             rootView.layoutIfNeeded()
         }
-        let finalStageFrame = visualFrame(of: stageView, in: rootView)
-        let finalMessagesFrame = visualFrame(of: messagesView, in: rootView)
+        // 起点必须读取 presentation layer，终点必须读取刚完成布局后的 model layer。
+        // 若终点继续读取 presentation，Core Animation 是否已经提交当前事务会让同一
+        // 次玩法切换偶发拿到旧 Frame，表现为麦位和公屏向相反方向移动或末尾跳变。
+        let finalStageFrame = modelFrame(of: stageView, in: rootView)
+        let finalMessagesFrame = modelFrame(of: messagesView, in: rootView)
         guard
             sourceStageFrame.width > 0,
             sourceStageFrame.height > 0,
@@ -237,6 +234,10 @@ final class LiveRoomSeatStageTransitionCoordinator {
         let sourceLayer = view.layer.presentation() ?? view.layer
         let rootLayer = rootView.layer.presentation() ?? rootView.layer
         return sourceLayer.convert(sourceLayer.bounds, to: rootLayer)
+    }
+
+    private func modelFrame(of view: UIView, in rootView: UIView) -> CGRect {
+        view.layer.convert(view.layer.bounds, to: rootView.layer)
     }
 
     private func setFrame(
