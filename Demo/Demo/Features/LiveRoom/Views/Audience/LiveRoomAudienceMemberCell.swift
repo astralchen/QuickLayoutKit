@@ -136,9 +136,9 @@ private func makeLiveRoomAudienceMemberCellPreview() -> UIViewController {
     return QuickLayoutHostingController {
         ZStack {
             LiveRoomBackdropView().resizable()
-            cell.resizable().frame(width: 358, height: 66)
+            cell.resizable().frame(width: .infinity, height: 66)
+                .safeAreaPadding(.horizontal, 16)
         }
-        .frame(width: 390, height: 96)
     }
 }
 

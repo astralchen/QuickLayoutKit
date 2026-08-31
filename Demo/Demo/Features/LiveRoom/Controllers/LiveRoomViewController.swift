@@ -24,6 +24,7 @@ final class LiveRoomViewController: DemoQuickLayoutHostingController {
     // 特效容器始终位于送礼面板之上，但不参与命中测试，连续赠送时不会挡住操作。
     let giftEffectOverlayView = UIView()
     var cancellables: Set<AnyCancellable> = []
+    var followRequestTask: Task<Void, Never>?
     // 默认值对应 35pt 控件、上下各 10pt 内边距以及与公屏的 10pt 间距。
     // 首次测量后会按 Action Bar 的真实高度更新，避免紧凑屏幕出现额外空隙。
     var actionBarReservedHeight: CGFloat = 65
@@ -187,6 +188,8 @@ final class LiveRoomViewController: DemoQuickLayoutHostingController {
         else { return }
         giftFlightAnimators.values.forEach { $0.cancel() }
         giftFlightAnimators.removeAll()
+        followRequestTask?.cancel()
+        followRequestTask = nil
         seatTransitionCoordinator.finishImmediately()
         giftSheetHost?.dismantleViewController()
         giftSheetHost = nil
@@ -308,6 +311,9 @@ final class LiveRoomViewController: DemoQuickLayoutHostingController {
         actionBarView.giftDidTap = { [weak self] in
             self?.presentGiftSheet()
         }
+        messagesView.followDidTap = { [weak self] in
+            self?.toggleFollowing()
+        }
         roomHeaderView.audienceDidTap = { [weak self] in
             self?.presentAudienceSheet()
         }
@@ -342,9 +348,15 @@ final class LiveRoomViewController: DemoQuickLayoutHostingController {
     }
 
     func render(_ state: LiveRoomViewModel.State) {
-        let previousPresentation = renderedState?.stagePresentation
+        let previousState = renderedState
+        let previousPresentation = previousState?.stagePresentation
         renderedState = state
         reloadRoomHeader(using: state)
+        if previousState?.isFollowing != state.isFollowing
+            || previousState?.pendingFollowingState
+                != state.pendingFollowingState {
+            reloadPublicChat(scrollToLatest: false)
+        }
         let transition = LiveRoomSeatTransitionDescriptor(
             from: previousPresentation,
             to: state.stagePresentation

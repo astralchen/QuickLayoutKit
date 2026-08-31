@@ -14,12 +14,13 @@ final class LiveRoomMessagesView: LiveRoomCardView {
 
     let scrollView = QuickLayoutScrollView()
     private let titleLabel = UILabel()
-    private let followLabel = UILabel()
-    private let followBackgroundView = UIView()
+    private let followButton = LiveRoomFollowButton(frame: .zero)
     private var messageLabels: [UILabel] = []
     private var shouldScrollToLatest = false
     private var scrollRequestGeneration = 0
     private var scheduledScrollGeneration: Int?
+
+    var followDidTap: (() -> Void)?
 
     var latestMessage: String? {
         messageLabels.last?.text
@@ -40,11 +41,9 @@ final class LiveRoomMessagesView: LiveRoomCardView {
             HStack(spacing: 8) {
                 titleLabel
                 Spacer()
-                followLabel
-                    .fixedSize()
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .background { followBackgroundView }
+                followButton
+                    .fixedSize(axis: .horizontal)
+                    .fixedSize(axis: .vertical)
             }
             .padding(.horizontal, 14)
             .padding(.top, 12)
@@ -115,11 +114,17 @@ final class LiveRoomMessagesView: LiveRoomCardView {
     func configure(
         title: String,
         follow: String,
+        isFollowing: Bool,
+        isFollowRequesting: Bool,
         messages: [String],
         scrollToLatest: Bool
     ) {
         titleLabel.text = title
-        followLabel.text = follow
+        followButton.configure(
+            title: follow,
+            isFollowing: isFollowing,
+            isRequesting: isFollowRequesting
+        )
         while messageLabels.count < messages.count {
             messageLabels.append(makeMessageLabel())
         }
@@ -156,11 +161,10 @@ final class LiveRoomMessagesView: LiveRoomCardView {
         titleLabel.textColor = .white
         titleLabel.adjustsFontForContentSizeCategory = true
 
-        followLabel.font = .preferredFont(forTextStyle: .caption1)
-        followLabel.textColor = .white
-        followLabel.adjustsFontForContentSizeCategory = true
-        followBackgroundView.backgroundColor = .systemPink
-        followBackgroundView.layer.cornerRadius = 11
+        followButton.accessibilityIdentifier = "liveRoom.follow.button"
+        followButton.action = { [weak self] in
+            self?.followDidTap?()
+        }
 
     }
 
@@ -175,13 +179,146 @@ final class LiveRoomMessagesView: LiveRoomCardView {
     }
 }
 
+/// 公屏关注按钮。
+///
+/// 未关注时使用高强调色提示主操作；已关注时降低饱和度并显示对勾，让用户能够快速
+/// 区分“可关注”与“已完成”状态，同时保留再次点击取消关注的按钮语义。
+final class LiveRoomFollowButton: LiveRoomHitTargetButton {
+
+    private let checkmarkImageView = UIImageView(
+        image: UIImage(systemName: "checkmark")
+    )
+    private let activityIndicatorView = UIActivityIndicatorView(
+        style: .medium
+    )
+    private let titleLabel = UILabel()
+    private var isFollowing = false
+    private var isRequesting = false
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        configureViews()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configureViews()
+    }
+
+    override var body: Layout {
+        HStack(spacing: 5) {
+            if isRequesting {
+                activityIndicatorView
+                    .resizable()
+                    .frame(width: 14, height: 14)
+            } else {
+                if isFollowing {
+                    checkmarkImageView
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 11, height: 11)
+                }
+                titleLabel.fixedSize(axis: .horizontal)
+            }
+        }
+        .padding(.horizontal, isRequesting ? 8 : (isFollowing ? 10 : 9))
+        .padding(.vertical, 5)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        layer.cornerRadius = min(bounds.width, bounds.height) / 2
+    }
+
+    func configure(
+        title: String,
+        isFollowing: Bool,
+        isRequesting: Bool
+    ) {
+        let didChangeLayoutState = self.isFollowing != isFollowing
+            || self.isRequesting != isRequesting
+        self.isFollowing = isFollowing
+        self.isRequesting = isRequesting
+        titleLabel.text = title
+        titleLabel.textColor = isFollowing
+            ? UIColor.white.withAlphaComponent(0.88)
+            : .white
+        checkmarkImageView.tintColor = UIColor.white.withAlphaComponent(0.82)
+        backgroundColor = isFollowing
+            ? UIColor.white.withAlphaComponent(0.14)
+            : .systemPink
+        layer.borderWidth = isFollowing ? 1 : 0
+        layer.borderColor = isFollowing
+            ? UIColor.white.withAlphaComponent(0.24).cgColor
+            : UIColor.clear.cgColor
+        self.isSelected = isFollowing
+        accessibilityLabel = title
+        var traits: UIAccessibilityTraits = isFollowing
+            ? [.button, .selected]
+            : .button
+        if isRequesting {
+            traits.insert(.notEnabled)
+            activityIndicatorView.startAnimating()
+        } else {
+            activityIndicatorView.stopAnimating()
+        }
+        accessibilityTraits = traits
+        isEnabled = !isRequesting
+        if didChangeLayoutState {
+            setNeedsQuickLayout()
+        }
+        apply(state: buttonState)
+    }
+
+    override func quickLayoutButtonStateDidChange(
+        _ state: QuickLayoutButtonState
+    ) {
+        super.quickLayoutButtonStateDidChange(state)
+        apply(state: state)
+    }
+
+    private func configureViews() {
+        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+        layer.cornerCurve = .circular
+        titleLabel.font = .preferredFont(forTextStyle: .caption1)
+        titleLabel.adjustsFontForContentSizeCategory = true
+        titleLabel.isUserInteractionEnabled = false
+        checkmarkImageView.contentMode = .scaleAspectFit
+        checkmarkImageView.isUserInteractionEnabled = false
+        checkmarkImageView.isAccessibilityElement = false
+        checkmarkImageView.accessibilityIdentifier =
+            "liveRoom.follow.checkmark"
+        activityIndicatorView.color = .white
+        activityIndicatorView.hidesWhenStopped = true
+        activityIndicatorView.isUserInteractionEnabled = false
+        activityIndicatorView.isAccessibilityElement = false
+        activityIndicatorView.accessibilityIdentifier =
+            "liveRoom.follow.activityIndicator"
+    }
+
+    private func apply(state: QuickLayoutButtonState) {
+        transform = state.isPressed
+            ? CGAffineTransform(scaleX: 0.96, y: 0.96)
+            : .identity
+        alpha = state.isPressed
+            ? 0.80
+            : (state.isEnabled ? 1 : (isRequesting ? 0.82 : 0.56))
+    }
+}
+
 #if DEBUG
 @MainActor
-private func makeLiveRoomMessagesViewPreview() -> UIViewController {
+private func makeLiveRoomMessagesViewPreview(
+    title: String,
+    isFollowing: Bool,
+    isRequesting: Bool
+) -> UIViewController {
     let view = LiveRoomMessagesView()
     view.configure(
         title: "直播互动",
-        follow: "关注直播间",
+        follow: title,
+        isFollowing: isFollowing,
+        isFollowRequesting: isRequesting,
         messages: LiveRoomPreviewData.messages,
         scrollToLatest: true
     )
@@ -194,7 +331,19 @@ private func makeLiveRoomMessagesViewPreview() -> UIViewController {
     }
 }
 
-#Preview("公屏消息") {
-    makeLiveRoomMessagesViewPreview()
+#Preview("公屏消息 · 已关注") {
+    makeLiveRoomMessagesViewPreview(
+        title: "已关注",
+        isFollowing: true,
+        isRequesting: false
+    )
+}
+
+#Preview("公屏消息 · 关注请求中") {
+    makeLiveRoomMessagesViewPreview(
+        title: "关注中…",
+        isFollowing: false,
+        isRequesting: true
+    )
 }
 #endif

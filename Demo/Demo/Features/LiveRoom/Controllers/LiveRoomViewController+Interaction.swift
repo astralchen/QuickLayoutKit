@@ -11,6 +11,15 @@ import UIKit
 
 extension LiveRoomViewController {
 
+    func toggleFollowing() {
+        guard followRequestTask == nil else { return }
+        followRequestTask = Task { [weak self] in
+            guard let self else { return }
+            _ = await viewModel.toggleFollowing()
+            followRequestTask = nil
+        }
+    }
+
     func pushRoomInformation() {
         // 仅允许当前直播间在无弹层时执行一次 push，避免连续点击造成重复页面。
         guard
@@ -121,9 +130,23 @@ extension LiveRoomViewController {
         let messages = initialMessages + viewModel.sentPublicMessages.map {
             DemoLocalization.text("liveRoom.messages.me", $0)
         }
+        let followTitleKey: String
+        switch viewModel.state.pendingFollowingState {
+        case true?:
+            followTitleKey = "liveRoom.messages.followRequesting"
+        case false?:
+            followTitleKey = "liveRoom.messages.unfollowRequesting"
+        case nil:
+            followTitleKey = viewModel.state.isFollowing
+                ? "liveRoom.messages.followed"
+                : "liveRoom.messages.follow"
+        }
         messagesView.configure(
             title: DemoLocalization.text("liveRoom.messages.title"),
-            follow: DemoLocalization.text("liveRoom.messages.follow"),
+            follow: DemoLocalization.text(followTitleKey),
+            isFollowing: viewModel.state.isFollowing,
+            isFollowRequesting:
+                viewModel.state.pendingFollowingState != nil,
             messages: messages,
             scrollToLatest: scrollToLatest
         )

@@ -51,6 +51,44 @@ struct DemoTests {
         #expect(viewModel.recharge(by: 100) == 1_000)
     }
 
+    @Test func liveRoomFollowRequestCommitsOnlyAfterSuccess() async {
+        let requestHandler = ControlledLiveRoomFollowRequestHandler()
+        let viewModel = LiveRoomViewModel(
+            isFollowing: false,
+            followRequestHandler: requestHandler
+        )
+
+        let followTask = Task { await viewModel.toggleFollowing() }
+        #expect(
+            await waitForCondition {
+                requestHandler.requestedStates == [true]
+            }
+        )
+        #expect(!viewModel.state.isFollowing)
+        #expect(viewModel.state.pendingFollowingState == true)
+        #expect(!(await viewModel.toggleFollowing()))
+        #expect(requestHandler.requestedStates == [true])
+
+        requestHandler.succeed()
+        #expect(await followTask.value)
+        #expect(viewModel.state.isFollowing)
+        #expect(viewModel.state.pendingFollowingState == nil)
+
+        let unfollowTask = Task { await viewModel.toggleFollowing() }
+        #expect(
+            await waitForCondition {
+                requestHandler.requestedStates == [true, false]
+            }
+        )
+        #expect(viewModel.state.isFollowing)
+        #expect(viewModel.state.pendingFollowingState == false)
+
+        requestHandler.fail()
+        #expect(!(await unfollowTask.value))
+        #expect(viewModel.state.isFollowing)
+        #expect(viewModel.state.pendingFollowingState == nil)
+    }
+
     @Test func liveRoomAudienceViewModelNormalizesServerSnapshot() {
         let members = [
             LiveRoomAudienceMember(
@@ -861,6 +899,134 @@ struct DemoTests {
         #expect(
             userCardView.convert(userCardView.bounds, to: window).minX >= 24
         )
+    }
+
+    @Test func liveRoomFollowButtonShowsRequestingState() async throws {
+        DemoLocalization.setLocale(identifier: "zh-Hans")
+        defer { DemoLocalization.setLocale(identifier: "en-US") }
+
+        let requestHandler = ControlledLiveRoomFollowRequestHandler()
+        let viewModel = LiveRoomViewModel(
+            isFollowing: false,
+            followRequestHandler: requestHandler
+        )
+        let viewController = LiveRoomViewController(viewModel: viewModel)
+        let navigationController = UINavigationController(
+            rootViewController: viewController
+        )
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigationController,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+
+        layout(viewController, in: navigationController)
+        let followButton = try #require(
+            viewController.view
+                .allSubviews(of: LiveRoomFollowButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.follow.button"
+            }
+        )
+
+        #expect(followButton.accessibilityLabel == "关注直播间")
+        #expect(!followButton.isSelected)
+        #expect(!followButton.accessibilityTraits.contains(.selected))
+
+        activate(followButton)
+
+        #expect(
+            await waitForCondition {
+                viewModel.state.pendingFollowingState == true
+            }
+        )
+        layout(viewController, in: navigationController)
+        #expect(!viewModel.state.isFollowing)
+        #expect(
+            followButton.allSubviews(of: UILabel.self).isEmpty
+        )
+        #expect(followButton.accessibilityLabel == "关注中…")
+        #expect(!followButton.isEnabled)
+        #expect(followButton.accessibilityTraits.contains(.notEnabled))
+        let activityIndicatorView = try #require(
+            followButton.allSubviews(
+                of: UIActivityIndicatorView.self
+            ).first {
+                $0.accessibilityIdentifier
+                    == "liveRoom.follow.activityIndicator"
+            }
+        )
+        #expect(activityIndicatorView.isAnimating)
+        #expect(abs(activityIndicatorView.bounds.width - 14) < 0.5)
+        #expect(abs(activityIndicatorView.bounds.height - 14) < 0.5)
+
+        activate(followButton)
+        #expect(requestHandler.requestedStates == [true])
+
+        requestHandler.succeed()
+        #expect(
+            await waitForCondition {
+                viewModel.state.isFollowing
+                    && viewModel.state.pendingFollowingState == nil
+                    && viewController.followRequestTask == nil
+            }
+        )
+        layout(viewController, in: navigationController)
+        #expect(followButton.accessibilityLabel == "已关注")
+        #expect(followButton.isEnabled)
+        #expect(followButton.isSelected)
+        #expect(followButton.accessibilityTraits.contains(.selected))
+        #expect(followButton.layer.borderColor == UIColor.white
+            .withAlphaComponent(0.24).cgColor)
+        #expect(followButton.layer.cornerCurve == .circular)
+        layout(viewController, in: navigationController)
+        let checkmarkImageView = try #require(
+            followButton.allSubviews(of: UIImageView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.follow.checkmark"
+            }
+        )
+        #expect(abs(checkmarkImageView.bounds.width - 11) < 0.5)
+        #expect(abs(checkmarkImageView.bounds.height - 11) < 0.5)
+        #expect(
+            abs(
+                followButton.layer.cornerRadius
+                    - min(
+                        followButton.bounds.width,
+                        followButton.bounds.height
+                    ) / 2
+            ) < 0.5
+        )
+
+        activate(followButton)
+
+        #expect(
+            await waitForCondition {
+                viewModel.state.pendingFollowingState == false
+            }
+        )
+        layout(viewController, in: navigationController)
+        #expect(viewModel.state.isFollowing)
+        #expect(
+            followButton.allSubviews(of: UILabel.self).isEmpty
+        )
+        #expect(followButton.accessibilityLabel == "取消关注中…")
+        #expect(!followButton.isEnabled)
+        #expect(followButton.accessibilityTraits.contains(.selected))
+        #expect(followButton.accessibilityTraits.contains(.notEnabled))
+        #expect(activityIndicatorView.isAnimating)
+
+        requestHandler.succeed()
+        #expect(
+            await waitForCondition {
+                !viewModel.state.isFollowing
+                    && viewModel.state.pendingFollowingState == nil
+                    && viewController.followRequestTask == nil
+            }
+        )
+        #expect(!viewModel.state.isFollowing)
+        #expect(followButton.accessibilityLabel == "关注直播间")
+        #expect(followButton.isEnabled)
+        #expect(!followButton.isSelected)
+        #expect(!followButton.accessibilityTraits.contains(.selected))
     }
 
     @Test func liveRoomAudienceButtonPresentsAdaptiveSheet() throws {
@@ -8753,6 +8919,36 @@ private struct TestStringLocalization: Decodable {
 
 private struct TestStringUnit: Decodable {
     let value: String
+}
+
+/// 测试专用的可控关注接口，用于分别断言请求开始、成功和失败状态。
+@MainActor
+private final class ControlledLiveRoomFollowRequestHandler:
+    LiveRoomFollowRequestHandling {
+
+    private enum RequestError: Error {
+        case failed
+    }
+
+    private var continuation: CheckedContinuation<Void, Error>?
+    private(set) var requestedStates: [Bool] = []
+
+    func updateFollowing(_ isFollowing: Bool) async throws {
+        requestedStates.append(isFollowing)
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func succeed() {
+        continuation?.resume()
+        continuation = nil
+    }
+
+    func fail() {
+        continuation?.resume(throwing: RequestError.failed)
+        continuation = nil
+    }
 }
 
 /// 测试专用的后台麦位流，不向生产默认数据写入任何状态。

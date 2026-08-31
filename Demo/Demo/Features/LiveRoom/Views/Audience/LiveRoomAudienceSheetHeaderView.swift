@@ -45,8 +45,14 @@ final class LiveRoomAudienceSheetHeaderView: QuickLayoutView {
 
             dividerView
                 .resizable()
-                .frame(height: 1)
+                .frame(height: pixelAlignedDividerHeight)
         }
+    }
+
+    /// 按当前显示设备的缩放比例换算一个物理像素，并将结果保留两位小数。
+    private var pixelAlignedDividerHeight: CGFloat {
+        let onePixelHeight = 1 / max(traitCollection.displayScale, 1)
+        return (onePixelHeight * 100).rounded() / 100
     }
 
     func configure(title: String, summary: String, subtitle: String) {
@@ -95,7 +101,6 @@ private func makeLiveRoomAudienceSheetHeaderPreview() -> UIViewController {
                 .resizable(axis: .horizontal)
                 .fixedSize(axis: .vertical)
         }
-        .frame(width: 390, height: 110)
     }
 }
 

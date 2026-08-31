@@ -8,6 +8,30 @@
 import Foundation
 import OSLog
 
+/// 直播间关注接口抽象。
+///
+/// ViewModel 只在接口成功后提交最终关注状态；请求期间通过页面状态驱动加载 UI，
+/// 避免按钮先乐观切换后又因失败回滚造成闪烁。
+@MainActor
+protocol LiveRoomFollowRequestHandling: AnyObject {
+    func updateFollowing(_ isFollowing: Bool) async throws
+}
+
+/// Demo 默认关注接口，使用短延迟模拟真实网络往返。
+@MainActor
+final class LiveRoomMockFollowRequestHandler: LiveRoomFollowRequestHandling {
+
+    private let delayNanoseconds: UInt64
+
+    init(delayNanoseconds: UInt64 = 600_000_000) {
+        self.delayNanoseconds = delayNanoseconds
+    }
+
+    func updateFollowing(_ isFollowing: Bool) async throws {
+        try await Task.sleep(nanoseconds: delayNanoseconds)
+    }
+}
+
 @MainActor
 final class LiveRoomViewModel {
 
@@ -21,6 +45,9 @@ final class LiveRoomViewModel {
         let pendingBusinessCommand: LiveRoomBusinessCommand?
         let audienceCount: Int
         let audienceMembers: [LiveRoomAudienceMember]
+        let isFollowing: Bool
+        /// 非空时表示关注接口正在提交该目标状态。
+        let pendingFollowingState: Bool?
 
         var displayedSeats: [LiveRoomSeatAssignment] {
             stagePresentation.visibleAssignments
@@ -253,6 +280,7 @@ final class LiveRoomViewModel {
 
     private var stateHandler: StateHandler?
     private let businessCommandHandler: any LiveRoomBusinessCommandHandling
+    private let followRequestHandler: any LiveRoomFollowRequestHandling
     private let stageSnapshotProvider: (any LiveRoomStageSnapshotProviding)?
     private var stageSnapshotTask: Task<Void, Never>?
 
@@ -269,11 +297,13 @@ final class LiveRoomViewModel {
         stageSnapshot: LiveRoomStageSnapshot? = nil,
         audienceCount: Int = 1_280,
         audienceMembers: [LiveRoomAudienceMember]? = nil,
+        isFollowing: Bool = false,
         roomInformation: LiveRoomInformation = LiveRoomInformation(
             roomID: "9527",
             hostDisplayName: "星河"
         ),
         businessCommandHandler: (any LiveRoomBusinessCommandHandling)? = nil,
+        followRequestHandler: (any LiveRoomFollowRequestHandling)? = nil,
         stageSnapshotProvider: (any LiveRoomStageSnapshotProviding)? = nil
     ) {
         let requestedSnapshot = stageSnapshot
@@ -311,7 +341,9 @@ final class LiveRoomViewModel {
                 max(0, audienceCount),
                 resolvedAudienceMembers.count
             ),
-            audienceMembers: resolvedAudienceMembers
+            audienceMembers: resolvedAudienceMembers,
+            isFollowing: isFollowing,
+            pendingFollowingState: nil
         )
         self.businessCommandHandler = businessCommandHandler
             ?? LiveRoomMockBusinessCommandHandler(
@@ -319,6 +351,8 @@ final class LiveRoomViewModel {
                 partyAssignments: Self.partyAssignments,
                 individualAssignments: Self.individualAssignments
             )
+        self.followRequestHandler = followRequestHandler
+            ?? LiveRoomMockFollowRequestHandler()
         self.stageSnapshotProvider = stageSnapshotProvider
     }
 
@@ -418,6 +452,37 @@ final class LiveRoomViewModel {
         return true
     }
 
+    /// 请求切换当前用户对直播间的关注状态。
+    ///
+    /// 请求开始时只发布目标状态供 UI 展示加载态；接口成功后才提交
+    /// `isFollowing`。失败或任务取消会清除加载态并保留请求前状态。
+    @discardableResult
+    func toggleFollowing() async -> Bool {
+        guard state.pendingFollowingState == nil else { return false }
+        let targetState = !state.isFollowing
+        updateFollowingState(
+            isFollowing: state.isFollowing,
+            pendingFollowingState: targetState
+        )
+        do {
+            try await followRequestHandler.updateFollowing(targetState)
+            updateFollowingState(
+                isFollowing: targetState,
+                pendingFollowingState: nil
+            )
+            return true
+        } catch {
+            Self.logger.error(
+                "Follow request failed: \(String(describing: error), privacy: .public)"
+            )
+            updateFollowingState(
+                isFollowing: state.isFollowing,
+                pendingFollowingState: nil
+            )
+            return false
+        }
+    }
+
     /// 校验赠送请求并原子扣款；UI 动画只能在该方法成功后执行。
     func processGiftSendRequest(_ request: LiveRoomGiftSendRequest) -> Int? {
         let (expectedCost, overflow) = request.gift.totalCost(
@@ -469,7 +534,9 @@ final class LiveRoomViewModel {
             stagePresentation: state.stagePresentation,
             pendingBusinessCommand: pendingBusinessCommand,
             audienceCount: state.audienceCount,
-            audienceMembers: state.audienceMembers
+            audienceMembers: state.audienceMembers,
+            isFollowing: state.isFollowing,
+            pendingFollowingState: state.pendingFollowingState
         )
         stateHandler?(state)
     }
@@ -484,7 +551,25 @@ final class LiveRoomViewModel {
             stagePresentation: presentation,
             pendingBusinessCommand: pendingBusinessCommand,
             audienceCount: state.audienceCount,
-            audienceMembers: state.audienceMembers
+            audienceMembers: state.audienceMembers,
+            isFollowing: state.isFollowing,
+            pendingFollowingState: state.pendingFollowingState
+        )
+        stateHandler?(state)
+    }
+
+    private func updateFollowingState(
+        isFollowing: Bool,
+        pendingFollowingState: Bool?
+    ) {
+        state = State(
+            snapshot: state.snapshot,
+            stagePresentation: state.stagePresentation,
+            pendingBusinessCommand: state.pendingBusinessCommand,
+            audienceCount: state.audienceCount,
+            audienceMembers: state.audienceMembers,
+            isFollowing: isFollowing,
+            pendingFollowingState: pendingFollowingState
         )
         stateHandler?(state)
     }
