@@ -48,6 +48,7 @@ final class MainViewModel {
                 .dynamicScroll,
                 .dashboard,
                 .liveRoom,
+                .imessageChat,
                 .messages,
                 .tableMessages,
                 .keyboard,

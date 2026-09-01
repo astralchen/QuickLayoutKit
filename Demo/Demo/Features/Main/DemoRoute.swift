@@ -17,6 +17,7 @@ enum DemoRoute: CaseIterable, Hashable, Sendable {
     case dynamicScroll
     case dashboard
     case liveRoom
+    case imessageChat
     case messages
     case tableMessages
     case keyboard
@@ -52,6 +53,8 @@ enum DemoRoute: CaseIterable, Hashable, Sendable {
             "demo.dashboard.title"
         case .liveRoom:
             "demo.liveRoom.title"
+        case .imessageChat:
+            "demo.imessage.title"
         case .messages:
             "demo.messages.title"
         case .tableMessages:

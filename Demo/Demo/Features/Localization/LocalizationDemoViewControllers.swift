@@ -313,7 +313,7 @@ private final class LocalizationShowcaseCell: UICollectionViewCell {
         backgroundConfiguration.backgroundColor = .secondarySystemFill
         backgroundConfiguration.cornerRadius = 8
         backgroundConfiguration.strokeColor = .separator.withAlphaComponent(0.2)
-        backgroundConfiguration.strokeWidth = 1 / UIScreen.main.scale
+        backgroundConfiguration.strokeWidth = 1 / traitCollection.displayScale
         self.backgroundConfiguration = backgroundConfiguration
 
         label.font = .preferredFont(forTextStyle: .callout)
@@ -356,7 +356,7 @@ private final class LocalizationModalViewController: DemoViewController {
             label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
             label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24)
         ])
-        navigationItem.leftBarButtonItem = UIBarButtonItem(title: DemoLocalization.text("common.close"), style: .done, target: self, action: #selector(close))
+        navigationItem.leftBarButtonItem = UIBarButtonItem(title: DemoLocalization.text("common.close"), style: .prominent, target: self, action: #selector(close))
         reloadLocalizedContent()
     }
 

@@ -6581,14 +6581,20 @@ struct DemoTests {
         main.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
         main.view.setNeedsLayout()
         main.view.layoutIfNeeded()
+        let expectedSections = MainViewModel().state.sections
 
         #expect(main.view is QuickLayoutView)
         #expect(main.collectionView.superview === main.view)
         #expect(main.view.allSubviews(of: QuickLayoutScrollView.self).isEmpty)
-        #expect(main.collectionView.numberOfSections == 3)
-        #expect(main.collectionView.numberOfItems(inSection: 0) == 14)
-        #expect(main.collectionView.numberOfItems(inSection: 1) == 1)
-        #expect(main.collectionView.numberOfItems(inSection: 2) == 6)
+        #expect(
+            main.collectionView.numberOfSections == expectedSections.count
+        )
+        for (index, section) in expectedSections.enumerated() {
+            #expect(
+                main.collectionView.numberOfItems(inSection: index)
+                    == section.routes.count
+            )
+        }
 
         let cell = try mainMenuCell(
             at: IndexPath(item: 0, section: 0),
@@ -8843,6 +8849,270 @@ struct DemoTests {
         )
     }
 
+    @Test func iMessageChatSendReplyAndReadFlowIsDeterministic() async throws {
+        let sleeper = ControlledIMessageSleeper()
+        let fixedDate = Date(timeIntervalSince1970: 1_800_000_000)
+        let localizer = DemoLocalizer { key, _ in "localized.\(key)" }
+        let viewModel = IMessageChatViewModel(
+            localizer: localizer,
+            clock: { fixedDate },
+            sleeper: { duration in
+                try await sleeper.sleep(duration)
+            }
+        )
+        var updateReasons: [IMessageChatViewModel.UpdateReason] = []
+        viewModel.bind { _, reason in
+            updateReasons.append(reason)
+        }
+
+        let initialIDs = viewModel.state.timeline.map(\.id)
+        #expect(!viewModel.send("  \n  "))
+        #expect(viewModel.state.timeline.map(\.id) == initialIDs)
+
+        #expect(viewModel.send("  hello\nworld  "))
+        #expect(
+            await waitForCondition {
+                sleeper.requestedDurations == [.milliseconds(900)]
+            }
+        )
+        #expect(viewModel.state.isTyping)
+        #expect(viewModel.state.timeline.last?.id == .typing)
+
+        let sendingMessages = viewModel.state.timeline.compactMap {
+            item -> IMessageChatMessagePresentation? in
+            guard case .message(let message) = item.content else {
+                return nil
+            }
+            return message
+        }
+        let sendingMessage = try #require(sendingMessages.last)
+        #expect(sendingMessage.id == 3)
+        #expect(sendingMessage.text == "hello\nworld")
+        #expect(
+            sendingMessage.deliveryText
+                == "localized.imessage.status.delivered"
+        )
+        #expect(
+            sendingMessages
+                .filter { $0.direction == .outgoing }
+                .compactMap(\.deliveryText)
+                == ["localized.imessage.status.delivered"]
+        )
+
+        sleeper.succeed()
+        #expect(await waitForCondition { !viewModel.state.isTyping })
+
+        let repliedMessages = viewModel.state.timeline.compactMap {
+            item -> IMessageChatMessagePresentation? in
+            guard case .message(let message) = item.content else {
+                return nil
+            }
+            return message
+        }
+        let readMessage = try #require(
+            repliedMessages.first(where: { $0.id == 3 })
+        )
+        let reply = try #require(repliedMessages.last)
+        #expect(readMessage.deliveryText == "localized.imessage.status.read")
+        #expect(reply.id == 4)
+        #expect(reply.direction == .incoming)
+        #expect(reply.text == "localized.imessage.reply.1")
+        #expect(
+            updateReasons == [.initial, .sentMessage, .receivedMessage]
+        )
+    }
+
+    @Test func iMessageChatRelocalizesFixturesWithoutRewritingUserText() throws {
+        let localization = MutableIMessageLocalization(prefix: "first")
+        let sleeper = ControlledIMessageSleeper()
+        let viewModel = IMessageChatViewModel(
+            localizer: DemoLocalizer { key, _ in
+                localization.text(for: key)
+            },
+            clock: { Date(timeIntervalSince1970: 1_800_000_000) },
+            sleeper: { duration in
+                try await sleeper.sleep(duration)
+            }
+        )
+
+        #expect(viewModel.send("用户原始文本\nsecond line"))
+        viewModel.cancelPendingReply()
+        localization.prefix = "second"
+        viewModel.refreshLocalizedContent()
+
+        let messages = viewModel.state.timeline.compactMap {
+            item -> IMessageChatMessagePresentation? in
+            guard case .message(let message) = item.content else {
+                return nil
+            }
+            return message
+        }
+        let localizedSeed = try #require(
+            messages.first(where: { $0.id == 0 })
+        )
+        let userMessage = try #require(
+            messages.first(where: { $0.id == 3 })
+        )
+        #expect(
+            localizedSeed.text == "second.imessage.seed.incoming.1"
+        )
+        #expect(userMessage.text == "用户原始文本\nsecond line")
+        #expect(!viewModel.state.isTyping)
+        #expect(viewModel.state.timeline.last?.id == .message(3))
+    }
+
+    @Test func iMessageChatViewModelCancelsReplyWhenReleased() async {
+        let sleeper = ControlledIMessageSleeper()
+        weak var releasedViewModel: IMessageChatViewModel?
+
+        do {
+            let viewModel = IMessageChatViewModel(
+                localizer: DemoLocalizer { key, _ in key },
+                clock: { Date(timeIntervalSince1970: 1_800_000_000) },
+                sleeper: { duration in
+                    try await sleeper.sleep(duration)
+                }
+            )
+            releasedViewModel = viewModel
+            #expect(viewModel.send("temporary"))
+            #expect(
+                await waitForCondition {
+                    sleeper.requestedDurations == [.milliseconds(900)]
+                }
+            )
+        }
+
+        #expect(releasedViewModel == nil)
+        sleeper.succeed()
+    }
+
+    @Test func iMessageComposerGrowsToFiveLinesAndMirrorsDirection() {
+        let composer = IMessageChatComposerView(
+            frame: CGRect(x: 0, y: 0, width: 390, height: 60)
+        )
+        composer.configure(
+            placeholder: "iMessage",
+            sendAccessibilityLabel: "Send"
+        )
+        composer.layoutIfNeeded()
+
+        #expect(!composer.sendButton.isEnabled)
+        #expect(!composer.placeholderLabel.isHidden)
+        let singleLineHeight = composer.intrinsicContentSize.height
+
+        composer.textView.text = "one\ntwo\nthree\nfour\nfive\nsix\nseven"
+        composer.textViewDidChange(composer.textView)
+        composer.frame.size.height = composer.intrinsicContentSize.height
+        composer.layoutIfNeeded()
+
+        let maximumExpectedHeight = ceil(
+            (composer.textView.font ?? .preferredFont(forTextStyle: .body))
+                .lineHeight * 5
+        ) + composer.textView.textContainerInset.top
+            + composer.textView.textContainerInset.bottom + 16
+        #expect(composer.intrinsicContentSize.height > singleLineHeight)
+        #expect(
+            composer.intrinsicContentSize.height <= maximumExpectedHeight + 1
+        )
+        #expect(composer.textView.isScrollEnabled)
+        #expect(composer.sendButton.isEnabled)
+
+        var sentText: String?
+        composer.sendRequested = { text in
+            sentText = text
+            return true
+        }
+        composer.sendButton.sendActions(for: .touchUpInside)
+        #expect(sentText == "one\ntwo\nthree\nfour\nfive\nsix\nseven")
+        #expect(composer.textView.text.isEmpty)
+        #expect(!composer.sendButton.isEnabled)
+        #expect(!composer.placeholderLabel.isHidden)
+
+        composer.applyLayoutDirection(.rightToLeft)
+        #expect(composer.semanticContentAttribute == .forceRightToLeft)
+        #expect(composer.textView.semanticContentAttribute == .forceRightToLeft)
+        #expect(composer.textView.textAlignment == .natural)
+        composer.applyLayoutDirection(.leftToRight)
+        #expect(composer.semanticContentAttribute == .forceLeftToRight)
+    }
+
+    @Test func iMessageRowsPinBubblesStatusAndTypingToSemanticEdges() throws {
+        let cellWidth: CGFloat = 390
+        let horizontalInset: CGFloat = 12
+
+        let incomingCell = IMessageBubbleCell(frame: .zero)
+        incomingCell.configure(
+            IMessageChatMessagePresentation(
+                id: 1,
+                direction: .incoming,
+                text: "Short reply",
+                deliveryText: nil
+            )
+        )
+        layoutIMessageCell(incomingCell, width: cellWidth)
+        let incomingFrame = incomingCell.bubbleView.convert(
+            incomingCell.bubbleView.bounds,
+            to: incomingCell
+        )
+        #expect(abs(incomingFrame.minX - horizontalInset) < 1)
+        #expect(incomingFrame.width <= cellWidth * 0.75 + 1)
+
+        let outgoingCell = IMessageBubbleCell(frame: .zero)
+        outgoingCell.configure(
+            IMessageChatMessagePresentation(
+                id: 2,
+                direction: .outgoing,
+                text: "Short message",
+                deliveryText: "Read"
+            )
+        )
+        layoutIMessageCell(outgoingCell, width: cellWidth)
+        let outgoingFrame = outgoingCell.bubbleView.convert(
+            outgoingCell.bubbleView.bounds,
+            to: outgoingCell
+        )
+        let deliveryFrame = outgoingCell.deliveryLabel.convert(
+            outgoingCell.deliveryLabel.bounds,
+            to: outgoingCell
+        )
+        #expect(
+            abs(outgoingFrame.maxX - (cellWidth - horizontalInset)) < 1
+        )
+        #expect(abs(deliveryFrame.maxX - outgoingFrame.maxX) < 1)
+
+        outgoingCell.semanticContentAttribute = .forceRightToLeft
+        outgoingCell.setNeedsQuickLayout()
+        outgoingCell.layoutIfNeeded()
+        let rtlOutgoingFrame = outgoingCell.bubbleView.convert(
+            outgoingCell.bubbleView.bounds,
+            to: outgoingCell
+        )
+        #expect(abs(rtlOutgoingFrame.minX - horizontalInset) < 1)
+
+        let typingCell = IMessageTypingCell(frame: .zero)
+        typingCell.configure(accessibilityLabel: "Typing")
+        layoutIMessageCell(typingCell, width: cellWidth)
+        let typingFrame = typingCell.typingView.convert(
+            typingCell.typingView.bounds,
+            to: typingCell
+        )
+        #expect(abs(typingFrame.minX - horizontalInset) < 1)
+    }
+
+    @Test func iMessageContactTitleReportsCompleteNavigationSize() {
+        let titleView = IMessageContactTitleView(frame: .zero)
+        titleView.configure(subtitle: "iMessage")
+        let size = titleView.intrinsicContentSize
+        titleView.frame.size = size
+        titleView.layoutIfNeeded()
+
+        #expect(size.width > 80)
+        #expect(size.height >= 30)
+        #expect(titleView.avatarView.bounds.width == 30)
+        #expect(titleView.nameLabel.bounds.width > 0)
+        #expect(titleView.subtitleLabel.bounds.width > 0)
+    }
+
     @Test func semanticGestureUsesDirectionalLayout() {
         DemoLocalization.setLocale(identifier: "ar")
 
@@ -8860,6 +9130,54 @@ struct DemoTests {
 
         DemoLocalization.setLocale(identifier: "en-US")
     }
+}
+
+@MainActor
+private final class ControlledIMessageSleeper {
+
+    private(set) var requestedDurations: [Duration] = []
+    private var continuation: CheckedContinuation<Void, any Error>?
+
+    func sleep(_ duration: Duration) async throws {
+        requestedDurations.append(duration)
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func succeed() {
+        continuation?.resume(returning: ())
+        continuation = nil
+    }
+}
+
+@MainActor
+private final class MutableIMessageLocalization {
+
+    var prefix: String
+
+    init(prefix: String) {
+        self.prefix = prefix
+    }
+
+    func text(for key: String) -> String {
+        "\(prefix).\(key)"
+    }
+}
+
+@MainActor
+private func layoutIMessageCell(
+    _ cell: QuickLayoutCollectionViewCell,
+    width: CGFloat
+) {
+    let attributes = UICollectionViewLayoutAttributes(
+        forCellWith: IndexPath(item: 0, section: 0)
+    )
+    attributes.size = CGSize(width: width, height: 52)
+    let fittedAttributes = cell.preferredLayoutAttributesFitting(attributes)
+    cell.frame = CGRect(origin: .zero, size: fittedAttributes.size)
+    cell.setNeedsLayout()
+    cell.layoutIfNeeded()
 }
 
 @MainActor

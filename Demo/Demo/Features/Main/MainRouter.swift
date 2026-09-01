@@ -59,6 +59,8 @@ final class DemoRouter: DemoRouting {
             DashboardViewController()
         case .liveRoom:
             LiveRoomViewController()
+        case .imessageChat:
+            IMessageChatViewController()
         case .messages:
             MesssageViewController()
         case .tableMessages:
