@@ -362,3 +362,105 @@ final class IMessageTypingCell: QuickLayoutCollectionViewCell {
         setNeedsQuickLayout()
     }
 }
+
+#if DEBUG
+@MainActor
+private func makeIMessageBubbleViewPreview(
+    _ message: IMessageChatMessagePresentation
+) -> UIViewController {
+    let backgroundView = UIView()
+    backgroundView.backgroundColor = .systemBackground
+    let bubbleView = IMessageBubbleView(frame: .zero)
+    bubbleView.configure(message)
+    return QuickLayoutHostingController {
+        ZStack {
+            backgroundView.resizable()
+            bubbleView
+        }
+        .frame(width: 330, height: 110)
+    }
+}
+
+@MainActor
+private func makeIMessageBubbleCellPreview(
+    _ message: IMessageChatMessagePresentation
+) -> UIViewController {
+    let backgroundView = UIView()
+    backgroundView.backgroundColor = .systemBackground
+    let cell = IMessageBubbleCell(frame: .zero)
+    cell.configure(message)
+    return QuickLayoutHostingController {
+        ZStack {
+            backgroundView.resizable()
+            cell.resizable().frame(width: 390, height: 86)
+        }
+    }
+}
+
+@MainActor
+private func makeIMessageTimestampCellPreview() -> UIViewController {
+    let cell = IMessageTimestampCell(frame: .zero)
+    cell.configure(IMessageChatPreviewData.timestamp)
+    return QuickLayoutHostingController {
+        cell.resizable().frame(width: 390, height: 52)
+    }
+}
+
+@MainActor
+private func makeIMessageTypingBubbleViewPreview() -> UIViewController {
+    let backgroundView = UIView()
+    backgroundView.backgroundColor = .systemBackground
+    let typingView = IMessageTypingBubbleView(frame: .zero)
+    typingView.configure(
+        accessibilityLabel: IMessageChatPreviewData
+            .typingAccessibilityLabel
+    )
+    return QuickLayoutHostingController {
+        ZStack {
+            backgroundView.resizable()
+            typingView
+        }
+        .frame(width: 160, height: 90)
+    }
+}
+
+@MainActor
+private func makeIMessageTypingCellPreview() -> UIViewController {
+    let cell = IMessageTypingCell(frame: .zero)
+    cell.configure(
+        accessibilityLabel: IMessageChatPreviewData
+            .typingAccessibilityLabel
+    )
+    return QuickLayoutHostingController {
+        cell.resizable().frame(width: 390, height: 62)
+    }
+}
+
+#Preview("消息气泡 View · 收到") {
+    makeIMessageBubbleViewPreview(IMessageChatPreviewData.incomingMessage)
+}
+
+#Preview("消息气泡 View · 发出") {
+    makeIMessageBubbleViewPreview(IMessageChatPreviewData.outgoingMessage)
+}
+
+#Preview("消息气泡 Cell · 收到") {
+    makeIMessageBubbleCellPreview(IMessageChatPreviewData.incomingMessage)
+}
+
+#Preview("消息气泡 Cell · 发出") {
+    makeIMessageBubbleCellPreview(IMessageChatPreviewData.outgoingMessage)
+}
+
+#Preview("消息时间 Cell") {
+    makeIMessageTimestampCellPreview()
+}
+
+#Preview("输入中气泡 View") {
+    makeIMessageTypingBubbleViewPreview()
+}
+
+#Preview("输入中 Cell") {
+    makeIMessageTypingCellPreview()
+}
+#endif

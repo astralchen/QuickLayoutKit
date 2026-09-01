@@ -40,6 +40,7 @@
 		7714E9942EFE2A9300F8BC60 /* Exceptions for "Demo" folder in "Demo" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Features/IMessageChat/README.md,
 				Info.plist,
 			);
 			target = 7714E96B2EFE2A9100F8BC60 /* Demo */;

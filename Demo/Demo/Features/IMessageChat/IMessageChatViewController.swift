@@ -128,6 +128,22 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
     }
 }
 
-#Preview {
-    UINavigationController(rootViewController: IMessageChatViewController())
+#if DEBUG
+@MainActor
+private func makeIMessageChatViewControllerPreview() -> UIViewController {
+    let viewModel = IMessageChatViewModel(
+        localizer: .live,
+        clock: { IMessageChatPreviewData.fixedDate },
+        sleeper: { duration in
+            try await Task.sleep(for: duration)
+        }
+    )
+    return UINavigationController(
+        rootViewController: IMessageChatViewController(viewModel: viewModel)
+    )
 }
+
+#Preview("iMessage 聊天页面") {
+    makeIMessageChatViewControllerPreview()
+}
+#endif

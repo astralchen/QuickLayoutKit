@@ -13,6 +13,7 @@
 - `IMessageChatComposerView.swift`：iOS 26 Liquid Glass 输入栏、1–5 行文本输入、占位符和发送按钮。
 - `IMessageContactTitleView.swift`：导航栏中的联系人头像、名称和 iMessage 副标题。
 - `IMessageChatViewController.swift`：使用 QuickLayout 组合会话列表与输入栏，绑定 ViewModel，并协调键盘、本地化和 RTL 更新。
+- `IMessageChatPreviewData.swift`：仅在 `DEBUG` 下提供各组件共享的确定性预览数据。
 
 模块依赖方向保持为：
 
@@ -84,6 +85,12 @@ DemoRoute.imessageChat
 
 路由由 `MainViewModel` 展示在 Demo 主列表，并由 `MainRouter` 创建 `IMessageChatViewController`。
 
+## Xcode Preview
+
+每个独立 `UIView`、`UICollectionViewCell` 与 `UIViewController` 都在自身源文件末尾声明 `#Preview`，统一放在 `#if DEBUG` 内。预览覆盖收发气泡、送达状态、时间标记、输入中动画、输入栏、联系人标题、会话列表与完整页面，并为方向敏感组件提供 RTL 变体。
+
+预览数据只能来自 `IMessageChatPreviewData`。不要创建 `+Preview.swift` 文件或 `Previews` 目录，也不要在组件文件中临时构造会随时间变化的业务数据。
+
 ## 测试重点
 
 相关测试位于 `Demo/DemoTests/DemoTests.swift`，主要覆盖：
@@ -107,6 +114,7 @@ DemoRoute.imessageChat
 6. 修改输入栏时必须验证键盘展开、交互式收起、1–5 行高度和最后一条消息遮挡。
 7. iOS 26 原生玻璃 API 只用于导航或输入控制层，消息内容层保持系统纯色背景。
 8. 当前范围不包含图片、语音、附件、Tapback、内联回复或真实已读回执。
+9. 新增独立 View 或 ViewController 时，必须在同一源文件补充基于 `IMessageChatPreviewData` 的 `#Preview`。
 
 ## 参考资料
 

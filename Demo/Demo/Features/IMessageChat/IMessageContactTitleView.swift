@@ -3,6 +3,8 @@
 //  Demo
 //
 
+import QuickLayout
+import QuickLayoutKit
 import UIKit
 
 final class IMessageContactTitleView: UIView {
@@ -96,3 +98,34 @@ final class IMessageContactTitleView: UIView {
         setNeedsLayout()
     }
 }
+
+#if DEBUG
+@MainActor
+private func makeIMessageContactTitlePreview(
+    direction: UIUserInterfaceLayoutDirection
+) -> UIViewController {
+    let backgroundView = UIView()
+    backgroundView.backgroundColor = .systemBackground
+    let titleView = IMessageContactTitleView(frame: .zero)
+    titleView.semanticContentAttribute = direction == .rightToLeft
+        ? .forceRightToLeft
+        : .forceLeftToRight
+    titleView.configure(subtitle: IMessageChatPreviewData.contactSubtitle)
+    titleView.sizeToFit()
+    return QuickLayoutHostingController {
+        ZStack {
+            backgroundView.resizable()
+            titleView.frame(width: 220, height: 44)
+        }
+        .frame(width: 280, height: 88)
+    }
+}
+
+#Preview("联系人导航标题") {
+    makeIMessageContactTitlePreview(direction: .leftToRight)
+}
+
+#Preview("联系人导航标题 · RTL") {
+    makeIMessageContactTitlePreview(direction: .rightToLeft)
+}
+#endif

@@ -4,6 +4,8 @@
 //
 
 import AppLocalization
+import QuickLayout
+import QuickLayoutKit
 import UIKit
 
 @available(iOS 26.0, *)
@@ -262,3 +264,50 @@ final class IMessageChatComposerView: UIView, UITextViewDelegate {
         heightDidChange?()
     }
 }
+
+#if DEBUG
+@MainActor
+private func makeIMessageChatComposerPreview(
+    text: String,
+    direction: UIUserInterfaceLayoutDirection
+) -> UIViewController {
+    let backgroundView = UIView()
+    backgroundView.backgroundColor = .systemBackground
+    let composerView = IMessageChatComposerView(frame: .zero)
+    composerView.configure(
+        placeholder: IMessageChatPreviewData.composerPlaceholder,
+        sendAccessibilityLabel: IMessageChatPreviewData
+            .sendAccessibilityLabel
+    )
+    composerView.applyLayoutDirection(direction)
+    composerView.textView.text = text
+    composerView.textViewDidChange(composerView.textView)
+    return QuickLayoutHostingController {
+        ZStack(alignment: .bottom) {
+            backgroundView.resizable()
+            composerView
+                .resizable(axis: .horizontal)
+                .fixedSize(axis: .vertical)
+        }
+        .frame(width: 390, height: 170)
+    }
+}
+
+#Preview("消息输入栏 · 空白") {
+    makeIMessageChatComposerPreview(text: "", direction: .leftToRight)
+}
+
+#Preview("消息输入栏 · 多行") {
+    makeIMessageChatComposerPreview(
+        text: IMessageChatPreviewData.composerMultilineText,
+        direction: .leftToRight
+    )
+}
+
+#Preview("消息输入栏 · 多行 RTL") {
+    makeIMessageChatComposerPreview(
+        text: IMessageChatPreviewData.composerRTLText,
+        direction: .rightToLeft
+    )
+}
+#endif

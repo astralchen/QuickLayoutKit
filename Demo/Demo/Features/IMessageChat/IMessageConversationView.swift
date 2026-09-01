@@ -5,6 +5,8 @@
 
 import AppLocalization
 import ListKit
+import QuickLayout
+import QuickLayoutKit
 import UIKit
 
 final class IMessageConversationView: UIView {
@@ -212,3 +214,25 @@ final class IMessageConversationView: UIView {
         )
     }
 }
+
+#if DEBUG
+@MainActor
+private func makeIMessageConversationPreview(
+    direction: UIUserInterfaceLayoutDirection
+) -> UIViewController {
+    let conversationView = IMessageConversationView(frame: .zero)
+    conversationView.applyLayoutDirection(direction)
+    conversationView.render(IMessageChatPreviewData.state, reason: .initial)
+    return QuickLayoutHostingController {
+        conversationView.resizable().frame(width: 390, height: 560)
+    }
+}
+
+#Preview("消息会话列表") {
+    makeIMessageConversationPreview(direction: .leftToRight)
+}
+
+#Preview("消息会话列表 · RTL") {
+    makeIMessageConversationPreview(direction: .rightToLeft)
+}
+#endif
