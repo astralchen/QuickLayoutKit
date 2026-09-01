@@ -817,6 +817,55 @@ struct QuickLayoutKitTests {
     }
 
     @MainActor
+    @Test func quickLayoutVisualEffectViewHostsBodyInContentView() {
+        let effect = UIBlurEffect(style: .systemMaterial)
+        let child = UIView()
+        let hostedView = QuickLayoutVisualEffectView(effect: effect) {
+            child.resizable().frame(width: 80, height: 36)
+        }
+        hostedView.frame = CGRect(x: 0, y: 0, width: 120, height: 60)
+        hostedView.layoutIfNeeded()
+
+        #expect(hostedView.effect === effect)
+        #expect(child.superview === hostedView.contentView)
+        #expect(child.bounds.size == CGSize(width: 80, height: 36))
+        #expect(
+            hostedView.sizeThatFits(
+                in: CGSize(width: 200, height: 200)
+            ) == CGSize(width: 80, height: 36)
+        )
+    }
+
+    @MainActor
+    @Test func quickLayoutVisualEffectViewSupportsSubclassAndFlexibility() {
+        let hostedView = QuickLayoutVisualEffectViewBodyProbe()
+
+        #expect(hostedView.quickLayoutHorizontalFlexibility == nil)
+        #expect(hostedView.quickLayoutVerticalFlexibility == nil)
+        #expect(
+            hostedView.quick_flexibility(for: .horizontal)
+                == .fullyFlexible
+        )
+        #expect(
+            hostedView.quick_flexibility(for: .vertical) == .fixedSize
+        )
+
+        hostedView.quickLayoutHorizontalFlexibility = .fixedSize
+        hostedView.quickLayoutVerticalFlexibility = .fullyFlexible
+        hostedView.frame = CGRect(x: 0, y: 0, width: 160, height: 44)
+        hostedView.layoutIfNeeded()
+
+        #expect(hostedView.child.superview === hostedView.contentView)
+        #expect(
+            hostedView.quick_flexibility(for: .horizontal) == .fixedSize
+        )
+        #expect(
+            hostedView.quick_flexibility(for: .vertical)
+                == .fullyFlexible
+        )
+    }
+
+    @MainActor
     @Test func contentMarginsReduceTheScrollViewsCrossAxisProposal() {
         let scrollView = QuickLayoutScrollView(.vertical)
         scrollView.contentInsetAdjustmentBehavior = .never
@@ -3799,6 +3848,28 @@ private final class DirectionRecordingQuickLayoutView: QuickLayoutView {
     ) {
         environmentChangeReasons.append(reason)
         super.quickLayoutEnvironmentDidChange(environment, reason: reason)
+    }
+}
+
+@MainActor
+private final class QuickLayoutVisualEffectViewBodyProbe:
+    QuickLayoutVisualEffectView {
+
+    let child = UIView()
+
+    @LayoutBuilder
+    override var body: Layout {
+        child
+            .resizable(axis: .horizontal)
+            .frame(height: 44)
+    }
+
+    init() {
+        super.init(effect: UIBlurEffect(style: .systemThinMaterial))
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 }
 

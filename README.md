@@ -86,6 +86,7 @@ QuickLayoutKit 使用部分与 SwiftUI 相同的 API 名称和重载形式，目
 | `safeAreaInset` 内容构建结果为 `nil` | 使用空布局；选中边缘继承的安全区域仍会被消费和预留 |
 | `contentMargins(..., nil)` | 不指定所选边缘，不覆盖同一 placement 的既有边距或容器默认值 |
 | `QuickLayoutView` 的显式尺寸弹性为 `nil` | 从 `body` 推导对应轴的弹性 |
+| `QuickLayoutVisualEffectView` 的 `body` | 自动安装到 `UIVisualEffectView.contentView`，不直接添加到视觉效果视图本身 |
 | `QuickLayoutButton.role == nil` | 不发布 destructive/cancel 语义角色，也不会产生隐式样式 |
 | 状态或事件 handler 为 `nil` | 不发送相应应用回调；框架自身生命周期继续运行 |
 | `performLayoutUpdate(..., animations: nil)` | 只执行 QuickLayout 失效与布局，不追加应用动画闭包 |
@@ -286,6 +287,23 @@ let measuredSize = hostedView.sizeThatFits(
 也可以创建子类并重写 `body`。`quickLayoutHorizontalFlexibility` 和
 `quickLayoutVerticalFlexibility` 默认为 `nil`，表示从 `body` 推导尺寸弹性；仅在宿主本身
 需要覆盖内容尺寸契约时设置它们。
+
+### `QuickLayoutVisualEffectView`
+
+需要在模糊、材质或玻璃效果中承载 QuickLayout 内容时，使用
+`QuickLayoutVisualEffectView`。内容会自动安装到 UIKit 要求的 `contentView`：
+
+```swift
+let titleLabel = UILabel()
+let materialView = QuickLayoutVisualEffectView(
+    effect: UIBlurEffect(style: .systemMaterial)
+) {
+    titleLabel.padding(16)
+}
+```
+
+该类型接受任意 `UIVisualEffect`，不提供默认效果或样式。也可以创建子类并重写 `body`；
+本地化、状态或效果变化影响布局时，调用 `setNeedsQuickLayout()`。
 
 ### `QuickLayoutButton`
 

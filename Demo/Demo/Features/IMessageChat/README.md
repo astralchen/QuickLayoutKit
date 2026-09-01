@@ -47,7 +47,7 @@ ViewModel 不持有 UIKit 对象，View 不维护第二份消息业务状态。
 
 ## 输入栏与键盘
 
-输入栏使用 `UIGlassContainerEffect`、`UIGlassEffect` 和 `UIButton.Configuration.prominentGlass()`。玻璃效果只用于输入控制层，不覆盖消息内容区域。
+输入栏继承 `QuickLayoutView`，并使用 `QuickLayoutVisualEffectView` 承载两层玻璃内容。框架通过 `bodyContainerView` 自动把 QuickLayout body 安装到玻璃 API 要求的 `contentView`，控件布局由 `HStack`、`ZStack` 和 `onGeometryChange` 驱动。输入栏使用 `UIGlassContainerEffect`、`UIGlassEffect` 和 `UIButton.Configuration.prominentGlass()`，玻璃效果只用于输入控制层，不覆盖消息内容区域。
 
 `UITextView` 的基础高度为 44 点，随内容扩展到最多 5 行，超过后在输入框内部滚动。纯空白输入时发送按钮禁用；发送成功后清空输入内容并恢复基础高度。
 

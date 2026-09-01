@@ -9,7 +9,7 @@ import QuickLayoutKit
 import UIKit
 
 @available(iOS 26.0, *)
-final class IMessageChatComposerView: UIView, UITextViewDelegate {
+final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
 
     let textView = UITextView()
     let placeholderLabel = UILabel()
@@ -18,20 +18,57 @@ final class IMessageChatComposerView: UIView, UITextViewDelegate {
     var sendRequested: ((String) -> Bool)?
     var heightDidChange: (() -> Void)?
 
-    private let glassContainerView: UIVisualEffectView
-    private let inputGlassView: UIVisualEffectView
-    private var inputHeightConstraint: NSLayoutConstraint!
     private var currentInputHeight: CGFloat = 44
-    private var lastMeasuredWidth: CGFloat = 0
+
+    private lazy var inputGlassView: QuickLayoutVisualEffectView = {
+        let effect = UIGlassEffect(style: .regular)
+        effect.isInteractive = true
+        return QuickLayoutVisualEffectView(effect: effect) { [unowned self] in
+            ZStack(alignment: .topLeading) {
+                textView.resizable()
+                placeholderLabel
+                    .resizable(axis: .horizontal)
+                    .fixedSize(axis: .vertical)
+                    .padding(.horizontal, 8)
+                    .padding(.top, 8)
+                    .frame(
+                        maxWidth: .infinity,
+                        maxHeight: .infinity,
+                        alignment: .topLeading
+                    )
+            }
+            .padding(.horizontal, 4)
+        }
+    }()
+
+    private lazy var glassContainerView: QuickLayoutVisualEffectView = {
+        let effect = UIGlassContainerEffect()
+        effect.spacing = 8
+        return QuickLayoutVisualEffectView(effect: effect) { [unowned self] in
+            HStack(alignment: .bottom, spacing: 8) {
+                inputGlassView
+                    .resizable(axis: .horizontal)
+                    .frame(height: currentInputHeight)
+                    .onGeometryChange(
+                        for: CGFloat.self,
+                        of: { max(0, $0.size.width - 8) },
+                        action: { [weak self] width in
+                            self?.updateTextHeight(availableWidth: width)
+                        }
+                    )
+                sendButton.resizable().frame(width: 44, height: 44)
+            }
+        }
+    }()
+
+    override var body: Layout {
+        glassContainerView
+            .resizable()
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+    }
 
     override init(frame: CGRect) {
-        let containerEffect = UIGlassContainerEffect()
-        containerEffect.spacing = 8
-        glassContainerView = UIVisualEffectView(effect: containerEffect)
-
-        let inputEffect = UIGlassEffect(style: .regular)
-        inputEffect.isInteractive = true
-        inputGlassView = UIVisualEffectView(effect: inputEffect)
         super.init(frame: frame)
         configureViews()
     }
@@ -51,15 +88,6 @@ final class IMessageChatComposerView: UIView, UITextViewDelegate {
         CGSize(width: size.width, height: currentInputHeight + 16)
     }
 
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        let availableTextWidth = max(0, inputGlassView.bounds.width - 8)
-        if abs(availableTextWidth - lastMeasuredWidth) > 0.5 {
-            lastMeasuredWidth = availableTextWidth
-            updateTextHeight()
-        }
-    }
-
     func configure(
         placeholder: String,
         sendAccessibilityLabel: String
@@ -68,6 +96,7 @@ final class IMessageChatComposerView: UIView, UITextViewDelegate {
         textView.accessibilityLabel = placeholder
         sendButton.accessibilityLabel = sendAccessibilityLabel
         updateComposerState()
+        inputGlassView.setNeedsQuickLayout()
     }
 
     func applyLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
@@ -80,7 +109,9 @@ final class IMessageChatComposerView: UIView, UITextViewDelegate {
         textView.textAlignment = .natural
         placeholderLabel.semanticContentAttribute = semanticAttribute
         placeholderLabel.textAlignment = .natural
-        setNeedsLayout()
+        glassContainerView.setNeedsQuickLayout()
+        inputGlassView.setNeedsQuickLayout()
+        setNeedsQuickLayout()
     }
 
     func textViewDidChange(_ textView: UITextView) {
@@ -91,18 +122,15 @@ final class IMessageChatComposerView: UIView, UITextViewDelegate {
     private func configureViews() {
         accessibilityIdentifier = "imessage.composer"
         backgroundColor = .clear
+        quickLayoutHorizontalFlexibility = .fullyFlexible
+        quickLayoutVerticalFlexibility = .fixedSize
 
-        glassContainerView.translatesAutoresizingMaskIntoConstraints = false
         glassContainerView.backgroundColor = .clear
-        addSubview(glassContainerView)
 
-        inputGlassView.translatesAutoresizingMaskIntoConstraints = false
         inputGlassView.clipsToBounds = true
         inputGlassView.layer.cornerRadius = 22
         inputGlassView.layer.cornerCurve = .continuous
-        glassContainerView.contentView.addSubview(inputGlassView)
 
-        textView.translatesAutoresizingMaskIntoConstraints = false
         textView.backgroundColor = .clear
         textView.font = .preferredFont(forTextStyle: .body)
         textView.adjustsFontForContentSizeCategory = true
@@ -118,15 +146,13 @@ final class IMessageChatComposerView: UIView, UITextViewDelegate {
         textView.keyboardDismissMode = .interactive
         textView.delegate = self
         textView.accessibilityIdentifier = "imessage.composer.text"
-        inputGlassView.contentView.addSubview(textView)
 
-        placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
         placeholderLabel.font = .preferredFont(forTextStyle: .body)
         placeholderLabel.adjustsFontForContentSizeCategory = true
         placeholderLabel.textColor = .placeholderText
         placeholderLabel.numberOfLines = 1
+        placeholderLabel.lineBreakMode = .byTruncatingTail
         placeholderLabel.isAccessibilityElement = false
-        textView.addSubview(placeholderLabel)
 
         var configuration = UIButton.Configuration.prominentGlass()
         configuration.image = UIImage(
@@ -140,90 +166,12 @@ final class IMessageChatComposerView: UIView, UITextViewDelegate {
         configuration.baseForegroundColor = .white
         sendButton.configuration = configuration
         sendButton.tintColor = .systemBlue
-        sendButton.translatesAutoresizingMaskIntoConstraints = false
         sendButton.accessibilityIdentifier = "imessage.composer.send"
         sendButton.addTarget(
             self,
             action: #selector(sendButtonDidTap),
             for: .touchUpInside
         )
-        glassContainerView.contentView.addSubview(sendButton)
-
-        inputHeightConstraint = inputGlassView.heightAnchor.constraint(
-            equalToConstant: currentInputHeight
-        )
-        inputHeightConstraint.priority = .required
-
-        NSLayoutConstraint.activate([
-            glassContainerView.leadingAnchor.constraint(
-                equalTo: leadingAnchor,
-                constant: 10
-            ),
-            glassContainerView.trailingAnchor.constraint(
-                equalTo: trailingAnchor,
-                constant: -10
-            ),
-            glassContainerView.topAnchor.constraint(
-                equalTo: topAnchor,
-                constant: 8
-            ),
-            glassContainerView.bottomAnchor.constraint(
-                equalTo: bottomAnchor,
-                constant: -8
-            ),
-
-            inputGlassView.leadingAnchor.constraint(
-                equalTo: glassContainerView.contentView.leadingAnchor
-            ),
-            inputGlassView.topAnchor.constraint(
-                equalTo: glassContainerView.contentView.topAnchor
-            ),
-            inputGlassView.bottomAnchor.constraint(
-                equalTo: glassContainerView.contentView.bottomAnchor
-            ),
-            inputHeightConstraint,
-
-            sendButton.leadingAnchor.constraint(
-                equalTo: inputGlassView.trailingAnchor,
-                constant: 8
-            ),
-            sendButton.trailingAnchor.constraint(
-                equalTo: glassContainerView.contentView.trailingAnchor
-            ),
-            sendButton.bottomAnchor.constraint(
-                equalTo: glassContainerView.contentView.bottomAnchor
-            ),
-            sendButton.widthAnchor.constraint(equalToConstant: 44),
-            sendButton.heightAnchor.constraint(equalToConstant: 44),
-
-            textView.leadingAnchor.constraint(
-                equalTo: inputGlassView.contentView.leadingAnchor,
-                constant: 4
-            ),
-            textView.trailingAnchor.constraint(
-                equalTo: inputGlassView.contentView.trailingAnchor,
-                constant: -4
-            ),
-            textView.topAnchor.constraint(
-                equalTo: inputGlassView.contentView.topAnchor
-            ),
-            textView.bottomAnchor.constraint(
-                equalTo: inputGlassView.contentView.bottomAnchor
-            ),
-
-            placeholderLabel.leadingAnchor.constraint(
-                equalTo: textView.leadingAnchor,
-                constant: 8
-            ),
-            placeholderLabel.trailingAnchor.constraint(
-                lessThanOrEqualTo: textView.trailingAnchor,
-                constant: -8
-            ),
-            placeholderLabel.topAnchor.constraint(
-                equalTo: textView.topAnchor,
-                constant: 8
-            ),
-        ])
 
         updateComposerState()
     }
@@ -244,12 +192,12 @@ final class IMessageChatComposerView: UIView, UITextViewDelegate {
         sendButton.isEnabled = hasText
     }
 
-    private func updateTextHeight() {
+    private func updateTextHeight(availableWidth: CGFloat? = nil) {
         let font = textView.font ?? .preferredFont(forTextStyle: .body)
         let maximumHeight = ceil(font.lineHeight * 5)
             + textView.textContainerInset.top
             + textView.textContainerInset.bottom
-        let width = max(1, textView.bounds.width)
+        let width = max(1, availableWidth ?? textView.bounds.width)
         let measuredHeight = textView.sizeThatFits(
             CGSize(width: width, height: .greatestFiniteMagnitude)
         ).height
@@ -258,7 +206,8 @@ final class IMessageChatComposerView: UIView, UITextViewDelegate {
 
         guard abs(resolvedHeight - currentInputHeight) > 0.5 else { return }
         currentInputHeight = resolvedHeight
-        inputHeightConstraint.constant = resolvedHeight
+        glassContainerView.setNeedsQuickLayout()
+        setNeedsQuickLayout()
         invalidateIntrinsicContentSize()
         superview?.setNeedsLayout()
         heightDidChange?()
