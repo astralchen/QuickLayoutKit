@@ -7,7 +7,7 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
-final class IMessageContactTitleView: UIView {
+final class IMessageContactTitleView: QuickLayoutView {
 
     private static let maximumTitleWidth: CGFloat = 220
     private static let navigationBarHeight: CGFloat = 44
@@ -15,25 +15,22 @@ final class IMessageContactTitleView: UIView {
     let avatarView = UIImageView()
     let nameLabel = UILabel()
     let subtitleLabel = UILabel()
-    private let contentStack = UIStackView()
-    private let labelsStack = UIStackView()
+
+    override var body: Layout {
+        HStack(spacing: 7) {
+            avatarView.resizable().frame(width: 30, height: 30)
+            VStack(alignment: .leading, spacing: 0) {
+                nameLabel
+                subtitleLabel
+            }
+        }
+    }
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        contentStack.translatesAutoresizingMaskIntoConstraints = false
-        contentStack.axis = .horizontal
-        contentStack.alignment = .center
-        contentStack.spacing = 7
-        addSubview(contentStack)
-
         avatarView.image = UIImage(systemName: "person.crop.circle.fill")
         avatarView.tintColor = .systemGray
         avatarView.contentMode = .scaleAspectFit
-        avatarView.setContentHuggingPriority(.required, for: .horizontal)
-        avatarView.setContentCompressionResistancePriority(
-            .required,
-            for: .horizontal
-        )
 
         nameLabel.text = "Alex"
         nameLabel.font = .preferredFont(forTextStyle: .headline)
@@ -46,45 +43,31 @@ final class IMessageContactTitleView: UIView {
         subtitleLabel.textColor = .secondaryLabel
         subtitleLabel.textAlignment = .natural
         subtitleLabel.lineBreakMode = .byTruncatingTail
-
-        labelsStack.axis = .vertical
-        labelsStack.alignment = .leading
-        labelsStack.spacing = 0
-        labelsStack.addArrangedSubview(nameLabel)
-        labelsStack.addArrangedSubview(subtitleLabel)
-        contentStack.addArrangedSubview(avatarView)
-        contentStack.addArrangedSubview(labelsStack)
-
-        NSLayoutConstraint.activate([
-            contentStack.leadingAnchor.constraint(equalTo: leadingAnchor),
-            contentStack.trailingAnchor.constraint(equalTo: trailingAnchor),
-            contentStack.topAnchor.constraint(equalTo: topAnchor),
-            contentStack.bottomAnchor.constraint(equalTo: bottomAnchor),
-            avatarView.widthAnchor.constraint(equalToConstant: 30),
-            avatarView.heightAnchor.constraint(equalToConstant: 30),
-            widthAnchor.constraint(lessThanOrEqualToConstant: Self.maximumTitleWidth),
-            heightAnchor.constraint(lessThanOrEqualToConstant: Self.navigationBarHeight),
-        ])
         isAccessibilityElement = true
     }
 
     override var intrinsicContentSize: CGSize {
-        let measuredSize = contentStack.systemLayoutSizeFitting(
-            UIView.layoutFittingCompressedSize,
-            withHorizontalFittingPriority: .fittingSizeLevel,
-            verticalFittingPriority: .fittingSizeLevel
-        )
-        return CGSize(
-            width: min(Self.maximumTitleWidth, ceil(measuredSize.width)),
-            height: min(
-                Self.navigationBarHeight,
-                max(30, ceil(measuredSize.height))
+        fittingTitleSize(
+            in: CGSize(
+                width: Self.maximumTitleWidth,
+                height: Self.navigationBarHeight
             )
         )
     }
 
+    /// 导航栏可能在标题仍为零尺寸时先询问 fitting size；此时使用受控上限向
+    /// QuickLayout 提案，避免首次测量只得到头像或空内容宽度。
     override func sizeThatFits(_ size: CGSize) -> CGSize {
-        intrinsicContentSize
+        fittingTitleSize(
+            in: CGSize(
+                width: size.width > 0
+                    ? min(size.width, Self.maximumTitleWidth)
+                    : Self.maximumTitleWidth,
+                height: size.height > 0
+                    ? min(size.height, Self.navigationBarHeight)
+                    : Self.navigationBarHeight
+            )
+        )
     }
 
     required init?(coder: NSCoder) {
@@ -95,7 +78,19 @@ final class IMessageContactTitleView: UIView {
         subtitleLabel.text = subtitle
         accessibilityLabel = "Alex, \(subtitle)"
         invalidateIntrinsicContentSize()
-        setNeedsLayout()
+        setNeedsQuickLayout()
+        superview?.setNeedsLayout()
+    }
+
+    private func fittingTitleSize(in proposal: CGSize) -> CGSize {
+        let measuredSize = super.sizeThatFits(proposal)
+        return CGSize(
+            width: min(Self.maximumTitleWidth, ceil(measuredSize.width)),
+            height: min(
+                Self.navigationBarHeight,
+                max(30, ceil(measuredSize.height))
+            )
+        )
     }
 }
 

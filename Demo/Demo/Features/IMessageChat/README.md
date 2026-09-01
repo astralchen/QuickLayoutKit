@@ -63,7 +63,7 @@ quickLayoutKeyboardSafeAreaBehavior = .docked(
 
 ## 导航标题
 
-`IMessageContactTitleView` 使用 Auto Layout 和明确的 `intrinsicContentSize`，避免 `UINavigationBar` 只测量出头像宽度。标题最大宽度为 220 点、高度不超过 44 点，包含 30 × 30 点系统头像、联系人名称 Alex 和本地化副标题。
+`IMessageContactTitleView` 使用 QuickLayout 的 `HStack` 与 `VStack` 组织内容，并通过明确的 `intrinsicContentSize` / `sizeThatFits(_:)` 桥接 `UINavigationBar` 的 UIKit 测量流程，避免导航栏只测量出头像宽度。标题最大宽度为 220 点、高度不超过 44 点，包含 30 × 30 点系统头像、联系人名称 Alex 和本地化副标题。
 
 配置副标题后必须调用 `sizeToFit()` 再赋给或更新 `navigationItem.titleView`，确保名称与副标题参与导航栏测量。
 
