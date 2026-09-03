@@ -267,6 +267,7 @@ final class MainViewController: DemoQuickLayoutHostingController {
     ) {
         cell.contentConfiguration = MainMenuContentConfiguration(
             title: routeState.title,
+            iconSystemName: routeState.route.iconSystemName,
             accessibilityIdentifier: routeState.route.titleKey
         )
         cell.accessories = []

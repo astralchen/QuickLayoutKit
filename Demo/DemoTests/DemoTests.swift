@@ -6611,6 +6611,8 @@ struct DemoTests {
         )
 
         #expect(configuration.title == "横向滚动")
+        #expect(configuration.iconSystemName == "arrow.left.and.right")
+        #expect(contentView.iconImageView.image != nil)
         #expect(contentView.titleLabel.text == configuration.title)
         #expect(contentView.superview != nil)
         #expect(
@@ -6632,6 +6634,13 @@ struct DemoTests {
         #expect(narrowSize.height >= 52)
         #expect(wideSize.height >= 52)
         #expect(cell.accessories.isEmpty)
+
+        for route in DemoRoute.allCases {
+            #expect(
+                UIImage(systemName: route.iconSystemName) != nil,
+                "Missing SF Symbol for \(route): \(route.iconSystemName)"
+            )
+        }
     }
 
     @Test func mainMenuReloadsRouteTitlesAfterLanguageChange() throws {

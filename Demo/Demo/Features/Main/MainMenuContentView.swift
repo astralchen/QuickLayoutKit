@@ -11,6 +11,7 @@ import QuickLayoutKit
 
 struct MainMenuContentConfiguration: UIContentConfiguration, Equatable {
     let title: String
+    let iconSystemName: String
     let accessibilityIdentifier: String
     var isHighlighted = false
     var isSelected = false
@@ -35,6 +36,7 @@ struct MainMenuContentConfiguration: UIContentConfiguration, Equatable {
 /// 内容测量与 reusable 生命周期方向恢复则交给 QuickLayoutKit。
 final class MainMenuContentView: QuickLayoutContentView {
 
+    let iconImageView = UIImageView()
     let titleLabel = UILabel()
     let disclosureImageView = UIImageView(
         image: UIImage(systemName: "chevron.forward")
@@ -42,6 +44,10 @@ final class MainMenuContentView: QuickLayoutContentView {
 
     override var body: Layout {
         HStack(alignment: .center, spacing: 12) {
+            iconImageView
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 22, height: 22)
             titleLabel
             Spacer()
             disclosureImageView
@@ -67,6 +73,10 @@ final class MainMenuContentView: QuickLayoutContentView {
         titleLabel.numberOfLines = 1
         titleLabel.textAlignment = .natural
 
+        iconImageView.contentMode = .scaleAspectFit
+        iconImageView.preferredSymbolConfiguration =
+            UIImage.SymbolConfiguration(textStyle: .body, scale: .medium)
+
         disclosureImageView.contentMode = .scaleAspectFit
         disclosureImageView.preferredSymbolConfiguration =
             UIImage.SymbolConfiguration(textStyle: .body)
@@ -89,11 +99,15 @@ final class MainMenuContentView: QuickLayoutContentView {
     }
 
     private func apply(_ configuration: MainMenuContentConfiguration) {
+        iconImageView.image = UIImage(
+            systemName: configuration.iconSystemName
+        )
         titleLabel.text = configuration.title
         titleLabel.accessibilityIdentifier =
             configuration.accessibilityIdentifier
 
         let accentColor = UIColor.systemBlue
+        iconImageView.tintColor = accentColor
         titleLabel.textColor = accentColor
         disclosureImageView.tintColor = accentColor
 
