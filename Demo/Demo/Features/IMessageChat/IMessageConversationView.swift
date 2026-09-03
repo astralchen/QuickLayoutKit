@@ -9,6 +9,17 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
+/// 用户在时间线消息上发起的操作。
+///
+/// 图片和视频接入后在此增加打开预览或播放操作，由 ViewController 路由到对应
+/// 协调器；Conversation View 和 Cell 不直接创建页面级播放器。
+nonisolated enum IMessageChatMessageAction: Equatable, Sendable {
+    case toggleAudioPlayback(
+        messageID: Int,
+        attachment: IMessageChatAudioAttachment
+    )
+}
+
 final class IMessageConversationView: UIView {
 
     nonisolated enum Section: Hashable, Sendable {
@@ -26,6 +37,10 @@ final class IMessageConversationView: UIView {
     private var renderGeneration = 0
     private var timelineCount = 0
     private var lastAppliedLayoutDirection: UIUserInterfaceLayoutDirection?
+    private var playbackState: IMessageChatPlaybackState = .idle
+
+    /// 消息 Cell 请求页面级操作时调用。
+    var actionRequested: ((IMessageChatMessageAction) -> Void)?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -96,17 +111,47 @@ final class IMessageConversationView: UIView {
                         .refreshID(timestamp.text)
 
                     case .message(let message):
-                        Row(
-                            model: message,
-                            cell: IMessageBubbleCell.self
-                        ) { cell, message, _ in
-                            cell.configure(message)
+                        switch message.content {
+                        case .text:
+                            Row(
+                                model: message,
+                                cell: IMessageBubbleCell.self
+                            ) { cell, message, _ in
+                                cell.configure(message)
+                            }
+                            .refreshID(message.refreshIdentity)
+
+                        case .attachment(let attachment):
+                            switch attachment {
+                            case .audio:
+                                Row(
+                                    model: message,
+                                    cell: IMessageAudioBubbleCell.self
+                                ) { [weak self] cell, message, _ in
+                                    guard let self else { return }
+                                    cell.playbackRequested = {
+                                        [weak self] id, audio in
+                                        self?.actionRequested?(
+                                            .toggleAudioPlayback(
+                                                messageID: id,
+                                                attachment: audio
+                                            )
+                                        )
+                                    }
+                                    cell.configure(
+                                        message,
+                                        playback: playbackState,
+                                        playAccessibilityLabel: DemoLocalization.text(
+                                            "imessage.audio.play"
+                                        ),
+                                        pauseAccessibilityLabel: DemoLocalization.text(
+                                            "imessage.audio.pause"
+                                        )
+                                    )
+                                }
+                                .refreshID(message.refreshIdentity)
+                            }
                         }
-                        .refreshID([
-                            message.text,
-                            message.deliveryText ?? "",
-                            message.direction.rawValue,
-                        ])
 
                     case .typing(let accessibilityLabel):
                         Row(
@@ -132,6 +177,27 @@ final class IMessageConversationView: UIView {
                         bottom: 10,
                         trailing: 0
                     )
+                )
+            )
+        }
+    }
+
+    /// 将页面级播放状态应用到可见的音频消息 Cell。
+    ///
+    /// 屏幕外的 Cell 会在 ListKit 配置时接收相同状态。
+    ///
+    /// - Parameter playback: 当前音频消息播放状态。
+    func updateAudioPlayback(_ playback: IMessageChatPlaybackState) {
+        playbackState = playback
+        for case let cell as IMessageAudioBubbleCell
+                in collectionView.visibleCells {
+            cell.updatePlayback(
+                playback,
+                playAccessibilityLabel: DemoLocalization.text(
+                    "imessage.audio.play"
+                ),
+                pauseAccessibilityLabel: DemoLocalization.text(
+                    "imessage.audio.pause"
                 )
             )
         }

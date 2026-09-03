@@ -5,6 +5,7 @@
 //  Created by Sondra on 2025/12/26.
 //
 
+import AVFAudio
 import CoreGraphics
 import Testing
 import UIKit
@@ -8961,6 +8962,726 @@ struct DemoTests {
         #expect(viewModel.state.timeline.last?.id == .message(3))
     }
 
+    @Test func iMessageChatAudioUsesOutgoingReplyAndReadLifecycle() async throws {
+        let sleeper = ControlledIMessageSleeper()
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("m4a")
+        try Data([0]).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let attachment = IMessageChatAudioAttachment(
+            id: UUID(uuidString: "A0000000-0000-0000-0000-000000000001")!,
+            fileURL: fileURL,
+            duration: 3.25,
+            waveform: [0, 0.4, 2]
+        )
+        let viewModel = IMessageChatViewModel(
+            localizer: DemoLocalizer { key, _ in "localized.\(key)" },
+            clock: { Date(timeIntervalSince1970: 1_800_000_000) },
+            sleeper: { duration in
+                try await sleeper.sleep(duration)
+            }
+        )
+
+        #expect(viewModel.sendAttachment(.audio(attachment)))
+        #expect(
+            await waitForCondition {
+                sleeper.requestedDurations == [.milliseconds(900)]
+            }
+        )
+
+        let sendingMessage = try #require(
+            viewModel.state.timeline.compactMap {
+                item -> IMessageChatMessagePresentation? in
+                guard case .message(let message) = item.content,
+                      message.id == 3 else { return nil }
+                return message
+            }.first
+        )
+        let sentAttachment = try #require(sendingMessage.audio)
+        #expect(sentAttachment == attachment)
+        #expect(sentAttachment.waveform == [0.08, 0.4, 1])
+        #expect(
+            sendingMessage.deliveryText
+                == "localized.imessage.status.delivered"
+        )
+        #expect(viewModel.state.timeline.last?.id == .typing)
+
+        sleeper.succeed()
+        #expect(await waitForCondition { !viewModel.state.isTyping })
+        let readMessage = try #require(
+            viewModel.state.timeline.compactMap {
+                item -> IMessageChatMessagePresentation? in
+                guard case .message(let message) = item.content,
+                      message.id == 3 else { return nil }
+                return message
+            }.first
+        )
+        #expect(readMessage.audio == attachment)
+        #expect(readMessage.deliveryText == "localized.imessage.status.read")
+        #expect(viewModel.state.timeline.last?.id == .message(4))
+    }
+
+    @Test func iMessageChatTextReplyDoesNotStartAudioSynthesis() async throws {
+        let sleeper = ControlledIMessageSleeper()
+        let synthesizer = ControlledIMessageReplyAudioSynthesizer()
+        let viewModel = IMessageChatViewModel(
+            localizer: DemoLocalizer { key, _ in "localized.\(key)" },
+            clock: { Date(timeIntervalSince1970: 1_800_000_000) },
+            localeProvider: { Locale(identifier: "zh-Hans") },
+            replyAudioSynthesizer: synthesizer,
+            sleeper: { duration in
+                try await sleeper.sleep(duration)
+            }
+        )
+
+        #expect(viewModel.send("hello"))
+        #expect(
+            await waitForCondition {
+                sleeper.requestedDurations == [.milliseconds(900)]
+            }
+        )
+        #expect(synthesizer.requests.isEmpty)
+        sleeper.succeed()
+        #expect(await waitForCondition { !viewModel.state.isTyping })
+
+        let reply = try #require(
+            viewModel.state.timeline.compactMap {
+                item -> IMessageChatMessagePresentation? in
+                guard case .message(let message) = item.content,
+                      message.direction == .incoming else { return nil }
+                return message
+            }.last
+        )
+        #expect(reply.text == "localized.imessage.reply.1")
+        #expect(reply.audio == nil)
+    }
+
+    @Test func iMessageChatAudioReplyWaitsForDelayAndSynthesis() async throws {
+        let sleeper = ControlledIMessageSleeper()
+        let synthesizer = ControlledIMessageReplyAudioSynthesizer()
+        let outgoingURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("m4a")
+        let replyURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("caf")
+        try Data([0]).write(to: outgoingURL)
+        try Data([1]).write(to: replyURL)
+        defer {
+            try? FileManager.default.removeItem(at: outgoingURL)
+            try? FileManager.default.removeItem(at: replyURL)
+        }
+        let outgoingAttachment = IMessageChatAudioAttachment(
+            fileURL: outgoingURL,
+            duration: 2,
+            waveform: [0.3, 0.6]
+        )
+        let replyAttachment = IMessageChatAudioAttachment(
+            id: UUID(uuidString: "B0000000-0000-0000-0000-000000000001")!,
+            fileURL: replyURL,
+            duration: 1.75,
+            waveform: [0.2, 0.8]
+        )
+        let viewModel = IMessageChatViewModel(
+            localizer: DemoLocalizer { key, _ in "localized.\(key)" },
+            clock: { Date(timeIntervalSince1970: 1_800_000_000) },
+            localeProvider: { Locale(identifier: "zh-Hans") },
+            replyAudioSynthesizer: synthesizer,
+            sleeper: { duration in
+                try await sleeper.sleep(duration)
+            }
+        )
+
+        #expect(viewModel.sendAttachment(.audio(outgoingAttachment)))
+        #expect(
+            await waitForCondition {
+                sleeper.requestedDurations == [.milliseconds(900)]
+                    && synthesizer.requests.count == 1
+            }
+        )
+        #expect(
+            synthesizer.requests.first?.text
+                == "localized.imessage.reply.1"
+        )
+        #expect(synthesizer.requests.first?.locale.identifier == "zh-CN")
+
+        sleeper.succeed()
+        await Task.yield()
+        #expect(viewModel.state.isTyping)
+        #expect(viewModel.state.timeline.last?.id == .typing)
+
+        synthesizer.succeed(with: replyAttachment)
+        #expect(await waitForCondition { !viewModel.state.isTyping })
+        let messages = viewModel.state.timeline.compactMap {
+            item -> IMessageChatMessagePresentation? in
+            guard case .message(let message) = item.content else { return nil }
+            return message
+        }
+        let sentMessage = try #require(messages.first(where: { $0.id == 3 }))
+        let reply = try #require(messages.first(where: { $0.id == 4 }))
+        #expect(sentMessage.deliveryText == "localized.imessage.status.read")
+        #expect(reply.direction == .incoming)
+        #expect(reply.audio == replyAttachment)
+        #expect(reply.text.isEmpty)
+    }
+
+    @Test func iMessageChatAudioReplyFallsBackToLocalizedText() async throws {
+        let sleeper = ControlledIMessageSleeper()
+        let synthesizer = ControlledIMessageReplyAudioSynthesizer()
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("m4a")
+        try Data([0]).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let viewModel = IMessageChatViewModel(
+            localizer: DemoLocalizer { key, _ in "localized.\(key)" },
+            clock: { Date(timeIntervalSince1970: 1_800_000_000) },
+            localeProvider: { Locale(identifier: "ar") },
+            replyAudioSynthesizer: synthesizer,
+            sleeper: { duration in
+                try await sleeper.sleep(duration)
+            }
+        )
+
+        #expect(
+            viewModel.sendAttachment(
+                .audio(IMessageChatAudioAttachment(
+                    fileURL: fileURL,
+                    duration: 1,
+                    waveform: [0.5]
+                ))
+            )
+        )
+        #expect(
+            await waitForCondition {
+                sleeper.requestedDurations == [.milliseconds(900)]
+                    && synthesizer.requests.count == 1
+            }
+        )
+        synthesizer.fail()
+        #expect(viewModel.state.isTyping)
+        sleeper.succeed()
+        #expect(await waitForCondition { !viewModel.state.isTyping })
+
+        let reply = try #require(
+            viewModel.state.timeline.compactMap {
+                item -> IMessageChatMessagePresentation? in
+                guard case .message(let message) = item.content,
+                      message.id == 4 else { return nil }
+                return message
+            }.first
+        )
+        #expect(synthesizer.requests.first?.locale.identifier == "ar-SA")
+        #expect(reply.text == "localized.imessage.reply.1")
+        #expect(reply.audio == nil)
+    }
+
+    @Test func iMessageChatCancelsPendingAudioReplyWithoutAppendingIt()
+        async throws {
+        let sleeper = ControlledIMessageSleeper()
+        let synthesizer = ControlledIMessageReplyAudioSynthesizer()
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("m4a")
+        try Data([0]).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let viewModel = IMessageChatViewModel(
+            localizer: DemoLocalizer { key, _ in "localized.\(key)" },
+            clock: { Date(timeIntervalSince1970: 1_800_000_000) },
+            localeProvider: { Locale(identifier: "en") },
+            replyAudioSynthesizer: synthesizer,
+            sleeper: { duration in
+                try await sleeper.sleep(duration)
+            }
+        )
+
+        #expect(
+            viewModel.sendAttachment(
+                .audio(IMessageChatAudioAttachment(
+                    fileURL: fileURL,
+                    duration: 1,
+                    waveform: [0.5]
+                ))
+            )
+        )
+        #expect(
+            await waitForCondition {
+                sleeper.requestedDurations == [.milliseconds(900)]
+                    && synthesizer.requests.count == 1
+            }
+        )
+
+        viewModel.cancelPendingReply()
+        sleeper.succeed()
+        #expect(
+            await waitForCondition {
+                synthesizer.cancellationCount == 1
+            }
+        )
+        #expect(!viewModel.state.isTyping)
+        #expect(
+            !viewModel.state.timeline.contains(where: {
+                $0.id == .message(4)
+            })
+        )
+        let sentMessage = try #require(
+            viewModel.state.timeline.compactMap {
+                item -> IMessageChatMessagePresentation? in
+                guard case .message(let message) = item.content,
+                      message.id == 3 else { return nil }
+                return message
+            }.first
+        )
+        #expect(
+            sentMessage.deliveryText
+                == "localized.imessage.status.delivered"
+        )
+    }
+
+    @Test func iMessageChatNewAudioMessageReplacesOlderSynthesis()
+        async throws {
+        let sleeper = ControlledIMessageSleeper()
+        let synthesizer = ControlledIMessageReplyAudioSynthesizer()
+        let firstURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("m4a")
+        let secondURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("m4a")
+        let replyURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("caf")
+        for url in [firstURL, secondURL, replyURL] {
+            try Data([0]).write(to: url)
+        }
+        defer {
+            for url in [firstURL, secondURL, replyURL] {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+        let viewModel = IMessageChatViewModel(
+            localizer: DemoLocalizer { key, _ in "localized.\(key)" },
+            clock: { Date(timeIntervalSince1970: 1_800_000_000) },
+            localeProvider: { Locale(identifier: "en") },
+            replyAudioSynthesizer: synthesizer,
+            sleeper: { duration in
+                try await sleeper.sleep(duration)
+            }
+        )
+
+        #expect(
+            viewModel.sendAttachment(
+                .audio(IMessageChatAudioAttachment(
+                    fileURL: firstURL,
+                    duration: 1,
+                    waveform: [0.3]
+                ))
+            )
+        )
+        #expect(
+            await waitForCondition {
+                synthesizer.requests.count == 1
+            }
+        )
+        #expect(
+            viewModel.sendAttachment(
+                .audio(IMessageChatAudioAttachment(
+                    fileURL: secondURL,
+                    duration: 1,
+                    waveform: [0.6]
+                ))
+            )
+        )
+        #expect(
+            await waitForCondition {
+                synthesizer.requests.count == 2
+                    && sleeper.requestedDurations.count == 2
+            }
+        )
+
+        sleeper.succeed()
+        #expect(
+            await waitForCondition {
+                synthesizer.cancellationCount == 1
+            }
+        )
+        sleeper.succeed()
+        synthesizer.succeedLatest(
+            with: IMessageChatAudioAttachment(
+                fileURL: replyURL,
+                duration: 1.25,
+                waveform: [0.2, 0.9]
+            )
+        )
+        #expect(await waitForCondition { !viewModel.state.isTyping })
+
+        let messages = viewModel.state.timeline.compactMap {
+            item -> IMessageChatMessagePresentation? in
+            guard case .message(let message) = item.content else {
+                return nil
+            }
+            return message
+        }
+        #expect(messages.filter { $0.id >= 3 }.count == 3)
+        #expect(messages.filter { $0.id >= 3 && $0.direction == .incoming }
+            .map(\.id) == [5])
+        #expect(messages.first(where: { $0.id == 5 })?.audio?.fileURL == replyURL)
+    }
+
+    @Test func iMessageChatRejectsInvalidAudioAndPreservesAudioOnLocalization()
+        throws {
+        let localization = MutableIMessageLocalization(prefix: "first")
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("m4a")
+        try Data([0]).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let sleeper = ControlledIMessageSleeper()
+        let viewModel = IMessageChatViewModel(
+            localizer: DemoLocalizer { key, _ in
+                localization.text(for: key)
+            },
+            clock: { Date(timeIntervalSince1970: 1_800_000_000) },
+            sleeper: { duration in
+                try await sleeper.sleep(duration)
+            }
+        )
+        let tooShort = IMessageChatAudioAttachment(
+            fileURL: fileURL,
+            duration: 0.99,
+            waveform: [0.5]
+        )
+        #expect(!viewModel.sendAttachment(.audio(tooShort)))
+
+        let attachment = IMessageChatAudioAttachment(
+            fileURL: fileURL,
+            duration: 1,
+            waveform: [0.25, 0.75]
+        )
+        #expect(viewModel.sendAttachment(.audio(attachment)))
+        viewModel.cancelPendingReply()
+        localization.prefix = "second"
+        viewModel.refreshLocalizedContent()
+
+        let audio = try #require(
+            viewModel.state.timeline.compactMap {
+                item -> IMessageChatAudioAttachment? in
+                guard case .message(let message) = item.content,
+                      message.id == 3 else { return nil }
+                return message.audio
+            }.first
+        )
+        #expect(audio == attachment)
+    }
+
+    @Test func iMessageSpeechConfigurationMapsBackendsAndLocales() {
+        #expect(
+            IMessageChatSpeechConfiguration.preferredBackend(
+                supportsSpeechAnalyzer: true
+            ) == .speechAnalyzer
+        )
+        #expect(
+            IMessageChatSpeechConfiguration.preferredBackend(
+                supportsSpeechAnalyzer: false
+            ) == .speechRecognizer
+        )
+        #expect(
+            IMessageChatSpeechConfiguration.fallbackBackend(
+                afterFailureOf: .speechAnalyzer,
+                wasExplicitlyRequested: false
+            ) == .speechRecognizer
+        )
+        #expect(
+            IMessageChatSpeechConfiguration.fallbackBackend(
+                afterFailureOf: .speechAnalyzer,
+                wasExplicitlyRequested: true
+            ) == nil
+        )
+        #expect(
+            IMessageChatSpeechConfiguration.fallbackBackend(
+                afterFailureOf: .speechRecognizer,
+                wasExplicitlyRequested: false
+            ) == nil
+        )
+        #expect(
+            IMessageChatSpeechConfiguration.recognitionLocale(
+                for: Locale(identifier: "zh-Hans")
+            ).identifier == "zh-CN"
+        )
+        #expect(
+            IMessageChatSpeechConfiguration.recognitionLocale(
+                for: Locale(identifier: "ar")
+            ).identifier == "ar-SA"
+        )
+        #expect(
+            IMessageChatSpeechConfiguration.recognitionLocale(
+                for: Locale(identifier: "en-GB")
+            ).identifier == "en-US"
+        )
+        #expect(
+            IMessageChatSpeechConfiguration.speechLocale(
+                for: Locale(identifier: "zh-Hans")
+            ).identifier == "zh-CN"
+        )
+        #expect(
+            IMessageChatSpeechConfiguration.speechLocale(
+                for: Locale(identifier: "ar")
+            ).identifier == "ar-SA"
+        )
+        #expect(
+            IMessageChatSpeechConfiguration.speechLocale(
+                for: Locale(identifier: "en-GB")
+            ).identifier == "en-US"
+        )
+        #expect(
+            IMessageChatSpeechConfiguration.speechVoiceLanguage(
+                for: Locale(identifier: "zh-CN")
+            ) == "zh-CN"
+        )
+        #expect(
+            IMessageChatSpeechConfiguration.speechVoiceLanguage(
+                for: Locale(identifier: "en-US")
+            ) == "en-US"
+        )
+        #expect(
+            IMessageChatSpeechConfiguration.speechVoiceLanguage(
+                for: Locale(identifier: "ar-SA")
+            ) == "ar-SA"
+        )
+    }
+
+    @Test func iMessageReplyWaveformUsesDeterministicPCMAmplitude()
+        throws {
+        let format = try #require(
+            AVAudioFormat(
+                commonFormat: .pcmFormatFloat32,
+                sampleRate: 8_000,
+                channels: 1,
+                interleaved: false
+            )
+        )
+        let buffer = try #require(
+            AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 512)
+        )
+        buffer.frameLength = 512
+        let channel = try #require(buffer.floatChannelData?[0])
+        for frame in 0..<256 {
+            channel[frame] = 0.01
+        }
+        for frame in 256..<512 {
+            channel[frame] = 1
+        }
+
+        let samples = IMessageChatAudioController.replyWaveformSamples(
+            from: buffer
+        )
+        #expect(samples.count == 2)
+        #expect(abs(samples[0] - 0.1) < 0.0001)
+        #expect(samples[1] == 1)
+    }
+
+    @Test func iMessageRecordingPolicyHonorsMinimumAndMaximumDurations() {
+        #expect(
+            !IMessageChatRecordingPolicy.accepts(
+                duration: 0.99,
+                fileExists: true
+            )
+        )
+        #expect(
+            IMessageChatRecordingPolicy.accepts(
+                duration: 1,
+                fileExists: true
+            )
+        )
+        #expect(
+            !IMessageChatRecordingPolicy.accepts(
+                duration: 1,
+                fileExists: false
+            )
+        )
+        #expect(!IMessageChatRecordingPolicy.shouldStop(elapsed: 119.99))
+        #expect(IMessageChatRecordingPolicy.shouldStop(elapsed: 120))
+    }
+
+    @Test func iMessageAttachmentStoreCommitsAndDiscardsTransactionally()
+        throws {
+        let fileManager = FileManager.default
+        let parentDirectory = fileManager.temporaryDirectory
+            .appendingPathComponent(
+                "IMessageChatStoreTests-\(UUID().uuidString)",
+                isDirectory: true
+            )
+        try fileManager.createDirectory(
+            at: parentDirectory,
+            withIntermediateDirectories: true
+        )
+        defer { try? fileManager.removeItem(at: parentDirectory) }
+
+        let store = IMessageChatPageAttachmentStore(
+            fileManager: fileManager,
+            parentDirectory: parentDirectory
+        )
+        let pickerURL = parentDirectory
+            .appendingPathComponent("picker-source.jpg")
+        try Data([7, 8, 9]).write(to: pickerURL)
+        let importedURL = try store.importFile(
+            at: pickerURL,
+            prefix: "image",
+            pathExtension: nil
+        )
+        #expect(importedURL.deletingLastPathComponent() == store.directoryURL)
+        #expect(importedURL.pathExtension == "jpg")
+        #expect(try Data(contentsOf: importedURL) == Data([7, 8, 9]))
+
+        let discardedURL = store.makeFileURL(
+            prefix: "discarded",
+            pathExtension: "m4a"
+        )
+        try Data([0]).write(to: discardedURL)
+        let discarded = IMessageChatAudioAttachment(
+            fileURL: discardedURL,
+            duration: 2,
+            waveform: [0.5]
+        )
+        store.registerDraft(.audio(discarded))
+        store.discardDraft(id: discarded.id)
+        #expect(!fileManager.fileExists(atPath: discardedURL.path))
+
+        let committedURL = store.makeFileURL(
+            prefix: "committed",
+            pathExtension: "m4a"
+        )
+        try Data([1]).write(to: committedURL)
+        let committed = IMessageChatAudioAttachment(
+            fileURL: committedURL,
+            duration: 2,
+            waveform: [0.6]
+        )
+        store.registerDraft(.audio(committed))
+        #expect(store.commitDraft(id: committed.id))
+        store.discardDraft(id: committed.id)
+        #expect(fileManager.fileExists(atPath: committedURL.path))
+
+        let directoryURL = store.directoryURL
+        store.removeAll()
+        #expect(!fileManager.fileExists(atPath: importedURL.path))
+        #expect(!fileManager.fileExists(atPath: committedURL.path))
+        #expect(!fileManager.fileExists(atPath: directoryURL.path))
+    }
+
+    @Test func iMessageRecordingWaveformKeepsStableDisplaySlots() {
+        #expect(IMessageChatRecordingWaveform.displaySampleCount == 60)
+        let empty = IMessageChatRecordingWaveform.displaySamples([])
+        #expect(
+            empty.count == IMessageChatRecordingWaveform.displaySampleCount
+        )
+        #expect(empty.allSatisfy { $0 == 0.08 })
+
+        let firstSample = IMessageChatRecordingWaveform.displaySamples([0.7])
+        #expect(firstSample.count == empty.count)
+        #expect(firstSample.dropLast().allSatisfy { $0 == 0.08 })
+        #expect(firstSample.last == 0.7)
+
+        let source = (0..<72).map { Float($0) / 72 }
+        let scrolled = IMessageChatRecordingWaveform.displaySamples(source)
+        #expect(scrolled.count == empty.count)
+        #expect(scrolled.first == source[12])
+        #expect(scrolled.last == source[71])
+    }
+
+    @Test func iMessageDictationReplacesPartialResultsAndIgnoresStaleResults()
+        async {
+        let transcriber = ControlledIMessageSpeechTranscriber()
+        let permissions = ControlledIMessageMediaPermissions(
+            microphoneGranted: true,
+            speechGranted: true
+        )
+        let audioSession = RecordingIMessageAudioSession()
+        let controller = IMessageChatAudioController(
+            audioSession: audioSession,
+            fileManager: .default,
+            speechTranscriber: transcriber,
+            permissionProvider: permissions
+        )
+        var states: [IMessageChatComposerState] = []
+        controller.stateDidChange = { states.append($0) }
+
+        controller.startDictation(locale: Locale(identifier: "zh-Hans"))
+        #expect(await waitForCondition { transcriber.startCount == 1 })
+        #expect(transcriber.locale?.identifier == "zh-CN")
+        #expect(audioSession.captureActivationCount == 1)
+
+        transcriber.emit(text: "你", isFinal: false)
+        #expect(controller.state == .dictating(text: "你"))
+        transcriber.emit(text: "你好", isFinal: false)
+        #expect(controller.state == .dictating(text: "你好"))
+
+        controller.stopDictation()
+        #expect(controller.state == .idle)
+        #expect(transcriber.stopCount == 1)
+        transcriber.emit(text: "不应覆盖", isFinal: false)
+        #expect(controller.state == .idle)
+        #expect(states.contains(.dictating(text: "你")))
+        #expect(states.contains(.dictating(text: "你好")))
+    }
+
+    @Test func iMessageDictationFinalResultStopsWithoutSending() async {
+        let transcriber = ControlledIMessageSpeechTranscriber()
+        let controller = IMessageChatAudioController(
+            audioSession: RecordingIMessageAudioSession(),
+            fileManager: .default,
+            speechTranscriber: transcriber,
+            permissionProvider: ControlledIMessageMediaPermissions(
+                microphoneGranted: true,
+                speechGranted: true
+            )
+        )
+        var latestDraft = ""
+        controller.stateDidChange = { state in
+            if case .dictating(let text) = state {
+                latestDraft = text
+            }
+        }
+
+        controller.startDictation(locale: Locale(identifier: "ar"))
+        #expect(await waitForCondition { transcriber.startCount == 1 })
+        #expect(transcriber.locale?.identifier == "ar-SA")
+        transcriber.emit(text: "مرحبا", isFinal: true)
+
+        #expect(latestDraft == "مرحبا")
+        #expect(controller.state == .idle)
+        #expect(transcriber.stopCount == 1)
+    }
+
+    @Test func iMessageDictationPermissionFailureDoesNotStartCapture() async {
+        let transcriber = ControlledIMessageSpeechTranscriber()
+        let audioSession = RecordingIMessageAudioSession()
+        let controller = IMessageChatAudioController(
+            audioSession: audioSession,
+            fileManager: .default,
+            speechTranscriber: transcriber,
+            permissionProvider: ControlledIMessageMediaPermissions(
+                microphoneGranted: false,
+                speechGranted: true
+            )
+        )
+        var failure: IMessageChatMediaFailure?
+        controller.failureDidOccur = { failure = $0 }
+
+        controller.startDictation(locale: Locale(identifier: "en-US"))
+        #expect(
+            await waitForCondition {
+                failure == .microphonePermissionDenied
+            }
+        )
+        #expect(controller.state == .idle)
+        #expect(transcriber.startCount == 0)
+        #expect(audioSession.captureActivationCount == 0)
+    }
+
     @Test func iMessageChatViewModelCancelsReplyWhenReleased() async {
         let sleeper = ControlledIMessageSleeper()
         weak var releasedViewModel: IMessageChatViewModel?
@@ -8990,15 +9711,38 @@ struct DemoTests {
         let composer = IMessageChatComposerView(
             frame: CGRect(x: 0, y: 0, width: 390, height: 60)
         )
-        composer.configure(
-            placeholder: "iMessage",
-            sendAccessibilityLabel: "Send"
-        )
+        composer.configure(strings: IMessageChatPreviewData.composerStrings)
         composer.layoutIfNeeded()
 
         #expect(!composer.sendButton.isEnabled)
         #expect(!composer.placeholderLabel.isHidden)
+        #expect(composer.attachmentButton.menu?.children.count == 1)
+        #expect(
+            composer.attachmentButton.cornerConfiguration == .capsule()
+        )
+        #expect(
+            composer.attachmentButton.configuration?.cornerStyle == .capsule
+        )
+        #expect(composer.sendButton.cornerConfiguration == .capsule())
+        #expect(composer.audioSendButton.cornerConfiguration == .capsule())
+        #expect(
+            composer.attachmentButton.menu?.children.first?.title == "Audio"
+        )
         let singleLineHeight = composer.intrinsicContentSize.height
+
+        composer.textView.text = "Send this message"
+        composer.textViewDidChange(composer.textView)
+        composer.frame.size.height = composer.intrinsicContentSize.height
+        composer.layoutIfNeeded()
+        let sendFrame = composer.sendButton.convert(
+            composer.sendButton.bounds,
+            to: composer
+        )
+        #expect(abs(sendFrame.width - 38) < 0.5)
+        #expect(abs(sendFrame.height - 28) < 0.5)
+        #expect(abs(sendFrame.maxX - 368) < 0.5)
+        #expect(abs(sendFrame.maxY - 46) < 0.5)
+        #expect(sendFrame.width > sendFrame.height)
 
         composer.textView.text = "one\ntwo\nthree\nfour\nfive\nsix\nseven"
         composer.textViewDidChange(composer.textView)
@@ -9018,7 +9762,8 @@ struct DemoTests {
         #expect(composer.sendButton.isEnabled)
 
         var sentText: String?
-        composer.sendRequested = { text in
+        composer.actionRequested = { action in
+            guard case .sendText(let text) = action else { return false }
             sentText = text
             return true
         }
@@ -9034,6 +9779,137 @@ struct DemoTests {
         #expect(composer.textView.textAlignment == .natural)
         composer.applyLayoutDirection(.leftToRight)
         #expect(composer.semanticContentAttribute == .forceLeftToRight)
+    }
+
+    @Test func iMessageComposerPreservesDraftAcrossAudioStates() {
+        let composer = IMessageChatComposerView(
+            frame: CGRect(x: 0, y: 0, width: 390, height: 60)
+        )
+        composer.configure(strings: IMessageChatPreviewData.composerStrings)
+        composer.textView.text = "draft text"
+        composer.textViewDidChange(composer.textView)
+        let attachment = IMessageChatAudioAttachment(
+            fileURL: URL(fileURLWithPath: "/tmp/preview.m4a"),
+            duration: 4,
+            waveform: [0.2, 0.8, 0.4]
+        )
+
+        composer.applyState(
+            .recording(elapsed: 2, waveform: [0.3, 0.7])
+        )
+        composer.frame.size.height = composer.intrinsicContentSize.height
+        composer.layoutIfNeeded()
+        let recordingWaveformFrame = composer.recordingWaveformView.convert(
+            composer.recordingWaveformView.bounds,
+            to: composer
+        )
+        let recordingStopFrame = composer.recordingStopButton.convert(
+            composer.recordingStopButton.bounds,
+            to: composer
+        )
+        #expect(composer.textView.text == "draft text")
+        #expect(composer.textView.superview != nil)
+        #expect(composer.intrinsicContentSize.height == 80)
+        #expect(abs(recordingWaveformFrame.minX - 44) < 0.5)
+        #expect(abs(recordingWaveformFrame.minY - 25) < 0.5)
+        #expect(abs(recordingWaveformFrame.maxY - 55) < 0.5)
+        #expect(composer.recordingWaveformView.minimumBarHeight == 2)
+        #expect(composer.recordingWaveformView.maximumBarHeight == 12)
+        #expect(composer.recordingWaveformView.barWidth == 2)
+        #expect(composer.recordingWaveformView.barSpacing == 2)
+        #expect(composer.recordingWaveformView.fadedLeadingFraction == 0.28)
+        #expect(abs(recordingStopFrame.maxX - 360) < 0.5)
+        #expect(abs(recordingStopFrame.minY - 22) < 0.5)
+        #expect(abs(recordingStopFrame.height - 36) < 0.5)
+        #expect(abs(recordingStopFrame.midY - 40) < 0.5)
+        #expect(
+            composer.recordingStopButton.point(
+                inside: CGPoint(x: -3, y: 18),
+                with: nil
+            )
+        )
+
+        var repeatedHeightChangeCount = 0
+        composer.heightDidChange = {
+            repeatedHeightChangeCount += 1
+        }
+        composer.applyState(
+            .recording(elapsed: 59, waveform: [0.1, 0.5, 0.9])
+        )
+        composer.layoutIfNeeded()
+        let repeatedWaveformFrame = composer.recordingWaveformView.convert(
+            composer.recordingWaveformView.bounds,
+            to: composer
+        )
+        let repeatedStopFrame = composer.recordingStopButton.convert(
+            composer.recordingStopButton.bounds,
+            to: composer
+        )
+        #expect(repeatedHeightChangeCount == 0)
+        #expect(repeatedWaveformFrame == recordingWaveformFrame)
+        #expect(repeatedStopFrame == recordingStopFrame)
+
+        composer.applyState(
+            .recording(elapsed: 60, waveform: [0.9, 0.5, 0.1])
+        )
+        composer.layoutIfNeeded()
+        #expect(repeatedHeightChangeCount == 0)
+        #expect(
+            composer.recordingWaveformView.convert(
+                composer.recordingWaveformView.bounds,
+                to: composer
+            ) == recordingWaveformFrame
+        )
+        #expect(
+            composer.recordingStopButton.convert(
+                composer.recordingStopButton.bounds,
+                to: composer
+            ) == recordingStopFrame
+        )
+
+        composer.applyState(
+            .audioPreview(
+                attachment: attachment,
+                isPlaying: false,
+                progress: 0
+            )
+        )
+        composer.frame.size.height = composer.intrinsicContentSize.height
+        composer.layoutIfNeeded()
+        #expect(composer.textView.text == "draft text")
+        #expect(composer.textView.superview != nil)
+        #expect(composer.intrinsicContentSize.height == 80)
+        let audioSendFrame = composer.audioSendButton.convert(
+            composer.audioSendButton.bounds,
+            to: composer
+        )
+        let audioPlayFrame = composer.audioPlayButton.convert(
+            composer.audioPlayButton.bounds,
+            to: composer
+        )
+        #expect(abs(audioSendFrame.width - 38) < 0.5)
+        #expect(abs(audioSendFrame.height - 28) < 0.5)
+        #expect(abs(audioSendFrame.maxX - 360) < 0.5)
+        #expect(abs(audioSendFrame.minY - 26) < 0.5)
+        #expect(audioSendFrame.width > audioSendFrame.height)
+        #expect(abs(audioPlayFrame.minX - 82) < 0.5)
+        #expect(abs(audioPlayFrame.minY - 22) < 0.5)
+        #expect(abs(audioPlayFrame.maxY - 58) < 0.5)
+        #expect(composer.previewWaveformView.minimumBarHeight == 2)
+        #expect(composer.previewWaveformView.maximumBarHeight == 12)
+        #expect(composer.previewWaveformView.barWidth == 2)
+        #expect(composer.previewWaveformView.barSpacing == 2)
+        #expect(composer.previewWaveformView.fadedLeadingFraction == 0)
+        #expect(
+            composer.audioSendButton.point(
+                inside: CGPoint(x: 19, y: -7),
+                with: nil
+            )
+        )
+
+        composer.applyState(.idle)
+        #expect(composer.textView.text == "draft text")
+        #expect(composer.sendButton.isEnabled)
     }
 
     @Test func iMessageRowsPinBubblesStatusAndTypingToSemanticEdges() throws {
@@ -9099,6 +9975,194 @@ struct DemoTests {
         #expect(abs(typingFrame.minX - horizontalInset) < 1)
     }
 
+    @Test func iMessageAudioRowsPinToSemanticEdgesAndUpdatePlayback() {
+        let attachment = IMessageChatAudioAttachment(
+            id: UUID(uuidString: "A0000000-0000-0000-0000-000000000002")!,
+            fileURL: URL(fileURLWithPath: "/tmp/message.m4a"),
+            duration: 8,
+            waveform: [0.2, 0.7, 0.4, 0.9]
+        )
+        let cellWidth: CGFloat = 390
+        let horizontalInset: CGFloat = 12
+        let cell = IMessageAudioBubbleCell(frame: .zero)
+        cell.configure(
+            IMessageChatMessagePresentation(
+                id: 7,
+                direction: .outgoing,
+                attachment: .audio(attachment),
+                deliveryText: "Read"
+            ),
+            playback: .idle,
+            playAccessibilityLabel: "Play",
+            pauseAccessibilityLabel: "Pause"
+        )
+        layoutIMessageCell(cell, width: cellWidth)
+
+        let ltrFrame = cell.bubbleView.convert(
+            cell.bubbleView.bounds,
+            to: cell
+        )
+        let ltrDeliveryFrame = cell.deliveryLabel.convert(
+            cell.deliveryLabel.bounds,
+            to: cell
+        )
+        #expect(abs(ltrFrame.maxX - (cellWidth - horizontalInset)) < 1)
+        #expect(abs(ltrDeliveryFrame.maxX - ltrFrame.maxX) < 1)
+        #expect(cell.bubbleView.waveformView.progress == 0)
+
+        cell.updatePlayback(
+            IMessageChatPlaybackState(
+                messageID: 7,
+                attachmentID: attachment.id,
+                isPlaying: true,
+                progress: 0.5
+            ),
+            playAccessibilityLabel: "Play",
+            pauseAccessibilityLabel: "Pause"
+        )
+        #expect(cell.bubbleView.waveformView.progress == 0.5)
+        #expect(cell.bubbleView.playButton.accessibilityLabel == "Pause")
+
+        cell.semanticContentAttribute = .forceRightToLeft
+        cell.setNeedsQuickLayout()
+        cell.layoutIfNeeded()
+        let rtlFrame = cell.bubbleView.convert(
+            cell.bubbleView.bounds,
+            to: cell
+        )
+        #expect(abs(rtlFrame.minX - horizontalInset) < 1)
+    }
+
+    @Test func iMessageWaveformDoesNotHighlightBeforePlaybackStarts() {
+        let sampleCount = 36
+
+        for index in 0 ..< sampleCount {
+            #expect(
+                !IMessageWaveformView.isSamplePlayed(
+                    at: index,
+                    count: sampleCount,
+                    progress: 0
+                )
+            )
+        }
+        #expect(
+            !IMessageWaveformView.isSamplePlayed(
+                at: 0,
+                count: sampleCount,
+                progress: 0.01
+            )
+        )
+        #expect(
+            IMessageWaveformView.isSamplePlayed(
+                at: 0,
+                count: sampleCount,
+                progress: 0.02
+            )
+        )
+        #expect(
+            IMessageWaveformView.isSamplePlayed(
+                at: sampleCount - 1,
+                count: sampleCount,
+                progress: 1
+            )
+        )
+    }
+
+    @Test func iMessageConversationAlignsOutgoingTextAndAudioTrailingEdges()
+        async throws {
+        let attachment = IMessageChatAudioAttachment(
+            id: UUID(uuidString: "A0000000-0000-0000-0000-000000000003")!,
+            fileURL: URL(fileURLWithPath: "/tmp/alignment.m4a"),
+            duration: 8,
+            waveform: Array(repeating: 0.4, count: 36)
+        )
+        let textMessage = IMessageChatMessagePresentation(
+            id: 1,
+            direction: .outgoing,
+            text: "Aligned text",
+            deliveryText: nil
+        )
+        let audioMessage = IMessageChatMessagePresentation(
+            id: 2,
+            direction: .outgoing,
+            attachment: .audio(attachment),
+            deliveryText: "Read"
+        )
+        let state = IMessageChatViewModel.State(
+            timeline: [
+                IMessageChatTimelineItem(
+                    id: .message(textMessage.id),
+                    content: .message(textMessage)
+                ),
+                IMessageChatTimelineItem(
+                    id: .message(audioMessage.id),
+                    content: .message(audioMessage)
+                ),
+            ],
+            isTyping: false
+        )
+        let controller = UIViewController()
+        let conversation = IMessageConversationView(frame: .zero)
+        conversation.translatesAutoresizingMaskIntoConstraints = false
+        controller.view.addSubview(conversation)
+        NSLayoutConstraint.activate([
+            conversation.leadingAnchor.constraint(
+                equalTo: controller.view.leadingAnchor
+            ),
+            conversation.trailingAnchor.constraint(
+                equalTo: controller.view.trailingAnchor
+            ),
+            conversation.topAnchor.constraint(
+                equalTo: controller.view.topAnchor
+            ),
+            conversation.bottomAnchor.constraint(
+                equalTo: controller.view.bottomAnchor
+            ),
+        ])
+        let window = try makeVisibleTestWindow(
+            rootViewController: controller,
+            size: CGSize(width: 390, height: 300)
+        )
+        defer { window.isHidden = true }
+
+        conversation.render(state, reason: .initial)
+        for _ in 0..<20 {
+            if conversation.collectionView.numberOfSections > 0,
+               conversation.collectionView.numberOfItems(inSection: 0) >= 2 {
+                break
+            }
+            await Task.yield()
+        }
+        controller.view.layoutIfNeeded()
+        conversation.collectionView.layoutIfNeeded()
+
+        let textCell = try #require(
+            conversation.collectionView.cellForItem(
+                at: IndexPath(item: 0, section: 0)
+            ) as? IMessageBubbleCell
+        )
+        let audioCell = try #require(
+            conversation.collectionView.cellForItem(
+                at: IndexPath(item: 1, section: 0)
+            ) as? IMessageAudioBubbleCell
+        )
+        let textFrame = textCell.bubbleView.convert(
+            textCell.bubbleView.bounds,
+            to: conversation
+        )
+        let audioFrame = audioCell.bubbleView.convert(
+            audioCell.bubbleView.bounds,
+            to: conversation
+        )
+        let deliveryFrame = audioCell.deliveryLabel.convert(
+            audioCell.deliveryLabel.bounds,
+            to: conversation
+        )
+        #expect(abs(textFrame.maxX - audioFrame.maxX) < 1)
+        #expect(abs(audioFrame.maxX - deliveryFrame.maxX) < 1)
+        #expect(abs(audioFrame.maxX - 378) < 1)
+    }
+
     @Test func iMessageContactTitleReportsCompleteNavigationSize() {
         let titleView = IMessageContactTitleView(frame: .zero)
         titleView.configure(subtitle: "iMessage")
@@ -9136,18 +10200,158 @@ struct DemoTests {
 private final class ControlledIMessageSleeper {
 
     private(set) var requestedDurations: [Duration] = []
-    private var continuation: CheckedContinuation<Void, any Error>?
+    private var continuations: [CheckedContinuation<Void, any Error>] = []
 
     func sleep(_ duration: Duration) async throws {
         requestedDurations.append(duration)
         try await withCheckedThrowingContinuation { continuation in
-            self.continuation = continuation
+            continuations.append(continuation)
         }
     }
 
     func succeed() {
-        continuation?.resume(returning: ())
-        continuation = nil
+        guard !continuations.isEmpty else { return }
+        continuations.removeFirst().resume(returning: ())
+    }
+}
+
+/// iMessage 模拟回复测试使用的确定性音频合成器。
+@MainActor
+private final class ControlledIMessageReplyAudioSynthesizer:
+    IMessageChatReplyAudioSynthesizing {
+
+    struct Request {
+        let text: String
+        let locale: Locale
+    }
+
+    private(set) var requests: [Request] = []
+    private(set) var cancellationCount = 0
+    private var continuations: [Int: CheckedContinuation<
+        IMessageChatAudioAttachment,
+        any Error
+    >] = [:]
+
+    func synthesizeReplyAudio(
+        text: String,
+        locale: Locale
+    ) async throws -> IMessageChatAudioAttachment {
+        let requestID = requests.count
+        requests.append(Request(text: text, locale: locale))
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                continuations[requestID] = continuation
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                cancellationCount += 1
+                continuations.removeValue(forKey: requestID)?
+                    .resume(throwing: CancellationError())
+            }
+        }
+    }
+
+    func succeed(with attachment: IMessageChatAudioAttachment) {
+        guard let requestID = continuations.keys.min() else { return }
+        continuations.removeValue(forKey: requestID)?
+            .resume(returning: attachment)
+    }
+
+    func succeedLatest(with attachment: IMessageChatAudioAttachment) {
+        guard let requestID = continuations.keys.max() else { return }
+        continuations.removeValue(forKey: requestID)?
+            .resume(returning: attachment)
+    }
+
+    func fail() {
+        guard let requestID = continuations.keys.min() else { return }
+        continuations.removeValue(forKey: requestID)?.resume(
+            throwing: IMessageChatReplyAudioSynthesisError.fileWriteFailed
+        )
+    }
+}
+
+/// iMessage 媒体测试使用的确定性语音转写器。
+@MainActor
+private final class ControlledIMessageSpeechTranscriber:
+    IMessageChatSpeechTranscribing {
+
+    private var result: (@MainActor (String, Bool) -> Void)?
+    private var failure: (@MainActor () -> Void)?
+
+    private(set) var startCount = 0
+    private(set) var stopCount = 0
+    private(set) var locale: Locale?
+
+    func start(
+        locale: Locale,
+        result: @escaping @MainActor (String, Bool) -> Void,
+        failure: @escaping @MainActor () -> Void
+    ) async throws {
+        startCount += 1
+        self.locale = locale
+        self.result = result
+        self.failure = failure
+    }
+
+    func stop() {
+        stopCount += 1
+    }
+
+    func emit(text: String, isFinal: Bool) {
+        result?(text, isFinal)
+    }
+
+    func fail() {
+        failure?()
+    }
+}
+
+/// iMessage 媒体测试使用的确定性权限提供者。
+@MainActor
+private final class ControlledIMessageMediaPermissions:
+    IMessageChatMediaPermissionProviding {
+
+    let microphoneGranted: Bool
+    let speechGranted: Bool
+
+    init(microphoneGranted: Bool, speechGranted: Bool) {
+        self.microphoneGranted = microphoneGranted
+        self.speechGranted = speechGranted
+    }
+
+    func requestMicrophonePermission() async -> Bool {
+        microphoneGranted
+    }
+
+    func requestSpeechPermission() async -> Bool {
+        speechGranted
+    }
+}
+
+/// 不执行真实操作，仅为测试记录激活请求的音频会话。
+@MainActor
+private final class RecordingIMessageAudioSession:
+    NSObject,
+    IMessageChatAudioSessionControlling {
+
+    var notificationObject: AnyObject { self }
+
+    private(set) var captureActivationCount = 0
+    private(set) var playbackActivationCount = 0
+    private(set) var deactivationCount = 0
+
+    func activateCapture() throws {
+        captureActivationCount += 1
+    }
+
+    func activatePlayback() throws {
+        playbackActivationCount += 1
+    }
+
+    func deactivate() throws {
+        deactivationCount += 1
     }
 }
 
