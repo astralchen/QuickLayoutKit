@@ -261,6 +261,126 @@ struct IMessageChatMediaTests {
         #expect(fixture.group.items.map(\.id) == originalIDs)
     }
 
+    @Test func fiveItemStackDistributesCardsAcrossTheCurrentCover() throws {
+        let fixture = try MediaFixture(itemCount: 5)
+        defer { fixture.remove() }
+        let view = IMessageChatMediaMessageView()
+
+        func configure(frontIndex: Int) {
+            view.configure(
+                messageID: 7,
+                direction: .outgoing,
+                group: fixture.group,
+                frontIndex: frontIndex,
+                strings: mediaStrings
+            )
+            view.frame = CGRect(origin: .zero, size: view.intrinsicContentSize)
+            view.setNeedsLayout()
+            view.layoutIfNeeded()
+        }
+
+        #expect(IMessageChatMediaStackPolicy.visibleIndices(frontIndex: 0, itemCount: 5) == [0, 1, 2, 3, 4])
+        #expect(IMessageChatMediaStackPolicy.visibleIndices(frontIndex: 2, itemCount: 5) == [0, 1, 2, 3, 4])
+        #expect(IMessageChatMediaStackPolicy.visibleIndices(frontIndex: 4, itemCount: 5) == [0, 1, 2, 3, 4])
+        #expect(
+            IMessageChatMediaStackPolicy.visibleIndices(
+                frontIndex: 10,
+                itemCount: 20
+            ) == [8, 9, 10, 11, 12]
+        )
+        #expect(
+            IMessageChatMediaStackPolicy.visibleIndices(
+                frontIndex: 19,
+                itemCount: 20
+            ) == [15, 16, 17, 18, 19]
+        )
+
+        configure(frontIndex: 0)
+        #expect(view.visibleCardFrame(forMediaIndex: 0)?.minX == 0)
+        #expect(view.visibleCardFrame(forMediaIndex: 4)?.minX == 32)
+        #expect(view.visibleCardFrame(forMediaIndex: 0)?.minY == 32)
+        #expect(view.visibleCardFrame(forMediaIndex: 4)?.minY == 56)
+
+        configure(frontIndex: 2)
+        #expect(view.visibleCardFrame(forMediaIndex: 0)?.minX == 0)
+        #expect(view.visibleCardFrame(forMediaIndex: 2)?.minX == 16)
+        #expect(view.visibleCardFrame(forMediaIndex: 4)?.minX == 32)
+        #expect(view.visibleCardFrame(forMediaIndex: 0)?.minY == 44)
+        #expect(view.visibleCardFrame(forMediaIndex: 2)?.minY == 32)
+        #expect(view.visibleCardFrame(forMediaIndex: 4)?.minY == 44)
+        #expect(view.visibleCardZPosition(forMediaIndex: 2) == 30)
+        #expect(view.visibleCardZPosition(forMediaIndex: 1) == 29)
+        #expect(view.visibleCardZPosition(forMediaIndex: 0) == 28)
+        let previousAngle = view.visibleCardRestingTransform(forMediaIndex: 0)
+            .map { atan2($0.b, $0.a) } ?? 0
+        let nextAngle = view.visibleCardRestingTransform(forMediaIndex: 4)
+            .map { atan2($0.b, $0.a) } ?? 0
+        #expect(previousAngle > 0)
+        #expect(nextAngle < 0)
+
+        configure(frontIndex: 4)
+        #expect(view.visibleCardFrame(forMediaIndex: 0)?.minX == 0)
+        #expect(view.visibleCardFrame(forMediaIndex: 4)?.minX == 32)
+        #expect(view.visibleCardFrame(forMediaIndex: 0)?.minY == 56)
+        #expect(view.visibleCardFrame(forMediaIndex: 4)?.minY == 32)
+
+        view.semanticContentAttribute = .forceRightToLeft
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+        #expect(view.visibleCardFrame(forMediaIndex: 0)?.minX == 32)
+        #expect(view.visibleCardFrame(forMediaIndex: 4)?.minX == 0)
+        let mirroredPreviousAngle = view.visibleCardRestingTransform(forMediaIndex: 0)
+            .map { atan2($0.b, $0.a) } ?? 0
+        #expect(mirroredPreviousAngle < 0)
+    }
+
+    @Test func twentyItemStackCapsVisibleLayersAtFiveAndReusesStableCards() throws {
+        let fixture = try MediaFixture(itemCount: 20)
+        defer { fixture.remove() }
+        let view = IMessageChatMediaMessageView()
+
+        view.configure(
+            messageID: 8,
+            direction: .outgoing,
+            group: fixture.group,
+            frontIndex: 2,
+            strings: mediaStrings
+        )
+        view.frame = CGRect(origin: .zero, size: view.intrinsicContentSize)
+        view.layoutIfNeeded()
+        let stableCardIDs = Dictionary(
+            uniqueKeysWithValues: (1...4).compactMap { index in
+                view.visibleCardObjectIdentifier(forMediaIndex: index).map {
+                    (index, $0)
+                }
+            }
+        )
+
+        #expect(view.visibleCardCount == 5)
+        #expect(view.intrinsicContentSize == CGSize(width: 248, height: 356))
+
+        view.configure(
+            messageID: 8,
+            direction: .outgoing,
+            group: fixture.group,
+            frontIndex: 3,
+            strings: mediaStrings
+        )
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+
+        #expect(view.visibleCardCount == 5)
+        for index in 1...4 {
+            #expect(
+                view.visibleCardObjectIdentifier(forMediaIndex: index)
+                    == stableCardIDs[index]
+            )
+        }
+        #expect(view.visibleCardFrame(forMediaIndex: 1)?.minX == 0)
+        #expect(view.visibleCardFrame(forMediaIndex: 3)?.minX == 16)
+        #expect(view.visibleCardFrame(forMediaIndex: 5)?.minX == 32)
+    }
+
     @Test func stackGesturePolicyUsesPhysicalDirectionsThresholdsAndBoundaries() {
         #expect(IMessageChatMediaStackPolicy.isHorizontalPan(velocity: CGPoint(x: 121, y: 100)))
         #expect(!IMessageChatMediaStackPolicy.isHorizontalPan(velocity: CGPoint(x: 120, y: 100)))

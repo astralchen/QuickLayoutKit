@@ -75,10 +75,27 @@ final class IMessageChatMediaStackStateStore {
 
 /// 层叠媒体的纯展示算法。所有结果都只基于索引计算，不改变附件数组。
 nonisolated enum IMessageChatMediaStackPolicy {
+    static let maximumVisibleCardCount = 5
+
     static func renderOrder(frontIndex: Int, itemCount: Int) -> [Int] {
         guard itemCount > 0 else { return [] }
         let front = min(max(0, frontIndex), itemCount - 1)
         return Array(front..<itemCount) + Array(0..<front)
+    }
+
+    /// 返回围绕当前封面的连续可见窗口。
+    ///
+    /// 窗口最多保留五项：中间位置优先在当前项两侧各保留两项；接近首尾时，
+    /// 空出来的名额让给另一侧。结果始终按原始媒体索引递增，不改变附件顺序。
+    static func visibleIndices(frontIndex: Int, itemCount: Int) -> [Int] {
+        guard itemCount > 0 else { return [] }
+        let front = min(max(0, frontIndex), itemCount - 1)
+        let visibleCount = min(maximumVisibleCardCount, itemCount)
+        var lowerBound = max(0, front - visibleCount / 2)
+        var upperBound = min(itemCount, lowerBound + visibleCount)
+        lowerBound = max(0, upperBound - visibleCount)
+        upperBound = min(itemCount, lowerBound + visibleCount)
+        return Array(lowerBound..<upperBound)
     }
 
     static func isHorizontalPan(velocity: CGPoint) -> Bool {
@@ -372,8 +389,20 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
         let playBackground = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialLight))
         let playImageView = UIImageView(image: UIImage(systemName: "play.fill"))
         var mediaIndex = 0
+        var restingFrame: CGRect = .zero
+        var restingTransform: CGAffineTransform = .identity
         private var representedIdentity: BindingIdentity?
         private var imageTask: Task<Void, Never>?
+
+        func represents(
+            messageID: Int,
+            groupID: UUID,
+            itemID: UUID
+        ) -> Bool {
+            representedIdentity?.messageID == messageID
+                && representedIdentity?.groupID == groupID
+                && representedIdentity?.itemID == itemID
+        }
 
         override init(frame: CGRect) {
             super.init(frame: frame)
@@ -413,10 +442,17 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
             index: Int,
             identity: BindingIdentity
         ) {
+            let keepsCurrentImage = represents(
+                messageID: identity.messageID,
+                groupID: identity.groupID,
+                itemID: identity.itemID
+            )
             mediaIndex = index
             representedIdentity = identity
             imageTask?.cancel()
-            imageView.image = nil
+            if !keepsCurrentImage {
+                imageView.image = nil
+            }
             playBackground.isHidden = !item.kind.isVideo
             let url = item.thumbnailFileURL
             imageTask = Task { [weak self] in
@@ -437,6 +473,8 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
             representedIdentity = nil
             imageView.image = nil
             playBackground.isHidden = true
+            restingFrame = .zero
+            restingTransform = .identity
             transform = .identity
             alpha = 1
             layer.zPosition = 0
@@ -446,7 +484,7 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
     let itemCountLabel = UILabel()
     private let itemCountIcon = UIImageView(image: UIImage(systemName: "square.grid.2x2.fill"))
     private let singleMaskLayer = CAShapeLayer()
-    private let cards = [CardView(), CardView(), CardView()]
+    private var cards: [CardView] = []
     private lazy var panGesture = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
     private lazy var tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
 
@@ -471,9 +509,9 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
         itemCountIcon.tintColor = .systemBlue
         addSubview(itemCountIcon)
         addSubview(itemCountLabel)
-        for card in cards.reversed() { addSubview(card) }
         panGesture.delegate = self
         addGestureRecognizer(panGesture)
+        tapGesture.require(toFail: panGesture)
         addGestureRecognizer(tapGesture)
         isAccessibilityElement = true
         accessibilityTraits = [.image, .button, .adjustable]
@@ -503,6 +541,12 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
         self.group = group
         self.strings = strings
         frontMediaIndex = min(max(0, frontIndex), max(0, group.items.count - 1))
+        ensureCardCount(
+            min(
+                group.items.count,
+                IMessageChatMediaStackPolicy.maximumVisibleCardCount
+            )
+        )
         let previousSize = resolvedSize
         resolvedSize = Self.size(for: group)
         if previousSize != resolvedSize { invalidateIntrinsicContentSize() }
@@ -581,7 +625,7 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
         case .changed:
             let rawX = translation.x
             let x = atBoundary ? max(-18, min(18, rawX * 0.2)) : rawX
-            cards[0].transform = CGAffineTransform(translationX: x, y: 0)
+            frontCard?.transform = CGAffineTransform(translationX: x, y: 0)
                 .rotated(by: max(-4, min(4, x / 45)) * .pi / 180)
         case .ended:
             let shouldCommit = IMessageChatMediaStackPolicy.shouldCommit(
@@ -612,64 +656,96 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
             return
         }
         guard index != frontMediaIndex else { return }
+        if !animated {
+            frontMediaIndex = index
+            bindCards()
+            layoutCards()
+            finishMove(to: index, in: group)
+            return
+        }
+        if UIAccessibility.isReduceMotionEnabled {
+            isAnimating = true
+            UIView.transition(
+                with: self,
+                duration: 0.16,
+                options: [.transitionCrossDissolve, .beginFromCurrentState],
+                animations: { [weak self] in
+                    guard let self else { return }
+                    self.frontMediaIndex = index
+                    self.bindCards()
+                    self.layoutCards()
+                },
+                completion: { [weak self] _ in
+                    self?.finishMove(to: index, in: group)
+                }
+            )
+            return
+        }
         isAnimating = true
+        let previousIndex = frontMediaIndex
+        let movingCard = frontCard
+        let revealedCard = cards.first { !$0.isHidden && $0.mediaIndex == index }
+        if !UIAccessibility.isReduceMotionEnabled {
+            revealedCard?.transform = CGAffineTransform(scaleX: 0.965, y: 0.965)
+        }
         let changes = { [weak self] in
             guard let self else { return }
-            self.cards[0].alpha = 0.12
-            self.cards[0].transform = CGAffineTransform(
+            movingCard?.alpha = 0.12
+            movingCard?.transform = CGAffineTransform(
                 translationX: index > self.frontMediaIndex ? -72 : 72,
                 y: 0
+            ).rotated(
+                by: (index > self.frontMediaIndex ? -4 : 4) * .pi / 180
             )
+            revealedCard?.transform = .identity
         }
         let completion: (Bool) -> Void = { [weak self] _ in
             guard let self else { return }
             self.frontMediaIndex = index
             self.bindCards()
             self.layoutCards()
-            self.isAnimating = false
-            self.frontIndexDidChange?(self.messageID, index)
-            UISelectionFeedbackGenerator().selectionChanged()
-            self.updateAccessibilityLabel()
-            self.accessibilityValue = String(
-                format: self.strings?.positionFormat ?? "%d/%d",
-                index + 1,
-                group.items.count
-            )
-            let kind = group.items[index].kind.isVideo
-                ? self.strings?.video
-                : self.strings?.image
-            UIAccessibility.post(
-                notification: .announcement,
-                argument: [self.accessibilityValue, kind]
-                    .compactMap { $0 }
-                    .joined(separator: ", ")
-            )
+            let retiredCard = self.cards.first {
+                !$0.isHidden && $0.mediaIndex == previousIndex
+            }
+            if animated && !UIAccessibility.isReduceMotionEnabled,
+               let retiredCard {
+                retiredCard.alpha = 0
+                retiredCard.transform = CGAffineTransform(
+                    translationX: index > previousIndex ? -12 : 12,
+                    y: 0
+                ).concatenating(retiredCard.restingTransform)
+                UIView.animate(
+                    withDuration: 0.12,
+                    delay: 0,
+                    options: [.beginFromCurrentState, .allowUserInteraction],
+                    animations: {
+                        retiredCard.alpha = 1
+                        retiredCard.transform = retiredCard.restingTransform
+                    },
+                    completion: { [weak self] _ in
+                        self?.finishMove(to: index, in: group)
+                    }
+                )
+            } else {
+                self.finishMove(to: index, in: group)
+            }
         }
-        if !animated || UIAccessibility.isReduceMotionEnabled {
-            UIView.transition(
-                with: self,
-                duration: 0.16,
-                options: [.transitionCrossDissolve, .beginFromCurrentState],
-                animations: changes,
-                completion: completion
-            )
-        } else {
-            let normalizedVelocity = abs(velocityX) / max(1, Metrics.groupCardSize.width)
-            UIView.animate(
-                withDuration: 0.28,
-                delay: 0,
-                usingSpringWithDamping: 0.86,
-                initialSpringVelocity: normalizedVelocity,
-                options: [.beginFromCurrentState, .allowUserInteraction],
-                animations: changes,
-                completion: completion
-            )
-        }
+        let normalizedVelocity = abs(velocityX) / max(1, Metrics.groupCardSize.width)
+        UIView.animate(
+            withDuration: 0.28,
+            delay: 0,
+            usingSpringWithDamping: 0.86,
+            initialSpringVelocity: normalizedVelocity,
+            options: [.beginFromCurrentState, .allowUserInteraction],
+            animations: changes,
+            completion: completion
+        )
     }
 
     private func restoreCards(animated: Bool) {
         let changes: () -> Void = { [weak self] in
-            self?.cards[0].transform = .identity
+            guard let frontCard = self?.frontCard else { return }
+            frontCard.transform = frontCard.restingTransform
         }
         guard animated && !UIAccessibility.isReduceMotionEnabled else {
             changes()
@@ -687,18 +763,28 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
 
     private func bindCards() {
         guard let group, !group.items.isEmpty else { return }
-        let order = IMessageChatMediaStackPolicy.renderOrder(
+        let visibleIndices = IMessageChatMediaStackPolicy.visibleIndices(
             frontIndex: frontMediaIndex,
             itemCount: group.items.count
         )
-        for (position, card) in cards.enumerated() {
-            guard position < min(group.items.count, 3) else {
-                card.isHidden = true
-                continue
-            }
-            let index = order[position]
-            card.isHidden = false
+        var reusableCards = cards
+        var orderedCards: [CardView] = []
+        for index in visibleIndices {
             let item = group.items[index]
+            let card: CardView
+            if let existingIndex = reusableCards.firstIndex(where: {
+                $0.represents(
+                    messageID: messageID,
+                    groupID: group.id,
+                    itemID: item.id
+                )
+            }) {
+                card = reusableCards.remove(at: existingIndex)
+            } else {
+                card = reusableCards.removeFirst()
+            }
+            orderedCards.append(card)
+            card.isHidden = false
             card.configure(
                 item,
                 index: index,
@@ -709,9 +795,23 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
                     frontIndex: frontMediaIndex
                 )
             )
-            card.layer.zPosition = CGFloat(30 - position)
+            card.layer.zPosition = CGFloat(30 - abs(index - frontMediaIndex))
             card.alpha = 1
-            card.transform = .identity
+        }
+        cards = orderedCards + reusableCards
+        reusableCards.forEach { $0.isHidden = true }
+    }
+
+    private func ensureCardCount(_ count: Int) {
+        while cards.count < count {
+            let card = CardView()
+            cards.append(card)
+            addSubview(card)
+        }
+        while cards.count > count {
+            let card = cards.removeLast()
+            card.reset()
+            card.removeFromSuperview()
         }
     }
 
@@ -738,21 +838,48 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
                 height: Metrics.titleHeight
             )
             let cardY = Metrics.titleHeight + Metrics.titleSpacing
-            let baseX = outwardSign > 0 ? 0 : abs(Metrics.groupOffset.x) * 2
-            for (position, card) in cards.enumerated() where !card.isHidden {
+            let visibleIndices = IMessageChatMediaStackPolicy.visibleIndices(
+                frontIndex: frontMediaIndex,
+                itemCount: group.items.count
+            )
+            for card in cards where !card.isHidden {
+                guard let position = visibleIndices.firstIndex(of: card.mediaIndex) else {
+                    continue
+                }
+                let visualPosition = outwardSign > 0
+                    ? position
+                    : visibleIndices.count - position - 1
+                let depth = abs(card.mediaIndex - frontMediaIndex)
+                let relativeDirection = CGFloat(
+                    card.mediaIndex == frontMediaIndex
+                        ? 0
+                        : card.mediaIndex > frontMediaIndex ? 1 : -1
+                )
+                let physicalSide = relativeDirection * outwardSign
+                let rotationDegrees = -physicalSide * min(4, CGFloat(depth) * 1.2)
                 card.layer.mask = nil
-                card.frame = CGRect(
-                    x: baseX + CGFloat(position) * Metrics.groupOffset.x * outwardSign,
-                    y: cardY + CGFloat(position) * Metrics.groupOffset.y,
+                let restingFrame = CGRect(
+                    x: CGFloat(visualPosition) * Metrics.groupOffset.x,
+                    y: cardY + CGFloat(depth) * Metrics.groupOffset.y,
                     width: Metrics.groupCardSize.width,
                     height: Metrics.groupCardSize.height
                 )
+                card.restingFrame = restingFrame
+                card.transform = .identity
+                card.bounds = CGRect(origin: .zero, size: restingFrame.size)
+                card.center = CGPoint(x: restingFrame.midX, y: restingFrame.midY)
+                card.restingTransform = CGAffineTransform(
+                    rotationAngle: rotationDegrees * .pi / 180
+                )
+                card.transform = card.restingTransform
+                card.layer.zPosition = CGFloat(30 - depth)
             }
         } else {
             itemCountIcon.frame = .zero
             itemCountLabel.frame = .zero
             let card = cards[0]
             card.frame = bounds
+            card.restingFrame = bounds
             card.layer.mask = singleMaskLayer
             singleMaskLayer.frame = card.bounds
             singleMaskLayer.path = bubblePath(
@@ -775,10 +902,16 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
 
     private static func size(for group: IMessageChatMediaGroupAttachment) -> CGSize {
         guard group.items.count == 1, let item = group.items.first else {
+            let backCardCount = min(
+                group.items.count,
+                IMessageChatMediaStackPolicy.maximumVisibleCardCount
+            ) - 1
             return CGSize(
-                width: Metrics.groupCardSize.width + Metrics.groupOffset.x * 2,
+                width: Metrics.groupCardSize.width
+                    + Metrics.groupOffset.x * CGFloat(backCardCount),
                 height: Metrics.titleHeight + Metrics.titleSpacing
-                    + Metrics.groupCardSize.height + Metrics.groupOffset.y * 2
+                    + Metrics.groupCardSize.height
+                    + Metrics.groupOffset.y * CGFloat(backCardCount)
             )
         }
         let rawRatio = item.pixelSize.width / max(1, item.pixelSize.height)
@@ -790,6 +923,57 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
             width = max(Metrics.singleMinimumEdge, height * ratio)
         }
         return CGSize(width: ceil(width), height: ceil(height))
+    }
+
+    /// 返回当前已绑定媒体卡片的布局 frame，供页面内布局回归测试使用。
+    func visibleCardFrame(forMediaIndex index: Int) -> CGRect? {
+        cards.first { !$0.isHidden && $0.mediaIndex == index }?.restingFrame
+    }
+
+    /// 返回当前已绑定媒体卡片的展示层级，供页面内布局回归测试使用。
+    func visibleCardZPosition(forMediaIndex index: Int) -> CGFloat? {
+        cards.first { !$0.isHidden && $0.mediaIndex == index }?.layer.zPosition
+    }
+
+    /// 返回当前已绑定媒体卡片的静态扇形变换。
+    func visibleCardRestingTransform(forMediaIndex index: Int) -> CGAffineTransform? {
+        cards.first { !$0.isHidden && $0.mediaIndex == index }?.restingTransform
+    }
+
+    /// 当前参与展示的卡片层数。
+    var visibleCardCount: Int {
+        cards.lazy.filter { !$0.isHidden }.count
+    }
+
+    /// 返回指定媒体当前绑定的 CardView 身份，供重用回归测试使用。
+    func visibleCardObjectIdentifier(forMediaIndex index: Int) -> ObjectIdentifier? {
+        cards.first { !$0.isHidden && $0.mediaIndex == index }.map(ObjectIdentifier.init)
+    }
+
+    private var frontCard: CardView? {
+        cards.first { !$0.isHidden && $0.mediaIndex == frontMediaIndex }
+    }
+
+    private func finishMove(
+        to index: Int,
+        in group: IMessageChatMediaGroupAttachment
+    ) {
+        isAnimating = false
+        frontIndexDidChange?(messageID, index)
+        UISelectionFeedbackGenerator().selectionChanged()
+        updateAccessibilityLabel()
+        accessibilityValue = String(
+            format: strings?.positionFormat ?? "%d/%d",
+            index + 1,
+            group.items.count
+        )
+        let kind = group.items[index].kind.isVideo ? strings?.video : strings?.image
+        UIAccessibility.post(
+            notification: .announcement,
+            argument: [accessibilityValue, kind]
+                .compactMap { $0 }
+                .joined(separator: ", ")
+        )
     }
 
     private func bubblePath(in rect: CGRect, tailOnRight: Bool) -> CGPath {
