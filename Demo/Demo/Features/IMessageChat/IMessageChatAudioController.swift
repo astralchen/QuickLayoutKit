@@ -19,6 +19,8 @@ nonisolated enum IMessageChatMediaFailure: Equatable, Sendable {
     case playbackFailed
     case speechUnavailable
     case speechFailed
+    case mediaImportFailed
+    case mediaInvalid
 }
 
 /// 媒体层支持的语音识别实现。
@@ -392,6 +394,17 @@ final class IMessageChatAudioController: NSObject {
             speechTranscriber: IMessageChatSpeechRecognitionService(),
             permissionProvider: IMessageChatSystemPermissionProvider(),
             attachmentStore: nil
+        )
+    }
+
+    /// 创建与其他页面媒体协调器共享附件目录的真实音频控制器。
+    convenience init(attachmentStore: any IMessageChatAttachmentStoring) {
+        self.init(
+            audioSession: IMessageChatSystemAudioSessionController(),
+            fileManager: .default,
+            speechTranscriber: IMessageChatSpeechRecognitionService(),
+            permissionProvider: IMessageChatSystemPermissionProvider(),
+            attachmentStore: attachmentStore
         )
     }
 

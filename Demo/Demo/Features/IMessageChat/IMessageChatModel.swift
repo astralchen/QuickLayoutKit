@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreGraphics
 
 /// 生成实时录音面板使用的固定槽位波形。
 ///
@@ -115,6 +116,114 @@ nonisolated struct IMessageChatAudioAttachment: Equatable, Hashable, Sendable {
     }
 }
 
+/// 照片消息中单个媒体项目的类型专属元数据。
+nonisolated enum IMessageChatMediaKind: Equatable, Hashable, Sendable {
+    case image
+    case video(duration: TimeInterval)
+
+    var duration: TimeInterval? {
+        guard case .video(let duration) = self else { return nil }
+        return duration
+    }
+
+    var isVideo: Bool {
+        if case .video = self { return true }
+        return false
+    }
+}
+
+/// 已导入页面附件目录、可以进入照片消息的单个媒体项目。
+nonisolated struct IMessageChatMediaItem: Equatable, Hashable, Sendable,
+    Identifiable {
+    let id: UUID
+    let assetIdentifier: String?
+    let originalFileURL: URL
+    let thumbnailFileURL: URL
+    let pixelSize: CGSize
+    let kind: IMessageChatMediaKind
+    /// 图片原文件是否包含动画帧，或照片资源是否为 Live Photo。
+    ///
+    /// 当前版本仍使用静态缩略图展示与发送；该值只用于在 Composer 预览项上
+    /// 呈现动态媒体标志，不持有 `PHAsset` 或解码器对象。
+    let isAnimatedImage: Bool
+
+    init(
+        id: UUID = UUID(),
+        assetIdentifier: String?,
+        originalFileURL: URL,
+        thumbnailFileURL: URL,
+        pixelSize: CGSize,
+        kind: IMessageChatMediaKind,
+        isAnimatedImage: Bool = false
+    ) {
+        self.id = id
+        self.assetIdentifier = assetIdentifier
+        self.originalFileURL = originalFileURL
+        self.thumbnailFileURL = thumbnailFileURL
+        self.pixelSize = pixelSize
+        self.kind = kind
+        self.isAnimatedImage = isAnimatedImage
+    }
+}
+
+/// 一次选择并发送的有序照片和视频集合。
+nonisolated struct IMessageChatMediaGroupAttachment:
+    Equatable,
+    Hashable,
+    Sendable {
+    static let selectionLimit = 20
+
+    let id: UUID
+    let items: [IMessageChatMediaItem]
+
+    init(id: UUID = UUID(), items: [IMessageChatMediaItem]) {
+        self.id = id
+        self.items = items
+    }
+
+    var localFileURLs: [URL] {
+        items.flatMap { [$0.originalFileURL, $0.thumbnailFileURL] }
+    }
+}
+
+/// 照片选择器中仍在导入或已经就绪的单项展示状态。
+nonisolated enum IMessageChatMediaDraftItemContent: Equatable, Sendable {
+    case importing
+    case ready(IMessageChatMediaItem)
+}
+
+nonisolated struct IMessageChatMediaDraftItemPresentation:
+    Equatable,
+    Sendable,
+    Identifiable {
+    let id: UUID
+    let assetIdentifier: String?
+    let content: IMessageChatMediaDraftItemContent
+
+    var mediaItem: IMessageChatMediaItem? {
+        guard case .ready(let item) = content else { return nil }
+        return item
+    }
+}
+
+/// Composer 渲染的有序媒体草稿，不持有系统选择器或媒体框架对象。
+nonisolated struct IMessageChatMediaDraftPresentation: Equatable, Sendable {
+    let groupID: UUID
+    let items: [IMessageChatMediaDraftItemPresentation]
+
+    var canSend: Bool {
+        !items.isEmpty && items.allSatisfy { $0.mediaItem != nil }
+    }
+
+    var attachment: IMessageChatMediaGroupAttachment? {
+        guard canSend else { return nil }
+        return IMessageChatMediaGroupAttachment(
+            id: groupID,
+            items: items.compactMap(\.mediaItem)
+        )
+    }
+}
+
 /// 聊天消息可以携带的页面级本地附件。
 ///
 /// 附件枚举是消息层与具体媒体实现之间的值类型边界。新增图片或视频时，应在
@@ -124,10 +233,15 @@ nonisolated enum IMessageChatAttachment: Equatable, Hashable, Sendable {
     /// 包含本地录音或文本合成语音的音频附件。
     case audio(IMessageChatAudioAttachment)
 
+    /// 一次有序选择产生的图片和视频媒体组。
+    case mediaGroup(IMessageChatMediaGroupAttachment)
+
     /// 附件的稳定标识符。
     var id: UUID {
         switch self {
         case .audio(let attachment):
+            attachment.id
+        case .mediaGroup(let attachment):
             attachment.id
         }
     }
@@ -140,12 +254,20 @@ nonisolated enum IMessageChatAttachment: Equatable, Hashable, Sendable {
         switch self {
         case .audio(let attachment):
             [attachment.fileURL]
+        case .mediaGroup(let attachment):
+            attachment.localFileURLs
         }
     }
 
     /// 音频载荷；附件不是音频时为 `nil`。
     var audio: IMessageChatAudioAttachment? {
         guard case .audio(let attachment) = self else { return nil }
+        return attachment
+    }
+
+    /// 图片/视频媒体组；附件不是媒体组时为 `nil`。
+    var mediaGroup: IMessageChatMediaGroupAttachment? {
+        guard case .mediaGroup(let attachment) = self else { return nil }
         return attachment
     }
 }
@@ -205,6 +327,12 @@ nonisolated struct IMessageChatMessagePresentation: Equatable, Sendable {
     var audio: IMessageChatAudioAttachment? {
         guard case .attachment(let attachment) = content else { return nil }
         return attachment.audio
+    }
+
+    /// 图片和视频媒体组；消息不包含媒体组时为 `nil`。
+    var mediaGroup: IMessageChatMediaGroupAttachment? {
+        guard case .attachment(let attachment) = content else { return nil }
+        return attachment.mediaGroup
     }
 
     /// ListKit 用于判断已存在消息是否需要重新配置的内容身份。

@@ -56,10 +56,11 @@ nonisolated struct IMessageChatComposerStrings: Equatable, Sendable {
 
 /// 输入栏当前可以请求的附件类型。
 ///
-/// 菜单只能展示已经接入完整选择、预览、发送和清理流程的类型。新增图片或视频时
-/// 在此增加 case，并由 ViewController 选择对应协调器；Composer 不直接呈现
-/// `PHPickerViewController` 或相机界面。
+/// 菜单只能展示已经接入完整选择、预览、发送和清理流程的类型，并由
+/// ViewController 选择对应协调器；Composer 不直接呈现
+/// `PHPickerViewController`、播放器或相机界面。
 nonisolated enum IMessageChatAttachmentKind: Equatable, Sendable {
+    case photo
     case audio
 }
 
@@ -70,6 +71,8 @@ nonisolated enum IMessageChatAttachmentKind: Equatable, Sendable {
 /// 成功后由其所有者提交。
 nonisolated enum IMessageChatComposerAction: Equatable, Sendable {
     case sendText(String)
+    case sendMediaDraft(String)
+    case removeMediaDraftItem(UUID)
     case requestAttachment(
         kind: IMessageChatAttachmentKind,
         keyboardWasVisible: Bool
@@ -86,7 +89,7 @@ nonisolated enum IMessageChatComposerAction: Equatable, Sendable {
 /// 消息输入栏渲染的互斥展示状态。
 ///
 /// 状态只包含 View 所需的值类型数据，不持有录音器、播放器或语音识别任务。
-/// 图片和视频接入后应扩展附件预览载荷，不应把资源选择器或媒体对象放入此状态。
+/// 媒体预览只传递值类型草稿，不把资源选择器或播放器对象放入输入栏状态。
 nonisolated enum IMessageChatComposerState: Equatable, Sendable {
     case idle
     case preparingSpeech
@@ -99,7 +102,7 @@ nonisolated enum IMessageChatComposerState: Equatable, Sendable {
     )
 }
 
-/// 支持文本、语音转写文本和音频消息的 Liquid Glass 输入栏。
+/// 支持文本、照片/视频草稿、语音转写文本和音频消息的 Liquid Glass 输入栏。
 ///
 /// 此视图渲染页面媒体控制器提供的状态，不持有录音器、播放器或语音识别任务。
 @available(iOS 26.0, *)
@@ -115,6 +118,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         case dictating
         case recording
         case preview
+        case mediaDraft
     }
 
     private enum Metrics {
@@ -158,6 +162,8 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         static let mediaControlSize: CGFloat = 36
         static let mediaControlHitSize: CGFloat = 44
         static let previewHorizontalSpacing: CGFloat = 8
+        static let mediaDraftHeight: CGFloat = 120
+        static let mediaDraftSpacing: CGFloat = 8
     }
 
     let textView = UITextView()
@@ -173,6 +179,8 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     let previewWaveformView = IMessageWaveformView()
     let recordingDurationLabel = UILabel()
     let previewDurationLabel = UILabel()
+    let mediaDraftStripView = IMessageChatMediaDraftStripView()
+    let mediaDraftSeparatorView = UIView()
 
     /// 用户在输入栏中发起操作时调用。
     ///
@@ -182,6 +190,9 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
 
     /// 输入栏固有高度发生变化时调用。
     var heightDidChange: (() -> Void)?
+
+    /// 文本编辑器取得第一响应者时调用，用于完成照片 Sheet 到键盘的交接。
+    var textInputDidBeginEditing: (() -> Void)?
 
     private var strings = IMessageChatComposerStrings(
         placeholder: "iMessage",
@@ -196,6 +207,23 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         pauseAudio: "Pause audio"
     )
     private var composerState: IMessageChatComposerState = .idle
+    private var mediaDraft: IMessageChatMediaDraftPresentation?
+    private var mediaStrings = IMessageChatMediaStrings(
+        photo: "Photos",
+        itemsFormat: "%d items",
+        image: "Image",
+        animatedImage: "Animated image",
+        video: "Video",
+        videoDurationFormat: "Video, duration %@",
+        importing: "Importing",
+        remove: "Remove",
+        play: "Play",
+        openPreview: "Open preview",
+        close: "Close",
+        firstItem: "First item",
+        lastItem: "Last item",
+        positionFormat: "%d of %d"
+    )
     private var currentInputHeight = Metrics.textInputHeight
     private var isApplyingTranscription = false
     private var keyboardWasVisibleBeforeAttachmentMenu = false
@@ -232,24 +260,44 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         let effect = UIGlassEffect(style: .regular)
         effect.isInteractive = true
         return QuickLayoutVisualEffectView(effect: effect) { [unowned self] in
-            HStack(
-                alignment: .bottom,
-                spacing: Metrics.textActionSpacing
-            ) {
-                editorContainer
-                    .resizable(axis: .horizontal)
-                    .frame(height: currentInputHeight)
-                    .onGeometryChange(
-                        for: CGFloat.self,
-                        of: { max(0, $0.size.width - 8) },
-                        action: { [weak self] width in
-                            self?.updateTextHeight(availableWidth: width)
-                        }
-                    )
-                textActionLayout
+            VStack(spacing: 0) {
+                if mediaDraft != nil {
+                    mediaDraftStripView
+                        .resizable(axis: .horizontal)
+                        .frame(height: Metrics.mediaDraftHeight)
+                        .padding(.horizontal, 4)
+                        .padding(.top, 4)
+                    mediaDraftSeparatorView
+                        .resizable(axis: .horizontal)
+                        .frame(height: hairlineHeight)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+                        .padding(
+                            .bottom,
+                            Metrics.mediaDraftSpacing
+                                - 4
+                                - hairlineHeight
+                        )
+                }
+                HStack(
+                    alignment: .bottom,
+                    spacing: Metrics.textActionSpacing
+                ) {
+                    editorContainer
+                        .resizable(axis: .horizontal)
+                        .frame(height: currentInputHeight)
+                        .onGeometryChange(
+                            for: CGFloat.self,
+                            of: { max(0, $0.size.width - 8) },
+                            action: { [weak self] width in
+                                self?.updateTextHeight(availableWidth: width)
+                            }
+                        )
+                    textActionLayout
+                }
+                .padding(.leading, Metrics.textLeadingPadding)
+                .padding(.trailing, Metrics.textTrailingPadding)
             }
-            .padding(.leading, Metrics.textLeadingPadding)
-            .padding(.trailing, Metrics.textTrailingPadding)
         }
     }()
 
@@ -350,7 +398,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                 )
                 .padding(.bottom, Metrics.textDictationBottomPadding)
         case .idle, .recording, .audioPreview:
-            if hasSendableText {
+            if hasSendableContent {
                 sendButton
                     .resizable()
                     .frame(
@@ -454,8 +502,14 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     /// 应用输入栏显示的本地化字符串。
     ///
     /// - Parameter strings: 输入栏当前及后续状态所需的完整字符串集合。
-    func configure(strings: IMessageChatComposerStrings) {
+    func configure(
+        strings: IMessageChatComposerStrings,
+        mediaStrings: IMessageChatMediaStrings? = nil
+    ) {
         self.strings = strings
+        if let mediaStrings {
+            self.mediaStrings = mediaStrings
+        }
         placeholderLabel.text = strings.placeholder
         textView.accessibilityLabel = strings.placeholder
         sendButton.accessibilityLabel = strings.send
@@ -465,10 +519,30 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         audioSendButton.accessibilityLabel = strings.send
         updateAttachmentMenu()
         updateComposerState()
+        mediaDraftStripView.configure(mediaDraft, strings: self.mediaStrings)
         if case .audioPreview(_, let isPlaying, _) = composerState {
             audioPlayButton.accessibilityLabel = isPlaying
                 ? strings.pauseAudio
                 : strings.playAudio
+        }
+    }
+
+    /// 应用照片选择器产生的有序媒体草稿。
+    func applyMediaDraft(_ draft: IMessageChatMediaDraftPresentation?) {
+        let previousLayoutMode = layoutMode
+        let previousContentHeight = resolvedContentHeight
+        mediaDraft = draft
+        mediaDraftStripView.configure(draft, strings: mediaStrings)
+        updateAttachmentMenu()
+        updateComposerState()
+        inputGlassView.setNeedsQuickLayout()
+        setNeedsQuickLayout()
+        let layoutChanged = previousLayoutMode != layoutMode
+            || abs(previousContentHeight - resolvedContentHeight) > 0.5
+        if layoutChanged {
+            invalidateIntrinsicContentSize()
+            superview?.setNeedsLayout()
+            heightDidChange?()
         }
     }
 
@@ -550,6 +624,8 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         previewGlassView.semanticContentAttribute = semanticAttribute
         audioCancelGlassView.semanticContentAttribute = semanticAttribute
         previewDurationContainer.semanticContentAttribute = semanticAttribute
+        mediaDraftStripView.semanticContentAttribute = semanticAttribute
+        mediaDraftSeparatorView.semanticContentAttribute = semanticAttribute
         textView.semanticContentAttribute = semanticAttribute
         textView.textAlignment = .natural
         placeholderLabel.semanticContentAttribute = semanticAttribute
@@ -572,6 +648,10 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         updateTextHeight()
     }
 
+    func textViewDidBeginEditing(_ textView: UITextView) {
+        textInputDidBeginEditing?()
+    }
+
     /// 在 UIKit 应用手动文本编辑前停止正在进行的语音转写。
     func textView(
         _ textView: UITextView,
@@ -587,7 +667,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     private var resolvedContentHeight: CGFloat {
         switch composerState {
         case .idle, .preparingSpeech, .dictating:
-            currentInputHeight
+            currentInputHeight + mediaDraftAdditionalHeight
         case .recording, .audioPreview:
             Metrics.mediaInputHeight
         }
@@ -597,7 +677,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     private var layoutMode: LayoutMode {
         switch composerState {
         case .idle:
-            .idle
+            mediaDraft == nil ? .idle : .mediaDraft
         case .preparingSpeech:
             .preparingSpeech
         case .dictating:
@@ -612,7 +692,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     private var retainedTextInputHeight: CGFloat {
         switch composerState {
         case .idle, .preparingSpeech, .dictating:
-            currentInputHeight
+            currentInputHeight + mediaDraftAdditionalHeight
         case .recording, .audioPreview:
             Metrics.textInputHeight
         }
@@ -624,11 +704,32 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             .isEmpty
     }
 
+    private var hasSendableContent: Bool {
+        if let mediaDraft {
+            return mediaDraft.canSend
+        }
+        return hasSendableText
+    }
+
+    private var mediaDraftAdditionalHeight: CGFloat {
+        mediaDraft == nil
+            ? 0
+            : Metrics.mediaDraftHeight + Metrics.mediaDraftSpacing + 4
+    }
+
+    /// 当前显示环境的单个物理像素，避免 iOS 26 已弃用的全局屏幕查询。
+    private var hairlineHeight: CGFloat {
+        1 / max(1, traitCollection.displayScale)
+    }
+
     private func configureViews() {
         accessibilityIdentifier = "imessage.composer"
         backgroundColor = .clear
         quickLayoutHorizontalFlexibility = .fullyFlexible
         quickLayoutVerticalFlexibility = .fixedSize
+
+        mediaDraftSeparatorView.backgroundColor = .separator
+        mediaDraftSeparatorView.isAccessibilityElement = false
 
         for glassView in [
             attachmentGlassView,
@@ -758,6 +859,9 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                 height: Metrics.mediaControlHitSize
             )
         }
+        mediaDraftStripView.removeRequested = { [weak self] id in
+            _ = self?.actionRequested?(.removeMediaDraftItem(id))
+        }
         updateComposerState()
     }
 
@@ -877,6 +981,18 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     }
 
     private func updateAttachmentMenu() {
+        let photoAction = UIAction(
+            title: mediaStrings.photo,
+            image: UIImage(systemName: "photo.on.rectangle")
+        ) { [weak self] _ in
+            guard let self else { return }
+            _ = actionRequested?(
+                .requestAttachment(
+                    kind: .photo,
+                    keyboardWasVisible: keyboardWasVisibleBeforeAttachmentMenu
+                )
+            )
+        }
         let audioAction = UIAction(
             title: strings.audio,
             image: UIImage(systemName: "waveform")
@@ -889,7 +1005,10 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                 )
             )
         }
-        attachmentButton.menu = UIMenu(children: [audioAction])
+        if mediaDraft != nil {
+            audioAction.attributes = [.disabled]
+        }
+        attachmentButton.menu = UIMenu(children: [photoAction, audioAction])
     }
 
     /// 记录附件菜单接管焦点前文本输入框是否正在显示键盘。
@@ -899,7 +1018,13 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
 
     @objc private func sendButtonDidTap() {
         let text = textView.text ?? ""
-        guard actionRequested?(.sendText(text)) == true else { return }
+        let accepted: Bool
+        if mediaDraft != nil {
+            accepted = actionRequested?(.sendMediaDraft(text)) == true
+        } else {
+            accepted = actionRequested?(.sendText(text)) == true
+        }
+        guard accepted else { return }
         textView.text = nil
         updateComposerState()
         updateTextHeight()
@@ -945,7 +1070,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         attachmentGlassView.accessibilityElementsHidden = !showsTextInput
         inputGlassView.accessibilityElementsHidden = !showsTextInput
         placeholderLabel.isHidden = !(textView.text ?? "").isEmpty
-        sendButton.isEnabled = hasSendableText
+        sendButton.isEnabled = hasSendableContent
         attachmentButton.isEnabled = composerState == .idle
         switch composerState {
         case .preparingSpeech:

@@ -9725,7 +9725,7 @@ struct DemoTests {
 
         #expect(!composer.sendButton.isEnabled)
         #expect(!composer.placeholderLabel.isHidden)
-        #expect(composer.attachmentButton.menu?.children.count == 1)
+        #expect(composer.attachmentButton.menu?.children.count == 2)
         #expect(
             composer.attachmentButton.cornerConfiguration == .capsule()
         )
@@ -9735,7 +9735,8 @@ struct DemoTests {
         #expect(composer.sendButton.cornerConfiguration == .capsule())
         #expect(composer.audioSendButton.cornerConfiguration == .capsule())
         #expect(
-            composer.attachmentButton.menu?.children.first?.title == "Audio"
+            composer.attachmentButton.menu?.children.map(\.title)
+                == ["Photos", "Audio"]
         )
         let singleLineHeight = composer.intrinsicContentSize.height
 

@@ -1,6 +1,6 @@
 # iOS 26 iMessage 风格聊天页
 
-`IMessageChat` 是 Demo 内独立的一对一聊天页面，用来演示 QuickLayout、ListKit、AppLocalization、iOS 26 UIKit Liquid Glass、文本消息、音频消息与语音输入的组合使用。页面不复用或修改已有的 `UICollectionView` / `UITableView` 消息示例，也不为 QuickLayoutKit 增加公共 API。
+`IMessageChat` 是 Demo 内独立的一对一聊天页面，用来演示 QuickLayout、ListKit、AppLocalization、iOS 26 UIKit Liquid Glass、文本、音频、照片/视频消息与语音输入的组合使用。页面不复用或修改已有的 `UICollectionView` / `UITableView` 消息示例，也不为 QuickLayoutKit 增加公共 API。
 
 该模块仅用于本地界面和交互演示，不接入网络、上传、持久化或真实消息服务。每次进入页面都会创建新的 `IMessageChatViewModel`、页面附件存储与音频控制器，恢复与联系人 Alex 的固定示例会话；录制及从回复文本合成的音频只在本次页面生命周期内有效。
 
@@ -8,14 +8,17 @@
 
 ## 文件职责
 
-- `IMessageChatModel.swift`：内部文本/附件消息模型、音频附件元数据、收发方向、送达状态、稳定时间线 ID、集中刷新身份与渲染模型。
-- `IMessageChatViewModel.swift`：初始会话、文本与统一附件发送、类型专属验证、时间分隔、输入中状态、模拟回复、已读状态和本地化物化。
+- `IMessageChatModel.swift`：内部文本/附件消息模型、音频与有序媒体组元数据、收发方向、送达状态、稳定时间线 ID、集中刷新身份与渲染模型。
+- `IMessageChatViewModel.swift`：初始会话、文本与统一附件发送、媒体组加可选文字的原子发送、类型专属验证、时间分隔、输入中状态、模拟回复、已读状态和本地化物化。
 - `IMessageChatAttachmentStore.swift`：页面独立临时目录、外部文件导入、附件草稿、事务式提交、取消删除和页面销毁清理。
 - `IMessageChatAudioController.swift`：录音、文本转音频回复、波形采样、预览、单实例播放、语音转写、权限、音频会话与中断处理。
-- `IMessageConversationView.swift`：使用 `UICollectionView` 与 `CollectionListAdapter` 渲染时间线，并管理列表更新、音频播放刷新、滚底和运行时方向刷新。
+- `IMessageChatPhotoPickerController.swift`：UIKit `PHPickerViewController`、有序增量选择、图片/视频文件导入、缩略图、草稿代次、选择同步与 Sheet detent。
+- `IMessageChatBottomObstructionCoordinator.swift`：逐帧采样公开的键盘 layout guide 与照片 Sheet presentation layer，并统一计算输入栏底部遮挡。
+- `IMessageChatMediaViews.swift`：媒体草稿预览条、单媒体尾巴气泡、多媒体层叠卡片、展示索引状态与全屏图片/视频预览。
+- `IMessageConversationView.swift`：使用 `UICollectionView` 与 `CollectionListAdapter` 渲染时间线，并管理列表更新、音频播放刷新、层叠封面状态、滚底和运行时方向刷新。
 - `IMessageChatCells.swift`：文本发送/接收气泡、时间标记、送达状态和输入中动画。
 - `IMessageChatAudioViews.swift`：音频气泡、播放/暂停按钮、波形进度、时长与可复用音频 Cell。
-- `IMessageChatComposerView.swift`：Liquid Glass 输入栏、1–5 行文本输入、统一用户动作、附件菜单、语音转文字、录音面板和停止后的音频预览。
+- `IMessageChatComposerView.swift`：Liquid Glass 输入栏、1–5 行文本输入、统一用户动作、“照片/音频”附件菜单、媒体横向预览、语音转文字、录音面板和停止后的音频预览。
 - `IMessageContactTitleView.swift`：导航栏中的联系人头像、名称和 iMessage 副标题。
 - `IMessageChatViewController.swift`：组合会话列表与输入栏，绑定 ViewModel，并协调媒体状态、键盘、本地化、RTL 和错误反馈。
 - `IMessageChatPreviewData.swift`：仅在 `DEBUG` 下提供文本、录音、预览、播放以及 incoming/outgoing 音频气泡的确定性预览数据。
@@ -25,9 +28,13 @@
 ```text
 ViewController / Views -> ViewModel -> Models
               |
-              +-> Attachment Store
+             +-> Attachment Store
               |
               +-> Audio Controller -> AVFAudio / Speech
+              |
+              +-> Photo Picker -> PhotosUI / ImageIO / AVFoundation
+              |
+              +-> Bottom Obstruction -> UIKeyboardLayoutGuide / CADisplayLink
 ```
 
 ViewModel 不持有播放器、录音器或 UIKit 对象。输入栏通过单一
@@ -42,10 +49,11 @@ ViewModel 不持有播放器、录音器或 UIKit 对象。输入栏通过单一
 - `.localized(key:)`：固定示例或模拟回复，运行时切换语言后重新解析。
 - `.userText`：用户输入或语音转写形成的原始文本，切换语言时不改写。
 - `.attachment(.audio)`：统一附件边界中的音频载荷，包含稳定附件 ID、本地可回放文件 URL、精确时长与归一化波形采样。用户录音为 AAC `.m4a`，模拟语音回复为 `.caf`。
+- `.attachment(.mediaGroup)`：一次有序选择形成的 1–20 项媒体，保存稳定组/项目 ID、资源标识、页面拥有的原文件与缩略图 URL、像素尺寸以及图片/视频类型；视频类型额外保存有效时长。
 
 音频 Model 不包含 `AVAudioPlayer`、`AVAudioRecorder` 或 UIView。ListKit 的消息 ID 继续作为稳定身份；刷新身份同时包含附件元数据、消息方向和送达文案。播放进度属于页面级瞬时状态，由音频控制器直接更新可见 Cell；滚出屏幕后重新出现的 Cell 会在配置时读取同一份播放状态。
 
-文本与附件共用 delivered → typing → reply → read 生命周期，并根据发出消息的类型生成对应回复：
+文本与附件共用 delivered → typing → reply → read 生命周期，并根据发出消息的类型生成对应回复。媒体草稿附带非空文字时，先追加一条媒体组，再追加一条独立文字消息，整次操作只安排一次模拟回复；送达状态显示在文字消息下，没有文字时才显示在媒体组下。
 
 1. 追加稳定 ID 的 outgoing 消息，最新一条 outgoing 显示“已送达”。
 2. 时间线显示输入中气泡。
@@ -61,40 +69,42 @@ ViewModel 不持有播放器、录音器或 UIKit 对象。输入栏通过单一
 
 只有最新一条 outgoing 消息显示“已送达/已读”。时间线第一条消息必定带时间标记；后续消息与上一条间隔达到 5 分钟时插入新的时间标记。
 
-## 附件扩展契约
+## 照片/视频选择与媒体消息
 
-当前只实现 `.audio`，但消息、输入动作、文件所有权和时间线刷新均已按附件边界
-组织。后续增加图片或视频时遵循以下顺序：
+“+ → 照片”使用 UIKit `PHPickerViewController`，同时选择图片和视频，最多 20 项。
+配置采用 `.continuousAndOrdered` 与 `.current` 表示模式，保留系统的照片、精选集、
+搜索和完成操作，并关闭 staging area 与敏感内容干预界面。页面不请求完整照片库权限，
+也不遍历或修改系统选择器私有视图层级。重新打开时使用资源标识恢复预选；选择数组、
+全屏预览页序和发送模型始终保持用户勾选顺序。
 
-1. 在 `IMessageChatAttachment` 增加只包含稳定 ID、本地文件 URL 和展示元数据的
-   值类型 case；模型不得持有 `UIImage`、`PHPickerResult`、`NSItemProvider`、
-   `PHAsset`、`AVAsset` 或播放器。
-2. 在 ViewModel 的附件验证与回复计划 switch 中增加类型专属规则，继续共用
-   `appendOutgoing`，不增加平行的图片或视频消息数组。
-3. 在 `IMessageChatMessagePresentationContent` 与 Conversation View 的集中 switch
-   中选择图片或视频 Cell。刷新身份直接使用附件值，不在列表层手工拼接元数据。
-4. 在 `IMessageChatAttachmentKind` 和附件菜单中加入已经完成全流程的入口；未实现
-   选择、预览、发送与清理的类型不得提前显示。
-5. Composer 只上报 `IMessageChatComposerAction`。ViewController 或专用 Picker
-   Coordinator 负责呈现相册、相机及视频播放器，完成后把页面拥有的本地附件草稿
-   交给 Composer 渲染。
-6. 资源选择器提供的临时文件必须通过 `IMessageChatAttachmentStore.importFile`
-   复制到页面独立目录，再使用返回 URL 创建附件。图片、视频缩略图和视频导出
-   文件都归属同一草稿 ID；取消时一起删除，发送成功后一起提交。
-7. 发送顺序固定为“读取草稿 → ViewModel 验证并追加 → 提交草稿”。验证或导入失败
-   时保留预览，不能先清空 Composer 再忽略发送结果。
-8. 音频继续由 `IMessageChatAudioController` 单点管理。图片浏览和视频播放使用各自
-   的页面协调器，不复用音频波形、`AVAudioPlayer` 或录音会话状态。
+资源通过 `NSItemProvider.loadFileRepresentation` 读取后立即复制到页面附件目录，不能
+长期引用系统临时 URL。图片保留原文件，并通过 ImageIO 生成最长边不超过 1280px 的
+JPEG 缩略图；视频验证视频轨道与正时长，通过 `AVAssetImageGenerator` 生成同样上限的
+封面。模型只保存值类型和文件 URL，不保存 `UIImage`、`PHPickerResult`、
+`NSItemProvider`、`PHAsset`、`AVAsset`、播放器或手势对象。
 
-文本输入与录音面板仍保留不同的 Glass 容器和内边距。未来附件预览可以共享取消、
-发送等外壳度量，但不得为了代码复用把文本 `inputGlassView`、实时录音布局和
-图片/视频内容强制合并成同一个视觉结构。
+媒体草稿存在时，输入栏上层显示 80 × 120pt、4pt 间距的横向预览条，下层继续使用
+1–5 行文字输入。所有项目完成导入后才启用发送；视频预览显示图标和 `m:ss` 时长，
+删除按钮同步取消系统勾选并清理该项文件。媒体草稿与音频录制互斥，但关闭照片 Sheet
+不会丢弃已经导入的媒体或文字。
+
+已发送媒体按以下规则显示：
+
+- 1 项不显示数量标题，媒体自身使用约 22pt 圆角和收发方向对应的消息尾巴；视频中央显示播放按钮。
+- 2–20 项显示蓝色四宫格与“`N 个项目`”，主卡片为 216 × 300pt，最多再显示两张分别向消息外侧 8pt、向下 6pt 的后置卡片，多项不绘制尾巴。
+- 层叠组的展示顺序是 `[frontIndex..<N] + [0..<frontIndex]`。左滑进入下一项，右滑回到上一项，首尾阻尼回弹且不循环；展示索引只存于当前页面的 `[MessageID: Int]` 状态，不修改附件数组。
+- Cell 永远只绑定三张可见卡片，并通过明确的 `layer.zPosition` 保证主卡片最高。cell 自适应高度包含标题、300pt 主卡片和全部层叠偏移，滑动不会改变列表 content size 或送达状态位置。
+- 点击主卡片或可明确命中的后置卡片，从对应原始索引进入全屏预览。图片页支持捏合和双击缩放；视频页使用 `AVPlayerViewController` 播放本地文件，离页时停止并释放播放器。
+
+发送顺序固定为“读取完整草稿 → ViewModel 原子验证并追加 → 提交草稿”。任何项目
+缺文件、缩略图、有效像素尺寸、视频轨道或正时长时都不产生部分消息，媒体和文字草稿
+保持不变。单项导入失败只删除失败项；页面退出时取消未完成任务并清理未发送草稿。
 
 ## 文本输入与语音转文字
 
-普通输入状态由左侧独立 44 点“+”玻璃按钮和右侧输入胶囊组成。“+”使用 `UIMenu` 与 `showsMenuAsPrimaryAction`，当前只展示已经实现的“音频”，不会伪造照片、相机或其他附件入口。
+普通输入状态由左侧独立 44 点“+”玻璃按钮和右侧输入胶囊组成。“+”使用 `UIMenu` 与 `showsMenuAsPrimaryAction`，展示“照片”和“音频”：照片同时承载图片/视频选择；存在媒体草稿时禁用音频，避免静默覆盖草稿。当前范围不包含相机拍摄或媒体编辑。
 
-`UITextView` 的基础高度为 44 点，随内容扩展到最多 5 行，超过后在输入框内部滚动。空输入显示麦克风；裁剪后存在非空文本时显示原有发送箭头。发送文本会删除首尾空白和换行，保留正文内部换行；纯空白不会发送。
+`UITextView` 的基础高度为 44 点，随内容扩展到最多 5 行，超过后在输入框内部滚动。空输入显示麦克风；裁剪后存在非空文本时显示原有发送箭头。存在媒体草稿时始终隐藏听写麦克风，并在全部导入完成后显示蓝色发送箭头。发送文本会删除首尾空白和换行，保留正文内部换行；纯空白不会发送。
 
 文本态和录音态使用独立的玻璃布局度量。文本态的 `inputGlassView` 使用 4 点
 语义起始内边距、6 点语义结束内边距和 4 点内容间距；尾部操作区域固定宽
@@ -141,6 +151,7 @@ ViewModel 不持有播放器、录音器或 UIKit 对象。输入栏通过单一
 每个 `IMessageChatPageAttachmentStore` 创建独立临时目录：
 
 - 有效录音先注册为草稿；取消、过短或编码失败的录音立即删除。
+- 照片/视频原文件与缩略图使用同一个媒体组草稿 ID；删除单项时只清理该项，取消草稿时整体清理，已发送后整体提交。
 - 发送时先由 ViewModel 验证附件，成功追加消息后才把草稿转为已提交附件；发送
   失败不会清空预览。
 - 合成失败、取消、空 buffer 或零时长产生的部分 `.caf` 文件立即删除。
@@ -149,7 +160,7 @@ ViewModel 不持有播放器、录音器或 UIKit 对象。输入栏通过单一
 - 页面及音频控制器销毁时取消异步任务、移除通知观察、停止媒体对象，并由附件
   存储删除整个临时目录。
 
-因此，音频消息不会跨页面恢复，也不会上传、写入业务缓存或进入真实消息存储。
+因此，音频和照片/视频消息都不会跨页面恢复，也不会上传、写入业务缓存或进入真实消息存储。
 
 ## 音频会话、中断与失败处理
 
@@ -171,9 +182,9 @@ ViewModel 不持有播放器、录音器或 UIKit 对象。输入栏通过单一
 - `NSMicrophoneUsageDescription`：录制音频消息及语音输入。
 - `NSSpeechRecognitionUsageDescription`：把讲话转写为消息草稿。
 
-## 列表布局、滚动与键盘
+## 列表布局、滚动与键盘/照片 Sheet
 
-- 文本和音频气泡都以可用行宽约 75% 为上限。
+- 文本和音频气泡都以可用行宽约 75% 为上限；单媒体最大宽度 252pt，多媒体层叠完整外框为 232pt。
 - incoming 位于语义 `leading`，outgoing 位于语义 `trailing`；RTL 下位置、尾角、送达状态与控件顺序按语义镜像。
 - outgoing 音频沿用蓝色消息色，incoming 音频使用系统次级填充色。
 - 送达状态与 outgoing 气泡的语义尾端对齐，不能使用屏幕边缘独立定位。
@@ -181,15 +192,17 @@ ViewModel 不持有播放器、录音器或 UIKit 对象。输入栏通过单一
 - 用户浏览历史时，本地化刷新保存并恢复可见锚点，录音/预览状态变化不会强制把列表拉到底部。
 - 列表使用 `.interactive` 键盘收起模式。
 
-页面在 `super.viewDidLoad()` 前设置：
+本页面在 `super.viewDidLoad()` 前关闭框架自动键盘安全区处理：
 
 ```swift
-quickLayoutKeyboardSafeAreaBehavior = .docked(
-    usesBottomSafeArea: true
-)
+quickLayoutKeyboardSafeAreaBehavior = .disabled
 ```
 
-输入栏因此跟随停靠键盘并保留底部安全区。文本、录音和预览三种高度变化都通过同一“变化前记录 `isNearBottom`，布局后按原状态决定是否滚底”的规则处理。
+`IMessageChatBottomObstructionCoordinator` 独占输入栏底部位移，避免框架键盘 inset 与页面 Sheet inset 重复抬升。系统键盘正常显示或交互下拉时，通过 `CADisplayLink` 读取 `UIKeyboardLayoutGuide.layoutFrame.minY`；照片 Sheet 展示期间则不采样 Sheet frame，也不让键盘通知或 display link 驱动输入栏布局，始终使用打开时锁定的键盘等高值。键盘通知此时只允许缓存下一次使用的稳定高度。只有明确开始“照片 → 键盘”交接后，键盘几何才重新接管。键盘可见高度按“容器底部 − 键盘顶部 − 容器底部安全区”计算，因此不会重复加入约 34pt 的底部安全区。
+
+照片 Sheet 提供与最近一次稳定软件键盘内容高度一致的小档（首次 300pt）和 `.large()`。Composer 与 custom detent 都使用同一个不含底部安全区的内容高度，不再人为给 detent 叠加第二份安全区；输入栏自身保留 8pt 页面内边距，Sheet 的悬浮边缘由系统负责。小档允许背景交互，大档使用系统遮罩。`isPresented` 与附件中的 `showPhotoPicker` 语义一致，并从创建 Sheet 开始、到 dismiss 完成后结束；只要照片 Sheet 处于该生命周期，输入栏就固定抬升键盘等高值，且键盘隐藏通知不会在 Sheet 进场期间触发 `invalidateDetents()`。Sheet 从小档拖到大档时自然覆盖输入栏，不改变 Composer 的位置。键盘 → 照片时，照片展示状态会在键盘隐藏前接管同一高度；照片 → 键盘时，收到键盘通知后只执行一次到最终高度的系统曲线动画，Sheet 完全关闭且 keyboard layout guide 到达目标后才恢复逐帧键盘采样。交接期间不会用动画中间帧覆盖稳定键盘高度，也不会在正在 dismiss 的 Sheet 上调用 `invalidateDetents()`。外接或浮动键盘没有底部软件键盘遮挡时，Sheet 消失后平滑回到底部。
+
+文本、录音、音频预览和媒体预览高度变化都通过同一“变化前记录 `isNearBottom`，布局后按原状态决定是否滚底”的规则处理。
 
 ## Liquid Glass 与导航标题
 
@@ -201,7 +214,8 @@ quickLayoutKeyboardSafeAreaBehavior = .docked(
 
 - 文案位于 `Localizable.xcstrings`，权限说明位于 `InfoPlist.xcstrings`，均覆盖英语、简体中文和阿拉伯语。
 - 文本统一使用自然对齐；收发位置只使用 semantic leading/trailing，不使用固定 left/right。
-- 文本气泡、音频气泡、播放、暂停、录音停止、取消、发送、时长、播放进度、时间、送达状态、输入中状态和输入框均提供辅助功能标签或值。
+- 文本气泡、音频气泡、媒体组、播放、暂停、录音停止、删除、取消、发送、时长、播放进度、时间、送达状态、输入中状态和输入框均提供辅助功能标签或值。
+- 多媒体组是 adjustable 元素：VoiceOver 递增查看下一项、递减查看上一项，播报“第 X 项，共 N 项，图片/视频”；到达首尾时播报边界且不循环。后置卡片不重复暴露为独立元素，双击从当前封面打开预览。
 - Dynamic Type 会更新正文、时长与送达文本；系统语义色适配浅色、深色和高对比度。
 - 输入中动画在 Reduce Motion 开启时停止；媒体操作不依赖装饰动画完成。
 
@@ -221,7 +235,7 @@ DemoRoute.imessageChat
 
 ## 测试重点
 
-相关测试位于 `Demo/DemoTests/DemoTests.swift`。测试必须使用协议注入的假服务、固定 Clock、受控 Sleeper 与确定性附件，不能读取真实麦克风、依赖在线识别、调用真实系统声线或用真实休眠等待结果。
+相关测试位于 `Demo/DemoTests/DemoTests.swift` 与 `Demo/DemoTests/IMessageChatMediaTests.swift`。测试必须使用协议注入的假服务、固定 Clock、受控 Sleeper 与确定性附件，不能读取真实麦克风、依赖在线识别、调用真实系统声线或用真实休眠等待结果。
 
 当前回归重点包括：
 
@@ -232,7 +246,12 @@ DemoRoute.imessageChat
 - 录音、转写和播放互斥；切换条目、暂停续播、路由移除、无效文件与页面释放回到确定状态。
 - iOS 26/旧版后端能力选择，以及英语、简体中文和阿拉伯语 locale 映射。
 - partial result 替换、停止、错误、无结果和手动编辑不重复或覆盖原草稿。
-- 空文本显示麦克风，非空文本显示发送；附件菜单只有“音频”。
+- 空文本显示麦克风，非空文本显示发送；附件菜单包含“照片”和“音频”，媒体草稿存在时音频入口禁用。
+- 1、2、5、20 项媒体发送边界，无效媒体原子拒绝，以及“媒体组 + 文字”只安排一次回复。
+- 选择顺序、草稿导入完成门槛、文件整体提交/清理，以及层叠状态跨 cell 重用保留。
+- 5 项媒体的全部旋转顺序、物理左右滑方向、距离/速度阈值、首尾不循环和模型数组不变。
+- iPhone 16 Pro 402pt 行宽下，232 × 344pt 多媒体外框完整参与 cell 首次自适应测量，不退化为 10 × 10pt 占位尺寸或与下一行重叠。
+- 键盘与照片 Sheet 遮挡计算扣除底部安全区，避免输入栏顶部再出现一份重复安全区间距。
 - 取消或发送音频后恢复原草稿，音频发送不清空文本草稿。
 - 文本 1–5 行、录音/预览 64 点固定胶囊高度、16 点页面水平边距、键盘停靠与最后一条消息遮挡。
 - Dynamic Type 变化会重新测量文本输入高度；固定 64 点媒体面板中的时长字体最多缩放到 24 点，保证辅助功能字号下时长完整且波形仍有可用宽度。
@@ -247,10 +266,10 @@ DemoRoute.imessageChat
 3. 消息只存在于当前页面生命周期，不添加网络、上传或持久化抽象。
 4. 新增时间线内容必须提供稳定 ID，并补齐 ListKit 刷新身份。
 5. 录音、音频播放、转写和 `AVAudioSession` 必须继续由音频控制器单点拥有；附件文件由页面附件存储单点拥有，Cell 与输入栏不得直接创建媒体对象。
-6. 修改气泡布局时必须同时验证短文本、长文本、音频、LTR、RTL 和 Dynamic Type。
-7. 修改输入栏时必须验证键盘展开、交互式收起、1–5 行、录音态、预览态、原草稿恢复和最后一条消息遮挡。
+6. 修改气泡布局时必须同时验证短文本、长文本、音频、单媒体、多媒体层叠、LTR、RTL 和 Dynamic Type。
+7. 修改输入栏时必须验证键盘展开、照片 Sheet 小/大档与交互拖动、两种遮挡源交接、1–5 行、录音态、媒体预览态、原草稿恢复和最后一条消息遮挡。
 8. iOS 26 原生玻璃 API 只用于导航或输入控制层，消息内容层保持系统纯色背景。
-9. 当前范围不包含图片、视频、其他附件、上传、持久化、Tapback、内联回复或真实已读回执。
+9. Composer 预览项固定为 120 点高，按附件像素比例计算 80～160 点宽度；多帧图片和 Live Photo 显示动态图片标志。当前范围不包含相机拍摄、图片编辑、视频剪辑、GIF 动画播放、Live Photo 播放、其他附件、上传、持久化、Tapback、内联回复或真实已读回执；GIF 与 Live Photo 仍按静态缩略图发送和预览。
 10. iOS 17–25 只属于语音识别服务的兼容预留；旧系统页面运行需要未来降低整个 Demo deployment target 并提供非 iOS 26 UI。
 11. 新增独立 View 或 ViewController 时，必须在同一源文件补充基于 `IMessageChatPreviewData` 的 `#Preview`。
 12. 新增内部类型、状态、回调和用户动作方法使用 UIKit SDK 风格的 `///` 文档注释：先给出简洁摘要，再按需要补充讨论、参数和返回值；不要用逐行翻译代码的噪声注释。

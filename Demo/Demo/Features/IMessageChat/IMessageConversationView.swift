@@ -11,12 +11,17 @@ import UIKit
 
 /// 用户在时间线消息上发起的操作。
 ///
-/// 图片和视频接入后在此增加打开预览或播放操作，由 ViewController 路由到对应
-/// 协调器；Conversation View 和 Cell 不直接创建页面级播放器。
+/// 图片、视频和音频操作均由 ViewController 路由到对应协调器；Conversation View
+/// 和 Cell 不直接创建页面级播放器。
 nonisolated enum IMessageChatMessageAction: Equatable, Sendable {
     case toggleAudioPlayback(
         messageID: Int,
         attachment: IMessageChatAudioAttachment
+    )
+    case openMediaGroup(
+        messageID: Int,
+        attachment: IMessageChatMediaGroupAttachment,
+        index: Int
     )
 }
 
@@ -38,6 +43,23 @@ final class IMessageConversationView: UIView {
     private var timelineCount = 0
     private var lastAppliedLayoutDirection: UIUserInterfaceLayoutDirection?
     private var playbackState: IMessageChatPlaybackState = .idle
+    private let mediaStackStateStore = IMessageChatMediaStackStateStore()
+    private var mediaStrings = IMessageChatMediaStrings(
+        photo: "Photos",
+        itemsFormat: "%d items",
+        image: "Image",
+        animatedImage: "Animated image",
+        video: "Video",
+        videoDurationFormat: "Video, duration %@",
+        importing: "Importing",
+        remove: "Remove",
+        play: "Play",
+        openPreview: "Open preview",
+        close: "Close",
+        firstItem: "First item",
+        lastItem: "Last item",
+        positionFormat: "%d of %d"
+    )
 
     /// 消息 Cell 请求页面级操作时调用。
     var actionRequested: ((IMessageChatMessageAction) -> Void)?
@@ -60,6 +82,12 @@ final class IMessageConversationView: UIView {
             ? collectionView.captureLocalizationAnchor()
             : nil
         timelineCount = state.timeline.count
+        let mediaMessageIDs = Set(state.timeline.compactMap { item -> Int? in
+            guard case .message(let message) = item.content,
+                  message.mediaGroup != nil else { return nil }
+            return message.id
+        })
+        mediaStackStateStore.retainMessages(mediaMessageIDs)
         renderGeneration &+= 1
         let generation = renderGeneration
         let transaction: ListTransaction = switch reason {
@@ -150,6 +178,41 @@ final class IMessageConversationView: UIView {
                                     )
                                 }
                                 .refreshID(message.refreshIdentity)
+                            case .mediaGroup(let group):
+                                Row(
+                                    model: message,
+                                    cell: IMessageChatMediaBubbleCell.self
+                                ) { [weak self] cell, message, _ in
+                                    guard let self else { return }
+                                    cell.frontIndexDidChange = {
+                                        [weak self] messageID, index in
+                                        self?.mediaStackStateStore.setIndex(
+                                            index,
+                                            for: messageID,
+                                            itemCount: group.items.count
+                                        )
+                                    }
+                                    cell.previewRequested = {
+                                        [weak self] messageID, attachment, index in
+                                        self?.actionRequested?(
+                                            .openMediaGroup(
+                                                messageID: messageID,
+                                                attachment: attachment,
+                                                index: index
+                                            )
+                                        )
+                                    }
+                                    cell.configure(
+                                        message,
+                                        group: group,
+                                        frontIndex: mediaStackStateStore.index(
+                                            for: message.id,
+                                            itemCount: group.items.count
+                                        ),
+                                        strings: mediaStrings
+                                    )
+                                }
+                                .refreshID(message.refreshIdentity)
                             }
                         }
 
@@ -180,6 +243,10 @@ final class IMessageConversationView: UIView {
                 )
             )
         }
+    }
+
+    func configureMediaStrings(_ strings: IMessageChatMediaStrings) {
+        mediaStrings = strings
     }
 
     /// 将页面级播放状态应用到可见的音频消息 Cell。

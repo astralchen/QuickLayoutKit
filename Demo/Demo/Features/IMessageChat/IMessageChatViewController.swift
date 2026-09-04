@@ -20,17 +20,26 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
     let composerView = IMessageChatComposerView()
     let contactTitleView = IMessageContactTitleView(frame: .zero)
     let audioController: IMessageChatAudioController
+    let photoController: IMessageChatPhotoPickerController
+    let attachmentStore: any IMessageChatAttachmentStoring
 
     private let keyboardObserver = QuickLayoutKeyboardObserver()
     private var cancellables: Set<AnyCancellable> = []
+    private var bottomObstruction: CGFloat = 0
+    private lazy var bottomObstructionCoordinator =
+        IMessageChatBottomObstructionCoordinator(hostView: view)
 
     convenience init() {
-        let audioController = IMessageChatAudioController()
+        let attachmentStore = IMessageChatPageAttachmentStore()
+        let audioController = IMessageChatAudioController(
+            attachmentStore: attachmentStore
+        )
         self.init(
             viewModel: IMessageChatViewModel(
                 replyAudioSynthesizer: audioController
             ),
-            audioController: audioController
+            audioController: audioController,
+            attachmentStore: attachmentStore
         )
     }
 
@@ -38,9 +47,13 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
     ///
     /// - Parameter viewModel: 管理消息时间线的视图模型。
     convenience init(viewModel: IMessageChatViewModel) {
+        let attachmentStore = IMessageChatPageAttachmentStore()
         self.init(
             viewModel: viewModel,
-            audioController: IMessageChatAudioController()
+            audioController: IMessageChatAudioController(
+                attachmentStore: attachmentStore
+            ),
+            attachmentStore: attachmentStore
         )
     }
 
@@ -53,14 +66,38 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         viewModel: IMessageChatViewModel,
         audioController: IMessageChatAudioController
     ) {
+        let attachmentStore = IMessageChatPageAttachmentStore()
         self.viewModel = viewModel
         self.audioController = audioController
+        self.attachmentStore = attachmentStore
+        photoController = IMessageChatPhotoPickerController(
+            attachmentStore: attachmentStore
+        )
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    private init(
+        viewModel: IMessageChatViewModel,
+        audioController: IMessageChatAudioController,
+        attachmentStore: any IMessageChatAttachmentStoring
+    ) {
+        self.viewModel = viewModel
+        self.audioController = audioController
+        self.attachmentStore = attachmentStore
+        photoController = IMessageChatPhotoPickerController(
+            attachmentStore: attachmentStore
+        )
         super.init(nibName: nil, bundle: nil)
     }
 
     required init?(coder: NSCoder) {
         let audioController = IMessageChatAudioController()
         self.audioController = audioController
+        let attachmentStore = IMessageChatPageAttachmentStore()
+        self.attachmentStore = attachmentStore
+        photoController = IMessageChatPhotoPickerController(
+            attachmentStore: attachmentStore
+        )
         viewModel = IMessageChatViewModel(
             replyAudioSynthesizer: audioController
         )
@@ -76,13 +113,12 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
                 .resizable(axis: .horizontal)
                 .fixedSize(axis: .vertical)
         }
+        .padding(.bottom, bottomObstruction)
         .safeAreaPadding(.all, 0)
     }
 
     override func viewDidLoad() {
-        quickLayoutKeyboardSafeAreaBehavior = .docked(
-            usesBottomSafeArea: true
-        )
+        quickLayoutKeyboardSafeAreaBehavior = .disabled
         super.viewDidLoad()
 
         contactTitleView.sizeToFit()
@@ -91,6 +127,12 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         configureInteractions()
         bindViewModel()
         observeKeyboard()
+        configureBottomObstruction()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        bottomObstructionCoordinator.refreshGeometry()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -98,6 +140,10 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         guard isMovingFromParent || isBeingDismissed else { return }
         viewModel.cancelPendingReply()
         audioController.stopAll()
+        photoController.dismissPicker(animated: false)
+        photoController.discardDraft()
+        bottomObstructionCoordinator.stop()
+        attachmentStore.removeAll()
     }
 
     override func reloadLocalizedContent() {
@@ -106,6 +152,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
             subtitle: DemoLocalization.text("imessage.contact.subtitle")
         )
         contactTitleView.sizeToFit()
+        let mediaStrings = makeMediaStrings()
         composerView.configure(
             strings: IMessageChatComposerStrings(
                 placeholder: DemoLocalization.text(
@@ -128,8 +175,10 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
                 ),
                 playAudio: DemoLocalization.text("imessage.audio.play"),
                 pauseAudio: DemoLocalization.text("imessage.audio.pause")
-            )
+            ),
+            mediaStrings: mediaStrings
         )
+        conversationView.configureMediaStrings(mediaStrings)
         viewModel.refreshLocalizedContent()
     }
 
@@ -161,6 +210,18 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         audioController.failureDidOccur = { [weak self] failure in
             self?.presentMediaFailure(failure)
         }
+        photoController.stateDidChange = { [weak self] draft in
+            self?.composerView.applyMediaDraft(draft)
+        }
+        photoController.failureDidOccur = { [weak self] in
+            self?.presentMediaFailure(.mediaImportFailed)
+        }
+        photoController.pickerDidPresent = { [weak self] picker in
+            self?.bottomObstructionCoordinator.trackPicker(picker)
+        }
+        photoController.pickerDidDismiss = { [weak self] in
+            self?.bottomObstructionCoordinator.stopTrackingPicker()
+        }
         composerView.heightDidChange = { [weak self] in
             guard let self else { return }
             let shouldFollow = conversationView.isNearBottom
@@ -171,6 +232,12 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
             }
         }
         composerView.applyState(audioController.state)
+        composerView.applyMediaDraft(photoController.draft)
+        composerView.textInputDidBeginEditing = { [weak self] in
+            guard let self, photoController.isPresented else { return }
+            bottomObstructionCoordinator.beginKeyboardHandoff()
+            photoController.dismissPicker(animated: true)
+        }
     }
 
     /// 处理输入栏发出的统一用户动作。
@@ -187,8 +254,35 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         case .sendText(let text):
             return viewModel.send(text)
 
+        case .sendMediaDraft(let text):
+            guard let attachment = photoController.draftAttachment else {
+                presentMediaFailure(.mediaInvalid)
+                return false
+            }
+            guard viewModel.sendMediaGroup(
+                attachment,
+                followedByText: text
+            ) else {
+                presentMediaFailure(.mediaInvalid)
+                return false
+            }
+            let committed = photoController.commitDraft()
+            photoController.dismissPicker(animated: true)
+            return committed
+
+        case .removeMediaDraftItem(let id):
+            photoController.removeItem(id: id)
+            return true
+
         case .requestAttachment(let kind, let keyboardWasVisible):
             switch kind {
+            case .photo:
+                photoController.present(
+                    from: self,
+                    keyboardHeight: bottomObstructionCoordinator
+                        .storedKeyboardContentHeight
+                )
+                return true
             case .audio:
                 audioController.startRecording()
                 if keyboardWasVisible {
@@ -239,6 +333,13 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
                 messageID: messageID,
                 attachment: attachment
             )
+        case .openMediaGroup(_, let attachment, let index):
+            let preview = IMessageChatMediaPreviewController(
+                group: attachment,
+                initialIndex: index,
+                strings: makeMediaStrings()
+            )
+            present(preview, animated: true)
         }
     }
 
@@ -253,6 +354,14 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
             .dropFirst()
             .sink { [weak self] context in
                 guard let self else { return }
+                let shouldApplyKeyboardLayout = bottomObstructionCoordinator.updateKeyboard(
+                    context
+                )
+                photoController.updateKeyboardHeight(
+                    bottomObstructionCoordinator.storedKeyboardContentHeight,
+                    invalidatingPresentedDetent: !photoController.isPresented
+                )
+                guard shouldApplyKeyboardLayout else { return }
                 let shouldFollow = conversationView.isNearBottom
                 DispatchQueue.main.async { [weak self] in
                     guard let self, shouldFollow else { return }
@@ -265,6 +374,55 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
             .store(in: &cancellables)
     }
 
+    private func configureBottomObstruction() {
+        bottomObstructionCoordinator.heightDidChange = { [weak self] height, context in
+            guard let self else { return }
+            let wasNearBottom = conversationView.isNearBottom
+            bottomObstruction = height
+            setNeedsQuickLayout()
+            let updates: () -> Void = { [weak self] in
+                self?.quickLayoutIfNeeded()
+            }
+            if let context, context.animationDuration > 0 {
+                UIView.animate(
+                    withDuration: context.animationDuration,
+                    delay: 0,
+                    options: context.animationOptions.union(.beginFromCurrentState),
+                    animations: updates
+                )
+            } else {
+                updates()
+            }
+            if wasNearBottom {
+                conversationView.scrollToBottom(animated: false)
+            }
+        }
+        bottomObstructionCoordinator.refreshGeometry()
+    }
+
+    private func makeMediaStrings() -> IMessageChatMediaStrings {
+        IMessageChatMediaStrings(
+            photo: DemoLocalization.text("imessage.attachment.photo"),
+            itemsFormat: DemoLocalization.text("imessage.media.items"),
+            image: DemoLocalization.text("imessage.media.image"),
+            animatedImage: DemoLocalization.text(
+                "imessage.media.animatedImage"
+            ),
+            video: DemoLocalization.text("imessage.media.video"),
+            videoDurationFormat: DemoLocalization.text(
+                "imessage.media.videoDuration"
+            ),
+            importing: DemoLocalization.text("imessage.media.importing"),
+            remove: DemoLocalization.text("imessage.media.remove"),
+            play: DemoLocalization.text("imessage.media.play"),
+            openPreview: DemoLocalization.text("imessage.media.openPreview"),
+            close: DemoLocalization.text("imessage.media.close"),
+            firstItem: DemoLocalization.text("imessage.media.first"),
+            lastItem: DemoLocalization.text("imessage.media.last"),
+            positionFormat: DemoLocalization.text("imessage.media.position")
+        )
+    }
+
     /// 针对媒体操作失败呈现本地化的恢复信息。
     ///
     /// 权限失败包含前往“设置”的操作。其他失败均采用非破坏性处理，并完整保留当前
@@ -272,7 +430,6 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
     ///
     /// - Parameter failure: 媒体控制器报告的失败。
     private func presentMediaFailure(_ failure: IMessageChatMediaFailure) {
-        guard presentedViewController == nil else { return }
         let messageKey: String = switch failure {
         case .microphonePermissionDenied:
             "imessage.error.microphonePermission"
@@ -288,12 +445,19 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
             "imessage.error.speechUnavailable"
         case .speechFailed:
             "imessage.error.speechFailed"
+        case .mediaImportFailed:
+            "imessage.error.mediaImportFailed"
+        case .mediaInvalid:
+            "imessage.error.mediaInvalid"
         }
         let alert = UIAlertController(
             title: DemoLocalization.text("imessage.error.title"),
             message: DemoLocalization.text(messageKey),
             preferredStyle: .alert
         )
+        let presenter = presentedViewController ?? self
+        guard !(presenter is UIAlertController),
+              presenter.presentedViewController == nil else { return }
         alert.addAction(
             UIAlertAction(
                 title: DemoLocalization.text("imessage.action.ok"),
@@ -314,7 +478,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
                 }
             )
         }
-        present(alert, animated: true)
+        presenter.present(alert, animated: true)
     }
 }
 

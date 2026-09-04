@@ -156,8 +156,8 @@ final class IMessageChatViewModel {
 
     /// 通过普通发出消息生命周期发送页面附件。
     ///
-    /// 当前只实现音频附件。图片和视频接入后应在附件验证方法中增加各自的文件、
-    /// 尺寸、时长或缩略图约束，成功后继续共用同一条消息生命周期。
+    /// 音频与媒体组都在写入时间线前完成文件、尺寸、时长和缩略图校验，并共用
+    /// 同一条消息生命周期。
     ///
     /// - Parameter attachment: 已完成预览且仍由页面附件存储持有的附件。
     /// - Returns: 成功追加附件时为 `true`；否则为 `false`。
@@ -169,6 +169,51 @@ final class IMessageChatViewModel {
             content: .attachment(attachment),
             replyKind: replyKind(for: attachment)
         )
+        return true
+    }
+
+    /// 以一次时间线事务发送媒体组，并在其后追加可选文字消息。
+    ///
+    /// 媒体和文字只发布一次状态、只触发一次模拟回复。任一媒体无效时不会产生
+    /// 部分时间线写入，调用方可以完整保留 Composer 草稿并重试。
+    @discardableResult
+    func sendMediaGroup(
+        _ group: IMessageChatMediaGroupAttachment,
+        followedByText rawText: String
+    ) -> Bool {
+        let attachment = IMessageChatAttachment.mediaGroup(group)
+        guard validates(attachment) else { return false }
+
+        pendingReplyTask?.cancel()
+        let sentAt = clock()
+        messages.append(
+            IMessageChatMessage(
+                id: nextMessageID,
+                direction: .outgoing,
+                content: .attachment(attachment),
+                sentAt: sentAt,
+                deliveryState: .delivered
+            )
+        )
+        nextMessageID += 1
+
+        let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !text.isEmpty {
+            messages.append(
+                IMessageChatMessage(
+                    id: nextMessageID,
+                    direction: .outgoing,
+                    content: .userText(text),
+                    sentAt: sentAt,
+                    deliveryState: .delivered
+                )
+            )
+            nextMessageID += 1
+        }
+
+        isTyping = true
+        publish(reason: .sentMessage)
+        scheduleReply(.text)
         return true
     }
 
@@ -185,6 +230,28 @@ final class IMessageChatViewModel {
                     atPath: audio.fileURL.path
                 )
             )
+        case .mediaGroup(let group):
+            !group.items.isEmpty
+                && group.items.count <= IMessageChatMediaGroupAttachment
+                    .selectionLimit
+                && group.items.allSatisfy { item in
+                    guard item.pixelSize.width > 0,
+                          item.pixelSize.height > 0,
+                          FileManager.default.fileExists(
+                            atPath: item.originalFileURL.path
+                          ),
+                          FileManager.default.fileExists(
+                            atPath: item.thumbnailFileURL.path
+                          ) else {
+                        return false
+                    }
+                    switch item.kind {
+                    case .image:
+                        return true
+                    case .video(let duration):
+                        return duration.isFinite && duration > 0
+                    }
+                }
         }
     }
 
@@ -203,6 +270,8 @@ final class IMessageChatViewModel {
                     for: localeProvider()
                 )
             )
+        case .mediaGroup:
+            .text
         }
     }
 
