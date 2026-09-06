@@ -8,6 +8,42 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
+/// 在临时提示期间冻结键盘和输入法修改，同时保留第一响应者与组合文本。
+@available(iOS 26.0, *)
+final class IMessageChatTextView: UITextView {
+    /// 只拦截编辑，不修改 `isEditable` 或第一响应者状态。
+    var isInputSuspended = false
+
+    override func insertText(_ text: String) {
+        guard !isInputSuspended else { return }
+        super.insertText(text)
+    }
+
+    override func deleteBackward() {
+        guard !isInputSuspended else { return }
+        super.deleteBackward()
+    }
+
+    override func setMarkedText(_ markedText: String?, selectedRange: NSRange) {
+        guard !isInputSuspended else { return }
+        super.setMarkedText(markedText, selectedRange: selectedRange)
+    }
+
+    override func unmarkText() {
+        guard !isInputSuspended else { return }
+        super.unmarkText()
+    }
+
+    override func replace(_ range: UITextRange, withText text: String) {
+        guard !isInputSuspended else { return }
+        super.replace(range, withText: text)
+    }
+
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        !isInputSuspended && super.canPerformAction(action, withSender: sender)
+    }
+}
+
 /// 保持设计尺寸并把实际命中区域扩展到最小触控尺寸的按钮。
 ///
 /// 视觉尺寸可以小于 44 点；命中测试会围绕按钮中心对称扩展，但不会改变
@@ -52,6 +88,7 @@ nonisolated struct IMessageChatComposerStrings: Equatable, Sendable {
     let cancelAudio: String
     let playAudio: String
     let pauseAudio: String
+    let recordingRequiresEmptyDraft: String
 }
 
 /// 输入栏当前可以请求的附件类型。
@@ -116,6 +153,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         case recording
         case preview
         case mediaDraft
+        case recordingUnavailable
     }
 
     private enum Metrics {
@@ -163,8 +201,10 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         static let mediaDraftSpacing: CGFloat = 8
     }
 
-    let textView = UITextView()
+    let textView = IMessageChatTextView()
     let placeholderLabel = UILabel()
+    /// 草稿阻止录音时显示的短暂说明。
+    let recordingUnavailableLabel = UILabel()
     let attachmentButton = UIButton(type: .system)
     let sendButton = IMessageChatComposerHitButton(type: .system)
     let dictationButton = UIButton(type: .system)
@@ -201,10 +241,12 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         stopRecording: "Stop recording",
         cancelAudio: "Cancel audio",
         playAudio: "Play audio",
-        pauseAudio: "Pause audio"
+        pauseAudio: "Pause audio",
+        recordingRequiresEmptyDraft: "To record audio, clear the input field."
     )
     private var composerState: IMessageChatComposerState = .idle
-    private var mediaDraft: IMessageChatMediaDraftPresentation?
+    /// 当前有序媒体草稿；提示只改变展示，导入结果继续通过 `applyMediaDraft` 更新。
+    private(set) var mediaDraft: IMessageChatMediaDraftPresentation?
     private var mediaStrings = IMessageChatMediaStrings(
         photo: "Photos",
         itemsFormat: "%d items",
@@ -223,6 +265,16 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     )
     private var currentInputHeight = Metrics.textInputHeight
     private var isApplyingTranscription = false
+
+    /// 提示属于输入栏展示状态，不占用音频控制器或麦克风。
+    private(set) var isShowingRecordingUnavailableHint = false
+    /// 可注入的等待操作，让测试无需真实等待两秒。
+    var recordingHintSleeper: @MainActor @Sendable (Duration) async throws -> Void = {
+        try await Task.sleep(for: $0)
+    }
+    private var recordingHintTask: Task<Void, Never>?
+    private var recordingHintGeneration = 0
+    private var retainedTextContentOffset: CGPoint?
 
     private lazy var attachmentGlassView: QuickLayoutVisualEffectView = {
         let effect = UIGlassEffect(style: .regular)
@@ -249,6 +301,9 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                     maxHeight: .infinity,
                     alignment: .topLeading
                 )
+            self.recordingUnavailableLabel
+                .resizable()
+                .padding(.horizontal, 8)
         }
     }
 
@@ -257,7 +312,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         effect.isInteractive = true
         return QuickLayoutVisualEffectView(effect: effect) { [unowned self] in
             VStack(spacing: 0) {
-                if mediaDraft != nil {
+                if mediaDraft != nil && !isShowingRecordingUnavailableHint {
                     mediaDraftStripView
                         .resizable(axis: .horizontal)
                         .frame(height: Metrics.mediaDraftHeight)
@@ -281,7 +336,8 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                 ) {
                     editorContainer
                         .resizable(axis: .horizontal)
-                        .frame(height: currentInputHeight)
+                        .frame(height: isShowingRecordingUnavailableHint
+                            ? Metrics.textInputHeight : currentInputHeight)
                         .onGeometryChange(
                             for: CGFloat.self,
                             of: { max(0, $0.size.width - 8) },
@@ -394,7 +450,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                 )
                 .padding(.bottom, Metrics.textDictationBottomPadding)
         case .idle, .recording, .audioPreview:
-            if hasSendableContent {
+            if isShowingRecordingUnavailableHint || hasSendableContent {
                 sendButton
                     .resizable()
                     .frame(
@@ -405,7 +461,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                         width: Metrics.textActionWidth,
                         alignment: .trailing
                     )
-                    .padding(.bottom, Metrics.textSendBottomPadding)
+                    .padding(.bottom, sendButtonBottomPadding)
             } else {
                 dictationButton
                     .resizable()
@@ -416,6 +472,22 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                     .padding(.bottom, Metrics.textDictationBottomPadding)
             }
         }
+    }
+
+    /// 单行输入及临时提示中，发送按钮在输入胶囊内上下等距。
+    private var sendButtonBottomPadding: CGFloat {
+        if isShowingRecordingUnavailableHint {
+            return (Metrics.textInputHeight - Metrics.sendButtonHeight) / 2
+        }
+        let font = textView.font ?? .preferredFont(forTextStyle: .body)
+        let singleLineHeight = max(
+            Metrics.textInputHeight,
+            ceil(font.lineHeight) + textView.textContainerInset.top
+                + textView.textContainerInset.bottom
+        )
+        return currentInputHeight <= singleLineHeight + 0.5
+            ? (currentInputHeight - Metrics.sendButtonHeight) / 2
+            : Metrics.textSendBottomPadding
     }
 
     @LayoutBuilder
@@ -462,12 +534,84 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         fatalError("init(coder:) has not been implemented")
     }
 
+    deinit {
+        recordingHintTask?.cancel()
+    }
+
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        guard window != nil else { return }
+        guard window != nil else {
+            dismissRecordingUnavailableHint()
+            return
+        }
         DispatchQueue.main.async { [weak self] in
             self?.updateTextHeight()
         }
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if !isShowingRecordingUnavailableHint, let retainedTextContentOffset {
+            textView.setContentOffset(retainedTextContentOffset, animated: false)
+            self.retainedTextContentOffset = nil
+        }
+    }
+
+    /// 检查录音入口；非空草稿只展示提示，不应继续请求权限或启动音频服务。
+    ///
+    /// 空格、换行以及正在导入的媒体也属于草稿。重复请求不会延长当前提示。
+    /// - Returns: 只有空闲且输入栏完全为空时返回 `true`。
+    func validateAudioRecordingRequest() -> Bool {
+        guard composerState == .idle, !isShowingRecordingUnavailableHint else {
+            return false
+        }
+        guard !(textView.text ?? "").isEmpty || mediaDraft != nil else {
+            return true
+        }
+        retainedTextContentOffset = textView.contentOffset
+        isShowingRecordingUnavailableHint = true
+        recordingHintGeneration += 1
+        let generation = recordingHintGeneration
+        refreshRecordingHintLayout()
+        UIAccessibility.post(
+            notification: .announcement,
+            argument: strings.recordingRequiresEmptyDraft
+        )
+        let sleeper = recordingHintSleeper
+        recordingHintTask = Task { @MainActor [weak self] in
+            guard !Task.isCancelled else { return }
+            do {
+                try await sleeper(.seconds(2))
+            } catch {
+                // 主动取消由调用方同步清理；等待失败也不能使输入栏永久禁用。
+            }
+            guard !Task.isCancelled, let self,
+                  recordingHintGeneration == generation else { return }
+            dismissRecordingUnavailableHint()
+        }
+        return false
+    }
+
+    /// 取消临时提示并按最新草稿恢复输入栏，保留用户当前的键盘选择。
+    func dismissRecordingUnavailableHint() {
+        recordingHintGeneration += 1
+        recordingHintTask?.cancel()
+        recordingHintTask = nil
+        guard isShowingRecordingUnavailableHint else { return }
+        isShowingRecordingUnavailableHint = false
+        refreshRecordingHintLayout()
+        updateTextHeight()
+    }
+
+    /// 使用与媒体状态切换相同的高度通知，使页面继续遵守原有滚动规则。
+    private func refreshRecordingHintLayout() {
+        updateComposerState()
+        inputGlassView.setNeedsQuickLayout()
+        editorContainer.setNeedsQuickLayout()
+        setNeedsQuickLayout()
+        invalidateIntrinsicContentSize()
+        superview?.setNeedsLayout()
+        heightDidChange?()
     }
 
     override func traitCollectionDidChange(
@@ -507,6 +651,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             self.mediaStrings = mediaStrings
         }
         placeholderLabel.text = strings.placeholder
+        recordingUnavailableLabel.text = strings.recordingRequiresEmptyDraft
         textView.accessibilityLabel = strings.placeholder
         sendButton.accessibilityLabel = strings.send
         attachmentButton.accessibilityLabel = strings.addAttachment
@@ -548,6 +693,9 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     ///   ``IMessageChatComposerState/idle`` 会恢复普通文本输入栏，但不会
     ///   修改其中的草稿。
     func applyState(_ state: IMessageChatComposerState) {
+        if state != .idle {
+            dismissRecordingUnavailableHint()
+        }
         let previousLayoutMode = layoutMode
         let previousContentHeight = resolvedContentHeight
         composerState = state
@@ -626,6 +774,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         textView.textAlignment = .natural
         placeholderLabel.semanticContentAttribute = semanticAttribute
         placeholderLabel.textAlignment = .natural
+        recordingUnavailableLabel.semanticContentAttribute = semanticAttribute
         setNeedsQuickLayout()
     }
 
@@ -644,6 +793,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         shouldChangeTextIn range: NSRange,
         replacementText text: String
     ) -> Bool {
+        guard !isShowingRecordingUnavailableHint else { return false }
         if case .dictating = composerState, !isApplyingTranscription {
             _ = actionRequested?(.manualEditDuringDictation)
         }
@@ -651,7 +801,8 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     }
 
     private var resolvedContentHeight: CGFloat {
-        switch composerState {
+        if isShowingRecordingUnavailableHint { return Metrics.textInputHeight }
+        return switch composerState {
         case .idle, .preparingSpeech, .dictating:
             currentInputHeight + mediaDraftAdditionalHeight
         case .recording, .audioPreview:
@@ -661,7 +812,8 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
 
     /// 返回当前媒体状态对应的稳定布局模式。
     private var layoutMode: LayoutMode {
-        switch composerState {
+        if isShowingRecordingUnavailableHint { return .recordingUnavailable }
+        return switch composerState {
         case .idle:
             mediaDraft == nil ? .idle : .mediaDraft
         case .preparingSpeech:
@@ -676,7 +828,8 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     }
 
     private var retainedTextInputHeight: CGFloat {
-        switch composerState {
+        if isShowingRecordingUnavailableHint { return Metrics.textInputHeight }
+        return switch composerState {
         case .idle, .preparingSpeech, .dictating:
             currentInputHeight + mediaDraftAdditionalHeight
         case .recording, .audioPreview:
@@ -755,6 +908,19 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         placeholderLabel.numberOfLines = 1
         placeholderLabel.lineBreakMode = .byTruncatingTail
         placeholderLabel.isAccessibilityElement = false
+
+        // 提示始终只有 44 点高；限制字号后再按宽度缩放，避免辅助功能字号
+        // 下截断“清除输入栏”这一关键说明。VoiceOver 始终读取完整文案。
+        recordingUnavailableLabel.font = UIFontMetrics(forTextStyle: .subheadline)
+            .scaledFont(for: .systemFont(ofSize: 15), maximumPointSize: 20)
+        recordingUnavailableLabel.adjustsFontForContentSizeCategory = true
+        recordingUnavailableLabel.textColor = .secondaryLabel
+        recordingUnavailableLabel.textAlignment = .center
+        recordingUnavailableLabel.numberOfLines = 1
+        recordingUnavailableLabel.adjustsFontSizeToFitWidth = true
+        recordingUnavailableLabel.minimumScaleFactor = 0.5
+        recordingUnavailableLabel.text = strings.recordingRequiresEmptyDraft
+        recordingUnavailableLabel.accessibilityIdentifier = "imessage.composer.recordingUnavailable"
 
         configurePlainButton(
             attachmentButton,
@@ -841,7 +1007,8 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             )
         }
         mediaDraftStripView.removeRequested = { [weak self] id in
-            _ = self?.actionRequested?(.removeMediaDraftItem(id))
+            guard let self, !isShowingRecordingUnavailableHint else { return }
+            _ = actionRequested?(.removeMediaDraftItem(id))
         }
         updateComposerState()
     }
@@ -966,7 +1133,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             title: mediaStrings.photo,
             image: UIImage(systemName: "photo.on.rectangle")
         ) { [weak self] _ in
-            guard let self else { return }
+            guard let self, !isShowingRecordingUnavailableHint else { return }
             _ = actionRequested?(
                 .requestAttachment(kind: .photo)
             )
@@ -975,18 +1142,16 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             title: strings.audio,
             image: UIImage(systemName: "waveform")
         ) { [weak self] _ in
-            guard let self else { return }
+            guard let self, !isShowingRecordingUnavailableHint else { return }
             _ = actionRequested?(
                 .requestAttachment(kind: .audio)
             )
-        }
-        if mediaDraft != nil {
-            audioAction.attributes = [.disabled]
         }
         attachmentButton.menu = UIMenu(children: [photoAction, audioAction])
     }
 
     @objc private func sendButtonDidTap() {
+        guard !isShowingRecordingUnavailableHint else { return }
         let text = textView.text ?? ""
         let accepted: Bool
         if mediaDraft != nil {
@@ -1001,6 +1166,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     }
 
     @objc private func dictationButtonDidTap() {
+        guard !isShowingRecordingUnavailableHint else { return }
         switch composerState {
         case .preparingSpeech, .dictating:
             _ = actionRequested?(.stopDictation)
@@ -1040,9 +1206,15 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         // alpha 为 0 时容器不参与触摸命中；只隐藏外观即可保留用户已有的焦点。
         attachmentGlassView.accessibilityElementsHidden = !showsTextInput
         inputGlassView.accessibilityElementsHidden = !showsTextInput
-        placeholderLabel.isHidden = !(textView.text ?? "").isEmpty
-        sendButton.isEnabled = hasSendableContent
-        attachmentButton.isEnabled = composerState == .idle
+        textView.alpha = isShowingRecordingUnavailableHint ? 0 : 1
+        textView.isInputSuspended = isShowingRecordingUnavailableHint
+        textView.accessibilityElementsHidden = isShowingRecordingUnavailableHint
+        textView.isAccessibilityElement = !isShowingRecordingUnavailableHint
+        placeholderLabel.isHidden = isShowingRecordingUnavailableHint
+            || !(textView.text ?? "").isEmpty
+        recordingUnavailableLabel.isHidden = !isShowingRecordingUnavailableHint
+        sendButton.isEnabled = !isShowingRecordingUnavailableHint && hasSendableContent
+        attachmentButton.isEnabled = !isShowingRecordingUnavailableHint && composerState == .idle
         switch composerState {
         case .preparingSpeech:
             dictationButton.isEnabled = false
@@ -1061,10 +1233,14 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             dictationButton.tintColor = .label
             dictationButton.accessibilityLabel = strings.dictate
         }
+        if isShowingRecordingUnavailableHint {
+            dictationButton.isEnabled = false
+        }
         inputGlassView.setNeedsQuickLayout()
     }
 
     private func updateTextHeight(availableWidth: CGFloat? = nil) {
+        guard !isShowingRecordingUnavailableHint else { return }
         let font = textView.font ?? .preferredFont(forTextStyle: .body)
         let maximumHeight = ceil(font.lineHeight * 5)
             + textView.textContainerInset.top
@@ -1091,7 +1267,8 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
 private func makeIMessageChatComposerPreview(
     text: String,
     state: IMessageChatComposerState,
-    direction: UIUserInterfaceLayoutDirection
+    direction: UIUserInterfaceLayoutDirection,
+    showsRecordingHint: Bool = false
 ) -> UIViewController {
     let backgroundView = UIView()
     backgroundView.backgroundColor = .systemBackground
@@ -1101,6 +1278,13 @@ private func makeIMessageChatComposerPreview(
     composerView.textView.text = text
     composerView.textViewDidChange(composerView.textView)
     composerView.applyState(state)
+    if showsRecordingHint {
+        // Canvas 保持提示外观；真实页面仍使用默认两秒等待。
+        composerView.recordingHintSleeper = { _ in
+            try await Task.sleep(for: .seconds(3_600))
+        }
+        _ = composerView.validateAudioRecordingRequest()
+    }
     return QuickLayoutHostingController {
         ZStack(alignment: .bottom) {
             backgroundView.resizable()
@@ -1156,6 +1340,24 @@ private func makeIMessageChatComposerPreview(
         text: IMessageChatPreviewData.composerRTLText,
         state: .idle,
         direction: .rightToLeft
+    )
+}
+
+#Preview("消息输入栏 · 录音前清空提示") {
+    makeIMessageChatComposerPreview(
+        text: IMessageChatPreviewData.composerMultilineText,
+        state: .idle,
+        direction: .leftToRight,
+        showsRecordingHint: true
+    )
+}
+
+#Preview("消息输入栏 · 录音前清空提示 RTL") {
+    makeIMessageChatComposerPreview(
+        text: IMessageChatPreviewData.composerRTLText,
+        state: .idle,
+        direction: .rightToLeft,
+        showsRecordingHint: true
     )
 }
 #endif

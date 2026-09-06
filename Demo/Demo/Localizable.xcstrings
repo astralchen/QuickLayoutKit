@@ -3124,6 +3124,29 @@
         }
       }
     },
+    "imessage.audio.record.requiresEmptyDraft" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لتسجيل الصوت، أفرغ حقل الإدخال."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To record audio, clear the input field."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "若要录音，请清除输入栏。"
+          }
+        }
+      }
+    },
     "imessage.audio.record.stop" : {
       "extractionState" : "stale",
       "localizations" : {

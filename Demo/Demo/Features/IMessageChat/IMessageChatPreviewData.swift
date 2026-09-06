@@ -98,7 +98,8 @@ enum IMessageChatPreviewData {
         stopRecording: "Stop recording",
         cancelAudio: "Cancel audio",
         playAudio: "Play audio",
-        pauseAudio: "Pause audio"
+        pauseAudio: "Pause audio",
+        recordingRequiresEmptyDraft: "若要录音，请清除输入栏。"
     )
     static let composerMultilineText = "今晚七点见\n我会提前几分钟到"
     static let composerRTLText = "مساء الخير\nسأصل في السابعة"

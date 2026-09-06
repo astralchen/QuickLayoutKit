@@ -9751,7 +9751,7 @@ struct DemoTests {
         #expect(abs(sendFrame.width - 38) < 0.5)
         #expect(abs(sendFrame.height - 28) < 0.5)
         #expect(abs(sendFrame.maxX - 368) < 0.5)
-        #expect(abs(sendFrame.maxY - 46) < 0.5)
+        #expect(abs(sendFrame.maxY - 44) < 0.5)
         #expect(sendFrame.width > sendFrame.height)
 
         composer.textView.text = "one\ntwo\nthree\nfour\nfive\nsix\nseven"

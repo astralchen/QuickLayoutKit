@@ -138,6 +138,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         guard isMovingFromParent || isBeingDismissed else { return }
+        composerView.dismissRecordingUnavailableHint()
         viewModel.cancelPendingReply()
         audioController.stopAll()
         photoController.dismissPicker(animated: false)
@@ -174,7 +175,10 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
                     "imessage.audio.cancel"
                 ),
                 playAudio: DemoLocalization.text("imessage.audio.play"),
-                pauseAudio: DemoLocalization.text("imessage.audio.pause")
+                pauseAudio: DemoLocalization.text("imessage.audio.pause"),
+                recordingRequiresEmptyDraft: DemoLocalization.text(
+                    "imessage.audio.record.requiresEmptyDraft"
+                )
             ),
             mediaStrings: mediaStrings
         )
@@ -288,6 +292,9 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
                 )
                 return true
             case .audio:
+                guard composerView.validateAudioRecordingRequest() else {
+                    return false
+                }
                 // 录音动作只启动音频流程；文本焦点由用户操作决定，不能在菜单
                 // 关闭后异步抢回焦点，否则会再次唤起键盘并带动输入栏移动。
                 audioController.startRecording()
