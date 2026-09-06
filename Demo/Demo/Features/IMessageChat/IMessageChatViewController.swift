@@ -219,6 +219,9 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         photoController.pickerDidPresent = { [weak self] picker in
             self?.bottomObstructionCoordinator.trackPicker(picker)
         }
+        photoController.pickerDidFinishPresenting = { [weak self] picker in
+            self?.bottomObstructionCoordinator.finishPickerPresentation(picker)
+        }
         photoController.pickerDidDismiss = { [weak self] in
             self?.bottomObstructionCoordinator.stopTrackingPicker()
         }
@@ -235,6 +238,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         composerView.applyMediaDraft(photoController.draft)
         composerView.textInputDidBeginEditing = { [weak self] in
             guard let self, photoController.isPresented else { return }
+            // 先保存交接起点再关闭面板，否则面板向下退出时输入栏也会先下落再随键盘升起。
             bottomObstructionCoordinator.beginKeyboardHandoff()
             photoController.dismissPicker(animated: true)
         }
@@ -357,6 +361,8 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
                 let shouldApplyKeyboardLayout = bottomObstructionCoordinator.updateKeyboard(
                     context
                 )
+                // 已展示的面板保留原有档位；尤其不能在切回键盘的关闭动画中重算高度。
+                // 更新下一次使用的缓存后，仍由协调器决定本次通知是否可驱动页面布局。
                 photoController.updateKeyboardHeight(
                     bottomObstructionCoordinator.storedKeyboardContentHeight,
                     invalidatingPresentedDetent: !photoController.isPresented
@@ -384,6 +390,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
                 self?.quickLayoutIfNeeded()
             }
             if let context, context.animationDuration > 0 {
+                // 只有键盘通知携带动画目标；beginFromCurrentState 允许新通知接续正在进行的动画。
                 UIView.animate(
                     withDuration: context.animationDuration,
                     delay: 0,
@@ -391,8 +398,10 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
                     animations: updates
                 )
             } else {
+                // 显示链接提供的是当前呈现位置，必须立即布局，不能逐帧叠加新动画导致滞后。
                 updates()
             }
+            // 用户正在阅读历史消息时保留当前位置；仅在变化前接近底部时继续跟随新布局。
             if wasNearBottom {
                 conversationView.scrollToBottom(animated: false)
             }

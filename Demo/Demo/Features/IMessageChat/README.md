@@ -198,9 +198,11 @@ JPEG 缩略图；视频验证视频轨道与正时长，通过 `AVAssetImageGene
 quickLayoutKeyboardSafeAreaBehavior = .disabled
 ```
 
-`IMessageChatBottomObstructionCoordinator` 独占输入栏底部位移，避免框架键盘 inset 与页面 Sheet inset 重复抬升。系统键盘正常显示或交互下拉时，通过 `CADisplayLink` 读取 `UIKeyboardLayoutGuide.layoutFrame.minY`；照片 Sheet 展示期间则不采样 Sheet frame，也不让键盘通知或 display link 驱动输入栏布局，始终使用打开时锁定的键盘等高值。键盘通知此时只允许缓存下一次使用的稳定高度。只有明确开始“照片 → 键盘”交接后，键盘几何才重新接管。键盘可见高度按“容器底部 − 键盘顶部 − 容器底部安全区”计算，因此不会重复加入约 34pt 的底部安全区。
+`IMessageChatBottomObstructionCoordinator` 独占输入栏底部位移，避免框架键盘 inset 与页面 Sheet inset 重复抬升。系统键盘正常显示或交互下拉时，通过 `CADisplayLink` 读取 `UIKeyboardLayoutGuide.layoutFrame.minY`；照片 Sheet 展示时则读取呈现层的实时位置，让输入栏跟随上下移动，并以打开面板时最近一次完整系统键盘内容高度为上限。遮挡高度按“容器底部 − 遮挡顶部 − 容器底部安全区”计算，避免重复加入底部安全区。
 
-照片 Sheet 提供与最近一次稳定软件键盘内容高度一致的小档（首次 300pt）和 `.large()`。Composer 与 custom detent 都使用同一个不含底部安全区的内容高度，不再人为给 detent 叠加第二份安全区；输入栏自身保留 8pt 页面内边距，Sheet 的悬浮边缘由系统负责。小档允许背景交互，大档使用系统遮罩。`isPresented` 与附件中的 `showPhotoPicker` 语义一致，并从创建 Sheet 开始、到 dismiss 完成后结束；只要照片 Sheet 处于该生命周期，输入栏就固定抬升键盘等高值，且键盘隐藏通知不会在 Sheet 进场期间触发 `invalidateDetents()`。Sheet 从小档拖到大档时自然覆盖输入栏，不改变 Composer 的位置。键盘 → 照片时，照片展示状态会在键盘隐藏前接管同一高度；照片 → 键盘时，收到键盘通知后只执行一次到最终高度的系统曲线动画，Sheet 完全关闭且 keyboard layout guide 到达目标后才恢复逐帧键盘采样。交接期间不会用动画中间帧覆盖稳定键盘高度，也不会在正在 dismiss 的 Sheet 上调用 `invalidateDetents()`。外接或浮动键盘没有底部软件键盘遮挡时，Sheet 消失后平滑回到底部。
+照片 Sheet 提供键盘等高的小档（首次 300pt，最小 220pt）和 `.large()`。输入栏上限与 custom detent 均以不含底部安全区的键盘内容高度为依据，输入栏自身保留 8pt 页面内边距，Sheet 的悬浮边缘由系统负责。小档允许背景交互，大档使用系统遮罩。Sheet 超过键盘高度上限后继续覆盖下层内容，输入栏停在上限；向下收回时，输入栏恢复跟随。
+
+键盘 → 照片时，输入栏在整个面板入场动画期间保持稳定键盘高度，不随面板从屏幕外升起而先下落再上移。系统入场完成后，以面板实际位置校准后续拖动的几何差值，消除悬浮边缘和缩放造成的小幅高度跳变；面板向下退出屏幕时，校准量也会归零。没有可见停靠键盘时直接打开照片，仍正常从底部跟随升起。从创建 Sheet 到明确切回键盘前，键盘通知不修改输入栏高度上限，也不触发 `invalidateDetents()`。附件菜单关闭时 UIKit 可能发出移除候选栏后的临时键盘高度；若用它覆盖上限，照片面板仍保持打开时的高度，就会遮挡输入栏。照片 → 键盘时先保留交接起点，收到键盘通知后按系统曲线切换到最终高度；Sheet 完全关闭且 keyboard layout guide 到达目标后才恢复逐帧键盘采样。交接期间不会在正在 dismiss 的 Sheet 上调用 `invalidateDetents()`。外接或浮动键盘没有底部软件键盘遮挡时，Sheet 消失后回到底部。
 
 文本、录音、音频预览和媒体预览高度变化都通过同一“变化前记录 `isNearBottom`，布局后按原状态决定是否滚底”的规则处理。
 
@@ -281,3 +283,7 @@ DemoRoute.imessageChat
 - [Apple Messages 使用说明](https://support.apple.com/en-gb/guide/iphone/iph82fb73ba3/26/ios/26)
 - [Adopting Liquid Glass](https://developer.apple.com/documentation/TechnologyOverviews/adopting-liquid-glass)
 - [UIKit appearance customization](https://developer.apple.com/documentation/uikit/appearance-customization)
+
+### 键盘与照片菜单 UI 回归
+
+`IMessageChatRegression` Scheme 仅运行 `IMessageChatKeyboardUITests`，通过真实点击“输入框 → ＋ → 照片”验证切换前后输入栏底边保持一致且未被面板遮挡，并保留截图。高度缓存与交接状态的确定性回归仍位于 `IMessageChatMediaTests`。

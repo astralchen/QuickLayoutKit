@@ -87,6 +87,8 @@ final class IMessageChatPhotoPickerController: NSObject,
     var stateDidChange: ((IMessageChatMediaDraftPresentation?) -> Void)?
     var failureDidOccur: (() -> Void)?
     var pickerDidPresent: ((UIViewController) -> Void)?
+    /// 系统入场动画完成时调用，用于解除键盘到照片面板的输入栏位置冻结。
+    var pickerDidFinishPresenting: ((UIViewController) -> Void)?
     var pickerDidDismiss: (() -> Void)?
 
     init(
@@ -110,6 +112,7 @@ final class IMessageChatPhotoPickerController: NSObject,
         draft?.attachment
     }
 
+    /// 从创建面板到关闭动画完成均视为已展示，覆盖动画期间的键盘通知窗口。
     var isPresented: Bool {
         sheetHost != nil
     }
@@ -157,9 +160,13 @@ final class IMessageChatPhotoPickerController: NSObject,
         }
         self.picker = picker
         self.sheetHost = sheetHost
+        // 顺序不可交换：先让协调器接管遮挡并冻结高度上限，再收键盘、展示面板。
+        // 附件菜单关闭可能同步发出较小的键盘高度，若尚未接管就会污染本次上限。
         pickerDidPresent?(sheetHost)
         presenter.view.endEditing(true)
-        presenter.present(sheetHost, animated: true)
+        presenter.present(sheetHost, animated: true) { [weak self] in
+            self?.pickerDidFinishPresenting?(sheetHost)
+        }
     }
 
     func dismissPicker(animated: Bool, completion: (() -> Void)? = nil) {
@@ -168,6 +175,7 @@ final class IMessageChatPhotoPickerController: NSObject,
             return
         }
         sheetHost.dismiss(animated: animated) { [weak self] in
+            // 动画完成前保留面板引用，供协调器逐帧读取位置，避免关闭开始时直接落底。
             self?.pickerDidDismiss?()
             self?.picker = nil
             self?.sheetHost = nil

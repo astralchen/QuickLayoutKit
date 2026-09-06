@@ -2,7 +2,7 @@
 //  IMessageChatMediaTests.swift
 //  DemoTests
 //
-//  Deterministic coverage for the UIKit photo/video message contract.
+//  验证 UIKit 照片、视频消息及输入栏联动行为。
 //
 
 import CoreGraphics
@@ -472,31 +472,153 @@ struct IMessageChatMediaTests {
         )
     }
 
-    @Test func photoSheetCannotPushComposerAboveItsKeyboardSizedDetent() {
-        #expect(
-            IMessageChatBottomObstructionCoordinator.resolvedObstruction(
-                keyboardHeight: 180,
-                pickerLiftHeight: 300
-            ) == 300
+    @Test func photoSheetFollowsBothDirectionsAndStopsAtLatestKeyboardHeight() {
+        for (pickerHeight, limit, expected): (CGFloat, CGFloat, CGFloat) in [
+            (0, 300, 0), (120, 300, 120), (300, 300, 300),
+            (760, 300, 300), (180, 300, 180), (0, 300, 0),
+            (760, 336, 336), (300, 200, 200), (-20, 300, 0),
+        ] {
+            #expect(
+                IMessageChatBottomObstructionCoordinator.resolvedObstruction(
+                    keyboardHeight: 760,
+                    pickerHeight: pickerHeight,
+                    maximumPickerHeight: limit
+                ) == expected
+            )
+        }
+    }
+
+    @Test func photoSheetGeometryTracksItsContainerAndIgnoresKeyboardHide() throws {
+        let window = try makeObstructionTestWindow()
+        let hostView = UIView(frame: window.bounds)
+        let sheetContainer = UIView(frame: window.bounds)
+        let picker = UIViewController()
+        picker.view = UIView(frame: window.bounds)
+        window.addSubview(hostView)
+        window.addSubview(sheetContainer)
+        sheetContainer.addSubview(picker.view)
+        let coordinator = IMessageChatBottomObstructionCoordinator(hostView: hostView)
+        defer { coordinator.stop() }
+        coordinator.trackPicker(picker)
+        #expect(!coordinator.updateKeyboard(.hidden))
+
+        // 模拟系统通过父容器移动 Sheet，确保读取的是宿主坐标中的实际位置。
+        for height: CGFloat in [0, 120, 300, 650, 180, 0] {
+            sheetContainer.transform = CGAffineTransform(
+                translationX: 0,
+                y: hostView.bounds.maxY - hostView.safeAreaInsets.bottom - height
+            )
+            coordinator.refreshGeometry()
+            #expect(abs(coordinator.currentHeight - min(height, 300)) < 0.5)
+        }
+        coordinator.stopTrackingPicker()
+        #expect(coordinator.currentHeight == 0)
+    }
+
+    @Test func latestFullKeyboardFrameUpdatesPhotoCapWithoutCachingDismissal() throws {
+        let window = try makeObstructionTestWindow()
+        let hostView = UIView(frame: window.bounds)
+        window.addSubview(hostView)
+        let coordinator = IMessageChatBottomObstructionCoordinator(hostView: hostView)
+        defer { coordinator.stop() }
+
+        func update(height: CGFloat, downwardOffset: CGFloat = 0) throws {
+            let frame = CGRect(x: 0, y: 844 - height + downwardOffset, width: 390, height: height)
+            let notification = Notification(
+                name: UIResponder.keyboardWillChangeFrameNotification,
+                object: window.screen,
+                userInfo: [
+                    UIResponder.keyboardFrameEndUserInfoKey:
+                        window.convert(frame, to: window.screen.coordinateSpace),
+                    UIResponder.keyboardAnimationDurationUserInfoKey: 0.0,
+                ]
+            )
+            coordinator.updateKeyboard(try #require(
+                QuickLayoutKeyboardContext(notification: notification)
+            ))
+        }
+        try update(height: 334)
+        #expect(coordinator.storedKeyboardContentHeight == 334 - hostView.safeAreaInsets.bottom)
+        try update(height: 370)
+        #expect(coordinator.storedKeyboardContentHeight == 370 - hostView.safeAreaInsets.bottom)
+        try update(height: 240)
+        #expect(coordinator.storedKeyboardContentHeight == 240 - hostView.safeAreaInsets.bottom)
+        try update(height: 240, downwardOffset: 100)
+        coordinator.updateKeyboard(.hidden)
+        #expect(coordinator.storedKeyboardContentHeight == 240 - hostView.safeAreaInsets.bottom)
+
+        // 复现键盘进入照片面板后，附件菜单关闭又报告较小键盘高度的顺序。
+        let picker = UIViewController()
+        coordinator.trackPicker(picker)
+        try update(height: 210)
+        #expect(coordinator.storedKeyboardContentHeight == 240 - hostView.safeAreaInsets.bottom)
+        coordinator.updateKeyboard(.hidden)
+        #expect(coordinator.storedKeyboardContentHeight == 240 - hostView.safeAreaInsets.bottom)
+
+        // 用户切回键盘后，新高度重新成为后续照片面板的上限。
+        coordinator.beginKeyboardHandoff()
+        try update(height: 370)
+        #expect(coordinator.storedKeyboardContentHeight == 370 - hostView.safeAreaInsets.bottom)
+    }
+
+    @Test func keyboardToPhotoPresentationHoldsHeightThenTracksCalibratedGeometry() throws {
+        let window = try makeObstructionTestWindow()
+        let host = UIView(frame: window.bounds)
+        window.addSubview(host)
+        let coordinator = IMessageChatBottomObstructionCoordinator(hostView: host)
+        defer { coordinator.stop() }
+        let keyboardFrame = CGRect(x: 0, y: 510, width: 390, height: 334)
+        let notification = Notification(
+            name: UIResponder.keyboardWillShowNotification,
+            object: window.screen,
+            userInfo: [
+                UIResponder.keyboardFrameEndUserInfoKey:
+                    window.convert(keyboardFrame, to: window.screen.coordinateSpace),
+                UIResponder.keyboardAnimationDurationUserInfoKey: 0.0,
+            ]
         )
-        #expect(
-            IMessageChatBottomObstructionCoordinator.resolvedObstruction(
-                keyboardHeight: 760,
-                pickerLiftHeight: 300
-            ) == 300
+        coordinator.updateKeyboard(try #require(QuickLayoutKeyboardContext(notification: notification)))
+        let keyboardHeight = coordinator.storedKeyboardContentHeight
+        let picker = UIViewController()
+        picker.view = UIView(frame: window.bounds)
+        window.addSubview(picker.view)
+
+        func setPickerHeight(_ height: CGFloat) {
+            picker.view.frame.origin.y = host.bounds.maxY - host.safeAreaInsets.bottom - height
+            coordinator.refreshGeometry()
+        }
+        setPickerHeight(-34)
+        coordinator.trackPicker(picker)
+        coordinator.updateKeyboard(.hidden)
+        // 面板入场时即使逐帧经过屏幕外和中间高度，输入栏也始终保持键盘等高。
+        for height in [-34, 60, 180, keyboardHeight - 6] {
+            setPickerHeight(height)
+            #expect(abs(coordinator.currentHeight - keyboardHeight) < 0.5)
+        }
+        // 完成回调不能产生小幅下移；后续拖动仍生效，且受同一键盘高度上限约束。
+        coordinator.finishPickerPresentation(picker)
+        #expect(abs(coordinator.currentHeight - keyboardHeight) < 0.5)
+        setPickerHeight(600)
+        #expect(abs(coordinator.currentHeight - keyboardHeight) < 0.5)
+        setPickerHeight(180)
+        #expect(abs(coordinator.currentHeight - 186) < 0.5)
+        coordinator.finishPickerPresentation(UIViewController())
+        #expect(abs(coordinator.currentHeight - 186) < 0.5)
+        // 关闭时校准量也必须随面板完全离屏归零，不能残留到关闭完成才突变。
+        setPickerHeight(-34)
+        #expect(coordinator.currentHeight == 0)
+        coordinator.stopTrackingPicker()
+        #expect(coordinator.currentHeight == 0)
+    }
+
+    /// 复用测试宿主的场景创建隐藏窗口，独立验证几何且不抢占页面焦点。
+    private func makeObstructionTestWindow() throws -> UIWindow {
+        let scene = try #require(
+            UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         )
-        #expect(
-            IMessageChatBottomObstructionCoordinator.resolvedObstruction(
-                keyboardHeight: 0,
-                pickerLiftHeight: 300
-            ) == 300
-        )
-        #expect(
-            IMessageChatBottomObstructionCoordinator.resolvedObstruction(
-                keyboardHeight: 336,
-                pickerLiftHeight: 300
-            ) == 300
-        )
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        return window
     }
 
     @Test func photoSheetOwnsComposerUntilKeyboardHandoffBegins() {
@@ -519,28 +641,28 @@ struct IMessageChatMediaTests {
             )
         )
         #expect(
-            !IMessageChatBottomObstructionCoordinator.shouldTrackKeyboardGeometry(
+            IMessageChatBottomObstructionCoordinator.shouldTrackGeometry(
                 isPickerPresented: true,
                 isAwaitingKeyboard: false,
-                keyboardIsVisible: true
+                keyboardIsVisible: false
             )
         )
         #expect(
-            IMessageChatBottomObstructionCoordinator.shouldTrackKeyboardGeometry(
+            IMessageChatBottomObstructionCoordinator.shouldTrackGeometry(
                 isPickerPresented: true,
                 isAwaitingKeyboard: true,
                 keyboardIsVisible: true
             )
         )
         #expect(
-            IMessageChatBottomObstructionCoordinator.shouldTrackKeyboardGeometry(
+            IMessageChatBottomObstructionCoordinator.shouldTrackGeometry(
                 isPickerPresented: false,
                 isAwaitingKeyboard: false,
                 keyboardIsVisible: true
             )
         )
         #expect(
-            !IMessageChatBottomObstructionCoordinator.shouldTrackKeyboardGeometry(
+            !IMessageChatBottomObstructionCoordinator.shouldTrackGeometry(
                 isPickerPresented: false,
                 isAwaitingKeyboard: false,
                 keyboardIsVisible: false
@@ -552,35 +674,42 @@ struct IMessageChatMediaTests {
         #expect(
             IMessageChatBottomObstructionCoordinator.resolvedObstruction(
                 keyboardHeight: 96,
-                pickerLiftHeight: 300
+                pickerHeight: 300,
+                maximumPickerHeight: 300
             ) == 300
         )
         #expect(
             IMessageChatBottomObstructionCoordinator.resolvedObstruction(
                 keyboardHeight: 24,
-                pickerLiftHeight: 300
+                pickerHeight: 300,
+                maximumPickerHeight: 300
             ) == 300
         )
         #expect(
             IMessageChatBottomObstructionCoordinator.resolvedObstruction(
                 keyboardHeight: 18,
-                pickerLiftHeight: 300,
+                pickerHeight: nil,
+                maximumPickerHeight: 300,
                 isAwaitingKeyboard: true,
+                keyboardHandoffStartHeight: 300,
                 keyboardHandoffTargetHeight: nil
             ) == 300
         )
         #expect(
             IMessageChatBottomObstructionCoordinator.resolvedObstruction(
                 keyboardHeight: 84,
-                pickerLiftHeight: 300,
+                pickerHeight: 300,
+                maximumPickerHeight: 300,
                 isAwaitingKeyboard: true,
+                keyboardHandoffStartHeight: 300,
                 keyboardHandoffTargetHeight: 336
             ) == 336
         )
         #expect(
             IMessageChatBottomObstructionCoordinator.resolvedObstruction(
                 keyboardHeight: 336,
-                pickerLiftHeight: nil
+                pickerHeight: nil,
+                maximumPickerHeight: 300
             ) == 336
         )
     }
