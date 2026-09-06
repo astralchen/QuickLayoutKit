@@ -278,7 +278,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
             photoController.removeItem(id: id)
             return true
 
-        case .requestAttachment(let kind, let keyboardWasVisible):
+        case .requestAttachment(let kind):
             switch kind {
             case .photo:
                 photoController.present(
@@ -288,10 +288,9 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
                 )
                 return true
             case .audio:
+                // 录音动作只启动音频流程；文本焦点由用户操作决定，不能在菜单
+                // 关闭后异步抢回焦点，否则会再次唤起键盘并带动输入栏移动。
                 audioController.startRecording()
-                if keyboardWasVisible {
-                    composerView.restoreTextInputFocus()
-                }
                 return true
             }
 

@@ -73,10 +73,7 @@ nonisolated enum IMessageChatComposerAction: Equatable, Sendable {
     case sendText(String)
     case sendMediaDraft(String)
     case removeMediaDraftItem(UUID)
-    case requestAttachment(
-        kind: IMessageChatAttachmentKind,
-        keyboardWasVisible: Bool
-    )
+    case requestAttachment(kind: IMessageChatAttachmentKind)
     case stopAudioRecording
     case cancelAttachmentDraft
     case sendAttachmentDraft
@@ -226,7 +223,6 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     )
     private var currentInputHeight = Metrics.textInputHeight
     private var isApplyingTranscription = false
-    private var keyboardWasVisibleBeforeAttachmentMenu = false
 
     private lazy var attachmentGlassView: QuickLayoutVisualEffectView = {
         let effect = UIGlassEffect(style: .regular)
@@ -633,16 +629,6 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         setNeedsQuickLayout()
     }
 
-    /// 在附件流程确认需要保留原键盘状态后恢复文本输入焦点。
-    ///
-    /// 录音面板可以调用此方法保留设计图中的停靠键盘；图片和视频选择器应在
-    /// dismiss 完成后再决定是否调用，避免菜单动作与模态转场争抢第一响应者。
-    func restoreTextInputFocus() {
-        DispatchQueue.main.async { [weak self] in
-            self?.textView.becomeFirstResponder()
-        }
-    }
-
     func textViewDidChange(_ textView: UITextView) {
         updateComposerState()
         updateTextHeight()
@@ -777,11 +763,6 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             action: nil
         )
         attachmentButton.cornerConfiguration = .capsule()
-        attachmentButton.addTarget(
-            self,
-            action: #selector(attachmentButtonDidTouchDown),
-            for: .touchDown
-        )
         attachmentButton.showsMenuAsPrimaryAction = true
 
         configureProminentButton(
@@ -987,10 +968,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         ) { [weak self] _ in
             guard let self else { return }
             _ = actionRequested?(
-                .requestAttachment(
-                    kind: .photo,
-                    keyboardWasVisible: keyboardWasVisibleBeforeAttachmentMenu
-                )
+                .requestAttachment(kind: .photo)
             )
         }
         let audioAction = UIAction(
@@ -999,21 +977,13 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         ) { [weak self] _ in
             guard let self else { return }
             _ = actionRequested?(
-                .requestAttachment(
-                    kind: .audio,
-                    keyboardWasVisible: keyboardWasVisibleBeforeAttachmentMenu
-                )
+                .requestAttachment(kind: .audio)
             )
         }
         if mediaDraft != nil {
             audioAction.attributes = [.disabled]
         }
         attachmentButton.menu = UIMenu(children: [photoAction, audioAction])
-    }
-
-    /// 记录附件菜单接管焦点前文本输入框是否正在显示键盘。
-    @objc private func attachmentButtonDidTouchDown() {
-        keyboardWasVisibleBeforeAttachmentMenu = textView.isFirstResponder
     }
 
     @objc private func sendButtonDidTap() {
@@ -1066,7 +1036,8 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         attachmentGlassView.alpha = showsTextInput ? 1 : 0
         inputGlassView.alpha = showsTextInput ? 1 : 0
         attachmentGlassView.isUserInteractionEnabled = showsTextInput
-        inputGlassView.isUserInteractionEnabled = showsTextInput
+        // 不禁用文本编辑器的祖先视图，否则 UIKit 会结束当前编辑并收起键盘。
+        // alpha 为 0 时容器不参与触摸命中；只隐藏外观即可保留用户已有的焦点。
         attachmentGlassView.accessibilityElementsHidden = !showsTextInput
         inputGlassView.accessibilityElementsHidden = !showsTextInput
         placeholderLabel.isHidden = !(textView.text ?? "").isEmpty
