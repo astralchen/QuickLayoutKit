@@ -2955,6 +2955,29 @@
         }
       }
     },
+    "imessage.action.cancel" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إلغاء"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
+          }
+        }
+      }
+    },
     "imessage.action.ok" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -3047,12 +3070,142 @@
         }
       }
     },
+    "imessage.attachment.file" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الملفات"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Files"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文件"
+          }
+        }
+      }
+    },
+    "imessage.attachment.importFailed" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فشل الاستيراد. أزل الملف وحاول مجددًا."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import failed. Remove and try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入失败，请移除后重试。"
+          }
+        }
+      }
+    },
+    "imessage.attachment.link" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رابط"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "链接"
+          }
+        }
+      }
+    },
+    "imessage.attachment.pastedFile" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مرفق ملصق"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pasted Attachment"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "粘贴的附件"
+          }
+        }
+      }
+    },
     "imessage.attachment.photo" : {
       "extractionState" : "manual",
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "الصور" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Photos" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "照片" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الصور"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片"
+          }
+        }
+      }
+    },
+    "imessage.audio.attachment.recording" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تسجيل"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音"
+          }
+        }
       }
     },
     "imessage.audio.cancel" : {
@@ -3285,6 +3438,52 @@
         }
       }
     },
+    "imessage.error.mediaImportFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تعذر استيراد هذا العنصر. تم الاحتفاظ ببقية التحديد."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This item couldn't be imported. The rest of your selection was kept."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法导入这个项目，已保留其余选择。"
+          }
+        }
+      }
+    },
+    "imessage.error.mediaInvalid" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لم تعد الوسائط المحددة صالحة. تم الاحتفاظ بالمسودة لتتمكن من المحاولة مجددًا."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The selected media is no longer valid. Your draft was kept so you can try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选媒体已失效，草稿已保留，请重试。"
+          }
+        }
+      }
+    },
     "imessage.error.microphonePermission" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -3306,22 +3505,6 @@
             "value" : "请在“设置”中允许麦克风访问，以录制音频或使用语音输入。"
           }
         }
-      }
-    },
-    "imessage.error.mediaImportFailed" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "تعذر استيراد هذا العنصر. تم الاحتفاظ ببقية التحديد." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "This item couldn't be imported. The rest of your selection was kept." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "无法导入这个项目，已保留其余选择。" } }
-      }
-    },
-    "imessage.error.mediaInvalid" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "لم تعد الوسائط المحددة صالحة. تم الاحتفاظ بالمسودة لتتمكن من المحاولة مجددًا." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "The selected media is no longer valid. Your draft was kept so you can try again." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "所选媒体已失效，草稿已保留，请重试。" } }
       }
     },
     "imessage.error.playbackFailed" : {
@@ -3485,108 +3668,303 @@
         }
       }
     },
+    "imessage.media.animatedImage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "صورة متحركة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Animated image"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "动态图片"
+          }
+        }
+      }
+    },
     "imessage.media.close" : {
       "extractionState" : "manual",
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "إغلاق" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "关闭" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إغلاق"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭"
+          }
+        }
       }
     },
     "imessage.media.first" : {
       "extractionState" : "manual",
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "هذا هو العنصر الأول" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "This is the first item" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已是第一项" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "هذا هو العنصر الأول"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is the first item"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已是第一项"
+          }
+        }
       }
     },
     "imessage.media.image" : {
       "extractionState" : "manual",
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "صورة" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Image" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "图片" } }
-      }
-    },
-    "imessage.media.animatedImage" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "صورة متحركة" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Animated image" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "动态图片" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "صورة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片"
+          }
+        }
       }
     },
     "imessage.media.importing" : {
       "extractionState" : "manual",
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "جارٍ الاستيراد" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Importing" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在导入" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "جارٍ الاستيراد"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在导入"
+          }
+        }
       }
     },
     "imessage.media.items" : {
       "extractionState" : "manual",
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "%d عناصر" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "%d items" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%d 个项目" } }
-      }
-    },
-    "imessage.media.openPreview" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "فتح المعاينة" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Open preview" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "打开预览" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d عناصر"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d items"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d 个项目"
+          }
+        }
       }
     },
     "imessage.media.last" : {
       "extractionState" : "manual",
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "هذا هو العنصر الأخير" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "This is the last item" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已是最后一项" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "هذا هو العنصر الأخير"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is the last item"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已是最后一项"
+          }
+        }
+      }
+    },
+    "imessage.media.openPreview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فتح المعاينة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open preview"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开预览"
+          }
+        }
       }
     },
     "imessage.media.play" : {
       "extractionState" : "manual",
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "تشغيل الفيديو" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Play video" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "播放视频" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تشغيل الفيديو"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play video"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放视频"
+          }
+        }
       }
     },
     "imessage.media.position" : {
       "extractionState" : "manual",
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "%d من %d" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "%d of %d" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "第 %d 项，共 %d 项" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d من %d"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d of %d"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %d 项，共 %d 项"
+          }
+        }
       }
     },
     "imessage.media.remove" : {
       "extractionState" : "manual",
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "إزالة" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Remove" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "移除" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إزالة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除"
+          }
+        }
       }
     },
     "imessage.media.video" : {
       "extractionState" : "manual",
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "فيديو" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Video" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "视频" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فيديو"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "视频"
+          }
+        }
       }
     },
     "imessage.media.videoDuration" : {
       "extractionState" : "manual",
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "فيديو، المدة %@" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Video, duration %@" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "视频，时长 %@" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فيديو، المدة %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video, duration %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "视频，时长 %@"
+          }
+        }
       }
     },
     "imessage.reply.1" : {

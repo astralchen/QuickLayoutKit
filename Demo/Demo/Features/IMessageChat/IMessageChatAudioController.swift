@@ -365,7 +365,7 @@ final class IMessageChatAudioController: NSObject {
     }
 
     private let audioSession: IMessageChatAudioSessionControlling
-    private let attachmentStore: any IMessageChatAttachmentStoring
+    let attachmentStore: any IMessageChatAttachmentStoring
     private let fileManager: FileManager
     private let speechTranscriber: IMessageChatSpeechTranscribing
     private let permissionProvider: IMessageChatMediaPermissionProviding
@@ -505,6 +505,16 @@ final class IMessageChatAudioController: NSObject {
         }
         state = .idle
         finishAudioSession()
+    }
+
+    /// 交出未提交文件；接收方必须立即在同一页面存储中登记文件附件。
+    /// 停止播放器但不删除文件，之后的录音回调不能再持有该草稿。
+    func takePreviewForFileAttachment() -> IMessageChatAudioAttachment? {
+        guard case .audioPreview(let attachment, _, _) = state else { return nil }
+        stopPlayback()
+        state = .idle
+        finishAudioSession()
+        return attachment
     }
 
     /// 当前音频预览所表示的页面附件。

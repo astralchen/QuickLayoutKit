@@ -224,6 +224,29 @@ nonisolated struct IMessageChatMediaDraftPresentation: Equatable, Sendable {
     }
 }
 
+/// 文件草稿与消息共享值模型；录音转换后不再携带录音会话或波形状态。
+nonisolated struct IMessageChatFileAttachment: Equatable, Hashable, Sendable {
+    let id: UUID
+    let fileURL: URL
+    let displayName: String
+    let typeIdentifier: String
+    let byteCount: Int64
+    var thumbnailURL: URL? = nil
+}
+
+/// 网页元数据失败时仍可按原始 URL 发送，不伪造应用协作身份。
+nonisolated struct IMessageChatLinkAttachment: Equatable, Hashable, Sendable {
+    var id = UUID()
+    let url: URL
+    var title: String? = nil
+    var imageURL: URL? = nil
+
+    static func accepts(_ url: URL) -> Bool {
+        ["http", "https"].contains(url.scheme?.lowercased() ?? "")
+            && !(url.host ?? "").isEmpty
+    }
+}
+
 /// 聊天消息可以携带的页面级本地附件。
 ///
 /// 附件枚举是消息层与具体媒体实现之间的值类型边界。新增图片或视频时，应在
@@ -235,6 +258,8 @@ nonisolated enum IMessageChatAttachment: Equatable, Hashable, Sendable {
 
     /// 一次有序选择产生的图片和视频媒体组。
     case mediaGroup(IMessageChatMediaGroupAttachment)
+    case file(IMessageChatFileAttachment)
+    case link(IMessageChatLinkAttachment)
 
     /// 附件的稳定标识符。
     var id: UUID {
@@ -243,6 +268,8 @@ nonisolated enum IMessageChatAttachment: Equatable, Hashable, Sendable {
             attachment.id
         case .mediaGroup(let attachment):
             attachment.id
+        case .file(let attachment): attachment.id
+        case .link(let attachment): attachment.id
         }
     }
 
@@ -256,6 +283,8 @@ nonisolated enum IMessageChatAttachment: Equatable, Hashable, Sendable {
             [attachment.fileURL]
         case .mediaGroup(let attachment):
             attachment.localFileURLs
+        case .file(let file): [file.fileURL] + [file.thumbnailURL].compactMap { $0 }
+        case .link(let link): [link.imageURL].compactMap { $0 }
         }
     }
 

@@ -13,6 +13,13 @@ import UIKit
 final class IMessageChatTextView: UITextView {
     /// 只拦截编辑，不修改 `isEditable` 或第一响应者状态。
     var isInputSuspended = false
+    var willPaste: (() -> Void)?
+
+    override func paste(_ sender: Any?) {
+        guard !isInputSuspended else { return }
+        willPaste?()
+        super.paste(sender)
+    }
 
     override func insertText(_ text: String) {
         guard !isInputSuspended else { return }
@@ -89,6 +96,8 @@ nonisolated struct IMessageChatComposerStrings: Equatable, Sendable {
     let playAudio: String
     let pauseAudio: String
     let recordingRequiresEmptyDraft: String
+    var file: String = "Files"
+    var link: String = "Link"
 }
 
 /// 输入栏当前可以请求的附件类型。
@@ -99,6 +108,20 @@ nonisolated struct IMessageChatComposerStrings: Equatable, Sendable {
 nonisolated enum IMessageChatAttachmentKind: Equatable, Sendable {
     case photo
     case audio
+    case file
+    case link
+}
+
+/// 按 TextKit 文档位置排列的发送片段，不携带文件所有权。
+nonisolated enum IMessageChatDraftSegment: Equatable, Sendable {
+    case text(String)
+    case attachment(UUID)
+}
+
+/// 一次编辑事务中的正文和附件占位，顺序与用户插入内容一致。
+nonisolated enum IMessageChatEditorInsertion {
+    case text(String)
+    case attachment(IMessageChatDocumentDraft)
 }
 
 /// 用户从消息输入栏发起的操作。
@@ -107,6 +130,10 @@ nonisolated enum IMessageChatAttachmentKind: Equatable, Sendable {
 /// 被业务层接受；文本仅在 `.sendText` 返回 `true` 后清空，附件草稿也只在发送
 /// 成功后由其所有者提交。
 nonisolated enum IMessageChatComposerAction: Equatable, Sendable {
+    case sendDocuments([IMessageChatDraftSegment])
+    case removeDocument(UUID)
+    case openDocument(UUID)
+    case insertLink(URL)
     case sendText(String)
     case sendMediaDraft(String)
     case removeMediaDraftItem(UUID)
@@ -154,6 +181,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         case preview
         case mediaDraft
         case recordingUnavailable
+        case documentAttachments
     }
 
     private enum Metrics {
@@ -201,7 +229,9 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         static let mediaDraftSpacing: CGFloat = 8
     }
 
-    let textView = IMessageChatTextView()
+    let textView = IMessageChatTextView(usingTextLayoutManager: true)
+    lazy var pasteCoordinator = IMessageChatPasteCoordinator(textView: textView)
+    var pasteAttachments: (([IMessageChatPasteSource]) -> Void)?
     let placeholderLabel = UILabel()
     /// 草稿阻止录音时显示的短暂说明。
     let recordingUnavailableLabel = UILabel()
@@ -265,6 +295,9 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     )
     private var currentInputHeight = Metrics.textInputHeight
     private var isApplyingTranscription = false
+    private(set) var textAttachments: [UUID: IMessageChatTextAttachment] = [:]
+    private var isReconcilingAttachments = false
+    private var isInsertingContents = false
 
     /// 提示属于输入栏展示状态，不占用音频控制器或麦克风。
     private(set) var isShowingRecordingUnavailableHint = false
@@ -450,7 +483,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                 )
                 .padding(.bottom, Metrics.textDictationBottomPadding)
         case .idle, .recording, .audioPreview:
-            if isShowingRecordingUnavailableHint || hasSendableContent {
+            if isShowingRecordingUnavailableHint || !textAttachments.isEmpty || hasSendableContent {
                 sendButton
                     .resizable()
                     .frame(
@@ -506,7 +539,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                     .resizable(axis: .horizontal)
                     .frame(height: Metrics.mediaInputHeight)
 
-            case .audioPreview:
+            case .audioPreview where textAttachments.isEmpty:
                 HStack(alignment: .center, spacing: 8) {
                     audioCancelGlassView.frame(
                         width: Metrics.mediaControlHitSize,
@@ -517,7 +550,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                         .frame(height: Metrics.mediaInputHeight)
                 }
 
-            case .idle, .preparingSpeech, .dictating:
+            case .idle, .preparingSpeech, .dictating, .audioPreview:
                 Spacer().frame(width: 0, height: 0)
             }
         }
@@ -541,6 +574,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     override func didMoveToWindow() {
         super.didMoveToWindow()
         guard window != nil else {
+            pasteCoordinator.invalidate()
             dismissRecordingUnavailableHint()
             return
         }
@@ -569,6 +603,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             return true
         }
         retainedTextContentOffset = textView.contentOffset
+        pasteCoordinator.invalidate()
         isShowingRecordingUnavailableHint = true
         recordingHintGeneration += 1
         let generation = recordingHintGeneration
@@ -622,6 +657,10 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                 != traitCollection.preferredContentSizeCategory else {
             return
         }
+        refreshTextAttachments()
+        if let manager = textView.textLayoutManager, let content = manager.textContentManager {
+            manager.invalidateLayout(for: content.documentRange)
+        }
         updateTextHeight()
     }
 
@@ -637,6 +676,207 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             width: size.width,
             height: resolvedContentHeight + Metrics.verticalPadding * 2
         )
+    }
+
+    /// 仅去除附件标记及系统生成的分段；用户输入的空格、换行都保留。
+    var plainDraftText: String {
+        let text = NSMutableAttributedString(attributedString: textView.attributedText ?? NSAttributedString(string: ""))
+        var ranges: [NSRange] = []
+        text.enumerateAttributes(in: NSRange(location: 0, length: text.length)) { attrs, range, _ in
+            if attrs[.attachment] != nil || attrs[IMessageChatTextAttachment.separatorKey] != nil {
+                ranges.append(range)
+            }
+        }
+        for range in ranges.reversed() { text.deleteCharacters(in: range) }
+        return text.string.replacingOccurrences(of: "\u{FFFC}", with: "")
+    }
+
+    var canSendAudioDraft: Bool {
+        guard case .audioPreview = composerState else { return false }
+        return mediaDraft == nil && plainDraftText.isEmpty && !isShowingRecordingUnavailableHint
+    }
+
+    /// 将整批内容替换到当前选区；附件异步更新不会再改变插入位置。
+    func insertContents(_ items: [IMessageChatEditorInsertion]) {
+        guard !isShowingRecordingUnavailableHint else { return }
+        let selection = textView.selectedRange
+        guard selection.location != NSNotFound, NSMaxRange(selection) <= textView.textStorage.length else { return }
+        // 结束组合输入可能同步触发编辑回调；必须在注册新附件之前完成，
+        // 否则身份核对会把尚未写入 textStorage 的新卡片当作已删除对象。
+        if textView.markedTextRange != nil { textView.unmarkText() }
+        let content = NSMutableAttributedString(string: "")
+        var preceding = selection.location > 0
+            ? (textView.textStorage.string as NSString).substring(with: NSRange(location: selection.location - 1, length: 1)) : ""
+        for item in items {
+            switch item {
+            case .text(let text):
+                content.append(NSAttributedString(string: text, attributes: [
+                    .font: textView.font ?? UIFont.preferredFont(forTextStyle: .body),
+                    .foregroundColor: UIColor.label,
+                ]))
+                if !text.isEmpty { preceding = String(text.suffix(1)) }
+            case .attachment(let draft):
+                guard textAttachments[draft.id] == nil else { updateDocument(draft); continue }
+                if !preceding.isEmpty, preceding != "\n" { content.append(documentSeparator(draft.id)) }
+                content.append(NSAttributedString(attachment: makeTextAttachment(draft)))
+                content.append(documentSeparator(draft.id))
+                preceding = "\n"
+            }
+        }
+        guard content.length > 0 else { return }
+        // attributedString 替换和光标更新属于同一事务；UIKit 的中间回调不能
+        // 以尚未完成属性写入的文本判断附件已被删除。
+        guard let start = textView.position(from: textView.beginningOfDocument, offset: selection.location),
+              let end = textView.position(from: start, offset: selection.length),
+              let range = textView.textRange(from: start, to: end) else { return }
+        isInsertingContents = true
+        // 先通过 UITextInput 同步替换字符和输入法上下文，再仅写入附件属性。
+        // 直接替换 textStorage 的字符会留下旧的键盘上下文，随后将光标附近
+        // 的附件改写为旧字符（尤其是 UTF-16 多码元字符后的原生混合粘贴）。
+        textView.replace(range, withText: content.string)
+        textView.textStorage.beginEditing()
+        content.enumerateAttributes(in: NSRange(location: 0, length: content.length)) { attributes, range, _ in
+            textView.textStorage.setAttributes(attributes, range: NSRange(location: selection.location + range.location, length: range.length))
+        }
+        textView.textStorage.endEditing()
+        textView.selectedRange = NSRange(location: selection.location + content.length, length: 0)
+        isInsertingContents = false
+        reconcileTextAttachments()
+        resetTypingAttributes()
+        updateTextHeight()
+        refreshTextAttachments()
+        refreshRecordingHintLayout()
+    }
+
+    /// 菜单单项导入和录音移交同样遵循当前光标的替换语义。
+    func insertDocument(_ draft: IMessageChatDocumentDraft) {
+        insertContents([.attachment(draft)])
+    }
+
+    /// 在附件边界结束文字段，仅忽略由编辑器生成的排版字符。
+    var draftSegments: [IMessageChatDraftSegment] {
+        var result: [IMessageChatDraftSegment] = []
+        var body = ""
+        func flush() {
+            if !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { result.append(.text(body)) }
+            body = ""
+        }
+        let storage = textView.textStorage
+        storage.enumerateAttributes(in: NSRange(location: 0, length: storage.length)) { attributes, range, _ in
+            if let attachment = attributes[.attachment] as? IMessageChatTextAttachment {
+                flush()
+                if textAttachments[attachment.draft.id] === attachment { result.append(.attachment(attachment.draft.id)) }
+            } else if attributes[.attachment] != nil {
+                flush()
+            } else if attributes[IMessageChatTextAttachment.separatorKey] == nil {
+                body += (storage.string as NSString).substring(with: range).replacingOccurrences(of: "\u{FFFC}", with: "")
+            }
+        }
+        flush()
+        return result
+    }
+
+    private func documentSeparator(_ id: UUID) -> NSAttributedString {
+        NSAttributedString(string: "\n", attributes: [
+            IMessageChatTextAttachment.separatorKey: id.uuidString,
+            .font: textView.font ?? UIFont.preferredFont(forTextStyle: .body),
+        ])
+    }
+
+    private func makeTextAttachment(_ draft: IMessageChatDocumentDraft) -> IMessageChatTextAttachment {
+        let attachment = IMessageChatTextAttachment(draft: draft)
+        textAttachments[draft.id] = attachment
+        attachment.open = { [weak self] in
+            guard let self, !isShowingRecordingUnavailableHint else { return }
+            _ = actionRequested?(.openDocument(draft.id))
+        }
+        attachment.remove = { [weak self] in
+            guard let self, !isShowingRecordingUnavailableHint else { return }
+            removeDocument(draft.id, notify: true)
+        }
+        return attachment
+    }
+
+    func updateDocument(_ draft: IMessageChatDocumentDraft) {
+        guard let attachment = textAttachments[draft.id] else { return }
+        attachment.draft = draft
+        attachment.refresh()
+        updateComposerState()
+    }
+
+    var orderedDocumentIDs: [UUID] {
+        var ids: [UUID] = []
+        textView.textStorage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: textView.textStorage.length)) { value, _, _ in
+            if let attachment = value as? IMessageChatTextAttachment,
+               textAttachments[attachment.draft.id] === attachment { ids.append(attachment.draft.id) }
+        }
+        return ids
+    }
+
+    private func resetTypingAttributes() {
+        textView.typingAttributes = [
+            .font: textView.font ?? UIFont.preferredFont(forTextStyle: .body),
+            .foregroundColor: UIColor.label,
+        ]
+    }
+
+    private func refreshTextAttachments() {
+        for attachment in textAttachments.values {
+            attachment.direction = textView.effectiveUserInterfaceLayoutDirection
+            attachment.refresh()
+        }
+    }
+
+    /// 逆序修改 textStorage，保持光标位置；不更换编辑器，不重新取得焦点。
+    private func removeEditorRanges(_ ranges: [NSRange]) {
+        // 普通输入没有附件删除时，不触碰选区，避免打断输入法的组合文本。
+        guard !ranges.isEmpty else { return }
+        var selection = textView.selectedRange
+        textView.textStorage.beginEditing()
+        for range in ranges.sorted(by: { $0.location > $1.location }) {
+            let start = selection.location - min(range.length, max(0, selection.location - range.location))
+            let end = NSMaxRange(selection) - min(range.length, max(0, NSMaxRange(selection) - range.location))
+            textView.textStorage.deleteCharacters(in: range)
+            selection = NSRange(location: start, length: end - start)
+        }
+        textView.textStorage.endEditing()
+        textView.selectedRange = selection
+    }
+
+    func removeDocument(_ id: UUID, notify: Bool) {
+        guard let attachment = textAttachments.removeValue(forKey: id) else { return }
+        attachment.open = nil
+        attachment.remove = nil
+        reconcileTextAttachments()
+        if notify { _ = actionRequested?(.removeDocument(id)) }
+        updateTextHeight()
+        refreshRecordingHintLayout()
+    }
+
+    /// 删除、剪切和撤销核对所有活跃身份；失效对象与重复粘贴不能恢复已删除文件。
+    private func reconcileTextAttachments() {
+        guard !isReconcilingAttachments else { return }
+        isReconcilingAttachments = true
+        defer { isReconcilingAttachments = false }
+        let storage = textView.textStorage
+        var found: Set<UUID> = []
+        var invalid: [NSRange] = []
+        storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { value, range, _ in
+            guard let value else { return }
+            guard let attachment = value as? IMessageChatTextAttachment else { invalid.append(range); return }
+            let id = attachment.draft.id
+            if textAttachments[id] === attachment, found.insert(id).inserted {} else { invalid.append(range) }
+        }
+        storage.enumerateAttribute(IMessageChatTextAttachment.separatorKey, in: NSRange(location: 0, length: storage.length)) { value, range, _ in
+            if let value = value as? String, let id = UUID(uuidString: value), !found.contains(id) { invalid.append(range) }
+        }
+        removeEditorRanges(invalid)
+        for id in Set(textAttachments.keys).subtracting(found) {
+            let attachment = textAttachments.removeValue(forKey: id)
+            attachment?.open = nil
+            attachment?.remove = nil
+            _ = actionRequested?(.removeDocument(id))
+        }
     }
 
     /// 应用输入栏显示的本地化字符串。
@@ -661,6 +901,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         updateAttachmentMenu()
         updateComposerState()
         mediaDraftStripView.configure(mediaDraft, strings: self.mediaStrings)
+        refreshTextAttachments()
         if case .audioPreview(_, let isPlaying, _) = composerState {
             audioPlayButton.accessibilityLabel = isPlaying
                 ? strings.pauseAudio
@@ -707,7 +948,16 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         case .dictating(let text):
             dictationButton.isEnabled = true
             isApplyingTranscription = true
-            textView.text = text
+            if textAttachments.isEmpty { textView.text = text } else {
+                let body = NSMutableAttributedString(string: "")
+                for id in orderedDocumentIDs {
+                    guard let attachment = textAttachments[id] else { continue }
+                    body.append(NSAttributedString(attachment: attachment))
+                    body.append(NSAttributedString(string: "\n", attributes: [IMessageChatTextAttachment.separatorKey: id.uuidString]))
+                }
+                body.append(NSAttributedString(string: text, attributes: textView.typingAttributes))
+                textView.textStorage.setAttributedString(body)
+            }
             isApplyingTranscription = false
             updateTextHeight()
         case .recording(let elapsed, let waveform):
@@ -775,10 +1025,14 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         placeholderLabel.semanticContentAttribute = semanticAttribute
         placeholderLabel.textAlignment = .natural
         recordingUnavailableLabel.semanticContentAttribute = semanticAttribute
+        refreshTextAttachments()
         setNeedsQuickLayout()
     }
 
     func textViewDidChange(_ textView: UITextView) {
+        guard !isInsertingContents else { return }
+        reconcileTextAttachments()
+        resetTypingAttributes()
         updateComposerState()
         updateTextHeight()
     }
@@ -794,6 +1048,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         replacementText text: String
     ) -> Bool {
         guard !isShowingRecordingUnavailableHint else { return false }
+        resetTypingAttributes()
         if case .dictating = composerState, !isApplyingTranscription {
             _ = actionRequested?(.manualEditDuringDictation)
         }
@@ -801,6 +1056,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     }
 
     private var resolvedContentHeight: CGFloat {
+        if !textAttachments.isEmpty { return currentInputHeight + mediaDraftAdditionalHeight }
         if isShowingRecordingUnavailableHint { return Metrics.textInputHeight }
         return switch composerState {
         case .idle, .preparingSpeech, .dictating:
@@ -812,6 +1068,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
 
     /// 返回当前媒体状态对应的稳定布局模式。
     private var layoutMode: LayoutMode {
+        if !textAttachments.isEmpty { return .documentAttachments }
         if isShowingRecordingUnavailableHint { return .recordingUnavailable }
         return switch composerState {
         case .idle:
@@ -828,6 +1085,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     }
 
     private var retainedTextInputHeight: CGFloat {
+        if !textAttachments.isEmpty { return currentInputHeight + mediaDraftAdditionalHeight }
         if isShowingRecordingUnavailableHint { return Metrics.textInputHeight }
         return switch composerState {
         case .idle, .preparingSpeech, .dictating:
@@ -838,16 +1096,17 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     }
 
     private var hasSendableText: Bool {
-        !(textView.text ?? "")
+        !plainDraftText
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .isEmpty
     }
 
     private var hasSendableContent: Bool {
+        if textAttachments.values.contains(where: { $0.draft.status != .ready }) { return false }
         if let mediaDraft {
             return mediaDraft.canSend
         }
-        return hasSendableText
+        return !textAttachments.isEmpty || hasSendableText
     }
 
     private var mediaDraftAdditionalHeight: CGFloat {
@@ -862,6 +1121,14 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     }
 
     private func configureViews() {
+        pasteCoordinator.insertAttachments = { [weak self] sources in
+            guard let self, !isShowingRecordingUnavailableHint else { return }
+            pasteAttachments?(sources)
+        }
+        pasteCoordinator.textDidChange = { [weak self] in
+            guard let self else { return }
+            textViewDidChange(textView)
+        }
         accessibilityIdentifier = "imessage.composer"
         backgroundColor = .clear
         quickLayoutHorizontalFlexibility = .fullyFlexible
@@ -1147,20 +1414,33 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                 .requestAttachment(kind: .audio)
             )
         }
-        attachmentButton.menu = UIMenu(children: [photoAction, audioAction])
+        let fileAction = UIAction(title: strings.file, image: UIImage(systemName: "folder")) { [weak self] _ in
+            guard let self, !isShowingRecordingUnavailableHint else { return }
+            _ = actionRequested?(.requestAttachment(kind: .file))
+        }
+        let linkAction = UIAction(title: strings.link, image: UIImage(systemName: "link")) { [weak self] _ in
+            guard let self, !isShowingRecordingUnavailableHint else { return }
+            _ = actionRequested?(.requestAttachment(kind: .link))
+        }
+        attachmentButton.menu = UIMenu(children: [photoAction, audioAction, fileAction, linkAction])
     }
 
     @objc private func sendButtonDidTap() {
-        guard !isShowingRecordingUnavailableHint else { return }
-        let text = textView.text ?? ""
+        guard !isShowingRecordingUnavailableHint, hasSendableContent else { return }
+        let text = plainDraftText
         let accepted: Bool
-        if mediaDraft != nil {
+        if !textAttachments.isEmpty {
+            accepted = actionRequested?(.sendDocuments(draftSegments)) == true
+        } else if mediaDraft != nil {
             accepted = actionRequested?(.sendMediaDraft(text)) == true
         } else {
             accepted = actionRequested?(.sendText(text)) == true
         }
         guard accepted else { return }
+        for attachment in textAttachments.values { attachment.open = nil; attachment.remove = nil }
+        textAttachments.removeAll()
         textView.text = nil
+        resetTypingAttributes()
         updateComposerState()
         updateTextHeight()
     }
@@ -1188,6 +1468,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     }
 
     @objc private func audioSendButtonDidTap() {
+        guard canSendAudioDraft else { return }
         _ = actionRequested?(.sendAttachmentDraft)
     }
 
@@ -1197,7 +1478,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         case .idle, .preparingSpeech, .dictating:
             showsTextInput = true
         case .recording, .audioPreview:
-            showsTextInput = false
+            showsTextInput = !textAttachments.isEmpty
         }
         attachmentGlassView.alpha = showsTextInput ? 1 : 0
         inputGlassView.alpha = showsTextInput ? 1 : 0
@@ -1214,7 +1495,10 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             || !(textView.text ?? "").isEmpty
         recordingUnavailableLabel.isHidden = !isShowingRecordingUnavailableHint
         sendButton.isEnabled = !isShowingRecordingUnavailableHint && hasSendableContent
-        attachmentButton.isEnabled = !isShowingRecordingUnavailableHint && composerState == .idle
+        sendButton.accessibilityHint = nil
+        audioSendButton.isEnabled = canSendAudioDraft
+        attachmentButton.isEnabled = !isShowingRecordingUnavailableHint
+            && (composerState == .idle || !textAttachments.isEmpty)
         switch composerState {
         case .preparingSpeech:
             dictationButton.isEnabled = false
@@ -1242,9 +1526,14 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     private func updateTextHeight(availableWidth: CGFloat? = nil) {
         guard !isShowingRecordingUnavailableHint else { return }
         let font = textView.font ?? .preferredFont(forTextStyle: .body)
-        let maximumHeight = ceil(font.lineHeight * 5)
+        let attachmentHeight = CGFloat(textAttachments.count) * (IMessageChatTextAttachment.height(for: traitCollection) + ceil(font.lineHeight))
+        let contentLimit = attachmentHeight + ceil(font.lineHeight * 5)
             + textView.textContainerInset.top
             + textView.textContainerInset.bottom
+        // 多附件不能把整页推出窗口；超过可见预算后仍由原 UITextView 滚动编辑。
+        let viewportLimit = textAttachments.isEmpty ? contentLimit
+            : max(180, (window?.bounds.height ?? 874) * 0.42)
+        let maximumHeight = min(contentLimit, viewportLimit)
         let width = max(1, availableWidth ?? textView.bounds.width)
         let measuredHeight = textView.sizeThatFits(
             CGSize(width: width, height: .greatestFiniteMagnitude)

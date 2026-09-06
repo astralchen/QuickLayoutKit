@@ -14,6 +14,7 @@ import UIKit
 /// 图片、视频和音频操作均由 ViewController 路由到对应协调器；Conversation View
 /// 和 Cell 不直接创建页面级播放器。
 nonisolated enum IMessageChatMessageAction: Equatable, Sendable {
+    case openDocument(IMessageChatAttachment)
     case toggleAudioPlayback(
         messageID: Int,
         attachment: IMessageChatAudioAttachment
@@ -151,6 +152,11 @@ final class IMessageConversationView: UIView {
 
                         case .attachment(let attachment):
                             switch attachment {
+                            case .file, .link:
+                                Row(model: message, cell: IMessageChatDocumentBubbleCell.self) { [weak self] cell, message, _ in
+                                    cell.open = { [weak self] in self?.actionRequested?(.openDocument($0)) }
+                                    cell.configure(message)
+                                }.refreshID(message.refreshIdentity)
                             case .audio:
                                 Row(
                                     model: message,

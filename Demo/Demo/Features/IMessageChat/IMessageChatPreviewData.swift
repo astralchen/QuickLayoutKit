@@ -5,6 +5,7 @@
 
 #if DEBUG
 import Foundation
+import UIKit
 
 @MainActor
 enum IMessageChatPreviewData {
@@ -27,6 +28,43 @@ enum IMessageChatPreviewData {
         duration: 3,
         waveform: audioWaveform
     )
+
+    static let pastedMediaDrafts: [IMessageChatDocumentDraft] = {
+        let thumbnail = FileManager.default.temporaryDirectory.appendingPathComponent("imessage-paste-preview.png")
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 160, height: 120)).image { context in
+            UIColor.systemTeal.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 160, height: 120))
+            UIColor.systemGreen.setFill()
+            context.fill(CGRect(x: 0, y: 80, width: 160, height: 40))
+            UIColor.systemYellow.setFill()
+            context.cgContext.fillEllipse(in: CGRect(x: 106, y: 14, width: 28, height: 28))
+        }
+        try? image.pngData()?.write(to: thumbnail, options: .atomic)
+        return [IMessageChatMediaKind.image, .video(duration: 12)].enumerated().map { index, kind in
+            let id = UUID(uuidString: index == 0 ? "F0CBF955-17EA-4AF3-8713-A099113A3034" : "F0CBF955-17EA-4AF3-8713-A099113A3035")!
+            return .init(attachment: .mediaGroup(.init(id: id, items: [.init(
+                id: id, assetIdentifier: nil, originalFileURL: thumbnail, thumbnailFileURL: thumbnail,
+                pixelSize: CGSize(width: 160, height: 120), kind: kind
+            )])))
+        }
+    }()
+
+    static let documentDrafts: [IMessageChatDocumentDraft] = [
+        .init(attachment: .file(.init(
+            id: UUID(uuidString: "F0CBF955-17EA-4AF3-8713-A099113A3031")!,
+            fileURL: URL(fileURLWithPath: "/preview/Audio Message.m4a"),
+            displayName: "Audio Message.m4a", typeIdentifier: "public.mpeg-4-audio", byteCount: 10_240
+        ))),
+        .init(attachment: .file(.init(
+            id: UUID(uuidString: "F0CBF955-17EA-4AF3-8713-A099113A3032")!,
+            fileURL: URL(fileURLWithPath: "/preview/Example.json"),
+            displayName: "Example.json", typeIdentifier: "public.json", byteCount: 2_048
+        ))),
+        .init(attachment: .link(.init(
+            id: UUID(uuidString: "F0CBF955-17EA-4AF3-8713-A099113A3033")!,
+            url: URL(string: "https://developer.apple.com")!, title: "Apple Developer"
+        ))),
+    ]
 
     static let incomingAudioAttachment = IMessageChatAudioAttachment(
         id: UUID(uuidString: "71FA16C1-CFC2-49DB-979A-8F7188D0E768")!,
@@ -99,7 +137,9 @@ enum IMessageChatPreviewData {
         cancelAudio: "Cancel audio",
         playAudio: "Play audio",
         pauseAudio: "Pause audio",
-        recordingRequiresEmptyDraft: "若要录音，请清除输入栏。"
+        recordingRequiresEmptyDraft: "若要录音，请清除输入栏。",
+        file: "文件",
+        link: "链接"
     )
     static let composerMultilineText = "今晚七点见\n我会提前几分钟到"
     static let composerRTLText = "مساء الخير\nسأصل في السابعة"

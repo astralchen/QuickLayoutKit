@@ -181,36 +181,40 @@ final class IMessageChatViewModel {
         _ group: IMessageChatMediaGroupAttachment,
         followedByText rawText: String
     ) -> Bool {
-        let attachment = IMessageChatAttachment.mediaGroup(group)
-        guard validates(attachment) else { return false }
+        sendAttachments([.mediaGroup(group)], followedByText: rawText)
+    }
 
+    /// 照片面板媒体组沿用附件优先的兼容入口，统一交给有序事务发送。
+    @discardableResult
+    func sendAttachments(_ attachments: [IMessageChatAttachment], followedByText rawText: String) -> Bool {
+        sendContents(attachments.map { .attachment($0) } + [.userText(rawText)])
+    }
+
+    /// 全批验证后按文档顺序一次性发布；失败不写入部分消息，正文不裁剪。
+    @discardableResult
+    func sendContents(_ contents: [IMessageChatMessageContent]) -> Bool {
+        var ids: Set<UUID> = []
+        var payloads: [IMessageChatMessageContent] = []
+        for content in contents {
+            switch content {
+            case .attachment(let attachment):
+                guard validates(attachment), ids.insert(attachment.id).inserted else { return false }
+                payloads.append(content)
+            case .userText(let text):
+                if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { payloads.append(content) }
+            case .localized: return false
+            }
+        }
+        guard !payloads.isEmpty else { return false }
         pendingReplyTask?.cancel()
         let sentAt = clock()
-        messages.append(
-            IMessageChatMessage(
-                id: nextMessageID,
-                direction: .outgoing,
-                content: .attachment(attachment),
-                sentAt: sentAt,
-                deliveryState: .delivered
-            )
-        )
-        nextMessageID += 1
-
-        let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !text.isEmpty {
-            messages.append(
-                IMessageChatMessage(
-                    id: nextMessageID,
-                    direction: .outgoing,
-                    content: .userText(text),
-                    sentAt: sentAt,
-                    deliveryState: .delivered
-                )
-            )
+        for content in payloads {
+            messages.append(IMessageChatMessage(
+                id: nextMessageID, direction: .outgoing, content: content,
+                sentAt: sentAt, deliveryState: .delivered
+            ))
             nextMessageID += 1
         }
-
         isTyping = true
         publish(reason: .sentMessage)
         scheduleReply(.text)
@@ -223,6 +227,12 @@ final class IMessageChatViewModel {
     /// - Returns: 附件文件和类型专属元数据均有效时为 `true`。
     private func validates(_ attachment: IMessageChatAttachment) -> Bool {
         switch attachment {
+        case .file(let file):
+            file.fileURL.isFileURL && !file.displayName.isEmpty
+                && FileManager.default.isReadableFile(atPath: file.fileURL.path)
+                && (try? file.fileURL.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
+        case .link(let link):
+            IMessageChatLinkAttachment.accepts(link.url)
         case .audio(let audio):
             IMessageChatRecordingPolicy.accepts(
                 duration: audio.duration,
@@ -270,7 +280,7 @@ final class IMessageChatViewModel {
                     for: localeProvider()
                 )
             )
-        case .mediaGroup:
+        case .mediaGroup, .file, .link:
             .text
         }
     }

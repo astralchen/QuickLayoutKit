@@ -65,7 +65,7 @@ final class IMessageChatPhotoPickerController: NSObject,
         }
     }
 
-    private struct ImportedMetadata: Sendable {
+    struct ImportedMetadata: Sendable {
         let pixelSize: CGSize
         let kind: IMessageChatMediaKind
         let isAnimatedImage: Bool
@@ -401,7 +401,7 @@ final class IMessageChatPhotoPickerController: NSObject,
         sheet.detents = [keyboardDetent, .large()]
     }
 
-    private static func makeMetadata(
+    static func makeMetadata(
         originalURL: URL,
         thumbnailURL: URL,
         isVideo: Bool,

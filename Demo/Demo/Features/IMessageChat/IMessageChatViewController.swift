@@ -20,12 +20,15 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
     let composerView = IMessageChatComposerView()
     let contactTitleView = IMessageContactTitleView(frame: .zero)
     let audioController: IMessageChatAudioController
+    let documentController: IMessageChatDocumentController
     let photoController: IMessageChatPhotoPickerController
     let attachmentStore: any IMessageChatAttachmentStoring
 
     private let keyboardObserver = QuickLayoutKeyboardObserver()
     private var cancellables: Set<AnyCancellable> = []
     private var bottomObstruction: CGFloat = 0
+    /// 模态菜单暂时接管焦点时，保存编辑器的目标选区。
+    private var documentMenuSelection: NSRange?
     private lazy var bottomObstructionCoordinator =
         IMessageChatBottomObstructionCoordinator(hostView: view)
 
@@ -66,10 +69,11 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         viewModel: IMessageChatViewModel,
         audioController: IMessageChatAudioController
     ) {
-        let attachmentStore = IMessageChatPageAttachmentStore()
+        let attachmentStore = audioController.attachmentStore
         self.viewModel = viewModel
         self.audioController = audioController
         self.attachmentStore = attachmentStore
+        documentController = IMessageChatDocumentController(store: attachmentStore)
         photoController = IMessageChatPhotoPickerController(
             attachmentStore: attachmentStore
         )
@@ -84,6 +88,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         self.viewModel = viewModel
         self.audioController = audioController
         self.attachmentStore = attachmentStore
+        documentController = IMessageChatDocumentController(store: attachmentStore)
         photoController = IMessageChatPhotoPickerController(
             attachmentStore: attachmentStore
         )
@@ -93,8 +98,9 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
     required init?(coder: NSCoder) {
         let audioController = IMessageChatAudioController()
         self.audioController = audioController
-        let attachmentStore = IMessageChatPageAttachmentStore()
+        let attachmentStore = audioController.attachmentStore
         self.attachmentStore = attachmentStore
+        documentController = IMessageChatDocumentController(store: attachmentStore)
         photoController = IMessageChatPhotoPickerController(
             attachmentStore: attachmentStore
         )
@@ -139,10 +145,13 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         super.viewWillDisappear(animated)
         guard isMovingFromParent || isBeingDismissed else { return }
         composerView.dismissRecordingUnavailableHint()
+        composerView.pasteCoordinator.invalidate()
         viewModel.cancelPendingReply()
         audioController.stopAll()
+        audioController.cancelRecordingOrPreview()
         photoController.dismissPicker(animated: false)
         photoController.discardDraft()
+        documentController.discardAll()
         bottomObstructionCoordinator.stop()
         attachmentStore.removeAll()
     }
@@ -178,7 +187,9 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
                 pauseAudio: DemoLocalization.text("imessage.audio.pause"),
                 recordingRequiresEmptyDraft: DemoLocalization.text(
                     "imessage.audio.record.requiresEmptyDraft"
-                )
+                ),
+                file: DemoLocalization.text("imessage.attachment.file"),
+                link: DemoLocalization.text("imessage.attachment.link")
             ),
             mediaStrings: mediaStrings
         )
@@ -214,8 +225,31 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         audioController.failureDidOccur = { [weak self] failure in
             self?.presentMediaFailure(failure)
         }
+        documentController.willInsert = { [weak self] in
+            guard let self else { return }
+            if let selection = documentMenuSelection {
+                documentMenuSelection = nil
+                if NSMaxRange(selection) <= composerView.textView.textStorage.length {
+                    composerView.textView.selectedRange = selection
+                }
+            }
+            prepareForDocumentSelection()
+        }
+        documentController.pickerCancelled = { [weak self] in self?.documentMenuSelection = nil }
+        composerView.pasteAttachments = { [weak self] sources in self?.documentController.insertPasted(sources) }
+        documentController.contentsInserted = { [weak self] contents in self?.composerView.insertContents(contents) }
+        documentController.draftInserted = { [weak self] draft in
+            self?.composerView.insertDocument(draft)
+        }
+        documentController.draftUpdated = { [weak self] draft in
+            self?.composerView.updateDocument(draft)
+        }
         photoController.stateDidChange = { [weak self] draft in
-            self?.composerView.applyMediaDraft(draft)
+            guard let self else { return }
+            if let draft, !draft.items.isEmpty {
+                prepareForDocumentSelection()
+            }
+            composerView.applyMediaDraft(draft)
         }
         photoController.failureDidOccur = { [weak self] in
             self?.presentMediaFailure(.mediaImportFailed)
@@ -259,24 +293,19 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         _ action: IMessageChatComposerAction
     ) -> Bool {
         switch action {
-        case .sendText(let text):
-            return viewModel.send(text)
-
-        case .sendMediaDraft(let text):
-            guard let attachment = photoController.draftAttachment else {
-                presentMediaFailure(.mediaInvalid)
-                return false
-            }
-            guard viewModel.sendMediaGroup(
-                attachment,
-                followedByText: text
-            ) else {
-                presentMediaFailure(.mediaInvalid)
-                return false
-            }
-            let committed = photoController.commitDraft()
-            photoController.dismissPicker(animated: true)
-            return committed
+        case .sendText(let text), .sendMediaDraft(let text):
+            return sendComposerDraft(segments: text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? [] : [.text(text)])
+        case .sendDocuments(let segments):
+            return sendComposerDraft(segments: segments)
+        case .removeDocument(let id):
+            documentController.remove(id)
+            return true
+        case .openDocument(let id):
+            guard let draft = documentController.drafts[id], draft.status == .ready else { return false }
+            documentController.open(draft.attachment, from: presentedViewController ?? self)
+            return true
+        case .insertLink(let url):
+            return documentController.insertLink(url)
 
         case .removeMediaDraftItem(let id):
             photoController.removeItem(id: id)
@@ -290,6 +319,14 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
                     keyboardHeight: bottomObstructionCoordinator
                         .storedKeyboardContentHeight
                 )
+                return true
+            case .file:
+                documentMenuSelection = composerView.textView.selectedRange
+                documentController.presentPicker(from: presentedViewController ?? self)
+                return true
+            case .link:
+                documentMenuSelection = composerView.textView.selectedRange
+                presentLinkEntry()
                 return true
             case .audio:
                 guard composerView.validateAudioRecordingRequest() else {
@@ -310,6 +347,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
             return true
 
         case .sendAttachmentDraft:
+            guard composerView.canSendAudioDraft, photoController.draft == nil, documentController.drafts.isEmpty else { return false }
             guard let attachment = audioController.previewAttachment,
                   viewModel.sendAttachment(attachment) else {
                 return false
@@ -333,11 +371,90 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         }
     }
 
+    /// 选择项目才改变音频状态；打开或关闭面板不触发此方法。
+    private func prepareForDocumentSelection() {
+        switch audioController.state {
+        case .recording:
+            audioController.cancelRecordingOrPreview()
+        case .audioPreview:
+            if let audio = audioController.takePreviewForFileAttachment() {
+                documentController.adoptRecording(audio)
+            }
+        case .preparingSpeech, .dictating: audioController.stopDictation()
+        case .idle: break
+        }
+    }
+
+    /// 解析并核对完整文档快照，照片面板在先，编辑器片段保持原位置。
+    private func sendComposerDraft(segments: [IMessageChatDraftSegment]) -> Bool {
+        let ids = segments.compactMap { segment -> UUID? in
+            if case .attachment(let id) = segment { return id }; return nil
+        }
+        guard !composerView.isShowingRecordingUnavailableHint,
+              composerView.mediaDraft?.canSend != false,
+              segments == composerView.draftSegments,
+              let documents = documentController.attachments(for: ids) else { return false }
+        let documentsByID = Dictionary(uniqueKeysWithValues: documents.map { ($0.id, $0) })
+        var contents: [IMessageChatMessageContent] = []
+        if let draft = photoController.draft {
+            guard let media = draft.attachment else { return false }
+            contents.append(.attachment(.mediaGroup(media)))
+        }
+        for segment in segments {
+            switch segment {
+            case .attachment(let id):
+                guard let attachment = documentsByID[id] else { return false }
+                contents.append(.attachment(attachment))
+            case .text(let text):
+                if let url = IMessageChatPasteSource.webURL(in: text) {
+                    contents.append(.attachment(.link(.init(url: url))))
+                } else {
+                    contents.append(.userText(text))
+                }
+            }
+        }
+        guard viewModel.sendContents(contents) else {
+            presentMediaFailure(.mediaInvalid)
+            return false
+        }
+        documentController.commit(ids)
+        if photoController.draft != nil { _ = photoController.commitDraft() }
+        photoController.dismissPicker(animated: true)
+        return true
+    }
+
+    private func presentLinkEntry() {
+        let alert = UIAlertController(title: DemoLocalization.text("imessage.attachment.link"), message: nil, preferredStyle: .alert)
+        alert.addTextField { field in
+            field.placeholder = "https://example.com"
+            field.keyboardType = .URL
+            field.autocapitalizationType = .none
+            field.autocorrectionType = .no
+        }
+        alert.addAction(UIAlertAction(title: DemoLocalization.text("imessage.action.cancel"), style: .cancel) { [weak self] _ in
+            self?.documentMenuSelection = nil
+        })
+        let add = UIAlertAction(title: DemoLocalization.text("imessage.attachment.add"), style: .default) { [weak self, weak alert] _ in
+            guard let self, let value = alert?.textFields?.first?.text,
+                  let url = URL(string: value.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
+            _ = documentController.insertLink(url)
+        }
+        add.isEnabled = false
+        alert.textFields?.first?.addAction(UIAction { [weak alert, weak add] _ in
+            let value = alert?.textFields?.first?.text ?? ""
+            add?.isEnabled = URL(string: value.trimmingCharacters(in: .whitespacesAndNewlines)).map(IMessageChatLinkAttachment.accepts) ?? false
+        }, for: .editingChanged)
+        alert.addAction(add)
+        (presentedViewController ?? self).present(alert, animated: true)
+    }
+
     /// 把时间线消息操作路由到类型专属的页面协调器。
     ///
     /// - Parameter action: Cell 发出的值类型操作。
     private func handleMessageAction(_ action: IMessageChatMessageAction) {
         switch action {
+        case .openDocument(let attachment):
+            documentController.open(attachment, from: presentedViewController ?? self)
         case .toggleAudioPlayback(let messageID, let attachment):
             audioController.toggleMessagePlayback(
                 messageID: messageID,

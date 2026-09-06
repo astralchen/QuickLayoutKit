@@ -1,24 +1,26 @@
 # iOS 26 iMessage 风格聊天页
 
-`IMessageChat` 是 Demo 内独立的一对一聊天页面，用来演示 QuickLayout、ListKit、AppLocalization、iOS 26 UIKit Liquid Glass、文本、音频、照片/视频消息与语音输入的组合使用。页面不复用或修改已有的 `UICollectionView` / `UITableView` 消息示例，也不为 QuickLayoutKit 增加公共 API。
+`IMessageChat` 是 Demo 内独立的一对一聊天页面，用来演示 QuickLayout、ListKit、AppLocalization、iOS 26 UIKit Liquid Glass、文本、音频、照片/视频、文件和网页链接消息与语音输入的组合使用。页面不复用或修改已有的 `UICollectionView` / `UITableView` 消息示例，也不为 QuickLayoutKit 增加公共 API。
 
-该模块仅用于本地界面和交互演示，不接入网络、上传、持久化或真实消息服务。每次进入页面都会创建新的 `IMessageChatViewModel`、页面附件存储与音频控制器，恢复与联系人 Alex 的固定示例会话；录制及从回复文本合成的音频只在本次页面生命周期内有效。
+该模块仅用于本地界面和交互演示，不接入上传、持久化或真实消息服务；添加网页链接时通过系统 Link Presentation 获取公开网页元数据。每次进入页面都会创建新的 `IMessageChatViewModel`、页面附件存储与音频控制器，恢复与联系人 Alex 的固定示例会话；录制及从回复文本合成的音频只在本次页面生命周期内有效。
 
 当前 Demo deployment target 为 iOS 26.2，页面使用 iOS 26 原生玻璃 API。媒体层保留 iOS 17–25 的语音识别后端，但这只是未来降低整个 Demo deployment target 时可复用的兼容实现，不表示当前页面已在旧系统运行或验收通过。
 
 ## 文件职责
 
 - `IMessageChatModel.swift`：内部文本/附件消息模型、音频与有序媒体组元数据、收发方向、送达状态、稳定时间线 ID、集中刷新身份与渲染模型。
-- `IMessageChatViewModel.swift`：初始会话、文本与统一附件发送、媒体组加可选文字的原子发送、类型专属验证、时间分隔、输入中状态、模拟回复、已读状态和本地化物化。
+- `IMessageChatViewModel.swift`：初始会话、文本与统一附件发送、按文档片段顺序的原子批量发送、类型专属验证、时间分隔、输入中状态、模拟回复、已读状态和本地化物化。
 - `IMessageChatAttachmentStore.swift`：页面独立临时目录、外部文件导入、附件草稿、事务式提交、取消删除和页面销毁清理。
 - `IMessageChatAudioController.swift`：录音、文本转音频回复、波形采样、预览、单实例播放、语音转写、权限、音频会话与中断处理。
+- `IMessageChatDocumentController.swift`：文件选择、异步导入、录音文件所有权接收、网页元数据、缩略图、提交与清理、Quick Look 文件预览。
+- `IMessageChatTextAttachment.swift`：TextKit 2 原生附件、按类型显示的文件/网页卡片及时间线 Cell。
 - `IMessageChatPhotoPickerController.swift`：UIKit `PHPickerViewController`、有序增量选择、图片/视频文件导入、缩略图、草稿代次、选择同步与 Sheet detent。
 - `IMessageChatBottomObstructionCoordinator.swift`：逐帧采样公开的键盘 layout guide 与照片 Sheet presentation layer，并统一计算输入栏底部遮挡。
 - `IMessageChatMediaViews.swift`：媒体草稿预览条、单媒体尾巴气泡、多媒体层叠卡片、展示索引状态与全屏图片/视频预览。
 - `IMessageConversationView.swift`：使用 `UICollectionView` 与 `CollectionListAdapter` 渲染时间线，并管理列表更新、音频播放刷新、层叠封面状态、滚底和运行时方向刷新。
 - `IMessageChatCells.swift`：文本发送/接收气泡、时间标记、送达状态和输入中动画。
 - `IMessageChatAudioViews.swift`：音频气泡、播放/暂停按钮、波形进度、时长与可复用音频 Cell。
-- `IMessageChatComposerView.swift`：Liquid Glass 输入栏、1–5 行文本输入、统一用户动作、“照片/音频”附件菜单、媒体横向预览、语音转文字、录音面板和停止后的音频预览。
+- `IMessageChatComposerView.swift`：Liquid Glass 输入栏、1–5 行文本输入、统一用户动作、“照片/音频/文件/链接”附件菜单、媒体横向预览、语音转文字、录音面板和停止后的音频预览。
 - `IMessageContactTitleView.swift`：导航栏中的联系人头像、名称和 iMessage 副标题。
 - `IMessageChatViewController.swift`：组合会话列表与输入栏，绑定 ViewModel，并协调媒体状态、键盘、本地化、RTL 和错误反馈。
 - `IMessageChatPreviewData.swift`：仅在 `DEBUG` 下提供文本、录音、预览、播放以及 incoming/outgoing 音频气泡的确定性预览数据。
@@ -44,12 +46,15 @@ ViewModel 不持有播放器、录音器或 UIKit 对象。输入栏通过单一
 
 ## 消息模型与回复流程
 
-单条消息的内容为以下三种之一：
+消息内容按以下载荷区分：
 
 - `.localized(key:)`：固定示例或模拟回复，运行时切换语言后重新解析。
 - `.userText`：用户输入或语音转写形成的原始文本，切换语言时不改写。
 - `.attachment(.audio)`：统一附件边界中的音频载荷，包含稳定附件 ID、本地可回放文件 URL、精确时长与归一化波形采样。用户录音为 AAC `.m4a`，模拟语音回复为 `.caf`。
 - `.attachment(.mediaGroup)`：一次有序选择形成的 1–20 项媒体，保存稳定组/项目 ID、资源标识、页面拥有的原文件与缩略图 URL、像素尺寸以及图片/视频类型；视频类型额外保存有效时长。
+
+- `.attachment(.file)`：文档或从录音转换的普通文件，保存稳定 ID、原始文件名、真实 UTType、大小和可选缩略图。
+- `.attachment(.link)`：HTTP(S) URL、可选网页标题与图片。无元数据时保留可打开、可发送的 URL 卡片。
 
 音频 Model 不包含 `AVAudioPlayer`、`AVAudioRecorder` 或 UIView。ListKit 的消息 ID 继续作为稳定身份；刷新身份同时包含附件元数据、消息方向和送达文案。播放进度属于页面级瞬时状态，由音频控制器直接更新可见 Cell；滚出屏幕后重新出现的 Cell 会在配置时读取同一份播放状态。
 
@@ -85,8 +90,62 @@ JPEG 缩略图；视频验证视频轨道与正时长，通过 `AVAssetImageGene
 
 媒体草稿存在时，输入栏上层显示 80 × 120pt、4pt 间距的横向预览条，下层继续使用
 1–5 行文字输入。所有项目完成导入后才启用发送；视频预览显示图标和 `m:ss` 时长，
-删除按钮同步取消系统勾选并清理该项文件。媒体草稿与音频录制互斥，但关闭照片 Sheet
-不会丢弃已经导入的媒体或文字。
+删除按钮同步取消系统勾选并清理该项文件。录音中首次选中照片或视频会取消录音并删除临时录音文件；仅打开或关闭照片 Sheet
+不会取消录音，也不会丢弃已经导入的媒体或文字。
+
+音频处于待发送预览时选中照片/视频或添加文件/链接，停止试听并将录音文件所有权
+移交文档控制器，音频控制器立即回到 idle。文件以普通 `.file` 附件插入原 `UITextView`，
+真实格式仍为 `.m4a`；不再保留录音预览、波形或录音播放回调。仅开关面板不触发转换。
+删除全部照片或媒体导入失败不会丢弃文件卡片，也不会恢复波形预览。
+
+“＋ → 文件”可多选 JSON、PDF、音频等文件，异步复制到页面目录；“＋ → 链接”或粘贴
+完整 HTTP(S) URL 可插入网页卡片，直接发送单独的网址也生成链接消息。文件卡片显示
+Quick Look 缩略图（不可用时使用类型图标）、原文件名、类型和大小；网页使用系统
+`LPLinkView`，元数据失败时仍可发送原 URL。点击文件用 `QLPreviewController` 预览，
+音频文件也由 Quick Look 播放；点击网页打开 URL。此处不伪造 Notes/iCloud 协作卡片。
+
+所有内联卡片由 `NSTextAttachment` / `NSTextAttachmentViewProvider` 参与原生排版，
+可移动光标、在前后输入、通过删除键/选区删除/剪切移除，并提供 VoiceOver 打开和删除操作。
+转换的录音、菜单导入和粘贴附件统一插入当前光标位置；选中内容被替换，完成后光标位于插入内容之后。
+附件占独立段落；文件菜单保存打开时的选区，批量占位同步插入，重复更新不重复插入。录音预览转换的文件位于新插入内容之前。
+输入框内的所有卡片右上角都有独立 44pt 删除区域，RTL 下也保持物理右上角；已发送消息不显示删除按钮。
+卡片高度单独计入输入框，正文保持最多五行的增长规则；多附件超过窗口高度预算后在原编辑器内滚动。删除、撤销、迟到导入和元数据
+回调不能恢复已失效文件。仅转换或更新卡片不主动取得键盘焦点。
+
+附件与照片、视频及正文可以共存并发送。一次点击按“上方照片/视频组 → UITextView
+中的文字/附件位置顺序”形成多条独立消息，整批只发布一次时间线更新、安排一次模拟回复。
+Composer 禁止发送未导入完成或失败的文件，ViewController 核对全部附件身份，ViewModel
+先验证所有载荷再追加；失败完整保留草稿，成功后才提交文件并清空输入。自动附件字符与
+排版换行不作为文字消息发送，有效文字段原样保留首尾空白，纯空白段跳过。
+
+### 原生粘贴
+
+`IMessageChatPasteCoordinator` 通过 `UITextPasteDelegate` 处理用户发起的粘贴，不在后台轮询剪贴板。
+支持图片、视频、音频、文档及完整 HTTP(S) 网址；混合文字与网址保留为正文。同一提供器有多种表示时，
+只选一项真实媒体/文件表示，随后才考虑 URL 或文本，不把 HTML/RTF 文本表示误转为文件。
+整批内容按剪贴板顺序替换当前选区，文字与附件交错顺序保持不变；无选区时在光标处插入。
+文本优先使用 `NSString` 类型化读取，兼容系统将文本物化为临时文件的提供器。
+关闭智能插入空格并显式组合每项结果，防止系统在附件周围生成正文空格；附件替换遵循原生选区语义，
+结束组合范围后只替换选中内容，未选中的组合文字保持一次且不丢失。
+含附件的批次先结束空的原生粘贴事务，再在主队列统一提交，避免 UIKit 收尾继续按插入前的坐标修改草稿。
+字符替换通过 `UITextInput.replace` 同步键盘上下文，再在一次 TextKit 编辑事务中写入附件属性；中间编辑回调不执行身份清理，避免 emoji 后插入时旧上下文覆盖卡片。
+加载先显示可删除占位卡片，完成后按稳定 ID 原位更新。图片使用降采样缩略图，视频附带播放标志与时长，
+导入逻辑复用照片选择器的媒体元数据处理。优先复制原始格式，只有 UIImage 表示时才保存为 PNG。
+粘贴图片和视频各自成为单项媒体消息，不因相邻而合并。发送按附件切开正文，例如“文字 A → 附件 1 → 文字 B → 附件 2 → 文字 C”生成五条消息。
+非纯空白文字段保留首尾空格、换行及内部换行，纯空白段不发送，系统生成的附件排版换行不属于正文。完整网址文字段在原位置转为链接消息。
+
+`NSItemProvider.loadFileRepresentation` 返回的临时文件必须在回调结束前复制；复制后的文件才归页面所有。
+导入失败保留可删除卡片并阻止发送；链接元数据失败仍可发送 URL。删除、离页或迟到回调不能留下孤儿文件或恢复卡片。
+原生退格、剪切、选区删除和可见删除按钮共用身份清理路径；VoiceOver 提供打开和删除动作。
+实际粘贴附件时沿用录音取消/预览转文件规则，不主动打开键盘，也不改变照片面板状态。
+Apple API 依据：[UITextPasteDelegate](https://developer.apple.com/documentation/uikit/uitextpastedelegate)、
+[文件表示的生命周期](https://developer.apple.com/documentation/foundation/nsitemprovider/loadfilerepresentation(fortypeidentifier:completionhandler:))。
+
+Apple 公开 API 依据：[TextKit 附件视图](https://developer.apple.com/documentation/uikit/nstextattachmentviewprovider)、
+[富链接视图](https://developer.apple.com/documentation/linkpresentation/lplinkview)、
+[Quick Look 缩略图](https://developer.apple.com/documentation/quicklookthumbnailing/qlthumbnailgenerator)。
+[协作分享](https://support.apple.com/en-lamr/guide/iphone/iphf08c82a16/ios)需要来源应用的真实分享数据。
+录音转换时机和附件优先的分条发送以本模块确认需求为准，未声称复现 Messages 私有实现。
 
 已发送媒体按以下规则显示：
 
@@ -98,13 +157,13 @@ JPEG 缩略图；视频验证视频轨道与正时长，通过 `AVAssetImageGene
 
 发送顺序固定为“读取完整草稿 → ViewModel 原子验证并追加 → 提交草稿”。任何项目
 缺文件、缩略图、有效像素尺寸、视频轨道或正时长时都不产生部分消息，媒体和文字草稿
-保持不变。单项导入失败只删除失败项；页面退出时取消未完成任务并清理未发送草稿。
+保持不变。照片面板单项导入失败只删除失败项，粘贴导入失败保留可删除卡片；页面退出时取消未完成任务并清理未发送草稿。
 
 ## 文本输入与语音转文字
 
 普通输入状态由左侧独立 44 点“+”玻璃按钮和右侧输入胶囊组成。“+”使用 `UIMenu` 与 `showsMenuAsPrimaryAction`，展示“照片”和“音频”：照片同时承载图片/视频选择；存在文字或媒体草稿时，点击音频显示两秒清空提示。当前范围不包含相机拍摄或媒体编辑。
 
-`UITextView` 的基础高度为 44 点，随内容扩展到最多 5 行，超过后在输入框内部滚动。空输入显示麦克风；裁剪后存在非空文本时显示原有发送箭头。存在媒体草稿时始终隐藏听写麦克风，并在全部导入完成后显示蓝色发送箭头。发送文本会删除首尾空白和换行，保留正文内部换行；纯空白不会发送。
+`UITextView` 的基础高度为 44 点，随内容扩展到最多 5 行，超过后在输入框内部滚动。空输入显示麦克风；裁剪后存在非空文本时显示原有发送箭头。存在媒体草稿时始终隐藏听写麦克风，并在全部导入完成后显示蓝色发送箭头。发送时保留有效文字段的全部原始空白和换行；纯空白段不会发送。
 
 文本态和录音态使用独立的玻璃布局度量。文本态的 `inputGlassView` 使用 4 点
 语义起始内边距、6 点语义结束内边距和 4 点内容间距；尾部操作区域固定宽
@@ -256,7 +315,7 @@ DemoRoute.imessageChat
 - 录音、转写和播放互斥；切换条目、暂停续播、路由移除、无效文件与页面释放回到确定状态。
 - iOS 26/旧版后端能力选择，以及英语、简体中文和阿拉伯语 locale 映射。
 - partial result 替换、停止、错误、无结果和手动编辑不重复或覆盖原草稿。
-- 空文本显示麦克风，非空文本显示发送；附件菜单包含“照片”和“音频”，非空草稿点击音频显示两秒清空提示，期间保留键盘焦点并拦截编辑，随后完整恢复。
+- 空文本显示麦克风，非空文本显示发送；附件菜单包含“照片”、“音频”、“文件”和“链接”，非空草稿点击音频显示两秒清空提示，期间保留键盘焦点并拦截编辑，随后完整恢复。
 - 1、2、5、20 项媒体发送边界，无效媒体原子拒绝，以及“媒体组 + 文字”只安排一次回复。
 - 选择顺序、草稿导入完成门槛、文件整体提交/清理，以及层叠状态跨 cell 重用保留。
 - 5 项媒体的全部旋转顺序、物理左右滑方向、距离/速度阈值、首尾不循环和模型数组不变。
@@ -279,7 +338,7 @@ DemoRoute.imessageChat
 6. 修改气泡布局时必须同时验证短文本、长文本、音频、单媒体、多媒体层叠、LTR、RTL 和 Dynamic Type。
 7. 修改输入栏时必须验证键盘展开、照片 Sheet 小/大档与交互拖动、两种遮挡源交接、1–5 行、录音态、媒体预览态、原草稿恢复和最后一条消息遮挡。
 8. iOS 26 原生玻璃 API 只用于导航或输入控制层，消息内容层保持系统纯色背景。
-9. Composer 预览项固定为 120 点高，按附件像素比例计算 80～160 点宽度；多帧图片和 Live Photo 显示动态图片标志。当前范围不包含相机拍摄、图片编辑、视频剪辑、GIF 动画播放、Live Photo 播放、其他附件、上传、持久化、Tapback、内联回复或真实已读回执；GIF 与 Live Photo 仍按静态缩略图发送和预览。
+9. Composer 预览项固定为 120 点高，按附件像素比例计算 80～160 点宽度；多帧图片和 Live Photo 显示动态图片标志。当前范围不包含相机拍摄、图片编辑、视频剪辑、GIF 动画播放、Live Photo 播放、协作附件、上传、持久化、Tapback、内联回复或真实已读回执；GIF 与 Live Photo 仍按静态缩略图发送和预览。
 10. iOS 17–25 只属于语音识别服务的兼容预留；旧系统页面运行需要未来降低整个 Demo deployment target 并提供非 iOS 26 UI。
 11. 新增独立 View 或 ViewController 时，必须在同一源文件补充基于 `IMessageChatPreviewData` 的 `#Preview`。
 12. 新增内部类型、状态、回调和用户动作方法使用 UIKit SDK 风格的 `///` 文档注释：先给出简洁摘要，再按需要补充讨论、参数和返回值；不要用逐行翻译代码的噪声注释。
@@ -294,4 +353,33 @@ DemoRoute.imessageChat
 
 ### 键盘与照片菜单 UI 回归
 
-`IMessageChatRegression` Scheme 仅运行 `IMessageChatKeyboardUITests`，通过真实点击“输入框 → ＋ → 照片”验证切换前后输入栏底边保持一致且未被面板遮挡，并保留截图。已有草稿点击“＋ → 音频”另行验证两秒提示、原高度与键盘恢复，并保存中文及阿拉伯语 RTL 大字体截图。高度缓存与交接状态的确定性回归仍位于 `IMessageChatMediaTests`。
+`IMessageChatRegression` Scheme 运行 `IMessageChatKeyboardUITests` 和 `IMessageChatAudioCardUITests`，通过真实点击“输入框 → ＋ → 照片”验证切换前后输入栏底边保持一致且未被面板遮挡，并保留截图。已有草稿点击“＋ → 音频”另行验证两秒提示、原高度与键盘恢复，并保存中文及阿拉伯语 RTL 大字体截图。高度缓存与交接状态的确定性回归仍位于 `IMessageChatMediaTests`。
+
+### 多类型附件回归
+
+- `IMessageChatPasteTests`：真实剪贴板纯网址和混合媒体粘贴、按类型选择原始表示、UTF-16 选区与中文组合输入、异步乱序完成、启动前/加载中取消、导入失败、单项媒体分条发送、删除命中区域与 VoiceOver。
+- `IMessageChatDocumentTests`：附件顺序与批量原子拒绝、文件复制/提交/导入失败、迟到复制清理、无元数据链接、身份删除及失效撤销、失败保留后重试。
+- `IMessageChatAudioAttachmentTests`：真实录音取消、试听中的预览移交文件、录音转换位置与分段发送、媒体删除后继续保留、真实窗口键盘与中文组合输入、RTL 大字体排版及卡片删除后恢复高度。
+- `IMessageChatAudioCardUITests`：原生粘贴菜单、中文与 RTL 最大辅助功能字号下删除卡片及正文/焦点保留、照片面板内录音与预览转换、键盘删除卡片、链接与正文分条发送；系统照片库加载不完成时必须报告 UI 验证受阻。
+
+2026-09-06 上一轮多类型粘贴验证记录（本轮位置与分段调整结果另行记录）：
+
+- 构建：通过，最终 `Demo` 测试构建与 `IMessageChatRegression` UI 测试构建成功，未新增框架公开 API。
+- 测试：6 个 suite、59 项回归全部通过（包含 15 项粘贴测试），0 失败、0 跳过，结果为 `/private/tmp/IMessage-paste-all-pass.xcresult`。
+- UI：中文原生粘贴与删除、RTL 最大辅助功能字号原生粘贴与删除、照片选择将录音预览转为附件并通过键盘删除、键盘到照片面板的高度衔接，共 4 条真实 UI 流程全部通过，0 失败、0 跳过，结果为 `/private/tmp/IMessage-paste-ui-verified.xcresult`。
+- 视觉：检查原生粘贴后的网页卡片、RTL 大字体及删除后的高度恢复；真实窗口混合媒体截图覆盖图片缩略图、视频封面/播放标志/时长、音频和文档卡片及独立删除按钮。
+- 验证边界：图片、视频、音频和文档使用真实生成文件经过原生粘贴及运行时导入测试，覆盖失败、取消和清理；尚未手动验收 iCloud/第三方文件提供器和真机。网页 UI 验证包含无远程元数据时的 URL 卡片。
+
+### 按光标插入与按位置分段发送回归
+
+- `IMessageChatPasteTests`：16 项，覆盖真实混合剪贴板、UTF-16 选区替换、组合输入、连续粘贴、替换旧附件身份、乱序导入与失败清理。
+- `IMessageChatDocumentTests`：覆盖开头/中间/末尾插入、正文和多附件交错、有效段原始空白、纯空白段跳过、选区替换与失效撤销、菜单原选区恢复、原位置网址转换、整批发送拒绝。
+- `IMessageChatAudioAttachmentTests`：补充录音预览移交文件后，在同一选区紧接插入新内容的顺序验证。
+
+2026-09-06 本轮验证（复用已启动的 iPhone 17 Pro / iOS 26.3.1）：
+
+- 构建：通过，`Demo` 与 `IMessageChatRegression` 测试构建成功。
+- 回归测试：6 个 suite、66 项全部通过，0 失败、0 跳过；结果 `/private/tmp/IMessage-position-all-final.xcresult`。
+- UI：5 条流程最终通过：中文原生粘贴与删除、RTL 最大辅助功能字号粘贴与删除、三段正文与两个附件交错发送、录音预览转文件后键盘删除、键盘切换照片面板。首轮 `/private/tmp/IMessage-position-ui.xcresult` 中 4 条通过；RTL 用例因长按落点未弹出编辑菜单失败，修正测试坐标后单独复验通过，结果 `/private/tmp/IMessage-position-ui-rtl.xcresult`。
+- 视觉：检查交错草稿及发送顺序截图、RTL 大字体卡片和删除后的高度恢复；已发送卡片没有删除按钮，键盘焦点由用户操作保持。
+- 验证边界：本轮为已启动模拟器的构建、运行时与真实 UI 自动化验证，未做真机及第三方文件提供器的手动验收。

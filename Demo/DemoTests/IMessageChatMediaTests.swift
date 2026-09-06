@@ -35,7 +35,7 @@ struct IMessageChatMediaTests {
         let text = try #require(messages.first(where: { $0.id == 4 }))
         #expect(media.mediaGroup == fixture.group)
         #expect(media.deliveryText == nil)
-        #expect(text.text == "caption")
+        #expect(text.text == "  caption  ")
         #expect(text.deliveryText == "localized.imessage.status.delivered")
         #expect(viewModel.state.timeline.last?.id == .typing)
         #expect(reasons == [.initial, .sentMessage])
