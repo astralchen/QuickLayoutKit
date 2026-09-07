@@ -404,28 +404,45 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                                 - hairlineHeight
                         )
                 }
-                HStack(
-                    alignment: .bottom,
-                    spacing: Metrics.textActionSpacing
-                ) {
-                    editorContainer
-                        .resizable(axis: .horizontal)
-                        .frame(height: isShowingRecordingUnavailableHint
-                            ? Metrics.textInputHeight : currentInputHeight)
-                        .onGeometryChange(
-                            for: CGFloat.self,
-                            of: { max(0, $0.size.width - 8) },
-                            action: { [weak self] width in
-                                self?.updateTextHeight(availableWidth: width)
-                            }
-                        )
-                    textActionLayout
+                VStack(spacing: 0) {
+                    if documentActionHeight > 0 {
+                        // 附件占用完整编辑宽度，发送操作只占下方一行。
+                        textEditorLayout
+                        textActionLayout.frame(maxWidth: .infinity, alignment: .trailing)
+                    } else {
+                        HStack(alignment: .bottom, spacing: Metrics.textActionSpacing) {
+                            textEditorLayout
+                            textActionLayout
+                        }
+                    }
                 }
                 .padding(.leading, Metrics.textLeadingPadding)
                 .padding(.trailing, Metrics.textTrailingPadding)
             }
         }
     }()
+
+    @LayoutBuilder
+    private var textEditorLayout: Layout {
+        editorContainer
+            .resizable(axis: .horizontal)
+            .frame(height: isShowingRecordingUnavailableHint ? Metrics.textInputHeight : currentInputHeight)
+            .onGeometryChange(
+                for: CGFloat.self,
+                of: { max(0, $0.size.width - 8) },
+                action: { [weak self] width in self?.updateTextHeight(availableWidth: width) }
+            )
+    }
+
+    private var documentActionHeight: CGFloat {
+        guard !textAttachments.isEmpty && !isShowingRecordingUnavailableHint else { return 0 }
+        switch composerState {
+        case .preparingSpeech, .dictating:
+            return Metrics.textDictationButtonHeight + Metrics.textDictationBottomPadding
+        case .idle, .recording, .audioPreview:
+            return Metrics.sendButtonHeight + Metrics.textSendBottomPadding
+        }
+    }
 
     private lazy var recordingGlassView: QuickLayoutVisualEffectView = {
         let effect = UIGlassEffect(style: .regular)
@@ -553,6 +570,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         if isShowingRecordingUnavailableHint {
             return (Metrics.textInputHeight - Metrics.sendButtonHeight) / 2
         }
+        if !textAttachments.isEmpty { return Metrics.textSendBottomPadding }
         let font = textView.font ?? .preferredFont(forTextStyle: .body)
         let singleLineHeight = max(
             Metrics.textInputHeight,
@@ -827,6 +845,11 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     private func makeTextAttachment(_ draft: IMessageChatDocumentDraft) -> IMessageChatTextAttachment {
         let attachment = IMessageChatTextAttachment(draft: draft)
         textAttachments[draft.id] = attachment
+        attachment.sizeDidChange = { [weak self, weak attachment] in
+            guard let self, let attachment, textAttachments[draft.id] === attachment else { return }
+            updateTextHeight()
+            textView.setNeedsLayout()
+        }
         attachment.open = { [weak self] in
             guard let self, !isShowingRecordingUnavailableHint else { return }
             _ = actionRequested?(.openDocument(draft.id))
@@ -1099,7 +1122,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     private var resolvedContentHeight: CGFloat {
         // 提示临时覆盖附件展示；外层高度必须与内部的单行提示保持一致。
         if isShowingRecordingUnavailableHint { return Metrics.textInputHeight }
-        if !textAttachments.isEmpty { return currentInputHeight + mediaDraftAdditionalHeight }
+        if !textAttachments.isEmpty { return currentInputHeight + mediaDraftAdditionalHeight + documentActionHeight }
         return switch composerState {
         case .idle, .preparingSpeech, .dictating:
             currentInputHeight + mediaDraftAdditionalHeight
@@ -1128,7 +1151,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
 
     private var retainedTextInputHeight: CGFloat {
         if isShowingRecordingUnavailableHint { return Metrics.textInputHeight }
-        if !textAttachments.isEmpty { return currentInputHeight + mediaDraftAdditionalHeight }
+        if !textAttachments.isEmpty { return currentInputHeight + mediaDraftAdditionalHeight + documentActionHeight }
         return switch composerState {
         case .idle, .preparingSpeech, .dictating:
             currentInputHeight + mediaDraftAdditionalHeight
@@ -1584,13 +1607,18 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             )
             editorContainer.setNeedsQuickLayout()
         }
-        let attachmentHeight = CGFloat(textAttachments.count) * (IMessageChatTextAttachment.height(for: traitCollection) + ceil(font.lineHeight))
+        let attachmentWidth = max(1, width - textView.textContainerInset.left
+            - textView.textContainerInset.right - textView.textContainer.lineFragmentPadding * 2)
+        let attachmentHeight = textAttachments.values.reduce(CGFloat.zero) { total, attachment in
+            total + attachment.preferredSize(maximumWidth: attachmentWidth,
+                layoutManager: textView.textLayoutManager).height + ceil(font.lineHeight)
+        }
         let contentLimit = attachmentHeight + ceil(font.lineHeight * 5)
             + textView.textContainerInset.top
             + textView.textContainerInset.bottom
         // 多附件不能把整页推出窗口；超过可见预算后仍由原 UITextView 滚动编辑。
         let viewportLimit = textAttachments.isEmpty ? contentLimit
-            : max(180, (window?.bounds.height ?? 874) * 0.42)
+            : max(180, (window?.bounds.height ?? 874) * 0.42) - documentActionHeight
         let maximumHeight = min(contentLimit, viewportLimit)
         let measuredHeight = measuredContentHeight + verticalInset * 2
         let resolvedHeight = min(max(44, ceil(measuredHeight)), maximumHeight)

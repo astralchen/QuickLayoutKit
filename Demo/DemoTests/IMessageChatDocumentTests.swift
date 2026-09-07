@@ -2,12 +2,274 @@ import Testing
 import UIKit
 import UniformTypeIdentifiers
 import QuickLayoutKit
-import LinkPresentation
 @testable import Demo
 
 @MainActor
 @Suite(.serialized)
 struct IMessageChatDocumentTests {
+    @Test func photoAndAudioDraftUseFullEditorWidthWithoutOverlappingSend() async throws {
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.windows.first(where: \.isKeyWindow)
+        let root = UIViewController()
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = root
+        window.overrideUserInterfaceStyle = .dark
+        window.makeKeyAndVisible()
+        root.view.backgroundColor = .systemBackground
+        defer { window.isHidden = true; previous?.makeKey() }
+        let composer = IMessageChatComposerView(frame: .init(x: 0, y: 100, width: 402, height: 60))
+        composer.configure(strings: IMessageChatPreviewData.composerStrings)
+        root.view.addSubview(composer)
+        func layout() {
+            for _ in 0..<3 {
+                composer.frame.size.height = composer.intrinsicContentSize.height
+                composer.setNeedsQuickLayout()
+                composer.layoutIfNeeded()
+                composer.textView.layoutIfNeeded()
+            }
+        }
+        func descendants<T: UIView>(_ view: UIView, of type: T.Type) -> [T] {
+            view.subviews.flatMap { child in (child as? T).map { [$0] } ?? descendants(child, of: type) }
+        }
+        layout()
+        let plainEditorWidth = composer.textView.bounds.width
+        #expect(composer.textView.becomeFirstResponder())
+        let file = IMessageChatFileAttachment(id: UUID(), fileURL: URL(fileURLWithPath: "/tmp/audio.m4a"),
+            displayName: "Audio Message.m4a", typeIdentifier: UTType.mpeg4Audio.identifier, byteCount: 88_000)
+        composer.insertDocument(.init(attachment: .file(file)))
+        guard case .mediaGroup(let group) = IMessageChatPreviewData.pastedMediaDrafts[0].attachment else {
+            Issue.record("Missing photo fixture"); return
+        }
+        let photo = try #require(group.items.first)
+        composer.applyMediaDraft(.init(groupID: group.id, items: [
+            .init(id: photo.id, assetIdentifier: nil, content: .ready(photo))
+        ]))
+        let selection = composer.textView.selectedRange
+        for direction in [UIUserInterfaceLayoutDirection.leftToRight, .rightToLeft] {
+            composer.applyLayoutDirection(direction)
+            layout()
+            let card = try #require(descendants(composer.textView, of: IMessageChatAttachmentCard.self).first)
+            let title = try #require(descendants(card, of: UILabel.self).first { $0.text == file.displayName })
+            let remove = try #require(descendants(card, of: IMessageChatDraftRemoveButton.self).first)
+            #expect(composer.textView.bounds.width >= plainEditorWidth + 47)
+            #expect(title.bounds.width >= title.intrinsicContentSize.width - 1)
+            #expect(title.bounds.height <= ceil(title.font.lineHeight) + 1)
+            #expect(!title.convert(title.bounds, to: card).intersects(remove.convert(remove.bounds, to: card)))
+            let cardRect = card.convert(card.bounds, to: composer)
+            let sendRect = composer.sendButton.convert(composer.sendButton.bounds, to: composer)
+            #expect(sendRect.minY >= cardRect.maxY)
+            #expect(composer.bounds.contains(sendRect))
+            #expect(composer.textView.selectedRange == selection)
+            #expect(composer.textView.isFirstResponder)
+            if direction == .leftToRight {
+                try await Task.sleep(for: .milliseconds(250))
+                layout()
+                let capture = UIGraphicsImageRenderer(bounds: root.view.bounds).image { _ in
+                    root.view.drawHierarchy(in: root.view.bounds, afterScreenUpdates: true)
+                }
+                try capture.pngData()?.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("full-width-audio-draft.png"))
+            }
+        }
+        composer.textView.insertText("补充说明")
+        layout()
+        let textRect = composer.textView.convert(composer.textView.bounds, to: composer)
+        let sendRect = composer.sendButton.convert(composer.sendButton.bounds, to: composer)
+        #expect(sendRect.minY >= textRect.maxY - 1)
+        #expect(composer.plainDraftText == "补充说明")
+        #expect(composer.sendButton.isEnabled)
+        composer.removeDocument(file.id, notify: false)
+        layout()
+        #expect(abs(composer.textView.bounds.width - plainEditorWidth) < 1)
+        #expect(composer.textView.isFirstResponder)
+    }
+
+    @Test func audioFileCardsHugContentAndReserveRemovalSpaceOnlyForDrafts() throws {
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.windows.first(where: \.isKeyWindow)
+        let root = UIViewController()
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = root
+        window.overrideUserInterfaceStyle = .dark
+        window.makeKeyAndVisible()
+        root.view.backgroundColor = .systemBackground
+        defer { window.isHidden = true; previous?.makeKey() }
+        let file = IMessageChatFileAttachment(id: UUID(), fileURL: URL(fileURLWithPath: "/tmp/audio.m4a"),
+            displayName: "Audio Message.m4a", typeIdentifier: UTType.mpeg4Audio.identifier, byteCount: 76_000)
+        let cell = IMessageChatDocumentBubbleCell(frame: .init(x: 0, y: 90, width: 402, height: 100))
+        root.view.addSubview(cell)
+        cell.configure(.init(id: 1, direction: .outgoing, attachment: .file(file), deliveryText: "已读"))
+        let attributes = UICollectionViewLayoutAttributes(forCellWith: IndexPath(item: 0, section: 0))
+        attributes.size = CGSize(width: 402, height: 100)
+        cell.frame.size = cell.preferredLayoutAttributesFitting(attributes).size
+        cell.layoutIfNeeded()
+        func descendants<T: UIView>(_ view: UIView, of type: T.Type) -> [T] {
+            view.subviews.flatMap { child in
+                (child as? T).map { [$0] } ?? descendants(child, of: type)
+            }
+        }
+        let title = try #require(descendants(cell.card, of: UILabel.self).first { $0.text == file.displayName })
+        let titleRect = title.convert(title.bounds, to: cell.card)
+        let rightGap = cell.card.bounds.maxX - titleRect.maxX
+        #expect(rightGap >= 11.5 && rightGap <= 13)
+        #expect(abs(title.bounds.width - title.intrinsicContentSize.width) <= 1)
+        #expect(cell.card.bounds.width < 402 * 0.70 - 20)
+        #expect(abs(cell.card.convert(cell.card.bounds, to: cell).maxX - 390) < 1)
+        #expect(cell.card.bounds.height == 84)
+        let draft = IMessageChatAttachmentCard(frame: .zero)
+        root.view.addSubview(draft)
+        draft.configure(.init(attachment: .file(file)))
+        draft.remove = {}
+        let draftSize = draft.preferredSize(maximumWidth: 350)
+        #expect(abs(draftSize.width - cell.card.bounds.width - 32) < 1)
+        draft.frame = CGRect(x: 402 - 12 - draftSize.width, y: 230, width: draftSize.width, height: draftSize.height)
+        draft.layoutIfNeeded()
+        let button = try #require(descendants(draft, of: IMessageChatDraftRemoveButton.self).first)
+        #expect(button.bounds.size == CGSize(width: 44, height: 44))
+        let buttonRect = button.convert(button.bounds, to: draft)
+        let draftTitle = try #require(descendants(draft, of: UILabel.self).first { $0.text == file.displayName })
+        let draftTitleRect = draftTitle.convert(draftTitle.bounds, to: draft)
+        #expect(abs(buttonRect.minX - draftTitleRect.maxX) <= 1)
+        // 18 pt 圆形位于右侧 8 pt 处，文字到可见按钮的间距为 18 pt。
+        let visibleButtonMinX = draft.bounds.maxX - 8 - 18
+        #expect(abs(visibleButtonMinX - draftTitleRect.maxX - 18) <= 1)
+        for label in descendants(draft, of: UILabel.self) {
+            #expect(!label.convert(label.bounds, to: draft).intersects(buttonRect))
+        }
+        let capture = UIGraphicsImageRenderer(bounds: root.view.bounds).image { _ in
+            root.view.drawHierarchy(in: root.view.bounds, afterScreenUpdates: true)
+        }
+        try capture.pngData()?.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("audio-card-content-width.png"))
+        let longFile = IMessageChatFileAttachment(id: UUID(), fileURL: file.fileURL,
+            displayName: "Audio Message with a very long filename that must wrap.m4a",
+            typeIdentifier: file.typeIdentifier, byteCount: file.byteCount)
+        draft.configure(.init(attachment: .file(longFile)))
+        #expect(draft.preferredSize(maximumWidth: 180).width == 180)
+        draft.remove = nil
+        draft.configure(.init(attachment: .file(file)))
+        #expect(draft.preferredSize(maximumWidth: 350).width == cell.card.bounds.width)
+    }
+
+    @Test func richAndIconLinksSizeIndependentlyInDraftsAndSentMessages() async throws {
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.windows.first(where: \.isKeyWindow)
+        previous?.endEditing(true)
+        let root = UIViewController()
+        let window = UIWindow(windowScene: scene)
+        window.windowLevel = .alert + 1
+        window.rootViewController = root
+        window.makeKeyAndVisible()
+        window.overrideUserInterfaceStyle = .light
+        root.view.backgroundColor = .systemBackground
+        defer { window.isHidden = true; previous?.makeKey() }
+        let store = IMessageChatPageAttachmentStore()
+        defer { store.removeAll() }
+        let imageURL = store.makeFileURL(prefix: "rich-cover", pathExtension: "png")
+        let iconURL = store.makeFileURL(prefix: "site-icon", pathExtension: "png")
+        for (url, size) in [(imageURL, CGSize(width: 560, height: 280)), (iconURL, CGSize(width: 64, height: 64))] {
+            let image = UIGraphicsImageRenderer(size: size).image { context in
+                UIColor(white: 0.97, alpha: 1).setFill()
+                context.fill(CGRect(origin: .zero, size: size))
+                UIImage(systemName: "apple.logo")?.withTintColor(UIColor(white: 0.65, alpha: 1), renderingMode: .alwaysOriginal)
+                    .draw(in: CGRect(x: size.width / 2 - size.height / 4, y: size.height / 4,
+                                     width: size.height / 2, height: size.height / 2))
+            }
+            try #require(image.pngData()).write(to: url)
+        }
+        let rich = IMessageChatLinkAttachment(url: URL(string: "https://apple.com.cn")!,
+            title: "Apple（中国大陆）- 官方网站", imageURL: imageURL)
+        let compact = IMessageChatLinkAttachment(url: URL(string: "https://example.com")!,
+            title: "网站", iconURL: iconURL)
+        #expect(IMessageChatAttachment.link(compact).localFileURLs == [iconURL])
+        let composer = IMessageChatComposerView(frame: .init(x: 0, y: 420, width: 402, height: 60))
+        composer.configure(strings: IMessageChatPreviewData.composerStrings)
+        root.view.addSubview(composer)
+        func layoutComposer() {
+            composer.frame.size.height = composer.intrinsicContentSize.height
+            composer.layoutIfNeeded()
+            composer.textView.layoutIfNeeded()
+        }
+        func descendants<T: UIView>(_ view: UIView, of type: T.Type) -> [T] {
+            view.subviews.flatMap { child in
+                (child as? T).map { [$0] } ?? descendants(child, of: type)
+            }
+        }
+        layoutComposer()
+        var pendingRich = rich
+        pendingRich.imageURL = nil
+        composer.insertDocument(.init(attachment: .link(pendingRich)))
+        composer.insertDocument(.init(attachment: .link(compact)))
+        composer.insertContents([.text("正文")])
+        layoutComposer()
+        let selection = composer.textView.selectedRange
+        let pendingHeight = composer.intrinsicContentSize.height
+        // 模拟元数据稍后返回封面：只更新附件身份，不替换正文或选区。
+        composer.updateDocument(.init(attachment: .link(rich)))
+        layoutComposer()
+        #expect(composer.intrinsicContentSize.height > pendingHeight + 60)
+        let cells = [rich, compact].enumerated().map { index, link in
+            let cell = IMessageChatDocumentBubbleCell(frame: .init(x: 0, y: 70, width: 402, height: 100))
+            root.view.addSubview(cell)
+            cell.configure(.init(id: index, direction: .outgoing, attachment: .link(link), deliveryText: nil))
+            return cell
+        }
+        for cell in cells { _ = cell.card.preferredSize(maximumWidth: 281) }
+        // 先排开气泡，避免测试视图互相遮挡。
+        func layoutCells(width: CGFloat = 402) {
+            var y: CGFloat = 70
+            for (index, cell) in cells.enumerated() {
+                let attributes = UICollectionViewLayoutAttributes(forCellWith: IndexPath(item: index, section: 0))
+                attributes.size = CGSize(width: width, height: 100)
+                let fitted = cell.preferredLayoutAttributesFitting(attributes)
+                cell.frame = CGRect(x: 0, y: y, width: width, height: fitted.size.height)
+                cell.layoutIfNeeded()
+                y += fitted.size.height + 12
+            }
+        }
+        layoutCells()
+        layoutComposer()
+        let cards = descendants(composer.textView, of: IMessageChatAttachmentCard.self)
+        #expect(cards.count == 2)
+        let ordered = cards.sorted { $0.convert($0.bounds, to: composer).minY < $1.convert($1.bounds, to: composer).minY }
+        let first = try #require(ordered.first)
+        let second = try #require(ordered.last)
+        #expect(first.bounds.height > second.bounds.height + 60)
+        #expect(first.convert(first.bounds, to: composer).maxY <= second.convert(second.bounds, to: composer).minY)
+        #expect(composer.textView.selectedRange == selection)
+        #expect(composer.plainDraftText == "正文")
+        for card in cards {
+            let preview = try #require(descendants(card, of: IMessageChatLinkPreviewView.self).first)
+            #expect(preview.convert(preview.bounds, to: card) == card.bounds)
+            #expect(descendants(card, of: IMessageChatDraftRemoveButton.self).count == 1)
+        }
+        let iconPreview = try #require(descendants(second, of: IMessageChatLinkPreviewView.self).first)
+        #expect(iconPreview.hasSiteIcon)
+        #expect(!iconPreview.hasCover)
+        for width: CGFloat in [402, 260] {
+            var y: CGFloat = 70
+            var heights: [CGFloat] = []
+            for (index, cell) in cells.enumerated() {
+                let attributes = UICollectionViewLayoutAttributes(forCellWith: IndexPath(item: index, section: 0))
+                attributes.size = CGSize(width: width, height: 100)
+                let fitted = cell.preferredLayoutAttributesFitting(attributes)
+                cell.frame = CGRect(x: 0, y: y, width: width, height: fitted.size.height)
+                cell.layoutIfNeeded()
+                cell.card.layoutIfNeeded()
+                heights.append(cell.card.bounds.height)
+                #expect(cell.card.bounds.width <= width * 0.70 + 1)
+                #expect(cell.card.bounds.height + 4 <= fitted.size.height + 1)
+                y += fitted.size.height + 12
+            }
+            #expect(heights[0] > heights[1] + 40)
+            if width == 402 {
+                root.view.layoutIfNeeded()
+                let capture = UIGraphicsImageRenderer(bounds: root.view.bounds).image { _ in
+                    root.view.drawHierarchy(in: root.view.bounds, afterScreenUpdates: true)
+                }
+                try capture.pngData()?.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("adaptive-link-cards.png"))
+            }
+        }
+    }
+
     @Test func attachmentThumbnailRoundsTheVisibleImageAfterAspectFitAndReuse() throws {
         let thumbnail = IMessageChatAttachmentThumbnailView(frame: .init(x: 0, y: 0, width: 48, height: 56))
         // 此项只测图片圆角透明度，排除外层阴影在圆角外产生的半透明像素。
@@ -39,7 +301,7 @@ struct IMessageChatDocumentTests {
         }
     }
 
-    @Test func attachmentRemoveButtonsRespectRoundedCornersAndKeepTheirHitArea() throws {
+    @Test func attachmentRemoveButtonsRespectRoundedCornersAndKeepTheirHitArea() async throws {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: \.isKeyWindow)
         let root = UIViewController()
@@ -66,6 +328,10 @@ struct IMessageChatDocumentTests {
         let drafts = documents
             + IMessageChatPreviewData.pastedMediaDrafts
             + [.init(attachment: .audio(IMessageChatPreviewData.audioAttachment))]
+            + [.init(attachment: .link(.init(
+                url: URL(string: "https://example.invalid/audio")!,
+                title: "Audio preview", imageURL: thumbnailURL
+            )))]
         func descendants<T: UIView>(_ view: UIView, of type: T.Type) -> [T] {
             view.subviews.flatMap { child in
                 (child as? T).map { [$0] } ?? descendants(child, of: type)
@@ -87,11 +353,14 @@ struct IMessageChatDocumentTests {
                     card.configure(draft)
                     return card
                 }
+                var nextY: CGFloat = 70
                 for card in cards {
                     var removals = 0
                     var opens = 0
                     card.remove = { removals += 1 }
                     card.open = { opens += 1 }
+                    card.frame = CGRect(origin: CGPoint(x: 20, y: nextY), size: card.preferredSize(maximumWidth: width))
+                    nextY = card.frame.maxY + 12
                     card.layoutIfNeeded()
                     let button = try #require(descendants(card, of: IMessageChatDraftRemoveButton.self).first)
                     let circle = try #require(button.subviews.first)
@@ -105,15 +374,23 @@ struct IMessageChatDocumentTests {
                     let expandedHitPoint = CGPoint(x: hitFrame.minX + 5, y: hitFrame.maxY - 5)
                     #expect(!visualFrame.contains(expandedHitPoint))
                     #expect(card.hitTest(expandedHitPoint, with: nil) === button)
+                    if let preview = descendants(card, of: IMessageChatLinkPreviewView.self).first {
+                        // 有图与无图链接都铺满背景，不能再次在右侧留出异色删除栏。
+                        let previewFrame = preview.convert(preview.bounds, to: card)
+                        #expect(previewFrame == card.bounds)
+                    }
                     for label in descendants(card, of: UILabel.self) where !label.isHidden && !(label.text ?? "").isEmpty {
                         let labelFrame = label.convert(label.bounds, to: card)
                         #expect(!labelFrame.intersects(hitFrame))
+                        #expect(card.bounds.insetBy(dx: -1, dy: -1).contains(labelFrame))
                     }
                     button.sendActions(for: .touchUpInside)
                     #expect(removals == 1 && opens == 0)
                     #expect(card.accessibilityActivate())
                     #expect(opens == 1)
                 }
+                // 等待窗口提交布局后捕获完整预览。
+                try await Task.sleep(for: .milliseconds(300))
                 root.view.layoutIfNeeded()
                 let name = direction == .rightToLeft ? "rtl" : "ltr"
                 let image = UIGraphicsImageRenderer(bounds: root.view.bounds).image { _ in
@@ -165,27 +442,27 @@ struct IMessageChatDocumentTests {
         layout()
         let originalCards = descendants(composer.textView, of: IMessageChatAttachmentCard.self)
         #expect(originalCards.count == 2)
-        let originalLinks = originalCards.flatMap { descendants($0, of: LPLinkView.self) }
+        let originalLinks = originalCards.flatMap { descendants($0, of: IMessageChatLinkPreviewView.self) }
         #expect(originalLinks.count == 2)
         let originalIDs = Set(originalLinks.map(ObjectIdentifier.init))
         for character in "The only way I could do that was if you had to do a lot more work" {
             composer.textView.insertText(String(character))
             layout()
             await Task.yield()
-            let links = descendants(composer.textView, of: LPLinkView.self)
+            let links = descendants(composer.textView, of: IMessageChatLinkPreviewView.self)
             #expect(Set(links.map(ObjectIdentifier.init)) == originalIDs)
         }
         for _ in 0..<20 {
             composer.textView.deleteBackward()
             layout()
             await Task.yield()
-            #expect(Set(descendants(composer.textView, of: LPLinkView.self).map(ObjectIdentifier.init)) == originalIDs)
+            #expect(Set(descendants(composer.textView, of: IMessageChatLinkPreviewView.self).map(ObjectIdentifier.init)) == originalIDs)
         }
         // 编辑附件前的文字会改变 provider 的文档位置，也必须保留预览。
         composer.textView.selectedRange = .init(location: 0, length: 0)
         composer.textView.insertText("prefix\n")
         layout()
-        #expect(Set(descendants(composer.textView, of: LPLinkView.self).map(ObjectIdentifier.init)) == originalIDs)
+        #expect(Set(descendants(composer.textView, of: IMessageChatLinkPreviewView.self).map(ObjectIdentifier.init)) == originalIDs)
         #expect(composer.orderedDocumentIDs.count == 2)
         #expect(composer.textView.isFirstResponder)
 
@@ -195,10 +472,10 @@ struct IMessageChatDocumentTests {
         root.view.addSubview(secondEditor)
         secondEditor.attributedText = composer.textView.attributedText
         secondEditor.layoutIfNeeded()
-        let secondLinks = descendants(secondEditor, of: LPLinkView.self)
+        let secondLinks = descendants(secondEditor, of: IMessageChatLinkPreviewView.self)
         #expect(secondLinks.count == 2)
         #expect(Set(secondLinks.map(ObjectIdentifier.init)).isDisjoint(with: originalIDs))
-        #expect(Set(descendants(composer.textView, of: LPLinkView.self).map(ObjectIdentifier.init)) == originalIDs)
+        #expect(Set(descendants(composer.textView, of: IMessageChatLinkPreviewView.self).map(ObjectIdentifier.init)) == originalIDs)
 
         // 元数据真正变化时只更新对应卡片，另一张已加载预览保持不变。
         let firstID = try #require(composer.orderedDocumentIDs.first)
@@ -209,9 +486,9 @@ struct IMessageChatDocumentTests {
         updatedLink.title = "Updated Apple"
         composer.updateDocument(.init(attachment: .link(updatedLink)))
         layout()
-        let updatedLinks = descendants(composer.textView, of: LPLinkView.self)
+        let updatedLinks = descendants(composer.textView, of: IMessageChatLinkPreviewView.self)
         #expect(updatedLinks.count == 2)
-        #expect(updatedLinks.contains { $0.metadata.title == "Updated Apple" })
+        #expect(updatedLinks.contains { $0.link?.title == "Updated Apple" })
         #expect(Set(updatedLinks.map(ObjectIdentifier.init)).intersection(originalIDs).count == 1)
         composer.removeDocument(firstID, notify: false)
         layout()

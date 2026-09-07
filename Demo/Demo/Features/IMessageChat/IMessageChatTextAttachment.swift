@@ -1,4 +1,3 @@
-import LinkPresentation
 import QuickLayout
 import QuickLayoutKit
 import UIKit
@@ -9,6 +8,10 @@ private enum IMessageChatAttachmentCardStyle {
     static let thumbnailSize: CGFloat = 60
     static let thumbnailCornerRadius: CGFloat = 4
     static let textSpacing: CGFloat = 2
+    static let contentInset: CGFloat = 12
+    static let iconTextSpacing: CGFloat = 12
+    // 内容自身的右内边距也计入删除按钮的 44 pt 点击区域，避免重复留白。
+    static let removeReservedWidth: CGFloat = 44 - contentInset
 
     static func titleFont(for traits: UITraitCollection) -> UIFont {
         UIFontMetrics(forTextStyle: .subheadline).scaledFont(
@@ -31,6 +34,7 @@ final class IMessageChatTextAttachment: NSTextAttachment {
     var direction: UIUserInterfaceLayoutDirection = .leftToRight
     var open: (() -> Void)? { didSet { cards.allObjects.forEach(configureActions) } }
     var remove: (() -> Void)? { didSet { cards.allObjects.forEach(configureActions) } }
+    var sizeDidChange: (() -> Void)?
     private let cards = NSHashTable<IMessageChatAttachmentCard>.weakObjects()
     /// TextKit 重排时会更换 provider；同一布局管理器继续使用已加载的卡片。
     /// 弱键避免延长编辑器生命周期，不同编辑器也不会争用同一个 UIView。
@@ -71,10 +75,27 @@ final class IMessageChatTextAttachment: NSTextAttachment {
         }
         let card = IMessageChatAttachmentCard(frame: .zero)
         register(card)
+        card.preferredSizeDidChange = { [weak self, weak layoutManager] in
+            if let layoutManager, let content = layoutManager.textContentManager {
+                layoutManager.invalidateLayout(for: content.documentRange)
+            }
+            self?.sizeDidChange?()
+        }
         if let layoutManager { editorCards.setObject(card, forKey: layoutManager) }
         return card
     }
-    func refresh() { cards.allObjects.forEach(configure) }
+    func preferredSize(maximumWidth: CGFloat, layoutManager: NSTextLayoutManager?) -> CGSize {
+        card(for: layoutManager).preferredSize(maximumWidth: maximumWidth)
+    }
+    func refresh() {
+        cards.allObjects.forEach(configure)
+        for case let manager as NSTextLayoutManager in editorCards.keyEnumerator() {
+            if let content = manager.textContentManager {
+                manager.invalidateLayout(for: content.documentRange)
+            }
+        }
+        sizeDidChange?()
+    }
     private func configure(_ card: IMessageChatAttachmentCard) {
         card.semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight
         card.configure(draft)
@@ -109,8 +130,98 @@ private final class IMessageChatAttachmentProvider: NSTextAttachmentViewProvider
         view = host
     }
     override func attachmentBounds(for attributes: [NSAttributedString.Key: Any], location: any NSTextLocation, textContainer: NSTextContainer?, proposedLineFragment: CGRect, position: CGPoint) -> CGRect {
-        CGRect(x: 0, y: 0, width: max(1, proposedLineFragment.width),
-               height: IMessageChatTextAttachment.height(for: view?.traitCollection ?? UITraitCollection()))
+        guard let attachment = textAttachment as? IMessageChatTextAttachment else { return .zero }
+        return CGRect(origin: .zero, size: attachment.preferredSize(
+            maximumWidth: max(1, proposedLineFragment.width), layoutManager: textLayoutManager
+        ))
+    }
+}
+
+/// 使用已经缓存的元数据渲染链接，测量与绘制共用同一份内容和字体。
+@available(iOS 26.0, *)
+final class IMessageChatLinkPreviewView: UIView {
+    let link: IMessageChatLinkAttachment?
+    private let coverView = UIImageView()
+    private let siteIconView = UIImageView()
+    private let titleLabel = UILabel()
+    private let domainLabel = UILabel()
+    var showsRemoveButton = false { didSet { setNeedsLayout() } }
+    var hasCover: Bool { coverView.image != nil }
+    var hasSiteIcon: Bool { siteIconView.image != nil }
+
+    init(link: IMessageChatLinkAttachment? = nil) {
+        self.link = link
+        super.init(frame: .zero)
+        coverView.image = link?.imageURL.flatMap { UIImage(contentsOfFile: $0.path) }
+        siteIconView.image = link?.iconURL.flatMap { UIImage(contentsOfFile: $0.path) }
+        coverView.contentMode = .scaleAspectFit
+        coverView.backgroundColor = .systemGray6
+        siteIconView.contentMode = .scaleAspectFit
+        siteIconView.layer.cornerRadius = 4
+        siteIconView.clipsToBounds = true
+        titleLabel.text = link?.title ?? link?.url.host ?? link?.url.absoluteString
+        domainLabel.text = link?.url.host ?? link?.url.absoluteString
+        titleLabel.numberOfLines = hasCover ? 2 : 1
+        titleLabel.lineBreakMode = .byTruncatingTail
+        domainLabel.lineBreakMode = .byTruncatingMiddle
+        titleLabel.textColor = .label
+        domainLabel.textColor = .secondaryLabel
+        backgroundColor = .systemGray5
+        [coverView, siteIconView, titleLabel, domainLabel].forEach(addSubview)
+        coverView.isHidden = !hasCover
+        siteIconView.isHidden = hasCover || !hasSiteIcon
+        isUserInteractionEnabled = false
+        accessibilityElementsHidden = true
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    private func updateFonts() {
+        titleLabel.font = UIFontMetrics(forTextStyle: .body).scaledFont(
+            for: .systemFont(ofSize: 16, weight: .semibold), compatibleWith: traitCollection)
+        domainLabel.font = UIFontMetrics(forTextStyle: .subheadline).scaledFont(
+            for: .systemFont(ofSize: 14), compatibleWith: traitCollection)
+    }
+    private func coverHeight(width: CGFloat) -> CGFloat {
+        guard let image = coverView.image, image.size.width > 0 else { return 0 }
+        return ceil(width * min(0.75, max(0.45, image.size.height / image.size.width)))
+    }
+    override func sizeThatFits(_ size: CGSize) -> CGSize {
+        updateFonts()
+        let maximumWidth = max(1, size.width)
+        let iconSpace: CGFloat = hasSiteIcon && !hasCover ? 44 : 0
+        let removeSpace: CGFloat = showsRemoveButton && !hasCover ? 36 : 0
+        let naturalWidth = max(titleLabel.intrinsicContentSize.width, domainLabel.intrinsicContentSize.width)
+            + 24 + iconSpace + removeSpace
+        let width = hasCover ? maximumWidth : min(maximumWidth, max(110, ceil(naturalWidth)))
+        let textWidth = max(1, width - 24 - iconSpace - removeSpace)
+        let titleHeight = ceil(titleLabel.sizeThatFits(CGSize(width: textWidth, height: CGFloat.greatestFiniteMagnitude)).height)
+        let textHeight = titleHeight + 2 + ceil(domainLabel.font.lineHeight)
+        return CGSize(width: width, height: hasCover
+            ? coverHeight(width: width) + textHeight + 16
+            : max(54, textHeight + 16))
+    }
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        updateFonts()
+        let headerHeight = hasCover ? coverHeight(width: bounds.width) : 0
+        coverView.frame = CGRect(x: 0, y: 0, width: bounds.width, height: headerHeight)
+        var content = CGRect(x: 12, y: headerHeight + 8, width: max(1, bounds.width - 24),
+                             height: max(1, bounds.height - headerHeight - 16))
+        if showsRemoveButton && !hasCover { content.size.width = max(1, content.width - 36) }
+        let rtl = effectiveUserInterfaceLayoutDirection == .rightToLeft
+        if hasSiteIcon && !hasCover {
+            siteIconView.frame = CGRect(x: rtl ? content.minX : content.maxX - 34,
+                y: content.midY - 17, width: 34, height: 34)
+            if rtl { content.origin.x += 44 }
+            content.size.width = max(1, content.width - 44)
+        }
+        let titleHeight = min(ceil(titleLabel.sizeThatFits(CGSize(width: content.width,
+            height: CGFloat.greatestFiniteMagnitude)).height), content.height)
+        titleLabel.textAlignment = rtl ? .right : .left
+        domainLabel.textAlignment = titleLabel.textAlignment
+        titleLabel.frame = CGRect(x: content.minX, y: content.minY, width: content.width, height: titleHeight)
+        domainLabel.frame = CGRect(x: content.minX, y: titleLabel.frame.maxY + 2, width: content.width,
+                                  height: ceil(domainLabel.font.lineHeight))
     }
 }
 
@@ -180,7 +291,7 @@ final class IMessageChatAttachmentThumbnailView: UIView {
     }
 }
 
-/// 网页使用系统富链接视图，文件与单项媒体共用带独立删除区的附件卡片。
+/// 链接按封面和图标内容测量，文件与单项媒体共用带独立删除区的附件卡片。
 @available(iOS 26.0, *)
 final class IMessageChatAttachmentCard: QuickLayoutView, UIGestureRecognizerDelegate {
     private let icon = IMessageChatAttachmentThumbnailView()
@@ -189,13 +300,49 @@ final class IMessageChatAttachmentCard: QuickLayoutView, UIGestureRecognizerDele
     private let detailLabel = UILabel()
     private let removeButton = IMessageChatDraftRemoveButton(frame: .zero)
     private let openGesture = UITapGestureRecognizer()
-    private var linkView = LPLinkView(metadata: LPLinkMetadata())
+    private var linkView = IMessageChatLinkPreviewView()
+    private var lastMeasurement: (width: CGFloat, size: CGSize)?
+    var preferredSizeDidChange: (() -> Void)?
     private var isLink = false
     private var isVideo = false
     private var configuredDraft: IMessageChatDocumentDraft?
+    /// 发送气泡和 TextKit 附件共用测量，保留大封面与紧凑卡的差异。
+    func preferredSize(maximumWidth: CGFloat) -> CGSize {
+        let width = max(1, maximumWidth)
+        let size: CGSize
+        if isLink && !traitCollection.preferredContentSizeCategory.isAccessibilityCategory {
+            let fitted = linkView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+            size = CGSize(
+                width: min(width, max(44, ceil(fitted.width.isFinite ? fitted.width : width))),
+                height: max(44, ceil(fitted.height.isFinite ? fitted.height : 84))
+            )
+        } else {
+            // 最大宽度只作为上限；短文件名不应把剩余空间留在文字右侧。
+            let textWidth = max(0, titleLabel.intrinsicContentSize.width, detailLabel.intrinsicContentSize.width)
+            let iconWidth = isLink ? 0 : IMessageChatAttachmentCardStyle.thumbnailSize
+                + IMessageChatAttachmentCardStyle.iconTextSpacing
+            let naturalWidth = ceil(textWidth + iconWidth
+                + IMessageChatAttachmentCardStyle.contentInset * 2
+                + (remove == nil ? 0 : IMessageChatAttachmentCardStyle.removeReservedWidth))
+            size = CGSize(width: min(width, max(44, naturalWidth)),
+                          height: IMessageChatTextAttachment.height(for: traitCollection))
+        }
+        lastMeasurement = (width, size)
+        return size
+    }
+
+    private func linkPreferredSizeDidChange() {
+        guard let previous = lastMeasurement else { return }
+        let size = preferredSize(maximumWidth: previous.width)
+        guard size != previous.size else { return }
+        setNeedsQuickLayout()
+        invalidateIntrinsicContentSize()
+        preferredSizeDidChange?()
+    }
     var open: (() -> Void)? { didSet { refreshAccessibilityActions() } }
     var remove: (() -> Void)? {
         didSet {
+            linkView.showsRemoveButton = remove != nil
             removeButton.isHidden = remove == nil
             removeButton.isEnabled = remove != nil
             refreshAccessibilityActions()
@@ -204,38 +351,45 @@ final class IMessageChatAttachmentCard: QuickLayoutView, UIGestureRecognizerDele
     }
 
     @LayoutBuilder override var body: Layout {
-        // 删除区独占宽度，不覆盖富链接、文件名或视频时长；RTL 下仍固定在物理右上角。
-        HStack(alignment: .top, spacing: 0) {
-            if effectiveUserInterfaceLayoutDirection == .rightToLeft, remove != nil {
-                removeButton.resizable().frame(width: 44, height: 44)
-            }
-            cardContent.frame(maxWidth: .infinity, maxHeight: .infinity)
-            if effectiveUserInterfaceLayoutDirection != .rightToLeft, remove != nil {
-                removeButton.resizable().frame(width: 44, height: 44)
-            }
-        }.frame(maxWidth: .infinity, maxHeight: .infinity)
+        if isLink && !traitCollection.preferredContentSizeCategory.isAccessibilityCategory {
+            // 封面和文字背景覆盖整张卡片；删除按钮叠放，不添加异色侧栏。
+            ZStack(alignment: effectiveUserInterfaceLayoutDirection == .rightToLeft
+                ? .topLeading : .topTrailing) {
+                linkView.resizable().frame(maxWidth: .infinity, maxHeight: .infinity)
+                if remove != nil {
+                    removeButton.resizable().frame(width: 44, height: 44)
+                }
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            // 点击区与内容右内边距共用空间，文字仍停在点击区之外。
+            ZStack(alignment: effectiveUserInterfaceLayoutDirection == .rightToLeft
+                ? .topLeading : .topTrailing) {
+                cardContent.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(effectiveUserInterfaceLayoutDirection == .rightToLeft ? .leading : .trailing,
+                             remove == nil ? 0 : IMessageChatAttachmentCardStyle.removeReservedWidth)
+                if remove != nil {
+                    removeButton.resizable().frame(width: 44, height: 44)
+                }
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
     }
 
     @LayoutBuilder private var cardContent: Layout {
-        if isLink && !traitCollection.preferredContentSizeCategory.isAccessibilityCategory {
-            linkView.resizable().frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            HStack(alignment: .center, spacing: 12) {
-                if !isLink || !traitCollection.preferredContentSizeCategory.isAccessibilityCategory {
-                    ZStack {
-                        icon.resizable().frame(
-                            width: IMessageChatAttachmentCardStyle.thumbnailSize,
-                            height: IMessageChatAttachmentCardStyle.thumbnailSize
-                        )
-                        if isVideo { playBadge.resizable().frame(width: 28, height: 28) }
-                    }
+        HStack(alignment: .center, spacing: IMessageChatAttachmentCardStyle.iconTextSpacing) {
+            if !isLink {
+                ZStack {
+                    icon.resizable().frame(
+                        width: IMessageChatAttachmentCardStyle.thumbnailSize,
+                        height: IMessageChatAttachmentCardStyle.thumbnailSize
+                    )
+                    if isVideo { playBadge.resizable().frame(width: 28, height: 28) }
                 }
-                VStack(alignment: .leading, spacing: IMessageChatAttachmentCardStyle.textSpacing) {
-                    titleLabel.resizable(axis: .horizontal).fixedSize(axis: .vertical)
-                    detailLabel.resizable(axis: .horizontal).fixedSize(axis: .vertical)
-                }
-            }.padding(12)
-        }
+            }
+            VStack(alignment: .leading, spacing: IMessageChatAttachmentCardStyle.textSpacing) {
+                titleLabel.resizable(axis: .horizontal).fixedSize(axis: .vertical)
+                detailLabel.resizable(axis: .horizontal).fixedSize(axis: .vertical)
+            }
+        }.padding(IMessageChatAttachmentCardStyle.contentInset)
     }
 
     override init(frame: CGRect) {
@@ -270,6 +424,7 @@ final class IMessageChatAttachmentCard: QuickLayoutView, UIGestureRecognizerDele
         registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) {
             (card: IMessageChatAttachmentCard, _: UITraitCollection) in
             if let draft = card.configuredDraft { card.configure(draft) }
+            DispatchQueue.main.async { [weak card] in card?.linkPreferredSizeDidChange() }
         }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -298,16 +453,8 @@ final class IMessageChatAttachmentCard: QuickLayoutView, UIGestureRecognizerDele
         case .link(let link):
             isLink = true
             if configuredDraft != draft {
-                let metadata = LPLinkMetadata()
-                metadata.originalURL = link.url
-                metadata.url = link.url
-                metadata.title = link.title ?? link.url.host
-                if let url = link.imageURL, let image = UIImage(contentsOfFile: url.path) {
-                    metadata.imageProvider = NSItemProvider(object: image)
-                }
-                linkView = LPLinkView(metadata: metadata)
-                linkView.isUserInteractionEnabled = false
-                linkView.accessibilityElementsHidden = true
+                linkView = IMessageChatLinkPreviewView(link: link)
+                linkView.showsRemoveButton = remove != nil
             }
             titleLabel.text = link.title ?? link.url.host ?? link.url.absoluteString
             detailLabel.text = link.url.path.isEmpty || link.url.path == "/" ? link.url.scheme?.uppercased() : link.url.path
@@ -401,10 +548,11 @@ final class IMessageChatDocumentBubbleCell: QuickLayoutCollectionViewCell {
     var open: ((IMessageChatAttachment) -> Void)?
     override var quickLayoutDirectionViews: [UIView] { super.quickLayoutDirectionViews + [card] }
     @LayoutBuilder override var body: Layout {
+        let cardSize = card.preferredSize(maximumWidth: maximumBubbleWidth)
         HStack(spacing: 0) {
             if message?.direction == .outgoing { Spacer() }
             VStack(alignment: message?.direction == .outgoing ? .trailing : .leading, spacing: 3) {
-                card.frame(width: maximumBubbleWidth, height: IMessageChatTextAttachment.height(for: traitCollection))
+                card.frame(width: cardSize.width, height: cardSize.height)
                 if message?.deliveryText != nil { deliveryLabel }
             }
             if message?.direction != .outgoing { Spacer() }
@@ -417,10 +565,22 @@ final class IMessageChatDocumentBubbleCell: QuickLayoutCollectionViewCell {
         deliveryLabel.font = .preferredFont(forTextStyle: .caption2)
         deliveryLabel.adjustsFontForContentSizeCategory = true
         deliveryLabel.textColor = .secondaryLabel
+        card.preferredSizeDidChange = { [weak self] in
+            guard let self else { return }
+            setNeedsQuickLayout()
+            var ancestor = superview
+            while let view = ancestor {
+                if let collection = view as? UICollectionView {
+                    collection.collectionViewLayout.invalidateLayout()
+                    break
+                }
+                ancestor = view.superview
+            }
+        }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func preferredLayoutAttributesFitting(_ attributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
-        maximumBubbleWidth = max(230, attributes.size.width * 0.78)
+        maximumBubbleWidth = max(1, min(attributes.size.width - 24, attributes.size.width * 0.70))
         setNeedsQuickLayout()
         return super.preferredLayoutAttributesFitting(attributes)
     }

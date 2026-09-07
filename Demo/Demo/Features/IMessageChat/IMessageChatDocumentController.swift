@@ -115,15 +115,23 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
                   let self, !Task.isCancelled, drafts[link.id] != nil else { return }
             var updated = link
             updated.title = metadata.title
-            if let imageProvider = metadata.imageProvider ?? metadata.iconProvider,
-               let data = try? await Self.imageData(from: imageProvider),
-               let image = UIImage(data: data), let jpeg = image.jpegData(compressionQuality: 0.8),
-               !Task.isCancelled, drafts[link.id] != nil {
-                let path = store.makeFileURL(prefix: "link", pathExtension: "jpg")
-                if (try? jpeg.write(to: path)) != nil { updated.imageURL = path }
+            var pendingFiles: [URL] = []
+            defer { pendingFiles.forEach { store.removeFile(at: $0) } }
+            // 封面和站点图标是两种展示语义，不能把 favicon 当成大图。
+            for (isIcon, itemProvider) in [(false, metadata.imageProvider), (true, metadata.iconProvider)] {
+                guard let itemProvider,
+                      let data = try? await Self.imageData(from: itemProvider),
+                      let image = UIImage(data: data), let png = image.pngData(),
+                      !Task.isCancelled, drafts[link.id] != nil else { continue }
+                let path = store.makeFileURL(prefix: isIcon ? "link-icon" : "link-image", pathExtension: "png")
+                if (try? png.write(to: path)) != nil {
+                    pendingFiles.append(path)
+                    if isIcon { updated.iconURL = path } else { updated.imageURL = path }
+                }
             }
             guard !Task.isCancelled, drafts[link.id] != nil else { return }
             update(.init(attachment: .link(updated)))
+            pendingFiles.removeAll()
             tasks[link.id] = nil
             providers[link.id] = nil
         }

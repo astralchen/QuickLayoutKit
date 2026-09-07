@@ -240,6 +240,8 @@ nonisolated struct IMessageChatLinkAttachment: Equatable, Hashable, Sendable {
     let url: URL
     var title: String? = nil
     var imageURL: URL? = nil
+    /// 网站图标单独保存，避免被当作封面放大。
+    var iconURL: URL? = nil
 
     static func accepts(_ url: URL) -> Bool {
         ["http", "https"].contains(url.scheme?.lowercased() ?? "")
@@ -284,7 +286,7 @@ nonisolated enum IMessageChatAttachment: Equatable, Hashable, Sendable {
         case .mediaGroup(let attachment):
             attachment.localFileURLs
         case .file(let file): [file.fileURL] + [file.thumbnailURL].compactMap { $0 }
-        case .link(let link): [link.imageURL].compactMap { $0 }
+        case .link(let link): [link.imageURL, link.iconURL].compactMap { $0 }
         }
     }
 
