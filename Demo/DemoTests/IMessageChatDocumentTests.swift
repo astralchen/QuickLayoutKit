@@ -8,6 +8,124 @@ import LinkPresentation
 @MainActor
 @Suite(.serialized)
 struct IMessageChatDocumentTests {
+    @Test func attachmentThumbnailRoundsTheVisibleImageAfterAspectFitAndReuse() throws {
+        let thumbnail = IMessageChatAttachmentThumbnailView(frame: .init(x: 0, y: 0, width: 48, height: 56))
+        // 此项只测图片圆角透明度，排除外层阴影在圆角外产生的半透明像素。
+        thumbnail.layer.shadowOpacity = 0
+        for (imageSize, mode, corner, edge) in [
+            (CGSize(width: 120, height: 120), UIView.ContentMode.scaleAspectFit, CGPoint(x: 0, y: 4), CGPoint(x: 24, y: 5)),
+            (CGSize(width: 120, height: 280), .scaleAspectFit, CGPoint(x: 12, y: 0), CGPoint(x: 24, y: 1)),
+            (CGSize(width: 120, height: 120), .scaleAspectFill, CGPoint(x: 0, y: 0), CGPoint(x: 24, y: 1)),
+        ] {
+            thumbnail.contentMode = mode
+            thumbnail.image = UIGraphicsImageRenderer(size: imageSize).image { context in
+                UIColor.white.setFill()
+                context.fill(CGRect(origin: .zero, size: imageSize))
+            }
+            thumbnail.layoutIfNeeded()
+            var pixels = [UInt8](repeating: 0, count: 48 * 56 * 4)
+            try pixels.withUnsafeMutableBytes { bytes in
+                let context = try #require(CGContext(
+                    data: bytes.baseAddress, width: 48, height: 56, bitsPerComponent: 8,
+                    bytesPerRow: 48 * 4, space: CGColorSpaceCreateDeviceRGB(),
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
+                ))
+                thumbnail.layer.render(in: context)
+            }
+            func alpha(_ point: CGPoint) -> UInt8 { pixels[(Int(point.y) * 48 + Int(point.x)) * 4 + 3] }
+            #expect(alpha(corner) < 10, "The visible image corner must be transparent")
+            #expect(alpha(edge) > 245, "The straight image edge must remain visible")
+            #expect(alpha(CGPoint(x: 24, y: 28)) > 245)
+        }
+    }
+
+    @Test func attachmentRemoveButtonsRespectRoundedCornersAndKeepTheirHitArea() throws {
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.windows.first(where: \.isKeyWindow)
+        let root = UIViewController()
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = root
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey() }
+        window.overrideUserInterfaceStyle = .dark
+        root.view.backgroundColor = .systemBackground
+        let thumbnailURL = FileManager.default.temporaryDirectory.appendingPathComponent("attachment-audio-audit.png")
+        let thumbnail = UIGraphicsImageRenderer(size: CGSize(width: 100, height: 100)).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 100, height: 100))
+            UIImage(systemName: "music.note")?.withTintColor(.lightGray, renderingMode: .alwaysOriginal)
+                .draw(in: CGRect(x: 25, y: 20, width: 50, height: 60))
+        }
+        try thumbnail.pngData()?.write(to: thumbnailURL)
+        defer { try? FileManager.default.removeItem(at: thumbnailURL) }
+        var documents = IMessageChatPreviewData.documentDrafts
+        if case .file(var file) = documents[0].attachment {
+            file.thumbnailURL = thumbnailURL
+            documents[0] = .init(attachment: .file(file))
+        }
+        let drafts = documents
+            + IMessageChatPreviewData.pastedMediaDrafts
+            + [.init(attachment: .audio(IMessageChatPreviewData.audioAttachment))]
+        func descendants<T: UIView>(_ view: UIView, of type: T.Type) -> [T] {
+            view.subviews.flatMap { child in
+                (child as? T).map { [$0] } ?? descendants(child, of: type)
+            }
+        }
+        for (direction, style) in [
+            (UIUserInterfaceLayoutDirection.leftToRight, UIUserInterfaceStyle.light),
+            (.rightToLeft, .dark),
+        ] {
+            window.overrideUserInterfaceStyle = style
+            for width: CGFloat in [248, 180] {
+                let cards = drafts.enumerated().map { index, draft in
+                    let card = IMessageChatAttachmentCard(frame: .init(
+                        x: 20, y: 70 + CGFloat(index) * 96, width: width,
+                        height: IMessageChatTextAttachment.height(for: root.traitCollection)
+                    ))
+                    card.semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight
+                    root.view.addSubview(card)
+                    card.configure(draft)
+                    return card
+                }
+                for card in cards {
+                    var removals = 0
+                    var opens = 0
+                    card.remove = { removals += 1 }
+                    card.open = { opens += 1 }
+                    card.layoutIfNeeded()
+                    let button = try #require(descendants(card, of: IMessageChatDraftRemoveButton.self).first)
+                    let circle = try #require(button.subviews.first)
+                    let visualFrame = circle.convert(circle.bounds, to: card)
+                    let hitFrame = button.convert(button.bounds, to: card)
+                    #expect(visualFrame.size == CGSize(width: 18, height: 18))
+                    #expect(abs(visualFrame.minY - 8) < 0.5)
+                    #expect(abs(card.bounds.maxX - visualFrame.maxX - 8) < 0.5)
+                    #expect(hitFrame.size == CGSize(width: 44, height: 44))
+                    #expect(card.bounds.contains(hitFrame))
+                    let expandedHitPoint = CGPoint(x: hitFrame.minX + 5, y: hitFrame.maxY - 5)
+                    #expect(!visualFrame.contains(expandedHitPoint))
+                    #expect(card.hitTest(expandedHitPoint, with: nil) === button)
+                    for label in descendants(card, of: UILabel.self) where !label.isHidden && !(label.text ?? "").isEmpty {
+                        let labelFrame = label.convert(label.bounds, to: card)
+                        #expect(!labelFrame.intersects(hitFrame))
+                    }
+                    button.sendActions(for: .touchUpInside)
+                    #expect(removals == 1 && opens == 0)
+                    #expect(card.accessibilityActivate())
+                    #expect(opens == 1)
+                }
+                root.view.layoutIfNeeded()
+                let name = direction == .rightToLeft ? "rtl" : "ltr"
+                let image = UIGraphicsImageRenderer(bounds: root.view.bounds).image { _ in
+                    root.view.drawHierarchy(in: root.view.bounds, afterScreenUpdates: true)
+                }
+                try image.pngData()?.write(to: FileManager.default.temporaryDirectory
+                    .appendingPathComponent("attachment-corner-audit-\(name)-\(Int(width)).png"))
+                cards.forEach { $0.removeFromSuperview() }
+            }
+        }
+    }
+
     @Test func typingAfterLoadedLinksPreservesPreviewViews() async throws {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: \.isKeyWindow)

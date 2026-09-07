@@ -83,6 +83,48 @@ final class IMessageChatComposerHitButton: UIButton {
     }
 }
 
+/// 照片和内联附件共用的删除按钮。按 iPhone 16 Pro @3x 参考图，
+/// 圆形视觉直径为 18 点；照片默认右上内缩 4 点，大圆角附件卡片可增加留白。
+/// 44 点控件区域向卡片内部延伸，不随视觉边距变化。
+@available(iOS 26.0, *)
+final class IMessageChatDraftRemoveButton: UIButton {
+    var visualInset: CGFloat = 4 {
+        didSet { setNeedsLayout() }
+    }
+    private let circleView = UIView()
+    private let crossView = UIImageView(image: UIImage(
+        systemName: "xmark",
+        withConfiguration: UIImage.SymbolConfiguration(pointSize: 10, weight: .bold)
+    ))
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        circleView.backgroundColor = UIColor(white: 0.45, alpha: 0.85)
+        circleView.layer.cornerRadius = 9
+        circleView.isUserInteractionEnabled = false
+        crossView.tintColor = .white
+        crossView.contentMode = .scaleAspectFit
+        circleView.addSubview(crossView)
+        addSubview(circleView)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var isHighlighted: Bool {
+        didSet { circleView.alpha = isHighlighted ? 0.6 : 1 }
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        circleView.frame = CGRect(
+            x: bounds.maxX - visualInset - 18, y: visualInset, width: 18, height: 18
+        )
+        crossView.frame = circleView.bounds.insetBy(dx: 4, dy: 4)
+    }
+}
+
 /// ``IMessageChatComposerView`` 使用的本地化字符串。
 nonisolated struct IMessageChatComposerStrings: Equatable, Sendable {
     let placeholder: String
@@ -328,11 +370,10 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                 .resizable(axis: .horizontal)
                 .fixedSize(axis: .vertical)
                 .padding(.horizontal, 8)
-                .padding(.top, 8)
                 .frame(
                     maxWidth: .infinity,
                     maxHeight: .infinity,
-                    alignment: .topLeading
+                    alignment: .leading
                 )
             self.recordingUnavailableLabel
                 .resizable()
@@ -1527,6 +1568,22 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     private func updateTextHeight(availableWidth: CGFloat? = nil) {
         guard !isShowingRecordingUnavailableHint else { return }
         let font = textView.font ?? .preferredFont(forTextStyle: .body)
+        let width = max(1, availableWidth ?? textView.bounds.width)
+        let previousInsets = textView.textContainerInset
+        let measuredContentHeight = max(0, textView.sizeThatFits(
+            CGSize(width: width, height: .greatestFiniteMagnitude)
+        ).height - previousInsets.top - previousInsets.bottom)
+        // 44 点胶囊比单行排版高，把剩余高度平分到上下；多行仍使用 8 点。
+        // 先扣除旧内边距，避免连续测量把上一轮居中留白重复计入高度。
+        let verticalInset = max(8, (Metrics.textInputHeight - measuredContentHeight) / 2)
+        if abs(previousInsets.top - verticalInset) > 0.01
+            || abs(previousInsets.bottom - verticalInset) > 0.01 {
+            textView.textContainerInset = UIEdgeInsets(
+                top: verticalInset, left: previousInsets.left,
+                bottom: verticalInset, right: previousInsets.right
+            )
+            editorContainer.setNeedsQuickLayout()
+        }
         let attachmentHeight = CGFloat(textAttachments.count) * (IMessageChatTextAttachment.height(for: traitCollection) + ceil(font.lineHeight))
         let contentLimit = attachmentHeight + ceil(font.lineHeight * 5)
             + textView.textContainerInset.top
@@ -1535,10 +1592,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         let viewportLimit = textAttachments.isEmpty ? contentLimit
             : max(180, (window?.bounds.height ?? 874) * 0.42)
         let maximumHeight = min(contentLimit, viewportLimit)
-        let width = max(1, availableWidth ?? textView.bounds.width)
-        let measuredHeight = textView.sizeThatFits(
-            CGSize(width: width, height: .greatestFiniteMagnitude)
-        ).height
+        let measuredHeight = measuredContentHeight + verticalInset * 2
         let resolvedHeight = min(max(44, ceil(measuredHeight)), maximumHeight)
         textView.isScrollEnabled = measuredHeight > maximumHeight + 0.5
 

@@ -229,7 +229,7 @@ final class IMessageChatMediaDraftStripView: UIView {
         let durationLabel = UILabel()
         let animatedBadgeView = UIView()
         let animatedBadgeImageView = UIImageView()
-        let removeButton = UIButton(type: .system)
+        let removeButton = IMessageChatDraftRemoveButton(frame: .zero)
         var order = 0
         var itemSize = IMessageChatMediaDraftLayoutPolicy.itemSize(for: nil)
         var removeRequested: (() -> Void)?
@@ -273,13 +273,6 @@ final class IMessageChatMediaDraftStripView: UIView {
             animatedBadgeView.addSubview(animatedBadgeImageView)
             addSubview(animatedBadgeView)
 
-            var configuration = UIButton.Configuration.filled()
-            configuration.image = UIImage(systemName: "xmark")
-            configuration.baseForegroundColor = .white
-            configuration.baseBackgroundColor = UIColor.black.withAlphaComponent(0.62)
-            configuration.contentInsets = .zero
-            configuration.cornerStyle = .capsule
-            removeButton.configuration = configuration
             removeButton.addTarget(self, action: #selector(removeTapped), for: .touchUpInside)
             addSubview(removeButton)
         }
@@ -292,7 +285,7 @@ final class IMessageChatMediaDraftStripView: UIView {
             super.layoutSubviews()
             imageView.frame = bounds
             activityIndicator.center = CGPoint(x: bounds.midX, y: bounds.midY)
-            removeButton.frame = CGRect(x: bounds.maxX - 32, y: 0, width: 32, height: 32)
+            removeButton.frame = CGRect(x: bounds.maxX - 44, y: 0, width: 44, height: 44)
             animatedBadgeView.frame = CGRect(x: 6, y: 6, width: 28, height: 28)
             animatedBadgeImageView.frame = animatedBadgeView.bounds.insetBy(dx: 5, dy: 5)
             videoBadge.frame = CGRect(x: 8, y: bounds.maxY - 26, width: 20, height: 18)

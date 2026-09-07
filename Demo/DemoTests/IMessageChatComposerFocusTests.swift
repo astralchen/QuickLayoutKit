@@ -1,10 +1,54 @@
 import Testing
 import UIKit
+import QuickLayoutKit
 @testable import Demo
 
 @MainActor
 @Suite(.serialized)
 struct IMessageChatComposerFocusTests {
+    @Test func singleLineCaretAndPlaceholderStayVerticallyCentered() throws {
+        let scene = try #require(
+            UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        )
+        let previous = scene.windows.first(where: \.isKeyWindow)
+        let controller = UIViewController()
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey() }
+        let composer = IMessageChatComposerView(
+            frame: CGRect(x: 0, y: 100, width: 402, height: 60)
+        )
+        composer.configure(strings: IMessageChatPreviewData.composerStrings)
+        controller.view.addSubview(composer)
+        composer.layoutIfNeeded()
+        #expect(composer.textView.becomeFirstResponder())
+        for text in ["", "Hello", "你好", "one\ntwo\nthree", "Hello", ""] {
+            composer.textView.text = text
+            composer.textViewDidChange(composer.textView)
+            composer.frame.size.height = composer.intrinsicContentSize.height
+            composer.setNeedsQuickLayout()
+            composer.layoutIfNeeded()
+            composer.textView.layoutIfNeeded()
+            let editor = composer.textView
+            if text.contains("\n") {
+                #expect(editor.bounds.height > 44)
+                #expect(editor.textContainerInset.top == 8)
+                continue
+            }
+            let caret = editor.caretRect(for: editor.beginningOfDocument)
+            #expect(abs(caret.midY - editor.bounds.midY) < 1,
+                    "Text: \(text), caret: \(caret), editor: \(editor.bounds)")
+            #expect(abs(editor.bounds.height - 44) < 0.5)
+            if text.isEmpty {
+                let placeholder = composer.placeholderLabel.convert(
+                    composer.placeholderLabel.bounds, to: editor
+                )
+                #expect(abs(placeholder.midY - editor.bounds.midY) < 1)
+            }
+        }
+    }
+
     @Test func audioStatesPreserveUserSelectedTextFocus() async throws {
         let scene = try #require(
             UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first

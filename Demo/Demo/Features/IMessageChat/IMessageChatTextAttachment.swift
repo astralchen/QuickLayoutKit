@@ -4,6 +4,25 @@ import QuickLayoutKit
 import UIKit
 import UniformTypeIdentifiers
 
+@available(iOS 26.0, *)
+private enum IMessageChatAttachmentCardStyle {
+    static let thumbnailSize: CGFloat = 60
+    static let thumbnailCornerRadius: CGFloat = 4
+    static let textSpacing: CGFloat = 2
+
+    static func titleFont(for traits: UITraitCollection) -> UIFont {
+        UIFontMetrics(forTextStyle: .subheadline).scaledFont(
+            for: .systemFont(ofSize: 15, weight: .semibold), compatibleWith: traits
+        )
+    }
+
+    static func detailFont(for traits: UITraitCollection) -> UIFont {
+        UIFontMetrics(forTextStyle: .footnote).scaledFont(
+            for: .systemFont(ofSize: 13), compatibleWith: traits
+        )
+    }
+}
+
 /// 编辑器保存值模型和稳定身份；文件由文档控制器管理，与录音状态无关。
 @available(iOS 26.0, *)
 final class IMessageChatTextAttachment: NSTextAttachment {
@@ -26,9 +45,10 @@ final class IMessageChatTextAttachment: NSTextAttachment {
     override var usesTextAttachmentView: Bool { true }
 
     static func height(for traits: UITraitCollection) -> CGFloat {
-        let title = UIFont.preferredFont(forTextStyle: .headline, compatibleWith: traits)
-        let detail = UIFont.preferredFont(forTextStyle: .subheadline, compatibleWith: traits)
-        return max(96, ceil(title.lineHeight * 2 + detail.lineHeight) + 28)
+        let title = IMessageChatAttachmentCardStyle.titleFont(for: traits)
+        let detail = IMessageChatAttachmentCardStyle.detailFont(for: traits)
+        return max(84, ceil(title.lineHeight * 2 + detail.lineHeight
+            + IMessageChatAttachmentCardStyle.textSpacing) + 24)
     }
 
     override func viewProvider(for parentView: UIView?, location: any NSTextLocation, textContainer: NSTextContainer?) -> NSTextAttachmentViewProvider? {
@@ -94,14 +114,80 @@ private final class IMessageChatAttachmentProvider: NSTextAttachmentViewProvider
     }
 }
 
+/// 内层沿实际图片边缘裁剪并描边，外层绘制阴影，避免圆角裁掉阴影。
+@available(iOS 26.0, *)
+final class IMessageChatAttachmentThumbnailView: UIView {
+    private let imageView = UIImageView()
+
+    var image: UIImage? {
+        didSet {
+            imageView.image = image
+            setNeedsLayout()
+        }
+    }
+
+    override var contentMode: UIView.ContentMode {
+        didSet { setNeedsLayout() }
+    }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        imageView.clipsToBounds = true
+        imageView.layer.cornerRadius = IMessageChatAttachmentCardStyle.thumbnailCornerRadius
+        imageView.layer.borderWidth = 0.5
+        addSubview(imageView)
+        layer.shadowColor = UIColor.black.cgColor
+        layer.shadowOpacity = 0.18
+        layer.shadowRadius = 3
+        layer.shadowOffset = CGSize(width: 0, height: 2)
+        updateBorderColor()
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) {
+            (view: IMessageChatAttachmentThumbnailView, _: UITraitCollection) in
+            view.updateBorderColor()
+        }
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    private func updateBorderColor() {
+        imageView.layer.borderColor = UIColor.label.withAlphaComponent(0.24)
+            .resolvedColor(with: traitCollection).cgColor
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        var imageRect = bounds
+        if contentMode == .scaleAspectFit, let image, !image.isSymbolImage,
+           image.size.width > 0, image.size.height > 0 {
+            let scale = min(bounds.width / image.size.width, bounds.height / image.size.height)
+            let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+            imageRect = CGRect(
+                x: bounds.midX - size.width / 2, y: bounds.midY - size.height / 2,
+                width: size.width, height: size.height
+            )
+        }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        imageView.frame = imageRect
+        imageView.contentMode = image?.isSymbolImage == true ? .center : contentMode
+        imageView.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 30, weight: .regular)
+        imageView.backgroundColor = image?.isSymbolImage == true ? .secondarySystemGroupedBackground : .clear
+        imageView.isHidden = image == nil
+        layer.shadowPath = image == nil ? nil
+            : UIBezierPath(roundedRect: imageRect,
+                           cornerRadius: IMessageChatAttachmentCardStyle.thumbnailCornerRadius).cgPath
+        CATransaction.commit()
+    }
+}
+
 /// 网页使用系统富链接视图，文件与单项媒体共用带独立删除区的附件卡片。
 @available(iOS 26.0, *)
 final class IMessageChatAttachmentCard: QuickLayoutView, UIGestureRecognizerDelegate {
-    private let icon = UIImageView()
+    private let icon = IMessageChatAttachmentThumbnailView()
     private let playBadge = UIImageView()
     private let titleLabel = UILabel()
     private let detailLabel = UILabel()
-    private let removeButton = UIButton(type: .system)
+    private let removeButton = IMessageChatDraftRemoveButton(frame: .zero)
     private let openGesture = UITapGestureRecognizer()
     private var linkView = LPLinkView(metadata: LPLinkMetadata())
     private var isLink = false
@@ -121,11 +207,11 @@ final class IMessageChatAttachmentCard: QuickLayoutView, UIGestureRecognizerDele
         // 删除区独占宽度，不覆盖富链接、文件名或视频时长；RTL 下仍固定在物理右上角。
         HStack(alignment: .top, spacing: 0) {
             if effectiveUserInterfaceLayoutDirection == .rightToLeft, remove != nil {
-                removeButton.resizable().frame(width: 44, height: 44).padding(4)
+                removeButton.resizable().frame(width: 44, height: 44)
             }
             cardContent.frame(maxWidth: .infinity, maxHeight: .infinity)
             if effectiveUserInterfaceLayoutDirection != .rightToLeft, remove != nil {
-                removeButton.resizable().frame(width: 44, height: 44).padding(4)
+                removeButton.resizable().frame(width: 44, height: 44)
             }
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -137,11 +223,14 @@ final class IMessageChatAttachmentCard: QuickLayoutView, UIGestureRecognizerDele
             HStack(alignment: .center, spacing: 12) {
                 if !isLink || !traitCollection.preferredContentSizeCategory.isAccessibilityCategory {
                     ZStack {
-                        icon.resizable().frame(width: 48, height: 56)
+                        icon.resizable().frame(
+                            width: IMessageChatAttachmentCardStyle.thumbnailSize,
+                            height: IMessageChatAttachmentCardStyle.thumbnailSize
+                        )
                         if isVideo { playBadge.resizable().frame(width: 28, height: 28) }
                     }
                 }
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: IMessageChatAttachmentCardStyle.textSpacing) {
                     titleLabel.resizable(axis: .horizontal).fixedSize(axis: .vertical)
                     detailLabel.resizable(axis: .horizontal).fixedSize(axis: .vertical)
                 }
@@ -156,23 +245,17 @@ final class IMessageChatAttachmentCard: QuickLayoutView, UIGestureRecognizerDele
         clipsToBounds = true
         icon.contentMode = .scaleAspectFit
         icon.tintColor = .secondaryLabel
-        icon.clipsToBounds = true
-        icon.layer.cornerRadius = 8
         playBadge.image = UIImage(systemName: "play.circle.fill")?.applyingSymbolConfiguration(
             UIImage.SymbolConfiguration(paletteColors: [.white, .black.withAlphaComponent(0.7)])
         )
         playBadge.contentMode = .scaleAspectFit
         titleLabel.numberOfLines = 2
         detailLabel.numberOfLines = 1
-        detailLabel.textColor = .secondaryLabel
+        detailLabel.textColor = .label
         titleLabel.adjustsFontForContentSizeCategory = true
         detailLabel.adjustsFontForContentSizeCategory = true
-        var configuration = UIButton.Configuration.plain()
-        configuration.image = UIImage(systemName: "xmark.circle.fill")
-        configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 28)
-        configuration.baseForegroundColor = .secondaryLabel
-        configuration.contentInsets = .zero
-        removeButton.configuration = configuration
+        // 20 点卡片圆角需要比照片缩略图更多留白，避免圆形按钮贴住弧线。
+        removeButton.visualInset = 8
         removeButton.isHidden = true
         removeButton.isEnabled = false
         removeButton.accessibilityIdentifier = "imessage.attachment.remove"
@@ -192,8 +275,8 @@ final class IMessageChatAttachmentCard: QuickLayoutView, UIGestureRecognizerDele
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func configure(_ draft: IMessageChatDocumentDraft) {
-        titleLabel.font = .preferredFont(forTextStyle: .headline, compatibleWith: traitCollection)
-        detailLabel.font = .preferredFont(forTextStyle: .subheadline, compatibleWith: traitCollection)
+        titleLabel.font = IMessageChatAttachmentCardStyle.titleFont(for: traitCollection)
+        detailLabel.font = IMessageChatAttachmentCardStyle.detailFont(for: traitCollection)
         isLink = false
         isVideo = false
         icon.contentMode = .scaleAspectFit
