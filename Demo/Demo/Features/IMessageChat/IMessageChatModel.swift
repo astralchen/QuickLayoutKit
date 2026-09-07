@@ -96,6 +96,9 @@ nonisolated struct IMessageChatAudioAttachment: Equatable, Hashable, Sendable {
     /// 位于 `0.08...1.0` 范围内的归一化波形采样。
     let waveform: [Float]
 
+    /// 整段文件识别完成后的文本；未识别或没有有效结果时为 nil。
+    var transcript: String?
+
     /// 使用本地可回放文件创建音频附件。
     ///
     /// - Parameters:
@@ -103,16 +106,20 @@ nonisolated struct IMessageChatAudioAttachment: Equatable, Hashable, Sendable {
     ///   - fileURL: 本地音频文件的 URL。
     ///   - duration: 音频时长，单位为秒。
     ///   - waveform: 归一化波形采样。超出支持范围的值会被截断。
+    ///   - transcript: 可选的完整识别文本；空白文本按无结果处理。
     init(
         id: UUID = UUID(),
         fileURL: URL,
         duration: TimeInterval,
-        waveform: [Float]
+        waveform: [Float],
+        transcript: String? = nil
     ) {
         self.id = id
         self.fileURL = fileURL
         self.duration = duration
         self.waveform = waveform.map { min(1, max(0.08, $0)) }
+        let text = transcript?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.transcript = text?.isEmpty == false ? text : nil
     }
 }
 
@@ -306,7 +313,7 @@ nonisolated enum IMessageChatAttachment: Equatable, Hashable, Sendable {
 nonisolated struct IMessageChatMessage: Equatable, Hashable, Sendable {
     let id: Int
     let direction: IMessageChatDirection
-    let content: IMessageChatMessageContent
+    var content: IMessageChatMessageContent
     let sentAt: Date
     var deliveryState: IMessageChatDeliveryState?
 }

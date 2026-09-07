@@ -24,6 +24,15 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
     let photoController: IMessageChatPhotoPickerController
     let attachmentStore: any IMessageChatAttachmentStoring
 
+    private var audioFileTranscriber: any IMessageChatAudioFileTranscribing = IMessageChatAudioFileTranscriber()
+
+    /// 文件转写独立于录音/播放；异步启动保证发送调用栈先完成附件提交。
+    private lazy var audioTranscription = IMessageChatAudioTranscriptionCoordinator(
+        transcriber: audioFileTranscriber
+    ) { [weak self] messageID, attachmentID, text in
+        self?.viewModel.updateAudioTranscript(text, messageID: messageID, attachmentID: attachmentID)
+    }
+
     private let keyboardObserver = QuickLayoutKeyboardObserver()
     private var cancellables: Set<AnyCancellable> = []
     private var bottomObstruction: CGFloat = 0
@@ -67,10 +76,12 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
     ///   - audioController: 管理页面音频操作的控制器。
     init(
         viewModel: IMessageChatViewModel,
-        audioController: IMessageChatAudioController
+        audioController: IMessageChatAudioController,
+        audioFileTranscriber: (any IMessageChatAudioFileTranscribing)? = nil
     ) {
         let attachmentStore = audioController.attachmentStore
         self.viewModel = viewModel
+        self.audioFileTranscriber = audioFileTranscriber ?? IMessageChatAudioFileTranscriber()
         self.audioController = audioController
         self.attachmentStore = attachmentStore
         documentController = IMessageChatDocumentController(store: attachmentStore)
@@ -141,11 +152,37 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         bottomObstructionCoordinator.refreshGeometry()
     }
 
+    private var isLeavingChat = false
+    private var hasCleanedUpChat = false
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        isLeavingChat = false
+    }
+
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        guard isMovingFromParent || isBeingDismissed else { return }
+        audioController.stopPlayback()
+        // 同时覆盖聊天页自身退出和导航/Tab 等父容器被关闭。
+        var ancestor: UIViewController? = self
+        while let controller = ancestor {
+            if controller.isMovingFromParent || controller.isBeingDismissed {
+                isLeavingChat = true
+                break
+            }
+            ancestor = controller.parent
+        }
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        // 临时覆盖只停播放；交互式返回取消后仍需要这些附件和页面任务。
+        guard isLeavingChat, transitionCoordinator?.isCancelled != true,
+              !hasCleanedUpChat else { return }
+        hasCleanedUpChat = true
         composerView.dismissRecordingUnavailableHint()
         composerView.pasteCoordinator.invalidate()
+        audioTranscription.cancelAll()
         viewModel.cancelPendingReply()
         audioController.stopAll()
         audioController.cancelRecordingOrPreview()
@@ -302,6 +339,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
             return true
         case .openDocument(let id):
             guard let draft = documentController.drafts[id], draft.status == .ready else { return false }
+            audioController.stopPlayback()
             documentController.open(draft.attachment, from: presentedViewController ?? self)
             return true
         case .insertLink(let url):
@@ -314,6 +352,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         case .requestAttachment(let kind):
             switch kind {
             case .photo:
+                audioController.stopPlayback()
                 photoController.present(
                     from: self,
                     keyboardHeight: bottomObstructionCoordinator
@@ -321,6 +360,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
                 )
                 return true
             case .file:
+                audioController.stopPlayback()
                 documentMenuSelection = composerView.textView.selectedRange
                 documentController.presentPicker(from: presentedViewController ?? self)
                 return true
@@ -454,6 +494,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
     private func handleMessageAction(_ action: IMessageChatMessageAction) {
         switch action {
         case .openDocument(let attachment):
+            audioController.stopPlayback()
             documentController.open(attachment, from: presentedViewController ?? self)
         case .toggleAudioPlayback(let messageID, let attachment):
             audioController.toggleMessagePlayback(
@@ -461,10 +502,12 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
                 attachment: attachment
             )
         case .openMediaGroup(_, let attachment, let index):
+            audioController.stopPlayback()
             let preview = IMessageChatMediaPreviewController(
                 group: attachment,
                 initialIndex: index,
-                strings: makeMediaStrings()
+                strings: makeMediaStrings(),
+                playbackCoordinator: audioController.playbackCoordinator
             )
             present(preview, animated: true)
         }
@@ -472,7 +515,11 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
 
     private func bindViewModel() {
         viewModel.bind { [weak self] state, reason in
-            self?.conversationView.render(state, reason: reason)
+            guard let self else { return }
+            conversationView.render(state, reason: reason)
+            audioTranscription.enqueue(state, locale: IMessageChatSpeechConfiguration.recognitionLocale(
+                for: DemoLocalization.localizationController.currentLocale.locale
+            ))
         }
     }
 

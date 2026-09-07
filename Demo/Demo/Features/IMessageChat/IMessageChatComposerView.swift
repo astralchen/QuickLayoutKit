@@ -1034,12 +1034,14 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             previewWaveformView.samples = attachment.waveform
             previewWaveformView.progress = progress
             let durationText = IMessageAudioBubbleView.durationText(
-                attachment.duration
+                attachment.duration, paddedMinutes: true
             )
-            let elapsedText = IMessageAudioBubbleView.durationText(
-                attachment.duration * progress
+            let elapsedText = IMessageAudioBubbleView.playbackTimeText(
+                duration: attachment.duration, progress: progress, isPlaying: true, paddedMinutes: true
             )
-            previewDurationLabel.text = "+ \(durationText)"
+            previewDurationLabel.text = IMessageAudioBubbleView.playbackTimeText(
+                duration: attachment.duration, progress: progress, isPlaying: isPlaying, paddedMinutes: true
+            )
             audioPlayButton.configuration?.image = UIImage(
                 systemName: isPlaying ? "pause.fill" : "play.fill"
             )

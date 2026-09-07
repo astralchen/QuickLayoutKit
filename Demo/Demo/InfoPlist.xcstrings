@@ -65,19 +65,19 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "يستخدم العرض التوضيحي التعرف على الكلام لتحويل صوتك إلى مسودة رسالة."
+            "value" : "يستخدم العرض التوضيحي التعرف على الكلام لتحويل صوتك إلى مسودة رسالة وتحويل الرسائل الصوتية المرسلة والمستلمة إلى نص."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The demo uses speech recognition to turn your voice into a message draft."
+            "value" : "The demo uses speech recognition to turn your voice into a message draft and transcribe sent and received audio messages."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "演示需要使用语音识别将你说的话转换为消息草稿。"
+            "value" : "演示需要使用语音识别将你说的话转换为消息草稿，并为发送和接收的音频消息生成文字。"
           }
         }
       }

@@ -5,7 +5,7 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>The demo uses the microphone to record audio messages and convert speech to text.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>The demo uses speech recognition to turn your voice into a message draft.</string>
+	<string>The demo uses speech recognition to turn your voice into a message draft and transcribe sent and received audio messages.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

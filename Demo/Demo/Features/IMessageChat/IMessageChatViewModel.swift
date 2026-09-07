@@ -23,6 +23,7 @@ final class IMessageChatViewModel {
         case sentMessage
         case receivedMessage
         case localization
+        case audioTranscript
     }
 
     struct State: Equatable {
@@ -303,6 +304,20 @@ final class IMessageChatViewModel {
         isTyping = true
         publish(reason: .sentMessage)
         scheduleReply(replyKind)
+    }
+
+    /// 仅更新身份仍匹配的音频，不改变消息生命周期或重新安排回复。
+    @discardableResult
+    func updateAudioTranscript(_ rawText: String, messageID: Int, attachmentID: UUID) -> Bool {
+        let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty,
+              let index = messages.firstIndex(where: { $0.id == messageID }),
+              case .attachment(.audio(var audio)) = messages[index].content,
+              audio.id == attachmentID, audio.transcript == nil else { return false }
+        audio.transcript = text
+        messages[index].content = .attachment(.audio(audio))
+        publish(reason: .audioTranscript)
+        return true
     }
 
     func refreshLocalizedContent() {

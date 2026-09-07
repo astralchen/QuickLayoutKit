@@ -365,6 +365,9 @@ final class IMessageChatAudioController: NSObject {
     }
 
     private let audioSession: IMessageChatAudioSessionControlling
+    private var ownsAudioSession = false
+    let playbackCoordinator = IMessageChatPlaybackCoordinator()
+    private let playbackOwner = UUID()
     let attachmentStore: any IMessageChatAttachmentStoring
     private let fileManager: FileManager
     private let speechTranscriber: IMessageChatSpeechTranscribing
@@ -464,6 +467,7 @@ final class IMessageChatAudioController: NSObject {
     /// 请求麦克风访问权限并开始录制音频消息。
     func startRecording() {
         guard state == .idle else { return }
+        stopPlayback()
         operationTask?.cancel()
         operationTask = Task { [weak self] in
             guard let self else { return }
@@ -559,12 +563,15 @@ final class IMessageChatAudioController: NSObject {
         ) = state else {
             return
         }
-        if isPlaying {
+        let target = PlaybackTarget.preview(attachment.id)
+        if playbackTarget == target, isPlaying {
             pausePlayback()
+        } else if playbackTarget == target, player != nil {
+            resumePlayback()
         } else {
             play(
                 attachment,
-                target: .preview(attachment.id)
+                target: target
             )
         }
     }
@@ -596,7 +603,7 @@ final class IMessageChatAudioController: NSObject {
     /// - Parameter locale: 用于选择识别语言的区域设置。
     func startDictation(locale: Locale) {
         guard state == .idle else { return }
-        pausePlayback()
+        stopPlayback()
         state = .preparingSpeech
         let generation = UUID()
         dictationGeneration = generation
@@ -707,7 +714,6 @@ final class IMessageChatAudioController: NSObject {
     }
 
     private func beginRecording() throws {
-        pausePlayback()
         let url = attachmentStore.makeFileURL(
             prefix: "audio",
             pathExtension: "m4a"
@@ -829,6 +835,7 @@ final class IMessageChatAudioController: NSObject {
 
     private func resumePlayback() {
         guard let player, playbackTarget != nil else { return }
+        guard validatePlaybackFile(player) else { return }
         do {
             try configurePlaybackSession()
             guard player.play() else { throw CocoaError(.fileReadUnknown) }
@@ -860,6 +867,7 @@ final class IMessageChatAudioController: NSObject {
 
     private func samplePlayback() {
         guard let player else { return }
+        guard validatePlaybackFile(player) else { return }
         let progress = player.duration > 0
             ? min(1, max(0, player.currentTime / player.duration))
             : 0
@@ -877,38 +885,27 @@ final class IMessageChatAudioController: NSObject {
             progress = 0
         }
         publishPlayback(isPlaying: false, progress: progress)
-        if case .audioPreview(let attachment, _, _) = state {
-            state = .audioPreview(
-                attachment: attachment,
-                isPlaying: false,
-                progress: progress
-            )
-        }
         finishAudioSession()
     }
 
-    private func stopPlayback() {
-        let progress: Double
-        if let player, player.duration > 0 {
-            progress = min(1, max(0, player.currentTime / player.duration))
-        } else {
-            progress = 0
-        }
+    /// 停止并重置当前音频，不取消页面任务、不删除录音草稿或已发送附件。
+    func stopPlayback() {
         playbackTimer?.invalidate()
         playbackTimer = nil
         player?.stop()
-        publishPlayback(isPlaying: false, progress: progress)
+        // 切换目标属于停止而非暂停：旧目标的按钮、波形和时间一并归零。
+        publishPlayback(isPlaying: false, progress: 0)
         player = nil
         playbackTarget = nil
         playbackState = .idle
-        if case .audioPreview(let attachment, _, _) = state {
-            state = .audioPreview(
-                attachment: attachment,
-                isPlaying: false,
-                progress: progress
-            )
-        }
         finishAudioSession()
+    }
+
+    private func validatePlaybackFile(_ player: AVAudioPlayer) -> Bool {
+        guard let url = player.url, !fileManager.isReadableFile(atPath: url.path) else { return true }
+        stopPlayback()
+        failureDidOccur?(.playbackFailed)
+        return false
     }
 
     private func publishPlayback(isPlaying: Bool, progress: Double) {
@@ -935,15 +932,23 @@ final class IMessageChatAudioController: NSObject {
     }
 
     private func configureCaptureSession() throws {
+        playbackCoordinator.acquire(owner: playbackOwner) { [weak self] in self?.stopAll() }
         try audioSession.activateCapture()
+        ownsAudioSession = true
     }
 
     private func configurePlaybackSession() throws {
+        playbackCoordinator.acquire(owner: playbackOwner) { [weak self] in self?.stopAll() }
         try audioSession.activatePlayback()
+        ownsAudioSession = true
     }
 
     private func finishAudioSession() {
         guard recorder == nil, player?.isPlaying != true else { return }
+        playbackCoordinator.release(owner: playbackOwner)
+        guard ownsAudioSession else { return }
+        // 释放本次占用后，闲置控制器收到后台通知不能再关闭视频的共享会话。
+        ownsAudioSession = false
         try? audioSession.deactivate()
     }
 
@@ -982,7 +987,7 @@ final class IMessageChatAudioController: NSObject {
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.handleCaptureInterruption()
+                self?.stopAll()
             }
         }
     }
@@ -1281,25 +1286,26 @@ extension IMessageChatAudioController: AVAudioRecorderDelegate {
 }
 
 extension IMessageChatAudioController: AVAudioPlayerDelegate {
+    nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: (any Error)?) {
+        Task { @MainActor [weak self] in
+            guard let self, self.player === player else { return }
+            self.stopPlayback()
+            self.failureDidOccur?(.playbackFailed)
+        }
+    }
+
     nonisolated func audioPlayerDidFinishPlaying(
         _ player: AVAudioPlayer,
         successfully flag: Bool
     ) {
         Task { @MainActor [weak self] in
             guard let self, self.player === player else { return }
-            self.publishPlayback(isPlaying: false, progress: 1)
+            self.publishPlayback(isPlaying: false, progress: 0)
             self.playbackTimer?.invalidate()
             self.playbackTimer = nil
             self.player = nil
             self.playbackTarget = nil
             self.playbackState = .idle
-            if case .audioPreview(let attachment, _, _) = self.state {
-                self.state = .audioPreview(
-                    attachment: attachment,
-                    isPlaying: false,
-                    progress: 0
-                )
-            }
             self.finishAudioSession()
             if !flag {
                 self.failureDidOccur?(.playbackFailed)

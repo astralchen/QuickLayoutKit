@@ -79,7 +79,7 @@ final class IMessageConversationView: UIView {
         reason: IMessageChatViewModel.UpdateReason
     ) {
         let wasNearBottom = timelineCount == 0 || isNearBottom
-        let localizationAnchor = reason == .localization && !wasNearBottom
+        let localizationAnchor = (reason == .localization || reason == .audioTranscript) && !wasNearBottom
             ? collectionView.captureLocalizationAnchor()
             : nil
         timelineCount = state.timeline.count
@@ -94,7 +94,7 @@ final class IMessageConversationView: UIView {
         let transaction: ListTransaction = switch reason {
         case .sentMessage, .receivedMessage:
             .automatic
-        case .initial, .localization:
+        case .initial, .localization, .audioTranscript:
             .disabled
         }
 
@@ -117,7 +117,7 @@ final class IMessageConversationView: UIView {
                 let shouldScroll: Bool = switch reason {
                 case .initial, .sentMessage:
                     true
-                case .receivedMessage, .localization:
+                case .receivedMessage, .localization, .audioTranscript:
                     wasNearBottom
                 }
                 guard shouldScroll else { return }

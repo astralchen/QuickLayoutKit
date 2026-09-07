@@ -1210,13 +1210,17 @@ final class IMessageChatMediaPreviewController:
     private let strings: IMessageChatMediaStrings
     private let collectionView: UICollectionView
     private weak var activePlayerController: AVPlayerViewController?
+    private let playbackCoordinator: IMessageChatPlaybackCoordinator
+    private let playbackOwner = UUID()
 
     init(
         group: IMessageChatMediaGroupAttachment,
         initialIndex: Int,
-        strings: IMessageChatMediaStrings
+        strings: IMessageChatMediaStrings,
+        playbackCoordinator: IMessageChatPlaybackCoordinator? = nil
     ) {
         self.group = group
+        self.playbackCoordinator = playbackCoordinator ?? IMessageChatPlaybackCoordinator()
         self.initialIndex = min(max(0, initialIndex), max(0, group.items.count - 1))
         self.strings = strings
         let layout = UICollectionViewFlowLayout()
@@ -1310,20 +1314,55 @@ final class IMessageChatMediaPreviewController:
     }
 
     private func playVideo(at index: Int) {
-        guard group.items.indices.contains(index), group.items[index].kind.isVideo else { return }
+        guard group.items.indices.contains(index), group.items[index].kind.isVideo,
+              presentedViewController == nil else { return }
+        stopActivePlayer()
+        playbackCoordinator.acquire(owner: playbackOwner) { [weak self] in
+            self?.stopActivePlayer(dismiss: true)
+        }
+        // 先由同一个协调器停止音频，再配置视频会话。
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
+        } catch {
+            playbackCoordinator.release(owner: playbackOwner)
+            return
+        }
         let playerController = AVPlayerViewController()
+        playerController.allowsPictureInPicturePlayback = false
         playerController.player = AVPlayer(url: group.items[index].originalFileURL)
-        playerController.presentationController?.delegate = self
         activePlayerController = playerController
-        present(playerController, animated: true) {
+        present(playerController, animated: true) { [weak self, weak playerController] in
+            guard let self, let playerController,
+                  self.activePlayerController === playerController,
+                  UIApplication.shared.applicationState != .background else { return }
+            playerController.presentationController?.delegate = self
             playerController.player?.play()
         }
     }
 
-    private func stopActivePlayer() {
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // 包含播放器的“完成”按钮及交互式关闭；回到媒体预览后不遗留声音。
+        stopActivePlayer()
+        NotificationCenter.default.removeObserver(self, name: UIApplication.didEnterBackgroundNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(pauseActiveVideo),
+                                               name: UIApplication.didEnterBackgroundNotification, object: nil)
+    }
+
+    @objc private func pauseActiveVideo() {
         activePlayerController?.player?.pause()
-        activePlayerController?.player = nil
+    }
+
+    private func stopActivePlayer(dismiss: Bool = false) {
+        let controller = activePlayerController
+        controller?.player?.pause()
+        // 连同原生播放控件的 player 一起移除，旧视频不能重新启动后叠加音频。
+        controller?.player = nil
         activePlayerController = nil
+        playbackCoordinator.release(owner: playbackOwner)
+        if dismiss, controller?.presentingViewController != nil {
+            controller?.dismiss(animated: false)
+        }
     }
 
     @objc private func closeTapped() {
