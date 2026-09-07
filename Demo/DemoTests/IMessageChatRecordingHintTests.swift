@@ -5,6 +5,53 @@ import UIKit
 @MainActor
 @Suite(.serialized)
 struct IMessageChatRecordingHintTests {
+    @Test(arguments: [false, true])
+    func linkAttachmentHintCollapsesAndRestoresDraft(rtl: Bool) async throws {
+        let sleeper = HintSleeper()
+        let composer = makeComposer(sleeper: sleeper)
+        if rtl {
+            composer.traitOverrides.preferredContentSizeCategory = .accessibilityExtraExtraExtraLarge
+            composer.applyLayoutDirection(.rightToLeft)
+        }
+        layout(composer)
+        let draft = IMessageChatDocumentDraft(
+            attachment: .link(.init(url: URL(string: "https://apple.com")!))
+        )
+        composer.insertDocument(draft)
+        layout(composer)
+        let originalHeight = composer.intrinsicContentSize.height
+        let originalText = NSAttributedString(attributedString: composer.textView.attributedText)
+        let originalSelection = composer.textView.selectedRange
+        let attachment = try #require(composer.textAttachments[draft.id])
+        #expect(originalHeight > 60)
+
+        #expect(!composer.validateAudioRecordingRequest())
+        await waitUntil { sleeper.hasPendingWait }
+        layout(composer)
+        let hintFrame = composer.recordingUnavailableLabel.convert(composer.recordingUnavailableLabel.bounds, to: composer)
+        let addFrame = composer.attachmentButton.convert(composer.attachmentButton.bounds, to: composer)
+        let sendFrame = composer.sendButton.convert(composer.sendButton.bounds, to: composer)
+        #expect(composer.intrinsicContentSize.height == 60)
+        #expect(composer.sizeThatFits(CGSize(width: 402, height: 1_000)).height == 60)
+        #expect(abs(hintFrame.midY - addFrame.midY) < 0.5)
+        #expect(abs(hintFrame.midY - sendFrame.midY) < 0.5)
+        #expect(hintFrame.minY >= 8)
+        #expect(hintFrame.maxY <= 52)
+        #expect(!hintFrame.intersects(sendFrame))
+        #expect(!composer.sendButton.isEnabled)
+        #expect(composer.textAttachments[draft.id] === attachment)
+
+        sleeper.resume()
+        await waitUntil { !composer.isShowingRecordingUnavailableHint }
+        layout(composer)
+        #expect(composer.intrinsicContentSize.height == originalHeight)
+        #expect(composer.textView.attributedText.isEqual(to: originalText))
+        #expect(composer.textView.selectedRange == originalSelection)
+        #expect(composer.textAttachments[draft.id] === attachment)
+        #expect(composer.sendButton.isEnabled)
+        #expect(composer.attachmentButton.isEnabled)
+    }
+
     @Test func previewHintSurvivesInitialOffscreenMount() {
         let composer = makeComposer()
         composer.textView.text = "preview draft"

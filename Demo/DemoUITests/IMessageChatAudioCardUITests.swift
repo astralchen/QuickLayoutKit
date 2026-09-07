@@ -3,6 +3,53 @@ import UIKit
 
 final class IMessageChatAudioCardUITests: XCTestCase {
     @MainActor
+    func testTypingAfterTwoLoadedLinkPreviews() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments += ["-AppleLanguages", "(en)", "-quicklayoutkit.demo.locale.identifier", "zh-Hans"]
+        app.launch()
+        XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
+        let route = app.cells["demo.imessage.title"]
+        for _ in 0..<8 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
+        route.tap()
+        let text = app.textViews["imessage.composer.text"]
+        XCTAssertTrue(text.waitForExistence(timeout: 10))
+        text.tap()
+        let cards = app.buttons.matching(identifier: "imessage.attachment.link.card")
+        for (url, title) in [("https://apple.com", "Apple"), ("https://baidu.com", "百度")] {
+            app.buttons["imessage.composer.attachment"].tap()
+            app.buttons["链接"].tap()
+            let alert = app.alerts.firstMatch
+            XCTAssertTrue(alert.waitForExistence(timeout: 5))
+            alert.textFields.firstMatch.typeText(url)
+            alert.buttons.element(boundBy: 1).tap()
+            let loadedCard = cards.matching(NSPredicate(format: "label CONTAINS %@", title)).firstMatch
+            XCTAssertTrue(loadedCard.waitForExistence(timeout: 25), "Link metadata did not finish loading: \(url)")
+        }
+        XCTAssertEqual(cards.count, 2)
+        let labels = cards.allElementsBoundByIndex.map(\.label).sorted()
+        func capture(_ name: String) {
+            let attachment = XCTAttachment(screenshot: app.screenshot())
+            attachment.name = name
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+        capture("两个网址预览加载完成")
+        text.coordinate(withNormalizedOffset: .init(dx: 0.15, dy: 0.98)).tap()
+        let sentence = "The only way I could do that was if you had to do a lot more work"
+        text.typeText(sentence)
+        XCTAssertEqual(cards.count, 2)
+        XCTAssertEqual(cards.allElementsBoundByIndex.map(\.label).sorted(), labels)
+        XCTAssertTrue((text.value as? String)?.contains(sentence) == true)
+        XCTAssertTrue(app.keyboards.firstMatch.exists)
+        capture("连续输入后保留两个已加载网址预览")
+        text.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 20))
+        XCTAssertEqual(cards.count, 2)
+        XCTAssertTrue((text.value as? String)?.contains(String(sentence.dropLast(20))) == true)
+        capture("删除文字后保留网址预览")
+    }
+
+    @MainActor
     func testNativeURLPasteAtCaretAndVisibleDeletePreservesBody() throws {
         try verifyNativePaste(language: "zh-Hans", largeText: false)
     }

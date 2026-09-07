@@ -1056,8 +1056,9 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     }
 
     private var resolvedContentHeight: CGFloat {
-        if !textAttachments.isEmpty { return currentInputHeight + mediaDraftAdditionalHeight }
+        // 提示临时覆盖附件展示；外层高度必须与内部的单行提示保持一致。
         if isShowingRecordingUnavailableHint { return Metrics.textInputHeight }
+        if !textAttachments.isEmpty { return currentInputHeight + mediaDraftAdditionalHeight }
         return switch composerState {
         case .idle, .preparingSpeech, .dictating:
             currentInputHeight + mediaDraftAdditionalHeight
@@ -1068,8 +1069,8 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
 
     /// 返回当前媒体状态对应的稳定布局模式。
     private var layoutMode: LayoutMode {
-        if !textAttachments.isEmpty { return .documentAttachments }
         if isShowingRecordingUnavailableHint { return .recordingUnavailable }
+        if !textAttachments.isEmpty { return .documentAttachments }
         return switch composerState {
         case .idle:
             mediaDraft == nil ? .idle : .mediaDraft
@@ -1085,8 +1086,8 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     }
 
     private var retainedTextInputHeight: CGFloat {
-        if !textAttachments.isEmpty { return currentInputHeight + mediaDraftAdditionalHeight }
         if isShowingRecordingUnavailableHint { return Metrics.textInputHeight }
+        if !textAttachments.isEmpty { return currentInputHeight + mediaDraftAdditionalHeight }
         return switch composerState {
         case .idle, .preparingSpeech, .dictating:
             currentInputHeight + mediaDraftAdditionalHeight

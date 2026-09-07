@@ -2,11 +2,108 @@ import Testing
 import UIKit
 import UniformTypeIdentifiers
 import QuickLayoutKit
+import LinkPresentation
 @testable import Demo
 
 @MainActor
 @Suite(.serialized)
 struct IMessageChatDocumentTests {
+    @Test func typingAfterLoadedLinksPreservesPreviewViews() async throws {
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.windows.first(where: \.isKeyWindow)
+        let root = UIViewController()
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = root
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey() }
+        let composer = IMessageChatComposerView(frame: .init(x: 0, y: 120, width: 402, height: 60))
+        let store = IMessageChatPageAttachmentStore()
+        defer { store.removeAll() }
+        let imageURL = store.makeFileURL(prefix: "loaded-link", pathExtension: "png")
+        let image = UIGraphicsImageRenderer(size: .init(width: 160, height: 100)).image { context in
+            UIColor.systemBlue.setFill()
+            context.fill(.init(x: 0, y: 0, width: 160, height: 100))
+        }
+        try #require(image.pngData()).write(to: imageURL)
+        composer.configure(strings: IMessageChatPreviewData.composerStrings)
+        root.view.addSubview(composer)
+        func layout() {
+            composer.frame.size.height = composer.intrinsicContentSize.height
+            composer.layoutIfNeeded()
+            composer.textView.layoutIfNeeded()
+        }
+        func descendants<T: UIView>(_ view: UIView, of type: T.Type) -> [T] {
+            view.subviews.flatMap { child in
+                (child as? T).map { [$0] } ?? descendants(child, of: type)
+            }
+        }
+        layout()
+        for (url, title) in [("https://apple.com", "Apple"), ("https://baidu.com", "百度一下，你就知道")] {
+            composer.insertDocument(.init(attachment: .link(.init(url: URL(string: url)!, title: title, imageURL: imageURL))))
+        }
+        layout()
+        #expect(composer.textView.becomeFirstResponder())
+        try await Task.sleep(for: .milliseconds(300))
+        layout()
+        let originalCards = descendants(composer.textView, of: IMessageChatAttachmentCard.self)
+        #expect(originalCards.count == 2)
+        let originalLinks = originalCards.flatMap { descendants($0, of: LPLinkView.self) }
+        #expect(originalLinks.count == 2)
+        let originalIDs = Set(originalLinks.map(ObjectIdentifier.init))
+        for character in "The only way I could do that was if you had to do a lot more work" {
+            composer.textView.insertText(String(character))
+            layout()
+            await Task.yield()
+            let links = descendants(composer.textView, of: LPLinkView.self)
+            #expect(Set(links.map(ObjectIdentifier.init)) == originalIDs)
+        }
+        for _ in 0..<20 {
+            composer.textView.deleteBackward()
+            layout()
+            await Task.yield()
+            #expect(Set(descendants(composer.textView, of: LPLinkView.self).map(ObjectIdentifier.init)) == originalIDs)
+        }
+        // 编辑附件前的文字会改变 provider 的文档位置，也必须保留预览。
+        composer.textView.selectedRange = .init(location: 0, length: 0)
+        composer.textView.insertText("prefix\n")
+        layout()
+        #expect(Set(descendants(composer.textView, of: LPLinkView.self).map(ObjectIdentifier.init)) == originalIDs)
+        #expect(composer.orderedDocumentIDs.count == 2)
+        #expect(composer.textView.isFirstResponder)
+
+        // 同一个附件对象可以出现在另一个文本布局中，两个编辑器不能争用视图。
+        let secondEditor = UITextView(usingTextLayoutManager: true)
+        secondEditor.frame = composer.frame.offsetBy(dx: 0, dy: 400)
+        root.view.addSubview(secondEditor)
+        secondEditor.attributedText = composer.textView.attributedText
+        secondEditor.layoutIfNeeded()
+        let secondLinks = descendants(secondEditor, of: LPLinkView.self)
+        #expect(secondLinks.count == 2)
+        #expect(Set(secondLinks.map(ObjectIdentifier.init)).isDisjoint(with: originalIDs))
+        #expect(Set(descendants(composer.textView, of: LPLinkView.self).map(ObjectIdentifier.init)) == originalIDs)
+
+        // 元数据真正变化时只更新对应卡片，另一张已加载预览保持不变。
+        let firstID = try #require(composer.orderedDocumentIDs.first)
+        let attachment = try #require(composer.textAttachments[firstID])
+        guard case .link(var updatedLink) = attachment.draft.attachment else {
+            Issue.record("Missing link draft"); return
+        }
+        updatedLink.title = "Updated Apple"
+        composer.updateDocument(.init(attachment: .link(updatedLink)))
+        layout()
+        let updatedLinks = descendants(composer.textView, of: LPLinkView.self)
+        #expect(updatedLinks.count == 2)
+        #expect(updatedLinks.contains { $0.metadata.title == "Updated Apple" })
+        #expect(Set(updatedLinks.map(ObjectIdentifier.init)).intersection(originalIDs).count == 1)
+        composer.removeDocument(firstID, notify: false)
+        layout()
+        #expect(descendants(composer.textView, of: IMessageChatAttachmentCard.self).count == 1)
+        // 另一个编辑器保留旧附件字符时，移除回调也必须同步撤销。
+        let removedCard = try #require(descendants(secondEditor, of: IMessageChatAttachmentCard.self)
+            .first { $0.accessibilityLabel?.contains("apple.com") == true })
+        #expect(!removedCard.accessibilityActivate())
+    }
+
     @Test func batchPublishesPhotosFilesLinksThenTextAndRejectsInvalidFileAtomically() throws {
         let store = IMessageChatPageAttachmentStore()
         defer { store.removeAll() }

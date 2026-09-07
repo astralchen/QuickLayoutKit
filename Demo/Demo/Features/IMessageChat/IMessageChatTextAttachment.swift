@@ -13,6 +13,9 @@ final class IMessageChatTextAttachment: NSTextAttachment {
     var open: (() -> Void)? { didSet { cards.allObjects.forEach(configureActions) } }
     var remove: (() -> Void)? { didSet { cards.allObjects.forEach(configureActions) } }
     private let cards = NSHashTable<IMessageChatAttachmentCard>.weakObjects()
+    /// TextKit 重排时会更换 provider；同一布局管理器继续使用已加载的卡片。
+    /// 弱键避免延长编辑器生命周期，不同编辑器也不会争用同一个 UIView。
+    private let editorCards = NSMapTable<NSTextLayoutManager, IMessageChatAttachmentCard>.weakToStrongObjects()
 
     init(draft: IMessageChatDocumentDraft) {
         self.draft = draft
@@ -41,6 +44,16 @@ final class IMessageChatTextAttachment: NSTextAttachment {
         cards.add(card)
         configure(card)
     }
+
+    fileprivate func card(for layoutManager: NSTextLayoutManager?) -> IMessageChatAttachmentCard {
+        if let layoutManager, let card = editorCards.object(forKey: layoutManager) {
+            return card
+        }
+        let card = IMessageChatAttachmentCard(frame: .zero)
+        register(card)
+        if let layoutManager { editorCards.setObject(card, forKey: layoutManager) }
+        return card
+    }
     func refresh() { cards.allObjects.forEach(configure) }
     private func configure(_ card: IMessageChatAttachmentCard) {
         card.semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight
@@ -67,9 +80,13 @@ final class IMessageChatTextAttachment: NSTextAttachment {
 private final class IMessageChatAttachmentProvider: NSTextAttachmentViewProvider {
     override func loadView() {
         guard let attachment = textAttachment as? IMessageChatTextAttachment else { return }
-        let card = IMessageChatAttachmentCard(frame: .zero)
-        attachment.register(card)
-        view = card
+        // 每个 provider 独占宿主，旧 provider 卸载时不会移除已交给新宿主的卡片。
+        let card = attachment.card(for: textLayoutManager)
+        let host = UIView(frame: card.bounds)
+        card.frame = host.bounds
+        card.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        host.addSubview(card)
+        view = host
     }
     override func attachmentBounds(for attributes: [NSAttributedString.Key: Any], location: any NSTextLocation, textContainer: NSTextContainer?, proposedLineFragment: CGRect, position: CGPoint) -> CGRect {
         CGRect(x: 0, y: 0, width: max(1, proposedLineFragment.width),

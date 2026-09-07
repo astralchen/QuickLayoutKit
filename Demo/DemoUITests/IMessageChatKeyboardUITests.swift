@@ -2,6 +2,11 @@ import XCTest
 
 final class IMessageChatKeyboardUITests: XCTestCase {
     @MainActor
+    func testLinkAttachmentRecordingHintRestoresCardAndKeyboard() throws {
+        try verifyRecordingHint(language: "zh-Hans", audioTitle: "音频", draft: "", linkTitle: "链接")
+    }
+
+    @MainActor
     func testDraftShowsRecordingHintAndRestoresKeyboard() throws {
         try verifyRecordingHint(language: "zh-Hans", audioTitle: "音频", draft: "draft")
     }
@@ -16,7 +21,8 @@ final class IMessageChatKeyboardUITests: XCTestCase {
         language: String,
         audioTitle: String,
         largeText: Bool = false,
-        draft: String = "draft\nsecond line"
+        draft: String = "draft\nsecond line",
+        linkTitle: String? = nil
     ) throws {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -41,10 +47,23 @@ final class IMessageChatKeyboardUITests: XCTestCase {
         let text = app.textViews["imessage.composer.text"]
         XCTAssertTrue(text.waitForExistence(timeout: 10))
         text.tap()
-        text.typeText(draft)
+        if !draft.isEmpty { text.typeText(draft) }
+        let attachment = app.buttons["imessage.composer.attachment"]
+        let card = app.buttons["imessage.attachment.link.card"]
+        if let linkTitle {
+            attachment.tap()
+            app.buttons[linkTitle].tap()
+            let alert = app.alerts.firstMatch
+            XCTAssertTrue(alert.waitForExistence(timeout: 5))
+            alert.textFields.firstMatch.typeText("https://apple.com")
+            alert.buttons.element(boundBy: 1).tap()
+            XCTAssertTrue(card.waitForExistence(timeout: 10))
+            text.coordinate(withNormalizedOffset: .init(dx: 0.15, dy: 0.98)).tap()
+            XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        }
+        let originalText = text.value as? String
         let composer = app.otherElements["imessage.composer"]
         let originalFrame = composer.frame
-        let attachment = app.buttons["imessage.composer.attachment"]
         attachment.tap()
         app.buttons[audioTitle].tap()
         let hint = app.staticTexts["imessage.composer.recordingUnavailable"]
@@ -52,13 +71,14 @@ final class IMessageChatKeyboardUITests: XCTestCase {
         XCTAssertTrue(app.keyboards.firstMatch.exists)
         XCTAssertFalse(app.buttons["imessage.composer.recording.stop"].exists)
         XCTAssertTrue(hint.waitForNonExistence(timeout: 5))
-        XCTAssertEqual(text.value as? String, draft)
+        XCTAssertEqual(text.value as? String, originalText)
+        if linkTitle != nil { XCTAssertTrue(card.exists) }
         XCTAssertTrue(attachment.isEnabled)
         XCTAssertTrue(app.buttons["imessage.composer.send"].isEnabled)
         XCTAssertTrue(app.keyboards.firstMatch.exists)
         XCTAssertEqual(composer.frame.maxY, originalFrame.maxY, accuracy: 1)
         XCTAssertEqual(composer.frame.height, originalFrame.height, accuracy: 1)
-        if !draft.contains("\n") {
+        if linkTitle == nil && !draft.contains("\n") {
             XCTAssertEqual(
                 app.buttons["imessage.composer.send"].frame.midY,
                 text.frame.midY,
