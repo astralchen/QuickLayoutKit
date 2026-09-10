@@ -8900,13 +8900,13 @@ struct DemoTests {
         #expect(sendingMessage.text == "hello\nworld")
         #expect(
             sendingMessage.deliveryText
-                == "localized.imessage.status.delivered"
+                == "localized.imessage.status.read"
         )
         #expect(
             sendingMessages
                 .filter { $0.direction == .outgoing }
                 .compactMap(\.deliveryText)
-                == ["localized.imessage.status.delivered"]
+                == ["localized.imessage.status.read"]
         )
 
         sleeper.succeed()
@@ -8928,7 +8928,7 @@ struct DemoTests {
         #expect(reply.direction == .incoming)
         #expect(reply.text == "localized.imessage.reply.1")
         #expect(
-            updateReasons == [.initial, .sentMessage, .receivedMessage]
+            updateReasons.first == .initial && updateReasons.contains(.sentMessage) && updateReasons.contains(.receivedMessage)
         )
     }
 
@@ -9013,12 +9013,12 @@ struct DemoTests {
         #expect(sentAttachment.waveform == [0.08, 0.4, 1])
         #expect(
             sendingMessage.deliveryText
-                == "localized.imessage.status.delivered"
+                == "localized.imessage.status.read"
         )
-        #expect(viewModel.state.timeline.last?.id == .typing)
+        #expect(!viewModel.state.isTyping)
 
         sleeper.succeed()
-        #expect(await waitForCondition { !viewModel.state.isTyping })
+        #expect(await waitForCondition { !viewModel.state.isProcessingMessages })
         let readMessage = try #require(
             viewModel.state.timeline.compactMap {
                 item -> IMessageChatMessagePresentation? in
@@ -9053,7 +9053,7 @@ struct DemoTests {
         )
         #expect(synthesizer.requests.isEmpty)
         sleeper.succeed()
-        #expect(await waitForCondition { !viewModel.state.isTyping })
+        #expect(await waitForCondition { !viewModel.state.isProcessingMessages })
 
         let reply = try #require(
             viewModel.state.timeline.compactMap {
@@ -9118,11 +9118,11 @@ struct DemoTests {
 
         sleeper.succeed()
         await Task.yield()
-        #expect(viewModel.state.isTyping)
-        #expect(viewModel.state.timeline.last?.id == .typing)
+        #expect(viewModel.state.isProcessingMessages)
+        #expect(!viewModel.state.isTyping)
 
         synthesizer.succeed(with: replyAttachment)
-        #expect(await waitForCondition { !viewModel.state.isTyping })
+        #expect(await waitForCondition { !viewModel.state.isProcessingMessages })
         let messages = viewModel.state.timeline.compactMap {
             item -> IMessageChatMessagePresentation? in
             guard case .message(let message) = item.content else { return nil }
@@ -9136,7 +9136,7 @@ struct DemoTests {
         #expect(reply.text.isEmpty)
     }
 
-    @Test func iMessageChatAudioReplyFallsBackToLocalizedText() async throws {
+    @Test func iMessageChatAudioReplyFallsBackToSameAudioType() async throws {
         let sleeper = ControlledIMessageSleeper()
         let synthesizer = ControlledIMessageReplyAudioSynthesizer()
         let fileURL = FileManager.default.temporaryDirectory
@@ -9170,9 +9170,9 @@ struct DemoTests {
             }
         )
         synthesizer.fail()
-        #expect(viewModel.state.isTyping)
+        #expect(viewModel.state.isProcessingMessages)
         sleeper.succeed()
-        #expect(await waitForCondition { !viewModel.state.isTyping })
+        #expect(await waitForCondition { !viewModel.state.isProcessingMessages })
 
         let reply = try #require(
             viewModel.state.timeline.compactMap {
@@ -9183,8 +9183,9 @@ struct DemoTests {
             }.first
         )
         #expect(synthesizer.requests.first?.locale.identifier == "ar-SA")
-        #expect(reply.text == "localized.imessage.reply.1")
-        #expect(reply.audio == nil)
+        #expect(reply.text.isEmpty)
+        #expect(reply.audio?.fileURL == fileURL)
+        #expect(reply.audio?.duration == 1)
     }
 
     @Test func iMessageChatCancelsPendingAudioReplyWithoutAppendingIt()
@@ -9229,7 +9230,7 @@ struct DemoTests {
                 synthesizer.cancellationCount == 1
             }
         )
-        #expect(!viewModel.state.isTyping)
+        #expect(!viewModel.state.isProcessingMessages)
         #expect(
             !viewModel.state.timeline.contains(where: {
                 $0.id == .message(4)
@@ -9245,11 +9246,11 @@ struct DemoTests {
         )
         #expect(
             sentMessage.deliveryText
-                == "localized.imessage.status.delivered"
+                == "localized.imessage.status.read"
         )
     }
 
-    @Test func iMessageChatNewAudioMessageReplacesOlderSynthesis()
+    @Test func iMessageChatNewAudioMessageQueuesBehindOlderSynthesis()
         async throws {
         let sleeper = ControlledIMessageSleeper()
         let synthesizer = ControlledIMessageReplyAudioSynthesizer()
@@ -9303,19 +9304,15 @@ struct DemoTests {
                 ))
             )
         )
-        #expect(
-            await waitForCondition {
-                synthesizer.requests.count == 2
-                    && sleeper.requestedDurations.count == 2
-            }
-        )
-
+        #expect(synthesizer.requests.count == 1)
         sleeper.succeed()
-        #expect(
-            await waitForCondition {
-                synthesizer.cancellationCount == 1
-            }
-        )
+        synthesizer.succeed(with: IMessageChatAudioAttachment(
+            fileURL: firstURL, duration: 1, waveform: [0.3]
+        ))
+        #expect(await waitForCondition {
+            synthesizer.requests.count == 2 && sleeper.requestedDurations.count == 2
+        })
+        #expect(synthesizer.cancellationCount == 0)
         sleeper.succeed()
         synthesizer.succeedLatest(
             with: IMessageChatAudioAttachment(
@@ -9324,7 +9321,7 @@ struct DemoTests {
                 waveform: [0.2, 0.9]
             )
         )
-        #expect(await waitForCondition { !viewModel.state.isTyping })
+        #expect(await waitForCondition { !viewModel.state.isProcessingMessages })
 
         let messages = viewModel.state.timeline.compactMap {
             item -> IMessageChatMessagePresentation? in
@@ -9333,10 +9330,11 @@ struct DemoTests {
             }
             return message
         }
-        #expect(messages.filter { $0.id >= 3 }.count == 3)
+        #expect(messages.filter { $0.id >= 3 }.count == 4)
         #expect(messages.filter { $0.id >= 3 && $0.direction == .incoming }
-            .map(\.id) == [5])
-        #expect(messages.first(where: { $0.id == 5 })?.audio?.fileURL == replyURL)
+            .map(\.id) == [5, 6])
+        #expect(messages.first(where: { $0.id == 5 })?.audio?.fileURL == firstURL)
+        #expect(messages.first(where: { $0.id == 6 })?.audio?.fileURL == replyURL)
     }
 
     @Test func iMessageChatRejectsInvalidAudioAndPreservesAudioOnLocalization()
@@ -10213,6 +10211,8 @@ private final class ControlledIMessageSleeper {
     private var continuations: [CheckedContinuation<Void, any Error>] = []
 
     func sleep(_ duration: Duration) async throws {
+        // 状态分阶段用例在 IMessageChatMessageStatusTests 中逐步控制阅读等待。
+        if duration == .milliseconds(300) { return }
         requestedDurations.append(duration)
         try await withCheckedThrowingContinuation { continuation in
             continuations.append(continuation)

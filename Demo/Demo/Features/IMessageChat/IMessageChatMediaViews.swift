@@ -831,6 +831,7 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
                 height: Metrics.titleHeight
             )
             let cardY = Metrics.titleHeight + Metrics.titleSpacing
+            let scale = min(1, bounds.width / max(1, resolvedSize.width))
             let visibleIndices = IMessageChatMediaStackPolicy.visibleIndices(
                 frontIndex: frontMediaIndex,
                 itemCount: group.items.count
@@ -852,10 +853,10 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
                 let rotationDegrees = -physicalSide * min(4, CGFloat(depth) * 1.2)
                 card.layer.mask = nil
                 let restingFrame = CGRect(
-                    x: CGFloat(visualPosition) * Metrics.groupOffset.x,
-                    y: cardY + CGFloat(depth) * Metrics.groupOffset.y,
-                    width: Metrics.groupCardSize.width,
-                    height: Metrics.groupCardSize.height
+                    x: CGFloat(visualPosition) * Metrics.groupOffset.x * scale,
+                    y: cardY + CGFloat(depth) * Metrics.groupOffset.y * scale,
+                    width: Metrics.groupCardSize.width * scale,
+                    height: Metrics.groupCardSize.height * scale
                 )
                 card.restingFrame = restingFrame
                 card.transform = .identity
@@ -1002,7 +1003,13 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
 @available(iOS 26.0, *)
 final class IMessageChatMediaBubbleCell: QuickLayoutCollectionViewCell {
     let mediaView = IMessageChatMediaMessageView()
-    let deliveryLabel = UILabel()
+    let deliveryStatusView = IMessageChatDeliveryStatusView()
+    var deliveryLabel: UILabel { deliveryStatusView.label }
+    let saveButton = IMessageChatAttachmentSaveButton()
+    var saveRequested: (() -> Void)?
+    private var showsSaveButton = false
+    private var mediaHeaderHeight: CGFloat = 0
+    private var maximumMediaWidth: CGFloat = 252
     private var message: IMessageChatMessagePresentation?
     // 估算行在动画事务内首次配置时，普通 UIView 的 intrinsic size 可能被 10 × 10
     // 占位测量吞掉。把已解析的媒体尺寸直接写进 Cell 布局值，确保第一次自适应测量
@@ -1024,11 +1031,13 @@ final class IMessageChatMediaBubbleCell: QuickLayoutCollectionViewCell {
                 alignment: message?.direction == .outgoing ? .trailing : .leading,
                 spacing: 3
             ) {
-                mediaView.frame(
-                    width: mediaSize.width,
-                    height: mediaSize.height
-                )
-                if message?.deliveryText != nil { deliveryLabel }
+                HStack(spacing: 8) {
+                    mediaView.frame(width: mediaSize.width, height: mediaSize.height)
+                    if showsSaveButton {
+                        saveButton.frame(width: 44, height: 44).padding(.top, mediaHeaderHeight)
+                    }
+                }
+                if message?.deliveryText != nil { deliveryStatusView }
             }
             if message?.direction != .outgoing { Spacer() }
         }
@@ -1047,6 +1056,7 @@ final class IMessageChatMediaBubbleCell: QuickLayoutCollectionViewCell {
         deliveryLabel.adjustsFontForContentSizeCategory = true
         deliveryLabel.textColor = .secondaryLabel
         deliveryLabel.textAlignment = .natural
+        saveButton.addAction(UIAction { [weak self] _ in self?.saveRequested?() }, for: .touchUpInside)
         isAccessibilityElement = false
         mediaView.frontIndexDidChange = { [weak self] messageID, index in
             self?.frontIndexDidChange?(messageID, index)
@@ -1064,9 +1074,14 @@ final class IMessageChatMediaBubbleCell: QuickLayoutCollectionViewCell {
         _ message: IMessageChatMessagePresentation,
         group: IMessageChatMediaGroupAttachment,
         frontIndex: Int,
-        strings: IMessageChatMediaStrings
+        strings: IMessageChatMediaStrings,
+        saveState: IMessageChatAttachmentSaveState = .available
     ) {
         self.message = message
+        showsSaveButton = IMessageChatAttachmentSavePolicy.showsButton(for: message)
+        mediaHeaderHeight = group.items.count > 1 ? 32 : 0
+        saveButton.configure(saveState, isMedia: true)
+        deliveryStatusView.configure(message)
         deliveryLabel.text = message.deliveryText
         deliveryLabel.accessibilityLabel = message.deliveryText
         mediaView.configure(
@@ -1076,13 +1091,32 @@ final class IMessageChatMediaBubbleCell: QuickLayoutCollectionViewCell {
             frontIndex: frontIndex,
             strings: strings
         )
-        mediaSize = mediaView.intrinsicContentSize
+        resolveMediaSize()
         setNeedsQuickLayout()
+    }
+
+    override func preferredLayoutAttributesFitting(_ attributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
+        maximumMediaWidth = max(1, attributes.size.width - 24 - (showsSaveButton ? 52 : 0))
+        resolveMediaSize()
+        setNeedsQuickLayout()
+        return super.preferredLayoutAttributesFitting(attributes)
+    }
+
+    private func resolveMediaSize() {
+        let natural = mediaView.intrinsicContentSize
+        let scale = min(1, maximumMediaWidth / max(1, natural.width))
+        mediaSize = CGSize(width: natural.width * scale,
+                           height: mediaHeaderHeight + (natural.height - mediaHeaderHeight) * scale)
     }
 
     override func prepareForReuse() {
         super.prepareForReuse()
         message = nil
+        showsSaveButton = false
+        saveRequested = nil
+        saveButton.configure(.hidden, isMedia: true)
+        deliveryStatusView.configure(nil)
+        deliveryStatusView.retryRequested = nil
         deliveryLabel.text = nil
         deliveryLabel.accessibilityLabel = nil
         mediaView.reset()

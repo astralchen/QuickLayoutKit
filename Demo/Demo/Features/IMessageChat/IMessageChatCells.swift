@@ -136,7 +136,8 @@ final class IMessageBubbleView: QuickLayoutView {
 final class IMessageBubbleCell: QuickLayoutCollectionViewCell {
 
     let bubbleView = IMessageBubbleView(frame: .zero)
-    let deliveryLabel = UILabel()
+    let deliveryStatusView = IMessageChatDeliveryStatusView()
+    var deliveryLabel: UILabel { deliveryStatusView.label }
     private var message: IMessageChatMessagePresentation?
     private var maximumBubbleWidth: CGFloat = 280
 
@@ -164,7 +165,7 @@ final class IMessageBubbleCell: QuickLayoutCollectionViewCell {
                             : .leading
                     )
                 if message?.deliveryText != nil {
-                    deliveryLabel
+                    deliveryStatusView
                 }
             }
             if message?.direction != .outgoing {
@@ -207,6 +208,7 @@ final class IMessageBubbleCell: QuickLayoutCollectionViewCell {
     func configure(_ message: IMessageChatMessagePresentation) {
         self.message = message
         bubbleView.configure(message)
+        deliveryStatusView.configure(message)
         deliveryLabel.text = message.deliveryText
         deliveryLabel.accessibilityLabel = message.deliveryText
         setNeedsQuickLayout()
@@ -216,6 +218,8 @@ final class IMessageBubbleCell: QuickLayoutCollectionViewCell {
         super.prepareForReuse()
         message = nil
         bubbleView.reset()
+        deliveryStatusView.configure(nil)
+        deliveryStatusView.retryRequested = nil
         deliveryLabel.text = nil
         deliveryLabel.accessibilityLabel = nil
         setNeedsQuickLayout()

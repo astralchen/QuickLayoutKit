@@ -34,10 +34,11 @@ struct IMessageChatMediaTests {
         let media = try #require(messages.first(where: { $0.id == 3 }))
         let text = try #require(messages.first(where: { $0.id == 4 }))
         #expect(media.mediaGroup == fixture.group)
-        #expect(media.deliveryText == nil)
+        #expect(media.deliveryText == "localized.imessage.status.sending")
         #expect(text.text == "  caption  ")
-        #expect(text.deliveryText == "localized.imessage.status.delivered")
-        #expect(viewModel.state.timeline.last?.id == .typing)
+        #expect(text.deliveryText == "localized.imessage.status.sending")
+        #expect(!viewModel.state.isTyping)
+        #expect(viewModel.state.isProcessingMessages)
         #expect(reasons == [.initial, .sentMessage])
         viewModel.cancelPendingReply()
     }
@@ -59,7 +60,7 @@ struct IMessageChatMediaTests {
                 .first(where: { $0.id == 3 })
         )
         #expect(sent.mediaGroup == fixture.group)
-        #expect(sent.deliveryText == "localized.imessage.status.delivered")
+        #expect(sent.deliveryText == "localized.imessage.status.sending")
         #expect(!messagePresentations(in: viewModel.state).contains { $0.id == 4 })
         viewModel.cancelPendingReply()
     }

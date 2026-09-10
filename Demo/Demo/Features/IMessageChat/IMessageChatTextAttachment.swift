@@ -542,7 +542,11 @@ final class IMessageChatAttachmentCard: QuickLayoutView, UIGestureRecognizerDele
 @available(iOS 26.0, *)
 final class IMessageChatDocumentBubbleCell: QuickLayoutCollectionViewCell {
     let card = IMessageChatAttachmentCard(frame: .zero)
-    let deliveryLabel = UILabel()
+    let deliveryStatusView = IMessageChatDeliveryStatusView()
+    var deliveryLabel: UILabel { deliveryStatusView.label }
+    let saveButton = IMessageChatAttachmentSaveButton()
+    var saveRequested: (() -> Void)?
+    private var showsSaveButton = false
     private var message: IMessageChatMessagePresentation?
     private var maximumBubbleWidth: CGFloat = 300
     var open: ((IMessageChatAttachment) -> Void)?
@@ -552,8 +556,11 @@ final class IMessageChatDocumentBubbleCell: QuickLayoutCollectionViewCell {
         HStack(spacing: 0) {
             if message?.direction == .outgoing { Spacer() }
             VStack(alignment: message?.direction == .outgoing ? .trailing : .leading, spacing: 3) {
-                card.frame(width: cardSize.width, height: cardSize.height)
-                if message?.deliveryText != nil { deliveryLabel }
+                HStack(spacing: 8) {
+                    card.frame(width: cardSize.width, height: cardSize.height)
+                    if showsSaveButton { saveButton.frame(width: 44, height: 44) }
+                }
+                if message?.deliveryText != nil { deliveryStatusView }
             }
             if message?.direction != .outgoing { Spacer() }
         }.frame(maxWidth: .infinity).padding(.horizontal, 12).padding(.vertical, 2)
@@ -562,6 +569,7 @@ final class IMessageChatDocumentBubbleCell: QuickLayoutCollectionViewCell {
         super.init(frame: frame)
         quickLayoutHorizontalFlexibility = .fixedSize
         quickLayoutVerticalFlexibility = .fullyFlexible
+        saveButton.addAction(UIAction { [weak self] _ in self?.saveRequested?() }, for: .touchUpInside)
         deliveryLabel.font = .preferredFont(forTextStyle: .caption2)
         deliveryLabel.adjustsFontForContentSizeCategory = true
         deliveryLabel.textColor = .secondaryLabel
@@ -580,17 +588,33 @@ final class IMessageChatDocumentBubbleCell: QuickLayoutCollectionViewCell {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func preferredLayoutAttributesFitting(_ attributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
-        maximumBubbleWidth = max(1, min(attributes.size.width - 24, attributes.size.width * 0.70))
+        maximumBubbleWidth = max(1, min(attributes.size.width - 24 - (showsSaveButton ? 52 : 0), attributes.size.width * 0.70))
         setNeedsQuickLayout()
         return super.preferredLayoutAttributesFitting(attributes)
     }
-    func configure(_ message: IMessageChatMessagePresentation) {
+    func configure(_ message: IMessageChatMessagePresentation, saveState: IMessageChatAttachmentSaveState = .available) {
         guard case .attachment(let attachment) = message.content else { return }
         self.message = message
+        showsSaveButton = IMessageChatAttachmentSavePolicy.showsButton(for: message)
+        saveButton.configure(saveState, isMedia: false)
         card.remove = nil
         card.configure(.init(attachment: attachment))
         card.open = { [weak self] in self?.open?(attachment) }
+        deliveryStatusView.configure(message)
         deliveryLabel.text = message.deliveryText
+        setNeedsQuickLayout()
+    }
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        message = nil
+        showsSaveButton = false
+        saveRequested = nil
+        open = nil
+        card.open = nil
+        deliveryStatusView.configure(nil)
+        deliveryStatusView.retryRequested = nil
+        deliveryLabel.text = nil
+        saveButton.configure(.hidden, isMedia: false)
         setNeedsQuickLayout()
     }
 }

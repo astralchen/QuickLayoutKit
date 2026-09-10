@@ -64,8 +64,10 @@ nonisolated enum IMessageChatDirection: String, Equatable, Hashable, Sendable {
 }
 
 nonisolated enum IMessageChatDeliveryState: String, Equatable, Hashable, Sendable {
+    case sending
     case delivered
     case read
+    case failed
 }
 
 /// iMessage 聊天消息存储的载荷。
@@ -323,17 +325,20 @@ nonisolated struct IMessageChatMessagePresentation: Equatable, Sendable {
     let direction: IMessageChatDirection
     let content: IMessageChatMessagePresentationContent
     let deliveryText: String?
+    let deliveryState: IMessageChatDeliveryState?
 
     init(
         id: Int,
         direction: IMessageChatDirection,
         text: String,
-        deliveryText: String?
+        deliveryText: String?,
+        deliveryState: IMessageChatDeliveryState? = nil
     ) {
         self.id = id
         self.direction = direction
         content = .text(text)
         self.deliveryText = deliveryText
+        self.deliveryState = direction == .outgoing ? deliveryState : nil
     }
 
     /// 创建附件消息的展示模型。
@@ -347,12 +352,14 @@ nonisolated struct IMessageChatMessagePresentation: Equatable, Sendable {
         id: Int,
         direction: IMessageChatDirection,
         attachment: IMessageChatAttachment,
-        deliveryText: String?
+        deliveryText: String?,
+        deliveryState: IMessageChatDeliveryState? = nil
     ) {
         self.id = id
         self.direction = direction
         content = .attachment(attachment)
         self.deliveryText = deliveryText
+        self.deliveryState = direction == .outgoing ? deliveryState : nil
     }
 
     /// 解析后的文本；消息包含音频时为空字符串。
@@ -380,13 +387,15 @@ nonisolated struct IMessageChatMessagePresentation: Equatable, Sendable {
             .text(
                 value: text,
                 deliveryText: deliveryText,
-                direction: direction
+                direction: direction,
+                deliveryState: deliveryState
             )
         case .attachment(let attachment):
             .attachment(
                 value: attachment,
                 deliveryText: deliveryText,
-                direction: direction
+                direction: direction,
+                deliveryState: deliveryState
             )
         }
     }
@@ -409,12 +418,14 @@ nonisolated enum IMessageChatMessageRefreshIdentity:
     case text(
         value: String,
         deliveryText: String?,
-        direction: IMessageChatDirection
+        direction: IMessageChatDirection,
+        deliveryState: IMessageChatDeliveryState? = nil
     )
     case attachment(
         value: IMessageChatAttachment,
         deliveryText: String?,
-        direction: IMessageChatDirection
+        direction: IMessageChatDirection,
+        deliveryState: IMessageChatDeliveryState? = nil
     )
 }
 
@@ -438,4 +449,29 @@ nonisolated enum IMessageChatTimelineContent: Equatable, Sendable {
 nonisolated struct IMessageChatTimelineItem: Equatable, Sendable {
     let id: IMessageChatTimelineItemID
     let content: IMessageChatTimelineContent
+}
+
+extension IMessageChatAttachment {
+    /// 模拟回复使用独立消息/附件/媒体项目身份，共享页面已提交的只读资源。
+    /// 已提交资源统一保留到页面退出，因此无须复制视频，也不会被 Composer 草稿清理。
+    func simulatedReply() -> Self {
+        switch self {
+        case .audio(let audio):
+            return .audio(.init(fileURL: audio.fileURL, duration: audio.duration,
+                                waveform: audio.waveform, transcript: audio.transcript))
+        case .mediaGroup(let group):
+            return .mediaGroup(.init(items: group.items.map { item in
+                .init(assetIdentifier: item.assetIdentifier, originalFileURL: item.originalFileURL,
+                      thumbnailFileURL: item.thumbnailFileURL, pixelSize: item.pixelSize,
+                      kind: item.kind, isAnimatedImage: item.isAnimatedImage)
+            }))
+        case .file(let file):
+            return .file(.init(id: UUID(), fileURL: file.fileURL, displayName: file.displayName,
+                               typeIdentifier: file.typeIdentifier, byteCount: file.byteCount,
+                               thumbnailURL: file.thumbnailURL))
+        case .link(var link):
+            link.id = UUID()
+            return .link(link)
+        }
+    }
 }

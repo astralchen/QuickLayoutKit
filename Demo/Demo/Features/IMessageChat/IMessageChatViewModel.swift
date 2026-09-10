@@ -15,7 +15,10 @@ final class IMessageChatViewModel {
         case text
 
         /// 使用发送时解析的文本和区域设置生成本地音频附件。
-        case synthesizedAudio(text: String, locale: Locale)
+        case synthesizedAudio(text: String, locale: Locale, fallback: IMessageChatAttachment)
+
+        /// 保留原文件与元数据，以独立身份模拟对方发送同类型附件。
+        case attachment(IMessageChatAttachment)
     }
 
     enum UpdateReason: Equatable {
@@ -24,11 +27,14 @@ final class IMessageChatViewModel {
         case receivedMessage
         case localization
         case audioTranscript
+        case attachmentSave
+        case messageStatus
     }
 
     struct State: Equatable {
         let timeline: [IMessageChatTimelineItem]
         let isTyping: Bool
+        var isProcessingMessages: Bool = false
     }
 
     typealias Clock = @MainActor () -> Date
@@ -47,7 +53,14 @@ final class IMessageChatViewModel {
     private var messages: [IMessageChatMessage]
     private var nextMessageID: Int
     private var pendingReplyTask: Task<Void, Never>?
+    private var pendingReplies: [(messageID: Int, kind: ReplyKind)] = []
     private var isTyping = false
+    private let messageSender: any IMessageChatMessageSending
+    private let readReceiptsEnabled: Bool
+    private var sendTasks: [Int: Task<Void, Never>] = [:]
+    private var sendAttempts: [Int: UUID] = [:]
+    private var replyGeneration = UUID()
+    private var activeReplyID: Int?
 
     private(set) var state: State
 
@@ -91,6 +104,8 @@ final class IMessageChatViewModel {
             DemoLocalization.localizationController.currentLocale.locale
         },
         replyAudioSynthesizer: (any IMessageChatReplyAudioSynthesizing)? = nil,
+        messageSender: (any IMessageChatMessageSending)? = nil,
+        readReceiptsEnabled: Bool = true,
         sleeper: @escaping Sleeper
     ) {
         self.localizer = localizer
@@ -98,6 +113,8 @@ final class IMessageChatViewModel {
         self.localeProvider = localeProvider
         self.replyAudioSynthesizer = replyAudioSynthesizer
         self.sleeper = sleeper
+        self.messageSender = messageSender ?? IMessageChatSimulatedMessageSender.liveDemo()
+        self.readReceiptsEnabled = readReceiptsEnabled
 
         let now = clock()
         messages = [
@@ -130,7 +147,18 @@ final class IMessageChatViewModel {
 
     deinit {
         pendingReplyTask?.cancel()
+        sendTasks.values.forEach { $0.cancel() }
     }
+
+    #if DEBUG
+    /// 仅用于真实系统保存流程的 UI 回归与预览启动参数。
+    func appendSavePreviewAttachment(_ attachment: IMessageChatAttachment) {
+        messages.append(.init(id: nextMessageID, direction: .incoming, content: .attachment(attachment),
+                              sentAt: clock(), deliveryState: nil))
+        nextMessageID += 1
+        publish(reason: .receivedMessage)
+    }
+    #endif
 
     func bind(_ render: @escaping StateHandler) {
         self.render = render
@@ -175,7 +203,7 @@ final class IMessageChatViewModel {
 
     /// 以一次时间线事务发送媒体组，并在其后追加可选文字消息。
     ///
-    /// 媒体和文字只发布一次状态、只触发一次模拟回复。任一媒体无效时不会产生
+    /// 媒体和文字只发布一次发送状态，各消息按顺序获得同类型回复。任一媒体无效时不会产生
     /// 部分时间线写入，调用方可以完整保留 Composer 草稿并重试。
     @discardableResult
     func sendMediaGroup(
@@ -207,18 +235,18 @@ final class IMessageChatViewModel {
             }
         }
         guard !payloads.isEmpty else { return false }
-        pendingReplyTask?.cancel()
         let sentAt = clock()
+        let firstID = nextMessageID
         for content in payloads {
+            enqueueReply(for: content, messageID: nextMessageID)
             messages.append(IMessageChatMessage(
                 id: nextMessageID, direction: .outgoing, content: content,
-                sentAt: sentAt, deliveryState: .delivered
+                sentAt: sentAt, deliveryState: .sending
             ))
             nextMessageID += 1
         }
-        isTyping = true
         publish(reason: .sentMessage)
-        scheduleReply(.text)
+        for id in firstID..<nextMessageID { startSending(messageID: id) }
         return true
     }
 
@@ -266,44 +294,41 @@ final class IMessageChatViewModel {
         }
     }
 
-    /// 返回附件类型对应的模拟回复计划。
-    ///
-    /// 音频继续生成同类型回复。未来图片和视频可以在此集中选择文本回复或新的
-    /// 回复计划，不应在各自的发送入口复制等待、输入中和已读流程。
-    private func replyKind(
-        for attachment: IMessageChatAttachment
-    ) -> ReplyKind {
+    /// 返回附件类型对应的模拟回复计划，语音合成失败仍保持语音类型。
+    private func replyKind(for attachment: IMessageChatAttachment) -> ReplyKind {
+        let reply = attachment.simulatedReply()
         switch attachment {
         case .audio:
-            .synthesizedAudio(
+            return .synthesizedAudio(
                 text: localizer.text("imessage.reply.1"),
-                locale: IMessageChatSpeechConfiguration.speechLocale(
-                    for: localeProvider()
-                )
+                locale: IMessageChatSpeechConfiguration.speechLocale(for: localeProvider()),
+                fallback: reply
             )
         case .mediaGroup, .file, .link:
-            .text
+            return .attachment(reply)
         }
     }
 
-    private func appendOutgoing(
-        content: IMessageChatMessageContent,
-        replyKind: ReplyKind
-    ) {
-        pendingReplyTask?.cancel()
-        messages.append(
-            IMessageChatMessage(
-                id: nextMessageID,
-                direction: .outgoing,
-                content: content,
-                sentAt: clock(),
-                deliveryState: .delivered
-            )
-        )
+    private func enqueueReply(for content: IMessageChatMessageContent, messageID: Int) {
+        let kind: ReplyKind
+        if case .attachment(let attachment) = content {
+            kind = replyKind(for: attachment)
+        } else {
+            kind = .text
+        }
+        pendingReplies.append((messageID, kind))
+    }
+
+    private func appendOutgoing(content: IMessageChatMessageContent, replyKind: ReplyKind) {
+        let messageID = nextMessageID
+        pendingReplies.append((messageID, replyKind))
+        messages.append(IMessageChatMessage(
+            id: nextMessageID, direction: .outgoing, content: content,
+            sentAt: clock(), deliveryState: .sending
+        ))
         nextMessageID += 1
-        isTyping = true
         publish(reason: .sentMessage)
-        scheduleReply(replyKind)
+        startSending(messageID: messageID)
     }
 
     /// 仅更新身份仍匹配的音频，不改变消息生命周期或重新安排回复。
@@ -324,90 +349,153 @@ final class IMessageChatViewModel {
         publish(reason: .localization)
     }
 
+    /// 页面离开时取消整个模拟会话，令迟到送达、已读和回复全部失效。
     func cancelPendingReply() {
+        replyGeneration = UUID()
         pendingReplyTask?.cancel()
         pendingReplyTask = nil
-        guard isTyping else { return }
+        activeReplyID = nil
+        pendingReplies.removeAll()
+        sendTasks.values.forEach { $0.cancel() }
+        sendTasks.removeAll()
+        sendAttempts.removeAll()
+        for index in messages.indices where messages[index].deliveryState == .sending {
+            messages[index].deliveryState = .failed
+        }
         isTyping = false
-        publish(reason: .localization)
+        publish(reason: .messageStatus)
     }
 
-    /// 安排与发出消息类型一致的模拟回复。
-    ///
-    /// 文本回复只等待最短展示时间。音频回复会同时开始本地语音合成，并在最短
-    /// 展示时间和合成都结束后进入时间线；合成失败时回退为相同资源键的文本。
-    ///
-    /// - Parameter replyKind: 本次发出消息所决定的回复类型。
-    private func scheduleReply(_ replyKind: ReplyKind) {
+    /// 重试原消息；保持 ID、顺序、附件和发送时间，重复点击不会启动第二次尝试。
+    @discardableResult
+    func retryMessage(id: Int) -> Bool {
+        guard let index = messages.firstIndex(where: { $0.id == id && $0.direction == .outgoing }),
+              messages[index].deliveryState == .failed else { return false }
+        messages[index].deliveryState = .sending
+        enqueueReply(for: messages[index].content, messageID: id)
+        publish(reason: .messageStatus)
+        startSending(messageID: id)
+        return true
+    }
+
+    private func startSending(messageID: Int) {
+        guard let message = messages.first(where: { $0.id == messageID }),
+              message.deliveryState == .sending, sendTasks[messageID] == nil else { return }
+        let attempt = UUID()
+        sendAttempts[messageID] = attempt
+        let sender = messageSender
+        sendTasks[messageID] = Task { [weak self] in
+            let succeeded: Bool
+            do {
+                try await sender.send(message)
+                succeeded = true
+            } catch {
+                succeeded = false
+            }
+            guard !Task.isCancelled, let self, sendAttempts[messageID] == attempt,
+                  let index = messages.firstIndex(where: { $0.id == messageID }),
+                  messages[index].deliveryState == .sending else { return }
+            sendTasks[messageID] = nil
+            sendAttempts[messageID] = nil
+            messages[index].deliveryState = succeeded ? .delivered : .failed
+            if !succeeded { pendingReplies.removeAll { $0.messageID == messageID } }
+            publish(reason: .messageStatus)
+            scheduleReplies()
+        }
+    }
+
+    /// 收件端阅读回执是独立事件，只推进到指定已存在消息；不根据回复推断已读。
+    /// 连续消息的已读进度单调前进，失败和仍在发送的消息不会被提前标记。
+    func receiveReadReceipt(through messageID: Int) {
+        guard readReceiptsEnabled,
+              messages.contains(where: { $0.id == messageID && $0.direction == .outgoing &&
+                  ($0.deliveryState == .delivered || $0.deliveryState == .read) }) else { return }
+        var changed = false
+        for index in messages.indices where messages[index].id <= messageID &&
+            messages[index].direction == .outgoing && messages[index].deliveryState == .delivered {
+            messages[index].deliveryState = .read
+            changed = true
+        }
+        if changed { publish(reason: .messageStatus) }
+    }
+
+    private func scheduleReplies() {
+        guard pendingReplyTask == nil, let first = pendingReplies.first,
+              messages.contains(where: { $0.id == first.messageID &&
+                  ($0.deliveryState == .delivered || $0.deliveryState == .read) }) else { return }
+        let generation = replyGeneration
         let sleeper = sleeper
-        let replyAudioSynthesizer = replyAudioSynthesizer
+        let synthesizer = replyAudioSynthesizer
+        activeReplyID = first.messageID
         pendingReplyTask = Task { [weak self] in
-            switch replyKind {
-            case .text:
+            while !Task.isCancelled {
+                guard let reply = self?.takeNextReply(generation: generation) else { return }
                 do {
-                    try await sleeper(.milliseconds(900))
-                } catch {
-                    return
-                }
-                guard !Task.isCancelled, let self else { return }
-                self.completeReply(content: .localized(key: "imessage.reply.1"))
-
-            case .synthesizedAudio(let text, let locale):
-                guard let replyAudioSynthesizer else {
-                    do {
+                    // 模拟对方先查看消息，随后才开始键入；已读不等待附件准备或回复完成。
+                    try await sleeper(.milliseconds(300))
+                    guard !Task.isCancelled, self?.replyGeneration == generation else { return }
+                    self?.receiveReadReceipt(through: reply.messageID)
+                    if case .text = reply.kind { self?.setTyping(true) }
+                    let content: IMessageChatMessageContent
+                    switch reply.kind {
+                    case .text:
                         try await sleeper(.milliseconds(900))
-                    } catch {
-                        return
+                        content = .localized(key: "imessage.reply.1")
+                    case .attachment(let attachment):
+                        try await sleeper(.milliseconds(900))
+                        content = .attachment(attachment)
+                    case .synthesizedAudio(let text, let locale, let fallback):
+                        async let audio = synthesizer?.synthesizeReplyAudio(text: text, locale: locale)
+                        try await sleeper(.milliseconds(900))
+                        if let generated = try? await audio {
+                            content = .attachment(.audio(generated))
+                        } else {
+                            content = .attachment(fallback)
+                        }
                     }
-                    guard !Task.isCancelled, let self else { return }
-                    self.completeReply(
-                        content: .localized(key: "imessage.reply.1")
-                    )
+                    guard !Task.isCancelled, self?.replyGeneration == generation else { return }
+                    self?.completeReply(content: content)
+                } catch {
+                    // 延时/生成任务异常也必须释放队列所有权，不能永久卡在“正在输入”。
+                    guard !Task.isCancelled, self?.replyGeneration == generation else { return }
+                    self?.finishReplyWorker()
+                    self?.scheduleReplies()
                     return
                 }
-
-                async let generatedAttachment = replyAudioSynthesizer
-                    .synthesizeReplyAudio(text: text, locale: locale)
-                do {
-                    try await sleeper(.milliseconds(900))
-                } catch {
-                    return
-                }
-
-                let replyContent: IMessageChatMessageContent
-                do {
-                    replyContent = .attachment(
-                        .audio(try await generatedAttachment)
-                    )
-                } catch {
-                    guard !Task.isCancelled else { return }
-                    replyContent = .localized(key: "imessage.reply.1")
-                }
-                guard !Task.isCancelled, let self else { return }
-                self.completeReply(content: replyContent)
             }
         }
     }
 
-    /// 完成模拟回复并更新最新发出消息的已读状态。
-    ///
-    /// - Parameter content: 已生成的文本或音频回复载荷。
-    private func completeReply(content: IMessageChatMessageContent) {
-        pendingReplyTask = nil
-        if let latestOutgoingIndex = messages.lastIndex(where: {
-            $0.direction == .outgoing
-        }) {
-            messages[latestOutgoingIndex].deliveryState = .read
+    private func takeNextReply(generation: UUID) -> (messageID: Int, kind: ReplyKind)? {
+        guard generation == replyGeneration else { return nil }
+        guard let first = pendingReplies.first,
+              messages.contains(where: { $0.id == first.messageID &&
+                  ($0.deliveryState == .delivered || $0.deliveryState == .read) }) else {
+            finishReplyWorker()
+            return nil
         }
-        messages.append(
-            IMessageChatMessage(
-                id: nextMessageID,
-                direction: .incoming,
-                content: content,
-                sentAt: clock(),
-                deliveryState: nil
-            )
-        )
+        activeReplyID = first.messageID
+        return pendingReplies.removeFirst()
+    }
+
+    private func setTyping(_ value: Bool) {
+        guard isTyping != value else { return }
+        isTyping = value
+        publish(reason: .messageStatus)
+    }
+
+    private func finishReplyWorker() {
+        pendingReplyTask = nil
+        activeReplyID = nil
+        isTyping = false
+        publish(reason: .messageStatus)
+    }
+
+    private func completeReply(content: IMessageChatMessageContent) {
+        messages.append(IMessageChatMessage(
+            id: nextMessageID, direction: .incoming, content: content,
+            sentAt: clock(), deliveryState: nil
+        ))
         nextMessageID += 1
         isTyping = false
         publish(reason: .receivedMessage)
@@ -446,13 +534,15 @@ final class IMessageChatViewModel {
             }
 
             let deliveryText: String?
-            if message.id == latestOutgoingID,
-               let deliveryState = message.deliveryState {
-                deliveryText = localizer.text(
-                    deliveryState == .read
-                        ? "imessage.status.read"
-                        : "imessage.status.delivered"
-                )
+            if message.direction == .outgoing, let deliveryState = message.deliveryState,
+               message.id == latestOutgoingID || deliveryState == .sending || deliveryState == .failed {
+                let key: String = switch deliveryState {
+                case .sending: "imessage.status.sending"
+                case .delivered: "imessage.status.delivered"
+                case .read: "imessage.status.read"
+                case .failed: "imessage.status.failed"
+                }
+                deliveryText = localizer.text(key)
             } else {
                 deliveryText = nil
             }
@@ -464,14 +554,16 @@ final class IMessageChatViewModel {
                     id: message.id,
                     direction: message.direction,
                     attachment: attachment,
-                    deliveryText: deliveryText
+                    deliveryText: deliveryText,
+                    deliveryState: message.deliveryState
                 )
             case .localized, .userText:
                 presentation = IMessageChatMessagePresentation(
                     id: message.id,
                     direction: message.direction,
                     text: resolvedText(message.content),
-                    deliveryText: deliveryText
+                    deliveryText: deliveryText,
+                    deliveryState: message.deliveryState
                 )
             }
             timeline.append(
@@ -496,7 +588,8 @@ final class IMessageChatViewModel {
             )
         }
 
-        return State(timeline: timeline, isTyping: isTyping)
+        return State(timeline: timeline, isTyping: isTyping, isProcessingMessages:
+            activeReplyID != nil || !pendingReplies.isEmpty || messages.contains { $0.deliveryState == .sending })
     }
 
     private func resolvedText(_ content: IMessageChatMessageContent) -> String {

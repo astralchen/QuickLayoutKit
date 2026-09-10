@@ -430,7 +430,8 @@ final class IMessageAudioBubbleView: QuickLayoutView {
 final class IMessageAudioBubbleCell: QuickLayoutCollectionViewCell {
 
     let bubbleView = IMessageAudioBubbleView(frame: .zero)
-    let deliveryLabel = UILabel()
+    let deliveryStatusView = IMessageChatDeliveryStatusView()
+    var deliveryLabel: UILabel { deliveryStatusView.label }
 
     var playbackRequested: ((Int, IMessageChatAudioAttachment) -> Void)?
 
@@ -461,7 +462,7 @@ final class IMessageAudioBubbleCell: QuickLayoutCollectionViewCell {
                         : .leading
                 )
                 if message?.deliveryText != nil {
-                    deliveryLabel
+                    deliveryStatusView
                 }
             }
             if message?.direction != .outgoing {
@@ -529,6 +530,7 @@ final class IMessageAudioBubbleCell: QuickLayoutCollectionViewCell {
                   let attachment = message.audio else { return }
             self.playbackRequested?(message.id, attachment)
         }
+        deliveryStatusView.configure(message)
         deliveryLabel.text = message.deliveryText
         deliveryLabel.accessibilityLabel = message.deliveryText
         setNeedsQuickLayout()
@@ -560,6 +562,8 @@ final class IMessageAudioBubbleCell: QuickLayoutCollectionViewCell {
         message = nil
         playbackRequested = nil
         bubbleView.reset()
+        deliveryStatusView.configure(nil)
+        deliveryStatusView.retryRequested = nil
         deliveryLabel.text = nil
         deliveryLabel.accessibilityLabel = nil
         setNeedsQuickLayout()

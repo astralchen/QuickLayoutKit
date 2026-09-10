@@ -141,7 +141,22 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         contactTitleView.sizeToFit()
         navigationItem.titleView = contactTitleView
         view.backgroundColor = .systemBackground
+        conversationView.attachmentSaveState = { [weak self] key in
+            self?.attachmentSaveCoordinator.state(for: key) ?? .available
+        }
+        attachmentSaveCoordinator.stateDidChange = { [weak self] key, state in
+            self?.conversationView.updateSaveState(state, for: key)
+            if state == .completed {
+                UIAccessibility.post(notification: .announcement, argument: DemoLocalization.text("imessage.save.completed"))
+            }
+        }
+        attachmentSaveCoordinator.failed = { [weak self] error in self?.presentAttachmentSaveFailure(error) }
         configureInteractions()
+        #if DEBUG
+        if let fixture = try? IMessageChatSavePreviewFixtures.attachment(store: attachmentStore) {
+            viewModel.appendSavePreviewAttachment(fixture)
+        }
+        #endif
         bindViewModel()
         observeKeyboard()
         configureBottomObstruction()
@@ -152,6 +167,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         bottomObstructionCoordinator.refreshGeometry()
     }
 
+    private let attachmentSaveCoordinator = IMessageChatAttachmentSaveCoordinator()
     private var isLeavingChat = false
     private var hasCleanedUpChat = false
 
@@ -180,6 +196,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         guard isLeavingChat, transitionCoordinator?.isCancelled != true,
               !hasCleanedUpChat else { return }
         hasCleanedUpChat = true
+        attachmentSaveCoordinator.invalidate()
         composerView.dismissRecordingUnavailableHint()
         composerView.pasteCoordinator.invalidate()
         audioTranscription.cancelAll()
@@ -488,11 +505,34 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         (presentedViewController ?? self).present(alert, animated: true)
     }
 
+    private func presentAttachmentSaveFailure(_ error: Error) {
+        guard !hasCleanedUpChat, viewIfLoaded?.window != nil, presentedViewController == nil else { return }
+        let denied = (error as? IMessageChatAttachmentSaveError) == .photoPermissionDenied
+        let alert = UIAlertController(title: DemoLocalization.text("imessage.error.title"),
+            message: DemoLocalization.text(denied ? "imessage.save.permissionDenied" : "imessage.save.failed"), preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: DemoLocalization.text("imessage.action.ok"), style: .cancel))
+        if denied {
+            alert.addAction(UIAlertAction(title: DemoLocalization.text("imessage.action.settings"), style: .default) { _ in
+                guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                UIApplication.shared.open(url)
+            })
+        }
+        present(alert, animated: true)
+    }
+
     /// 把时间线消息操作路由到类型专属的页面协调器。
     ///
     /// - Parameter action: Cell 发出的值类型操作。
     private func handleMessageAction(_ action: IMessageChatMessageAction) {
         switch action {
+        case .retryMessage(let messageID):
+            viewModel.retryMessage(id: messageID)
+        case .saveAttachment(let messageID, let attachment):
+            guard let message = viewModel.state.timeline.compactMap({ item -> IMessageChatMessagePresentation? in
+                guard case .message(let message) = item.content else { return nil }
+                return message
+            }).first(where: { $0.id == messageID && $0.content == .attachment(attachment) }) else { return }
+            attachmentSaveCoordinator.save(message: message, from: self)
         case .openDocument(let attachment):
             audioController.stopPlayback()
             documentController.open(attachment, from: presentedViewController ?? self)

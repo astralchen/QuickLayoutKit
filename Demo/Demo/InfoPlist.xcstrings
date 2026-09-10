@@ -59,6 +59,29 @@
         }
       }
     },
+    "NSPhotoLibraryAddUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يضيف التطبيق الصور والفيديوهات المستلمة إلى مكتبة الصور عند الضغط على حفظ."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The demo adds received photos and videos to your photo library when you tap Save."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点击保存时，演示应用会将收到的照片和视频添加到你的照片图库。"
+          }
+        }
+      }
+    },
     "NSSpeechRecognitionUsageDescription" : {
       "comment" : "Explains why the Demo requests speech-recognition access.",
       "localizations" : {

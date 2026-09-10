@@ -14,7 +14,9 @@ import UIKit
 /// 图片、视频和音频操作均由 ViewController 路由到对应协调器；Conversation View
 /// 和 Cell 不直接创建页面级播放器。
 nonisolated enum IMessageChatMessageAction: Equatable, Sendable {
+    case retryMessage(messageID: Int)
     case openDocument(IMessageChatAttachment)
+    case saveAttachment(messageID: Int, attachment: IMessageChatAttachment)
     case toggleAudioPlayback(
         messageID: Int,
         attachment: IMessageChatAudioAttachment
@@ -41,6 +43,31 @@ final class IMessageConversationView: UIView {
         collectionView: collectionView
     )
     private var renderGeneration = 0
+    private var pendingExplicitScroll = false
+    var attachmentSaveState: ((IMessageChatAttachmentSaveKey) -> IMessageChatAttachmentSaveState)?
+    private var lastState: IMessageChatViewModel.State?
+    private var saveStates: [IMessageChatAttachmentSaveKey: IMessageChatAttachmentSaveState] = [:]
+
+    func updateSaveState(_ state: IMessageChatAttachmentSaveState, for key: IMessageChatAttachmentSaveKey) {
+        saveStates[key] = state
+        if let lastState { render(lastState, reason: .attachmentSave) }
+    }
+
+    private func saveState(for message: IMessageChatMessagePresentation) -> IMessageChatAttachmentSaveState {
+        guard case .attachment(let attachment) = message.content else { return .hidden }
+        let key = IMessageChatAttachmentSaveKey(messageID: message.id, attachmentID: attachment.id)
+        return attachmentSaveState?(key) ?? saveStates[key] ?? .available
+    }
+
+    nonisolated private struct SaveRefreshIdentity: Hashable, Sendable {
+        let message: IMessageChatMessageRefreshIdentity
+        let state: IMessageChatAttachmentSaveState
+    }
+
+    private func saveRefreshIdentity(_ message: IMessageChatMessagePresentation) -> SaveRefreshIdentity {
+        .init(message: message.refreshIdentity, state: saveState(for: message))
+    }
+
     private var timelineCount = 0
     private var lastAppliedLayoutDirection: UIUserInterfaceLayoutDirection?
     private var playbackState: IMessageChatPlaybackState = .idle
@@ -78,8 +105,10 @@ final class IMessageConversationView: UIView {
         _ state: IMessageChatViewModel.State,
         reason: IMessageChatViewModel.UpdateReason
     ) {
+        lastState = state
+        if reason == .initial || reason == .sentMessage { pendingExplicitScroll = true }
         let wasNearBottom = timelineCount == 0 || isNearBottom
-        let localizationAnchor = (reason == .localization || reason == .audioTranscript) && !wasNearBottom
+        let localizationAnchor = (reason == .attachmentSave || ((reason == .localization || reason == .audioTranscript || reason == .messageStatus) && !wasNearBottom))
             ? collectionView.captureLocalizationAnchor()
             : nil
         timelineCount = state.timeline.count
@@ -91,12 +120,12 @@ final class IMessageConversationView: UIView {
         mediaStackStateStore.retainMessages(mediaMessageIDs)
         renderGeneration &+= 1
         let generation = renderGeneration
-        let transaction: ListTransaction = switch reason {
-        case .sentMessage, .receivedMessage:
-            .automatic
-        case .initial, .localization, .audioTranscript:
-            .disabled
-        }
+        // 送达、已读和键入可连续发生。必须完成前一份可见内容刷新，避免
+        // coalesceLatest 取代结构提交后丢失旧 Cell 的状态变更。
+        let transaction = ListTransaction(
+            animation: reason == .sentMessage || reason == .receivedMessage ? .automatic : .disabled,
+            updatePolicy: .serial
+        )
 
         adapter.apply(
             transaction: transaction,
@@ -107,7 +136,9 @@ final class IMessageConversationView: UIView {
                 self.collectionView.layoutIfNeeded()
                 self.refreshMaterializedContentLayoutDirection()
 
-                if let localizationAnchor {
+                let explicitScroll = self.pendingExplicitScroll
+                self.pendingExplicitScroll = false
+                if let localizationAnchor, !explicitScroll {
                     _ = self.collectionView.restoreLocalizationAnchor(
                         localizationAnchor
                     )
@@ -115,12 +146,14 @@ final class IMessageConversationView: UIView {
                 }
 
                 let shouldScroll: Bool = switch reason {
+                case .attachmentSave:
+                    false
                 case .initial, .sentMessage:
                     true
-                case .receivedMessage, .localization, .audioTranscript:
+                case .receivedMessage, .localization, .audioTranscript, .messageStatus:
                     wasNearBottom
                 }
-                guard shouldScroll else { return }
+                guard explicitScroll || shouldScroll else { return }
                 self.scrollToBottom(
                     animated: reason == .sentMessage
                         || reason == .receivedMessage
@@ -145,24 +178,33 @@ final class IMessageConversationView: UIView {
                             Row(
                                 model: message,
                                 cell: IMessageBubbleCell.self
-                            ) { cell, message, _ in
+                            ) { [weak self] cell, message, _ in
+                                cell.deliveryStatusView.retryRequested = { [weak self] in self?.actionRequested?(.retryMessage(messageID: $0)) }
                                 cell.configure(message)
                             }
                             .refreshID(message.refreshIdentity)
+                            .refresh(when: .automatic, action: .reconfigure(layout: .invalidate))
 
                         case .attachment(let attachment):
                             switch attachment {
                             case .file, .link:
                                 Row(model: message, cell: IMessageChatDocumentBubbleCell.self) { [weak self] cell, message, _ in
+                                    cell.deliveryStatusView.retryRequested = { [weak self] in self?.actionRequested?(.retryMessage(messageID: $0)) }
                                     cell.open = { [weak self] in self?.actionRequested?(.openDocument($0)) }
-                                    cell.configure(message)
-                                }.refreshID(message.refreshIdentity)
+                                    cell.saveRequested = { [weak self] in
+                                        self?.actionRequested?(.saveAttachment(messageID: message.id, attachment: attachment))
+                                    }
+                                    cell.configure(message, saveState: self?.saveState(for: message) ?? .available)
+                                }
+                                .refreshID(saveRefreshIdentity(message))
+                                .refresh(when: .automatic, action: .reconfigure(layout: .invalidate))
                             case .audio:
                                 Row(
                                     model: message,
                                     cell: IMessageAudioBubbleCell.self
                                 ) { [weak self] cell, message, _ in
                                     guard let self else { return }
+                                    cell.deliveryStatusView.retryRequested = { [weak self] in self?.actionRequested?(.retryMessage(messageID: $0)) }
                                     cell.playbackRequested = {
                                         [weak self] id, audio in
                                         self?.actionRequested?(
@@ -184,12 +226,14 @@ final class IMessageConversationView: UIView {
                                     )
                                 }
                                 .refreshID(message.refreshIdentity)
+                                .refresh(when: .automatic, action: .reconfigure(layout: .invalidate))
                             case .mediaGroup(let group):
                                 Row(
                                     model: message,
                                     cell: IMessageChatMediaBubbleCell.self
                                 ) { [weak self] cell, message, _ in
                                     guard let self else { return }
+                                    cell.deliveryStatusView.retryRequested = { [weak self] in self?.actionRequested?(.retryMessage(messageID: $0)) }
                                     cell.frontIndexDidChange = {
                                         [weak self] messageID, index in
                                         self?.mediaStackStateStore.setIndex(
@@ -208,6 +252,9 @@ final class IMessageConversationView: UIView {
                                             )
                                         )
                                     }
+                                    cell.saveRequested = { [weak self] in
+                                        self?.actionRequested?(.saveAttachment(messageID: message.id, attachment: .mediaGroup(group)))
+                                    }
                                     cell.configure(
                                         message,
                                         group: group,
@@ -215,10 +262,12 @@ final class IMessageConversationView: UIView {
                                             for: message.id,
                                             itemCount: group.items.count
                                         ),
-                                        strings: mediaStrings
+                                        strings: mediaStrings,
+                                        saveState: saveState(for: message)
                                     )
                                 }
-                                .refreshID(message.refreshIdentity)
+                                .refreshID(saveRefreshIdentity(message))
+                                .refresh(when: .automatic, action: .reconfigure(layout: .invalidate))
                             }
                         }
 

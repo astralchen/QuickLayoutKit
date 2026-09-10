@@ -21,6 +21,9 @@ final class IMessageChatPhotoPickerController: NSObject,
     /// PHPicker 在 iOS 26 会使用全屏透明承载视图；独立 Sheet Host 保证公开的
     /// `UIPresentationController.presentedView` 就是可见面板，便于逐帧读取几何。
     private final class SheetHostController: UIViewController {
+        // iOS 26.5 中保留 Sheet 拖动条时，嵌入式 Picker 仍有 15 pt 顶部留白。
+        // 只调整公开的子控制器视口，不访问 Photos 的内部滚动视图。
+        private let pickerTopContentInset: CGFloat = 15
         let picker: PHPickerViewController
 
         init(picker: PHPickerViewController) {
@@ -35,11 +38,22 @@ final class IMessageChatPhotoPickerController: NSObject,
         override func viewDidLoad() {
             super.viewDidLoad()
             view.backgroundColor = .systemBackground
+            view.clipsToBounds = true
             addChild(picker)
-            picker.view.frame = view.bounds
-            picker.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            // 抵消子视图向上延伸时 UIKit 自动补入的顶部安全区。
+            picker.additionalSafeAreaInsets.top = -pickerTopContentInset
             view.addSubview(picker.view)
             picker.didMove(toParent: self)
+        }
+
+        override func viewDidLayoutSubviews() {
+            super.viewDidLayoutSubviews()
+            picker.view.frame = CGRect(
+                x: 0,
+                y: -pickerTopContentInset,
+                width: view.bounds.width,
+                height: view.bounds.height + pickerTopContentInset
+            )
         }
     }
 
@@ -139,7 +153,11 @@ final class IMessageChatPhotoPickerController: NSObject,
         configuration.selection = .continuousAndOrdered
         configuration.preferredAssetRepresentationMode = .current
         configuration.mode = .default
+        // 隐藏顶部导航栏和底部工具栏，让面板只显示照片网格。
+        configuration.edgesWithoutContentMargins = [.top, .bottom]
         configuration.disabledCapabilities = [
+            // 选择结果已实时同步至 Composer，由其提供移除和发送入口。
+            .selectionActions,
             .stagingArea,
             .sensitivityAnalysisIntervention,
         ]
@@ -154,6 +172,7 @@ final class IMessageChatPhotoPickerController: NSObject,
             configureDetents(of: sheet)
             sheet.selectedDetentIdentifier = Self.keyboardDetentIdentifier
             sheet.largestUndimmedDetentIdentifier = Self.keyboardDetentIdentifier
+            // 拖动条叠加在照片网格上，不单独占用顶部高度。
             sheet.prefersGrabberVisible = true
             sheet.prefersScrollingExpandsWhenScrolledToEdge = true
             sheet.delegate = self

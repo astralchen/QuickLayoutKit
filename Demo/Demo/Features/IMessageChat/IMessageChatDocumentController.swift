@@ -116,7 +116,7 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
             var updated = link
             updated.title = metadata.title
             var pendingFiles: [URL] = []
-            defer { pendingFiles.forEach { store.removeFile(at: $0) } }
+            defer { pendingFiles.forEach { self.store.removeFile(at: $0) } }
             // 封面和站点图标是两种展示语义，不能把 favicon 当成大图。
             for (isIcon, itemProvider) in [(false, metadata.imageProvider), (true, metadata.iconProvider)] {
                 guard let itemProvider,
