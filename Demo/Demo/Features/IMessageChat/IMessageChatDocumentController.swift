@@ -5,32 +5,55 @@ import QuickLookThumbnailing
 import UIKit
 import UniformTypeIdentifiers
 
+/// 内联文档卡片的附件值与异步导入状态。
 nonisolated struct IMessageChatDocumentDraft: Equatable, Sendable {
-    enum Status: Equatable, Sendable { case importing, ready, failed }
+    /// 文档草稿从占位到可发送或失败的处理状态。
+    enum Status: Equatable, Sendable {
+        /// 依次表示正在导入、内容已就绪以及导入失败。
+        case importing, ready, failed
+    }
+    /// 草稿当前携带的文件、链接或媒体附件值。
     var attachment: IMessageChatAttachment
+    /// 当前处理状态；直接创建的有效附件默认为已就绪。
     var status: Status = .ready
+    /// 底层附件的稳定标识符，用于关联占位、异步更新和删除。
     var id: UUID { attachment.id }
 }
 
 /// 文件和网页的独立草稿所有者。删除、提交或退出后，迟到的导入结果只做清理。
 @available(iOS 26.0, *)
 final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, QLPreviewControllerDataSource {
+    /// 与页面其他附件控制器共享的本地文件存储。
     let store: any IMessageChatAttachmentStoring
+    /// 按稳定标识符登记的当前文档草稿集合。
     private(set) var drafts: [UUID: IMessageChatDocumentDraft] = [:]
+    /// 单个草稿插入并完成存储登记时调用的闭包。
     var draftInserted: ((IMessageChatDocumentDraft) -> Void)?
+    /// 混合粘贴完成占位登记后调用的闭包，内容保持原始顺序。
     var contentsInserted: (([IMessageChatEditorInsertion]) -> Void)?
+    /// 用户取消系统文件选择器时调用的闭包。
     var pickerCancelled: (() -> Void)?
+    /// 已有身份的草稿内容或导入状态更新时调用的闭包。
     var draftUpdated: ((IMessageChatDocumentDraft) -> Void)?
+    /// 开始插入链接或混合粘贴内容前调用的闭包。
     var willInsert: (() -> Void)?
+    /// 按附件身份管理的复制、元数据或缩略图任务。
     private var tasks: [UUID: Task<Void, Never>] = [:]
+    /// 按链接身份保存的系统网页元数据提供者。
     private var providers: [UUID: LPMetadataProvider] = [:]
+    /// 按附件身份保存的系统项目加载进度，支持取消导入。
     private var imports: [UUID: Progress] = [:]
+    /// Quick Look 当前持有的本地预览文件 URL。
     private var previewFile: NSURL?
+    /// 当前预览文件所属的附件标识符。
     private var previewID: UUID?
+    /// 当前展示的 Quick Look 控制器；弱引用避免延长展示生命周期。
     private weak var previewController: QLPreviewController?
 
+    /// 创建使用指定页面附件存储的文档控制器。
     init(store: any IMessageChatAttachmentStoring) { self.store = store }
 
+    /// 保留录音文件与稳定身份，将其转换为可内联编辑的文件草稿并请求缩略图。
     func adoptRecording(_ audio: IMessageChatAudioAttachment) {
         let file = IMessageChatFileAttachment(
             id: audio.id, fileURL: audio.fileURL,
@@ -42,6 +65,7 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
         fetchThumbnail(file)
     }
 
+    /// 展示允许多选、以复制方式导入任意文件类型的系统选择器。
     func presentPicker(from controller: UIViewController) {
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.item], asCopy: true)
         picker.allowsMultipleSelection = true
@@ -49,11 +73,13 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
         controller.present(picker, animated: true)
     }
 
+    /// 按系统返回顺序将已选择文件交给混合内容导入流程。
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
         guard !urls.isEmpty else { return }
         insertPasted(urls.map { .fileURL($0) })
     }
 
+    /// 将系统文件选择取消事件转发给页面。
     func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
         pickerCancelled?()
     }
@@ -96,6 +122,9 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
         }
     }
 
+    /// 校验网页 URL，插入可立即发送的链接草稿并异步补充元数据。
+    ///
+    /// - Returns: URL 符合 HTTP 或 HTTPS 规则并已插入时为 `true`。
     @discardableResult
     func insertLink(_ url: URL) -> Bool {
         guard IMessageChatLinkAttachment.accepts(url) else { return false }
@@ -106,6 +135,9 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
         return true
     }
 
+    /// 请求网页标题、封面和站点图标，并仅更新仍活跃的链接草稿。
+    ///
+    /// 元数据失败不改变原 URL 的可发送性；未交给存储的临时图片在退出时清理。
     private func fetchLink(_ link: IMessageChatLinkAttachment) {
         let provider = LPMetadataProvider()
         provider.timeout = 15
@@ -186,6 +218,9 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
         for (source, file) in work { importPasted(source, file: file) }
     }
 
+    /// 复制粘贴来源并更新原占位，按内容类型生成媒体元数据或文件缩略图。
+    ///
+    /// 草稿删除或任务取消后只清理文件，不恢复已失效的卡片。
     private func importPasted(_ source: IMessageChatPasteSource, file: IMessageChatFileAttachment) {
         tasks[file.id] = Task { [weak self] in
             guard let self, !Task.isCancelled, drafts[file.id] != nil else { return }
@@ -231,6 +266,9 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
         }
     }
 
+    /// 将文件 URL 或项目提供者内容复制到草稿目标位置。
+    ///
+    /// 文件表示不可用时尝试图像对象或数据表示；失败返回 `nil`，不发布界面状态。
     private func copyPaste(_ source: IMessageChatPasteSource, file: IMessageChatFileAttachment) async -> IMessageChatFileAttachment? {
         let destination = file.fileURL
         var imported = file
@@ -288,6 +326,7 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
                      byteCount: Int64((try? imported.fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0))
     }
 
+    /// 异步读取项目提供者的图像数据；没有数据时抛出系统错误或文件读取错误。
     private static func imageData(from provider: NSItemProvider) async throws -> Data {
         try await withCheckedThrowingContinuation { continuation in
             provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, error in
@@ -297,12 +336,14 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
         }
     }
 
+    /// 登记新草稿及其文件归属，并通知编辑器插入卡片。
     private func insert(_ draft: IMessageChatDocumentDraft) {
         drafts[draft.id] = draft
         store.registerDraft(draft.attachment)
         draftInserted?(draft)
     }
 
+    /// 更新仍存在的草稿、同步文件归属并通知编辑器刷新同一身份。
     private func update(_ draft: IMessageChatDocumentDraft) {
         guard drafts[draft.id] != nil else { return }
         drafts[draft.id] = draft
@@ -310,6 +351,7 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
         draftUpdated?(draft)
     }
 
+    /// 使用 Quick Look 生成文件缩略图，并仅向仍活跃的草稿回填本地图片 URL。
     private func fetchThumbnail(_ file: IMessageChatFileAttachment) {
         tasks[file.id] = Task { [weak self] in
             let request = QLThumbnailGenerator.Request(
@@ -328,6 +370,10 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
         }
     }
 
+    /// 按指定顺序返回可发送附件。
+    ///
+    /// - Parameter ids: 必须恰好覆盖当前草稿集合且没有重复项的身份序列。
+    /// - Returns: 全部草稿已就绪时返回附件数组；否则返回 `nil`。
     func attachments(for ids: [UUID]) -> [IMessageChatAttachment]? {
         guard Set(ids) == Set(drafts.keys), Set(ids).count == ids.count else { return nil }
         let values = ids.compactMap { drafts[$0] }
@@ -335,6 +381,7 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
         return values.map(\.attachment)
     }
 
+    /// 取消指定草稿的异步工作，关闭其预览并删除未提交文件。
     func remove(_ id: UUID) {
         cancelWork(id)
         if previewID == id { previewController?.dismiss(animated: true); previewFile = nil; previewID = nil }
@@ -342,6 +389,7 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
         store.discardDraft(id: id)
     }
 
+    /// 取消指定草稿的补充处理，并将附件归属转为已提交消息资源。
     func commit(_ ids: [UUID]) {
         for id in ids {
             cancelWork(id)
@@ -351,16 +399,21 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
         }
     }
 
+    /// 逐项移除全部文档草稿及其拥有的未提交资源。
     func discardAll() {
         for id in Array(drafts.keys) { remove(id) }
     }
 
+    /// 取消指定附件的项目加载、异步任务与网页元数据请求。
     private func cancelWork(_ id: UUID) {
         imports.removeValue(forKey: id)?.cancel()
         tasks.removeValue(forKey: id)?.cancel()
         providers.removeValue(forKey: id)?.cancel()
     }
 
+    /// 按附件类型打开本地 Quick Look 预览或系统网页链接。
+    ///
+    /// 媒体组使用首个原件预览；音频气泡不在此入口处理。
     func open(_ attachment: IMessageChatAttachment, from controller: UIViewController) {
         switch attachment {
         case .file(let file):
@@ -384,7 +437,9 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
         }
     }
 
+    /// 返回当前可供 Quick Look 预览的文件数量，值为零或一。
     func numberOfPreviewItems(in controller: QLPreviewController) -> Int { previewFile == nil ? 0 : 1 }
+    /// 向 Quick Look 提供当前预览文件；没有文件时返回空 URL 对象。
     func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> any QLPreviewItem {
         previewFile ?? NSURL()
     }

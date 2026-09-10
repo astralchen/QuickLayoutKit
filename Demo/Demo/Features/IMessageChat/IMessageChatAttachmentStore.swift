@@ -67,11 +67,16 @@ protocol IMessageChatAttachmentStoring: AnyObject {
 @MainActor
 final class IMessageChatPageAttachmentStore: IMessageChatAttachmentStoring {
 
+    /// 当前页面拥有的独立附件目录。
     let directoryURL: URL
 
+    /// 执行附件目录和文件操作的文件管理器。
     private let fileManager: FileManager
+    /// 按稳定标识符索引的未提交附件；取消时删除其文件。
     private var drafts: [UUID: IMessageChatAttachment] = [:]
+    /// 按稳定标识符索引的已提交附件；文件保留至页面清理。
     private var committed: [UUID: IMessageChatAttachment] = [:]
+    /// 指示是否已执行整目录清理的布尔值，避免重复删除。
     private var removedAllFiles = false
 
     /// 创建页面附件存储并准备独立目录。
@@ -95,16 +100,21 @@ final class IMessageChatPageAttachmentStore: IMessageChatAttachmentStoring {
         )
     }
 
+    /// 在存储释放时删除页面附件目录及残留临时文件。
     deinit {
         try? fileManager.removeItem(at: directoryURL)
     }
 
+    /// 返回页面目录内带指定前缀和扩展名的唯一 URL，不创建文件。
     func makeFileURL(prefix: String, pathExtension: String) -> URL {
         directoryURL
             .appendingPathComponent("\(prefix)-\(UUID().uuidString)")
             .appendingPathExtension(pathExtension)
     }
 
+    /// 将源文件复制到页面目录，并返回由页面拥有的目标 URL。
+    ///
+    /// `pathExtension` 为 `nil` 时沿用源扩展名；复制失败时向调用方抛出错误。
     func importFile(
         at sourceURL: URL,
         prefix: String,
@@ -126,16 +136,21 @@ final class IMessageChatPageAttachmentStore: IMessageChatAttachmentStoring {
         return destinationURL
     }
 
+    /// 注册附件草稿，并移除同一身份的已提交记录。
     func registerDraft(_ attachment: IMessageChatAttachment) {
         drafts[attachment.id] = attachment
         committed.removeValue(forKey: attachment.id)
     }
 
+    /// 将附件直接记录为已提交资源，并移除同一身份的草稿记录。
     func registerCommitted(_ attachment: IMessageChatAttachment) {
         drafts.removeValue(forKey: attachment.id)
         committed[attachment.id] = attachment
     }
 
+    /// 将指定草稿转入已提交集合。
+    ///
+    /// - Returns: 找到并完成转移时为 `true`；草稿不存在时为 `false`。
     func commitDraft(id: UUID) -> Bool {
         guard let attachment = drafts.removeValue(forKey: id) else {
             return false
@@ -144,6 +159,7 @@ final class IMessageChatPageAttachmentStore: IMessageChatAttachmentStoring {
         return true
     }
 
+    /// 移除指定草稿，并删除其登记的全部本地文件。
     func discardDraft(id: UUID) {
         guard let attachment = drafts.removeValue(forKey: id) else { return }
         for url in attachment.localFileURLs {
@@ -151,10 +167,12 @@ final class IMessageChatPageAttachmentStore: IMessageChatAttachmentStoring {
         }
     }
 
+    /// 尝试删除指定本地文件；文件不存在或删除失败时不抛出错误。
     func removeFile(at url: URL) {
         try? fileManager.removeItem(at: url)
     }
 
+    /// 清空附件登记并尝试删除页面目录；重复调用不再执行清理。
     func removeAll() {
         guard !removedAllFiles else { return }
         removedAllFiles = true

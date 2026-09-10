@@ -5,30 +5,51 @@ import Speech
 /// 读取已提交的音频文件。实现不得启动麦克风或更改播放音频会话。
 @MainActor
 protocol IMessageChatAudioFileTranscribing: AnyObject {
+    /// 识别指定本地音频文件的完整文本。
+    ///
+    /// - Parameters:
+    ///   - fileURL: 已提交且可读的音频文件 URL。
+    ///   - locale: 决定识别语言的区域设置。
+    /// - Returns: 完整转写文本；未取得结果时为 `nil`。
+    /// - Throws: 识别、文件读取或任务取消产生的错误。
     func transcribe(fileURL: URL, locale: Locale) async throws -> String?
 }
 
 /// 页面内的串行识别队列。结果与消息、附件双重身份绑定，失败也记为已尝试。
 @MainActor
 final class IMessageChatAudioTranscriptionCoordinator {
+    /// 以消息和附件双重身份区分一次文件转写请求的键。
     private struct Key: Hashable {
+        /// 待回填识别文本的消息标识符。
         let messageID: Int
+        /// 待识别音频附件的稳定标识符。
         let attachmentID: UUID
     }
 
+    /// 在串行队列中等待识别的文件及语言快照。
     private struct Job {
+        /// 绑定消息与音频附件身份的请求键。
         let key: Key
+        /// 等待转写的已提交音频文件 URL。
         let fileURL: URL
+        /// 请求入队时捕获的识别区域设置。
         let locale: Locale
     }
 
+    /// 执行完整音频文件识别的服务。
     private let transcriber: any IMessageChatAudioFileTranscribing
+    /// 有效识别结果到达时调用的闭包，依次传入消息身份、附件身份和文本。
     private let completion: (Int, UUID, String) -> Void
+    /// 已经受理的请求身份集合；包括失败请求，避免自动重复识别。
     private var attempted: Set<Key> = []
+    /// 按时间线发现顺序等待处理的转写请求。
     private var queue: [Job] = []
+    /// 串行消费转写队列的任务；空闲时为 `nil`。
     private var worker: Task<Void, Never>?
+    /// 指示页面已退出、不得再受理或回填结果的布尔值。
     private var invalidated = false
 
+    /// 创建串行转写协调器，并指定文件识别服务及结果回调。
     init(
         transcriber: any IMessageChatAudioFileTranscribing,
         completion: @escaping (Int, UUID, String) -> Void
@@ -37,14 +58,17 @@ final class IMessageChatAudioTranscriptionCoordinator {
         self.completion = completion
     }
 
+    /// 在协调器释放时取消尚未完成的队列任务。
     deinit { worker?.cancel() }
 
+    /// 将时间线中尚无转写文本的音频按双重身份去重入队，并启动单个工作任务。
     func enqueue(_ state: IMessageChatViewModel.State, locale: Locale) {
         guard !invalidated else { return }
         for item in state.timeline {
             guard case .message(let message) = item.content,
                   let audio = message.audio, audio.transcript == nil else { continue }
             let key = Key(messageID: message.id, attachmentID: audio.id)
+            // 入队即占用身份；重复渲染、识别失败和空结果都不会自动发起第二次请求。
             guard attempted.insert(key).inserted else { continue }
             queue.append(Job(key: key, fileURL: audio.fileURL, locale: locale))
         }
@@ -68,6 +92,7 @@ final class IMessageChatAudioTranscriptionCoordinator {
         }
     }
 
+    /// 永久停止队列，取消当前任务并忽略之后到达的识别结果。
     func cancelAll() {
         invalidated = true
         queue.removeAll()
@@ -75,6 +100,7 @@ final class IMessageChatAudioTranscriptionCoordinator {
         worker = nil
     }
 
+    /// 取出最早入队的请求；队列为空或已失效时返回 `nil`。
     private func takeNext() -> Job? {
         guard !invalidated, !queue.isEmpty else { return nil }
         return queue.removeFirst()
@@ -84,9 +110,12 @@ final class IMessageChatAudioTranscriptionCoordinator {
 /// 文件识别使用独立的系统请求，与输入栏的实时转写互不取消。
 @MainActor
 final class IMessageChatAudioFileTranscriber: IMessageChatAudioFileTranscribing {
+    /// 显式指定的识别后端；为 `nil` 时使用系统能力选择与启动回退策略。
     private let requestedBackend: IMessageChatSpeechBackend?
+    /// 兼容文件识别后端使用的语音权限提供者。
     private let permissionProvider: any IMessageChatMediaPermissionProviding
 
+    /// 创建文件转写器，并允许指定识别后端和权限提供者。
     init(
         backend: IMessageChatSpeechBackend? = nil,
         permissionProvider: (any IMessageChatMediaPermissionProviding)? = nil
@@ -95,6 +124,9 @@ final class IMessageChatAudioFileTranscriber: IMessageChatAudioFileTranscribing 
         self.permissionProvider = permissionProvider ?? IMessageChatSystemPermissionProvider()
     }
 
+    /// 选择识别后端并转写本地文件。
+    ///
+    /// 只有自动选中的现代后端准备失败时回退；运行错误和取消不会重新启动其他后端。
     func transcribe(fileURL: URL, locale: Locale) async throws -> String? {
         try Task.checkCancellation()
         let backend = requestedBackend ?? IMessageChatSpeechConfiguration.preferredBackend(
@@ -123,6 +155,9 @@ final class IMessageChatAudioFileTranscriber: IMessageChatAudioFileTranscribing 
         return try await transcribeLegacy(fileURL: fileURL, locale: locale)
     }
 
+    /// 预留并安装目标语言资源，打开文件并准备现代分析器。
+    ///
+    /// 准备失败或取消时结束分析器，然后向调用方抛出错误。
     @available(iOS 26.0, *)
     private func prepareModern(fileURL: URL, locale: Locale) async throws -> (SpeechAnalyzer, SpeechTranscriber, AVAudioFile) {
         guard let supported = await SpeechTranscriber.supportedLocale(equivalentTo: locale) else {
@@ -149,6 +184,9 @@ final class IMessageChatAudioFileTranscriber: IMessageChatAudioFileTranscribing 
         }
     }
 
+    /// 运行已准备的文件分析器，收集最终文本片段并按语言规则拼接。
+    ///
+    /// 取消或失败时同时终止结果任务与分析器。
     @available(iOS 26.0, *)
     private func runModern(_ prepared: (SpeechAnalyzer, SpeechTranscriber, AVAudioFile), locale: Locale) async throws -> String? {
         let (analyzer, transcriber, file) = prepared
@@ -177,6 +215,9 @@ final class IMessageChatAudioFileTranscriber: IMessageChatAudioFileTranscribing 
         }
     }
 
+    /// 请求语音识别权限，优先尝试设备端识别，再按错误情况尝试系统在线识别。
+    ///
+    /// 权限或识别器不可用时返回 `nil`；取消不会触发在线回退。
     private func transcribeLegacy(fileURL: URL, locale: Locale) async throws -> String? {
         let authorized = await permissionProvider.requestSpeechPermission()
         try Task.checkCancellation()
@@ -198,9 +239,14 @@ final class IMessageChatAudioFileTranscriber: IMessageChatAudioFileTranscribing 
 /// 单个请求拥有自己的 continuation；取消和迟到的回调都只能完成一次。
 @MainActor
 private final class LegacyFileRequest {
+    /// 当前文件识别的系统任务。
     private var task: SFSpeechRecognitionTask?
+    /// 等待最终文本或错误的延续；清空后不再受理迟到回调。
     private var continuation: CheckedContinuation<String?, any Error>?
 
+    /// 执行一次兼容文件识别，并将任务取消转换为唯一的结束结果。
+    ///
+    /// `onDevice` 决定是否要求设备端识别；只受理最终文本。
     func run(recognizer: SFSpeechRecognizer, fileURL: URL, onDevice: Bool) async throws -> String? {
         try await withTaskCancellationHandler {
             try Task.checkCancellation()
@@ -223,6 +269,7 @@ private final class LegacyFileRequest {
         }
     }
 
+    /// 先解除请求与延续的持有，再取消系统任务并一次性恢复调用方。
     private func finish(_ result: Result<String?, any Error>) {
         guard let continuation else { return }
         self.continuation = nil

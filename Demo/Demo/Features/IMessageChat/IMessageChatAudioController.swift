@@ -12,20 +12,31 @@ import UIKit
 
 /// 媒体控制器向用户呈现的错误。
 nonisolated enum IMessageChatMediaFailure: Equatable, Sendable {
+    /// 用户未授予麦克风访问权限。
     case microphonePermissionDenied
+    /// 用户未授予语音识别访问权限。
     case speechPermissionDenied
+    /// 录音未达到允许保留和发送的最短时长。
     case recordingTooShort
+    /// 录音无法开始或编码失败。
     case recordingFailed
+    /// 音频文件不可读、无法解码或无法播放。
     case playbackFailed
+    /// 当前语言或系统环境没有可用的语音识别服务。
     case speechUnavailable
+    /// 语音识别启动或运行失败。
     case speechFailed
+    /// 选定媒体无法复制或导入到页面目录。
     case mediaImportFailed
+    /// 导入的媒体内容或元数据无效。
     case mediaInvalid
 }
 
 /// 媒体层支持的语音识别实现。
 nonisolated enum IMessageChatSpeechBackend: Equatable, Sendable {
+    /// 使用 iOS 26 的 Speech Analyzer 进行语音分析。
     case speechAnalyzer
+    /// 使用 SFSpeechRecognizer 进行兼容语音识别。
     case speechRecognizer
 }
 
@@ -64,7 +75,7 @@ nonisolated enum IMessageChatSpeechConfiguration {
     }
 
     /// 返回与应用区域设置对应的语音识别区域设置。
-///
+    ///
     /// Demo 支持英语、简体中文和阿拉伯语。带地区的识别区域设置可以让旧版识别器和
     /// iOS 26 资源解析器针对这些语言选项产生确定结果。
     ///
@@ -119,6 +130,7 @@ nonisolated struct IMessageChatPlaybackState: Equatable, Sendable {
     /// 位于 `0...1` 范围内的归一化播放位置。
     let progress: Double
 
+    /// 没有关联消息、没有播放且进度为零的初始状态。
     static let idle = IMessageChatPlaybackState(
         messageID: nil,
         attachmentID: nil,
@@ -210,6 +222,7 @@ protocol IMessageChatAudioSessionControlling: AnyObject {
 final class IMessageChatSystemPermissionProvider:
     IMessageChatMediaPermissionProviding {
 
+    /// 返回麦克风授权结果；尚未决定权限时请求系统授权。
     func requestMicrophonePermission() async -> Bool {
         switch AVAudioApplication.shared.recordPermission {
         case .granted:
@@ -227,6 +240,7 @@ final class IMessageChatSystemPermissionProvider:
         }
     }
 
+    /// 返回语音识别授权结果；尚未决定权限时请求系统授权。
     func requestSpeechPermission() async -> Bool {
         switch SFSpeechRecognizer.authorizationStatus() {
         case .authorized:
@@ -250,22 +264,28 @@ final class IMessageChatSystemPermissionProvider:
 final class IMessageChatSystemAudioSessionController:
     IMessageChatAudioSessionControlling {
 
+    /// 由此对象配置和激活的系统音频会话。
     private let session: AVAudioSession
 
+    /// 用于限定音频生命周期通知来源的系统会话对象。
     var notificationObject: AnyObject { session }
 
+    /// 创建包装指定音频会话的控制器；默认使用应用共享会话。
     init(session: AVAudioSession = .sharedInstance()) {
         self.session = session
     }
 
+    /// 使用支持录放的语音模式激活麦克风采集会话。
     func activateCapture() throws {
         try activateForSpokenAudio()
     }
 
+    /// 使用支持录放的语音模式激活音频播放会话。
     func activatePlayback() throws {
         try activateForSpokenAudio()
     }
 
+    /// 停用系统音频会话，并通知其他音频客户端可以恢复。
     func deactivate() throws {
         try session.setActive(
             false,
@@ -273,6 +293,9 @@ final class IMessageChatSystemAudioSessionController:
         )
     }
 
+    /// 配置扬声器及蓝牙 HFP 路由，随后激活语音录放会话。
+    ///
+    /// 系统配置或激活失败时向调用方抛出错误。
     private func activateForSpokenAudio() throws {
         try session.setCategory(
             .playAndRecord,
@@ -288,8 +311,10 @@ final class IMessageChatSystemAudioSessionController:
 /// `AVSpeechSynthesizer` 的回调队列不属于页面状态机；包装对象只负责跨越任务
 /// 边界，缓冲区仍只会在主 Actor 上读取。
 private final class IMessageChatReplyAudioBufferBox: @unchecked Sendable {
+    /// 从语音合成回调转交给主 Actor 读取的缓冲区。
     let buffer: AVAudioBuffer
 
+    /// 持有指定音频缓冲区，以便跨任务边界传递。
     init(_ buffer: AVAudioBuffer) {
         self.buffer = buffer
     }
@@ -297,17 +322,25 @@ private final class IMessageChatReplyAudioBufferBox: @unchecked Sendable {
 
 /// 保存单次文本转音频操作的文件写入状态。
 nonisolated private final class IMessageChatReplyAudioSynthesisContext {
+    /// 标识单次合成操作的令牌，用于拒绝过期缓冲区回调。
     let generation: UUID
+    /// 本次合成操作写入的本地音频文件 URL。
     let fileURL: URL
+    /// 用于创建输出音频文件的格式设置。
     let fileSettings: [String: Any]
+    /// 等待附件合成结果的延续；操作结束后清空并恢复一次。
     var continuation: CheckedContinuation<
         IMessageChatAudioAttachment,
         any Error
     >?
+    /// 正在写入的音频文件；关闭后才能重新打开校验。
     var audioFile: AVAudioFile?
+    /// 已写入缓冲区的累计时长，单位为秒。
     var duration: TimeInterval = 0
+    /// 按写入顺序收集的归一化波形采样。
     var waveformSamples: [Float] = []
 
+    /// 创建单次合成的资源上下文，记录操作身份、输出设置和等待结果的延续。
     init(
         generation: UUID,
         fileURL: URL,
@@ -332,12 +365,18 @@ nonisolated private final class IMessageChatReplyAudioSynthesisContext {
 @MainActor
 final class IMessageChatAudioController: NSObject {
 
+    /// 输入栏录音、预览或听写状态变化的回调类型。
     typealias StateHandler = (IMessageChatComposerState) -> Void
+    /// 时间线音频播放状态变化的回调类型。
     typealias PlaybackHandler = (IMessageChatPlaybackState) -> Void
+    /// 向界面报告媒体操作失败的回调类型。
     typealias FailureHandler = (IMessageChatMediaFailure) -> Void
 
+    /// 区分草稿预览与已发送消息的播放目标。
     private enum PlaybackTarget: Equatable {
+        /// 播放指定稳定身份的音频草稿。
         case preview(UUID)
+        /// 播放由消息身份与附件身份共同确定的时间线音频。
         case message(id: Int, attachmentID: UUID)
     }
 
@@ -350,6 +389,7 @@ final class IMessageChatAudioController: NSObject {
     /// 当前操作需要向用户反馈时调用的闭包。
     var failureDidOccur: FailureHandler?
 
+    /// 输入栏当前的媒体状态；值发生变化时同步通知观察者。
     private(set) var state: IMessageChatComposerState = .idle {
         didSet {
             guard state != oldValue else { return }
@@ -357,6 +397,7 @@ final class IMessageChatAudioController: NSObject {
         }
     }
 
+    /// 时间线当前的音频播放状态；值发生变化时同步通知观察者。
     private(set) var playbackState: IMessageChatPlaybackState = .idle {
         didSet {
             guard playbackState != oldValue else { return }
@@ -364,29 +405,51 @@ final class IMessageChatAudioController: NSObject {
         }
     }
 
+    /// 负责激活和释放音频会话的协作者。
     private let audioSession: IMessageChatAudioSessionControlling
+    /// 指示当前控制器是否持有已激活音频会话的布尔值。
     private var ownsAudioSession = false
+    /// 与页面视频预览共享的播放互斥协调器。
     let playbackCoordinator = IMessageChatPlaybackCoordinator()
+    /// 当前音频控制器获取和释放播放所有权时使用的稳定令牌。
     private let playbackOwner = UUID()
+    /// 负责草稿及已提交音频文件生命周期的页面存储。
     let attachmentStore: any IMessageChatAttachmentStoring
+    /// 检查和删除录音、合成音频文件的文件管理器。
     private let fileManager: FileManager
+    /// 将实时麦克风输入转换为文本的服务。
     private let speechTranscriber: IMessageChatSpeechTranscribing
+    /// 请求麦克风和语音识别权限的协作者。
     private let permissionProvider: IMessageChatMediaPermissionProviding
 
+    /// 当前录音器；没有活动录音时为 `nil`。
     private var recorder: AVAudioRecorder?
+    /// 定期更新录音时长和音量的主运行循环计时器。
     private var recordingTimer: Timer?
+    /// 本次录音按时间顺序收集的归一化音量采样。
     private var recordingSamples: [Float] = []
+    /// 当前录音正在写入的文件 URL。
     private var recordingURL: URL?
+    /// 当前音频播放器；停止播放并清理后为 `nil`。
     private var player: AVAudioPlayer?
+    /// 当前播放器对应的草稿或消息身份。
     private var playbackTarget: PlaybackTarget?
+    /// 定期发布音频播放进度的主运行循环计时器。
     private var playbackTimer: Timer?
+    /// 生成模拟音频回复的系统语音合成器。
     private var replyAudioSynthesizer: AVSpeechSynthesizer?
+    /// 正在进行的回复合成上下文；负责输出文件与结果延续。
     private var replyAudioSynthesisContext:
         IMessageChatReplyAudioSynthesisContext?
+    /// 当前权限请求或语音启动操作的可取消任务。
     private var operationTask: Task<Void, Never>?
+    /// 当前听写会话的令牌，用于过滤停止后到达的识别回调。
     private var dictationGeneration: UUID?
+    /// 系统音频会话中断通知的观察令牌。
     private var interruptionObserver: NSObjectProtocol?
+    /// 音频输出路由变化通知的观察令牌。
     private var routeObserver: NSObjectProtocol?
+    /// 应用进入后台通知的观察令牌。
     private var backgroundObserver: NSObjectProtocol?
 
     /// 创建使用共享音频会话和系统语音识别器的媒体控制器。
@@ -436,6 +499,7 @@ final class IMessageChatAudioController: NSObject {
         observeAudioLifecycle()
     }
 
+    /// 取消异步操作、停止音频设备与计时器，并释放合成资源和通知观察者。
     deinit {
         operationTask?.cancel()
         replyAudioSynthesizer?.stopSpeaking(at: .immediate)
@@ -713,6 +777,9 @@ final class IMessageChatAudioController: NSObject {
         finishAudioSession()
     }
 
+    /// 创建单声道 AAC 录音文件，并以 50 毫秒间隔采样音量。
+    ///
+    /// 录音器无法准备或启动时抛出错误，交由调用方恢复状态。
     private func beginRecording() throws {
         let url = attachmentStore.makeFileURL(
             prefix: "audio",
@@ -749,6 +816,7 @@ final class IMessageChatAudioController: NSObject {
         RunLoop.main.add(recordingTimer!, forMode: .common)
     }
 
+    /// 读取当前录音时长和音量，并在达到最长时限时保留有效录音。
     private func sampleRecording() {
         guard let recorder else { return }
         recorder.updateMeters()
@@ -768,6 +836,9 @@ final class IMessageChatAudioController: NSObject {
         }
     }
 
+    /// 停止录音，并根据保留策略提交草稿预览或删除临时文件。
+    ///
+    /// - Parameter keepValidRecording: 是否保留达到最短时长的有效文件；为 `false` 时直接丢弃。
     private func finishRecording(keepValidRecording: Bool) {
         recordingTimer?.invalidate()
         recordingTimer = nil
@@ -808,6 +879,9 @@ final class IMessageChatAudioController: NSObject {
         finishAudioSession()
     }
 
+    /// 停止原播放目标，校验附件文件并开始播放指定草稿或消息。
+    ///
+    /// 失败时清理播放状态，并通过媒体错误回调通知界面。
     private func play(
         _ attachment: IMessageChatAudioAttachment,
         target: PlaybackTarget
@@ -833,6 +907,7 @@ final class IMessageChatAudioController: NSObject {
         }
     }
 
+    /// 重新校验文件与音频会话，恢复已暂停目标的播放和进度采样。
     private func resumePlayback() {
         guard let player, playbackTarget != nil else { return }
         guard validatePlaybackFile(player) else { return }
@@ -852,6 +927,7 @@ final class IMessageChatAudioController: NSObject {
         }
     }
 
+    /// 替换播放计时器，以 50 毫秒间隔在主运行循环发布进度。
     private func startPlaybackTimer() {
         playbackTimer?.invalidate()
         playbackTimer = Timer.scheduledTimer(
@@ -865,6 +941,7 @@ final class IMessageChatAudioController: NSObject {
         RunLoop.main.add(playbackTimer!, forMode: .common)
     }
 
+    /// 校验当前播放文件，并将播放位置归一化到 `0...1` 后发布。
     private func samplePlayback() {
         guard let player else { return }
         guard validatePlaybackFile(player) else { return }
@@ -874,6 +951,7 @@ final class IMessageChatAudioController: NSObject {
         publishPlayback(isPlaying: player.isPlaying, progress: progress)
     }
 
+    /// 暂停播放器，保留当前播放位置并在无录音占用时释放音频会话。
     private func pausePlayback() {
         playbackTimer?.invalidate()
         playbackTimer = nil
@@ -901,6 +979,9 @@ final class IMessageChatAudioController: NSObject {
         finishAudioSession()
     }
 
+    /// 返回当前播放器引用的文件是否仍可读。
+    ///
+    /// 文件丢失时停止播放并发布播放失败；无文件 URL 的播放器不在此处判为失败。
     private func validatePlaybackFile(_ player: AVAudioPlayer) -> Bool {
         guard let url = player.url, !fileManager.isReadableFile(atPath: url.path) else { return true }
         stopPlayback()
@@ -908,6 +989,7 @@ final class IMessageChatAudioController: NSObject {
         return false
     }
 
+    /// 将播放进度发布到匹配身份的草稿状态或时间线状态。
     private func publishPlayback(isPlaying: Bool, progress: Double) {
         switch playbackTarget {
         case .preview(let attachmentID):
@@ -931,18 +1013,21 @@ final class IMessageChatAudioController: NSObject {
         }
     }
 
+    /// 获取页面音频所有权并激活采集会话；成功后记录会话占用。
     private func configureCaptureSession() throws {
         playbackCoordinator.acquire(owner: playbackOwner) { [weak self] in self?.stopAll() }
         try audioSession.activateCapture()
         ownsAudioSession = true
     }
 
+    /// 获取页面音频所有权并激活播放会话；成功后记录会话占用。
     private func configurePlaybackSession() throws {
         playbackCoordinator.acquire(owner: playbackOwner) { [weak self] in self?.stopAll() }
         try audioSession.activatePlayback()
         ownsAudioSession = true
     }
 
+    /// 在录音和播放均不占用设备时释放本控制器持有的音频会话。
     private func finishAudioSession() {
         guard recorder == nil, player?.isPlaying != true else { return }
         playbackCoordinator.release(owner: playbackOwner)
@@ -952,6 +1037,7 @@ final class IMessageChatAudioController: NSObject {
         try? audioSession.deactivate()
     }
 
+    /// 订阅会话中断、输出设备移除和应用后台事件，以停止或暂停对应操作。
     private func observeAudioLifecycle() {
         interruptionObserver = NotificationCenter.default.addObserver(
             forName: AVAudioSession.interruptionNotification,
@@ -992,6 +1078,7 @@ final class IMessageChatAudioController: NSObject {
         }
     }
 
+    /// 响应音频中断，保留有效录音、结束听写并暂停播放。
     private func handleCaptureInterruption() {
         if recorder != nil {
             finishRecording(keepValidRecording: true)
@@ -1005,11 +1092,15 @@ final class IMessageChatAudioController: NSObject {
         pausePlayback()
     }
 
+    /// 将分贝功率转换为 `0.08...1` 范围的波形振幅；非有限值使用最小振幅。
     private static func normalizedPower(_ power: Float) -> Float {
         guard power.isFinite else { return 0.08 }
         return min(1, max(0.08, pow(10, power / 40)))
     }
 
+    /// 按分桶峰值压缩波形到指定采样数，并用最小振幅补足槽位。
+    ///
+    /// 原始采样为空或目标数量无效时返回默认占位波形。
     private static func condensedWaveform(
         _ samples: [Float],
         count: Int
@@ -1029,12 +1120,14 @@ final class IMessageChatAudioController: NSObject {
         return Array(result.prefix(count))
     }
 
+    /// 没有有效采样时使用的 36 槽位最低振幅波形。
     private static let placeholderWaveform: [Float] = Array(
         repeating: 0.08,
         count: 36
     )
 }
 
+/// 提供将模拟回复文本合成为本地音频附件的实现。
 extension IMessageChatAudioController: IMessageChatReplyAudioSynthesizing {
 
     /// 使用系统声线把本地化回复文本写入页面临时音频文件。
@@ -1272,7 +1365,9 @@ extension IMessageChatAudioController: IMessageChatReplyAudioSynthesizing {
     }
 }
 
+/// 处理录音编码失败，并将系统回调转交主 Actor。
 extension IMessageChatAudioController: AVAudioRecorderDelegate {
+    /// 在录音编码失败时停止当前操作并发布录音失败状态。
     nonisolated func audioRecorderEncodeErrorDidOccur(
         _ recorder: AVAudioRecorder,
         error: (any Error)?
@@ -1285,7 +1380,9 @@ extension IMessageChatAudioController: AVAudioRecorderDelegate {
     }
 }
 
+/// 处理音频解码错误与播放结束的系统代理回调。
 extension IMessageChatAudioController: AVAudioPlayerDelegate {
+    /// 在音频解码失败时转回主 Actor 清理播放，并报告错误。
     nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: (any Error)?) {
         Task { @MainActor [weak self] in
             guard let self, self.player === player else { return }
@@ -1294,6 +1391,7 @@ extension IMessageChatAudioController: AVAudioPlayerDelegate {
         }
     }
 
+    /// 在播放结束时重置播放状态；非正常结束时报告播放失败。
     nonisolated func audioPlayerDidFinishPlaying(
         _ player: AVAudioPlayer,
         successfully flag: Bool
@@ -1323,15 +1421,25 @@ extension IMessageChatAudioController: AVAudioPlayerDelegate {
 @MainActor
 final class IMessageChatSpeechRecognitionService: IMessageChatSpeechTranscribing {
 
+    /// 调用方显式选择的语音后端；为 `nil` 时根据系统能力自动选择。
     private let requestedBackend: IMessageChatSpeechBackend?
+    /// 向识别请求或分析器提供麦克风输入的音频引擎。
     private var audioEngine: AVAudioEngine?
+    /// 兼容后端当前接收音频缓冲区的识别请求。
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+    /// 兼容后端当前的系统识别任务。
     private var recognitionTask: SFSpeechRecognitionTask?
+    /// 向现代分析器传递输入音频的异步任务。
     private var analysisTask: Task<Void, Never>?
+    /// 消费现代语音识别结果序列的异步任务。
     private var resultsTask: Task<Void, Never>?
+    /// 当前现代语音分析器；停止时取消分析并释放。
     private var analyzer: SpeechAnalyzer?
+    /// 现代后端已确认的完整识别文本。
     private var stableModernTranscript = ""
+    /// 现代后端尚未确认的当前识别片段。
     private var partialModernTranscript = ""
+    /// 拼接识别片段使用的分隔符；中文使用空字符串。
     private var modernTranscriptSeparator = " "
 
     /// 创建系统语音识别服务。
@@ -1342,6 +1450,9 @@ final class IMessageChatSpeechRecognitionService: IMessageChatSpeechTranscribing
         requestedBackend = backend
     }
 
+    /// 停止旧会话并启动指定语言的实时识别。
+    ///
+    /// 自动选择现代后端且启动失败时可回退到兼容后端；显式指定时保留其失败结果。
     func start(
         locale: Locale,
         result: @escaping @MainActor (String, Bool) -> Void,
@@ -1393,6 +1504,7 @@ final class IMessageChatSpeechRecognitionService: IMessageChatSpeechTranscribing
         )
     }
 
+    /// 停止音频输入并取消两种后端的任务，清空累计识别文本。
     func stop() {
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
@@ -1417,6 +1529,7 @@ final class IMessageChatSpeechRecognitionService: IMessageChatSpeechTranscribing
         analyzer = nil
     }
 
+    /// 准备语言资源与现代分析器，将麦克风缓冲区输入识别流程并发布文本更新。
     @available(iOS 26.0, *)
     private func startModern(
         locale: Locale,
@@ -1503,6 +1616,7 @@ final class IMessageChatSpeechRecognitionService: IMessageChatSpeechTranscribing
         }
     }
 
+    /// 创建兼容识别器和麦克风缓冲区请求，并发布部分与最终识别结果。
     private func startLegacy(
         locale: Locale,
         result: @escaping @MainActor (String, Bool) -> Void,
@@ -1547,6 +1661,7 @@ final class IMessageChatSpeechRecognitionService: IMessageChatSpeechTranscribing
         try engine.start()
     }
 
+    /// 按当前语言的分隔规则拼接已确认文本和当前片段。
     private func joinedTranscript(_ prefix: String, _ suffix: String) -> String {
         guard !prefix.isEmpty else { return suffix }
         guard !suffix.isEmpty else { return prefix }

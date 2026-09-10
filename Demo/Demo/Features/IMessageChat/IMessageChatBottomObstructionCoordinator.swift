@@ -18,17 +18,24 @@ import UIKit
 final class IMessageChatBottomObstructionCoordinator {
     /// 显示链接持有代理，代理弱引用协调器，避免定时回调反向延长页面生命周期。
     private final class DisplayLinkProxy {
+        /// 接收显示链接回调的协调器；弱引用避免循环持有。
         weak var owner: IMessageChatBottomObstructionCoordinator?
 
+        /// 在显示链接触发时通知协调器重新采样遮挡几何。
         @objc func tick() {
             owner?.refreshGeometry()
         }
     }
 
+    /// 用于统一键盘和照片面板坐标的宿主视图。
     private weak var hostView: UIView?
+    /// 当前跟踪的照片选择器；弱引用不延长其展示生命周期。
     private weak var pickerViewController: UIViewController?
+    /// 将显示链接回调转发给协调器的弱引用代理。
     private let displayLinkProxy = DisplayLinkProxy()
+    /// 逐帧跟踪键盘和照片面板几何的显示链接。
     private var displayLink: CADisplayLink?
+    /// 最近一次系统键盘事件的上下文，包括可见性与动画信息。
     private var keyboardContext: QuickLayoutKeyboardContext?
     /// 从可见键盘切入照片时冻结高度，不能跟随面板从屏幕外升起而先下落。
     private var pickerPresentationHeight: CGFloat?
@@ -38,13 +45,17 @@ final class IMessageChatBottomObstructionCoordinator {
     private var keyboardHandoffStartHeight: CGFloat?
     /// 通知声明的键盘最终高度，与逐帧采样的动画中间高度分开保存。
     private var keyboardHandoffTargetHeight: CGFloat?
+    /// 指示照片面板正在将底部遮挡交还给键盘的布尔值。
     private var isAwaitingKeyboard = false
+    /// 当前发布的底部内容遮挡高度，已扣除安全区，单位为点。
     private(set) var currentHeight: CGFloat = 0
     /// 首次未显示过软件键盘时使用 300pt；面板接管后冻结，避免菜单临时通知改小上限。
     private(set) var storedKeyboardContentHeight: CGFloat = 300
 
+    /// 有效遮挡高度变化时调用的闭包，附带可选的键盘动画上下文。
     var heightDidChange: ((CGFloat, QuickLayoutKeyboardContext?) -> Void)?
 
+    /// 创建以指定宿主视图为坐标参照的遮挡协调器。
     init(hostView: UIView) {
         self.hostView = hostView
         displayLinkProxy.owner = self
@@ -163,6 +174,7 @@ final class IMessageChatBottomObstructionCoordinator {
         refreshGeometry(animationContext: keyboardContext ?? .hidden)
     }
 
+    /// 重新采样当前遮挡几何，不附加键盘通知的动画上下文。
     func refreshGeometry() {
         refreshGeometry(animationContext: nil)
     }
@@ -179,6 +191,9 @@ final class IMessageChatBottomObstructionCoordinator {
         isAwaitingKeyboard = false
     }
 
+    /// 解析当前遮挡来源，并仅在高度变化超过容差时发布更新。
+    ///
+    /// 先记录新高度再调用回调，避免同步布局造成重入发布。
     private func refreshGeometry(
         animationContext: QuickLayoutKeyboardContext?
     ) {
@@ -211,6 +226,7 @@ final class IMessageChatBottomObstructionCoordinator {
         heightDidChange?(resolved, animationContext)
     }
 
+    /// 返回键盘布局指南在指定视图中的有效遮挡高度；不可见时返回零。
     private func visibleKeyboardHeight(in view: UIView) -> CGFloat {
         guard keyboardContext?.isVisible == true else { return 0 }
         let frame = view.keyboardLayoutGuide.layoutFrame
@@ -318,6 +334,7 @@ final class IMessageChatBottomObstructionCoordinator {
         return max(0, keyboardHeight)
     }
 
+    /// 按需创建显示链接，并在主运行循环的通用模式中跟踪几何。
     private func startDisplayLink() {
         guard displayLink == nil else { return }
         let link = CADisplayLink(target: displayLinkProxy, selector: #selector(DisplayLinkProxy.tick))
@@ -326,6 +343,7 @@ final class IMessageChatBottomObstructionCoordinator {
         displayLink = link
     }
 
+    /// 使显示链接失效并解除持有，停止逐帧几何采样。
     private func stopDisplayLink() {
         displayLink?.invalidate()
         displayLink = nil

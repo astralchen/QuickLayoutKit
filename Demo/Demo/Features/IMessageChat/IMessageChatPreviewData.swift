@@ -7,9 +7,11 @@
 import Foundation
 import UIKit
 
+/// 供组件预览使用的固定消息、草稿与本地化示例值。
 @MainActor
 enum IMessageChatPreviewData {
 
+    /// 音频气泡和录音预览共用的固定归一化波形采样。
     static let audioWaveform: [Float] = [
         0.18, 0.24, 0.34, 0.45, 0.72, 0.48, 0.38, 0.84, 0.62,
         0.42, 0.28, 0.56, 0.78, 0.52, 0.36, 0.22, 0.18, 0.12,
@@ -21,6 +23,7 @@ enum IMessageChatPreviewData {
     static let recordingWaveform = IMessageChatRecordingWaveform
         .displaySamples(audioWaveform + Array(audioWaveform.reversed()))
 
+    /// 用于音频草稿布局预览的固定附件值；文件路径不保证可播放。
     static let audioAttachment = IMessageChatAudioAttachment(
         id: UUID(uuidString: "3B8B4C03-3AEF-4126-B6D9-B073905955F4")!,
         fileURL: FileManager.default.temporaryDirectory
@@ -29,6 +32,7 @@ enum IMessageChatPreviewData {
         waveform: audioWaveform
     )
 
+    /// 以本地示例图片构造的粘贴媒体草稿集合。
     static let pastedMediaDrafts: [IMessageChatDocumentDraft] = {
         let thumbnail = FileManager.default.temporaryDirectory.appendingPathComponent("imessage-paste-preview.png")
         let image = UIGraphicsImageRenderer(size: CGSize(width: 160, height: 120)).image { context in
@@ -49,6 +53,7 @@ enum IMessageChatPreviewData {
         }
     }()
 
+    /// 用于文档卡片和输入栏布局预览的示例文件与链接草稿。
     static let documentDrafts: [IMessageChatDocumentDraft] = [
         .init(attachment: .file(.init(
             id: UUID(uuidString: "F0CBF955-17EA-4AF3-8713-A099113A3031")!,
@@ -66,6 +71,7 @@ enum IMessageChatPreviewData {
         ))),
     ]
 
+    /// 收到的音频气泡使用的示例附件及转写文本。
     static let incomingAudioAttachment = IMessageChatAudioAttachment(
         id: UUID(uuidString: "71FA16C1-CFC2-49DB-979A-8F7188D0E768")!,
         fileURL: FileManager.default.temporaryDirectory
@@ -74,6 +80,7 @@ enum IMessageChatPreviewData {
         waveform: audioWaveform
     )
 
+    /// 发出的音频气泡使用的示例附件及转写文本。
     static let outgoingAudioAttachment = IMessageChatAudioAttachment(
         id: UUID(uuidString: "54BBE51E-6E67-46D0-B665-4441800620D2")!,
         fileURL: FileManager.default.temporaryDirectory
@@ -82,11 +89,13 @@ enum IMessageChatPreviewData {
         waveform: Array(audioWaveform.reversed())
     )
 
+    /// 预览时间线使用的固定时间分隔项。
     static let timestamp = IMessageChatTimestampPresentation(
         sourceMessageID: 0,
         text: "19:09"
     )
 
+    /// 用于检查收到文本气泡的固定消息。
     static let incomingMessage = IMessageChatMessagePresentation(
         id: 0,
         direction: .incoming,
@@ -94,6 +103,7 @@ enum IMessageChatPreviewData {
         deliveryText: nil
     )
 
+    /// 用于检查发出文本气泡和已读文字的固定消息。
     static let outgoingMessage = IMessageChatMessagePresentation(
         id: 1,
         direction: .outgoing,
@@ -101,6 +111,7 @@ enum IMessageChatPreviewData {
         deliveryText: "已读"
     )
 
+    /// 用于检查连续收到消息布局的后续示例消息。
     static let followUpMessage = IMessageChatMessagePresentation(
         id: 2,
         direction: .incoming,
@@ -108,6 +119,7 @@ enum IMessageChatPreviewData {
         deliveryText: nil
     )
 
+    /// 用于检查收到音频气泡的固定消息。
     static let incomingAudioMessage = IMessageChatMessagePresentation(
         id: 3,
         direction: .incoming,
@@ -115,6 +127,7 @@ enum IMessageChatPreviewData {
         deliveryText: nil
     )
 
+    /// 用于检查发出音频气泡和已读文字的固定消息。
     static let outgoingAudioMessage = IMessageChatMessagePresentation(
         id: 4,
         direction: .outgoing,
@@ -122,10 +135,15 @@ enum IMessageChatPreviewData {
         deliveryText: "已读"
     )
 
+    /// 输入状态预览使用的辅助功能描述。
     static let typingAccessibilityLabel = "Alex 正在输入"
+    /// 联系人导航标题预览使用的副标题。
     static let contactSubtitle = "iMessage"
+    /// 文本输入栏预览使用的占位文字。
     static let composerPlaceholder = "iMessage"
+    /// 发送按钮预览使用的辅助功能标签。
     static let sendAccessibilityLabel = "发送"
+    /// 输入栏各按钮和状态预览使用的文字集合。
     static let composerStrings = IMessageChatComposerStrings(
         placeholder: composerPlaceholder,
         send: sendAccessibilityLabel,
@@ -141,10 +159,14 @@ enum IMessageChatPreviewData {
         file: "文件",
         link: "链接"
     )
+    /// 用于检查多行文本输入高度的示例草稿。
     static let composerMultilineText = "今晚七点见\n我会提前几分钟到"
+    /// 用于检查从右向左文本布局的阿拉伯语草稿。
     static let composerRTLText = "مساء الخير\nسأصل في السابعة"
+    /// 预览和可重复场景使用的固定日期。
     static let fixedDate = Date(timeIntervalSince1970: 1_788_257_740)
 
+    /// 包含时间、文本消息和输入状态的完整预览时间线快照。
     static let state = IMessageChatViewModel.State(
         timeline: [
             IMessageChatTimelineItem(

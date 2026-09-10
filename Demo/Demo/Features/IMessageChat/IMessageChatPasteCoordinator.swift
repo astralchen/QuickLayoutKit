@@ -4,11 +4,16 @@ import UniformTypeIdentifiers
 /// 仅属于一次用户粘贴的提供器描述，不进入消息值模型或持久化存储。
 @available(iOS 26.0, *)
 enum IMessageChatPasteSource {
+    /// 由系统项目提供者延迟加载、使用指定类型标识符的文件内容。
     case provider(NSItemProvider, typeIdentifier: String)
+    /// 需要复制到页面目录的本地文件 URL。
     case fileURL(URL)
+    /// 可直接插入链接草稿的网页 URL。
     case link(URL)
+    /// 按剪贴板顺序保留的普通文本。
     case text(String)
 
+    /// 从完整文本识别单个网页 URL；包含内部空白或协议不支持时返回 `nil`。
     static func webURL(in text: String) -> URL? {
         let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty, !value.contains(where: \.isWhitespace),
@@ -16,6 +21,9 @@ enum IMessageChatPasteSource {
         return url
     }
 
+    /// 返回项目提供者应加载的原始文件类型。
+    ///
+    /// 优先选择视频、音频或明确文档类型，再尝试图片，避免将封面当成原件。
     static func fileType(in provider: NSItemProvider) -> String? {
         let types = provider.registeredTypeIdentifiers.compactMap(UTType.init)
         // 视频提供器有时同时提供封面；只选择一次真实媒体表示。
@@ -42,32 +50,54 @@ enum IMessageChatPasteSource {
 /// 令 UIKit 先按剪贴板顺序组合结果，再在目标选区一次性插入有序内容；不等待文件导入。
 @available(iOS 26.0, *)
 final class IMessageChatPasteCoordinator: NSObject, UITextPasteDelegate {
+    /// 标记纯文本粘贴结果所属操作版本的富文本属性键。
     private static let generationKey = NSAttributedString.Key("imessage.paste.generation")
+    /// 粘贴开始时保存的选区与全文快照。
     private struct SelectionSnapshot {
+        /// 粘贴开始时的 UTF-16 文本选区。
         let selection: NSRange
+        /// 粘贴开始时的完整文本，用于判断选区快照是否仍适用。
         let text: String
     }
+    /// 在 UIKit 有序粘贴结果中暂存附件来源与操作身份的占位附件。
     private final class Token: NSTextAttachment {
+        /// 此占位符对应的原始粘贴来源。
         let source: IMessageChatPasteSource
+        /// 占位符所属的粘贴版本，用于过滤已失效操作。
         let generation: Int
+        /// 粘贴开始时的可选文本与选区快照。
         let snapshot: SelectionSnapshot?
+        /// 创建携带来源、操作版本与选区快照的临时粘贴占位符。
         init(_ source: IMessageChatPasteSource, generation: Int, snapshot: SelectionSnapshot?) {
             self.source = source
             self.generation = generation
             self.snapshot = snapshot
             super.init(data: nil, ofType: nil)
         }
+        /// 不支持从归档创建 `Token`。
+        ///
+        /// 此初始化方法始终返回 `nil`。
         required init?(coder: NSCoder) { return nil }
     }
 
+    /// 接收有序粘贴结果的文本编辑器；弱引用避免延长编辑器生命周期。
     private weak var textView: IMessageChatTextView?
+    /// 当前粘贴操作版本；失效时递增，以拒绝迟到的系统结果。
     private var generation = 0
+    /// 当前粘贴事务开始前保存的文本选区快照。
     private var selectionSnapshot: SelectionSnapshot?
+    /// 尚未向 UIKit 提交转换结果的系统粘贴项目。
     private var pendingItems: [UUID: any UITextPasteItem] = [:]
+    /// 尚未完成的系统项目加载进度，失效时统一取消。
     private var pendingLoads: [UUID: Progress] = [:]
+    /// 有序粘贴中包含附件时调用的闭包，交由上层一次性插入文字与附件。
     var insertAttachments: (([IMessageChatPasteSource]) -> Void)?
+    /// 纯文本粘贴完成后通知输入栏刷新状态的闭包。
     var textDidChange: (() -> Void)?
 
+    /// 为指定文本编辑器配置系统粘贴代理，并捕获原始选区。
+    ///
+    /// 禁用智能插入删除，避免系统在自定义附件边界增加正文空格。
     init(textView: IMessageChatTextView) {
         self.textView = textView
         super.init()
@@ -81,6 +111,7 @@ final class IMessageChatPasteCoordinator: NSObject, UITextPasteDelegate {
         }
     }
 
+    /// 使当前粘贴版本失效，取消加载并将所有待处理项目标记为无结果。
     func invalidate() {
         generation += 1
         selectionSnapshot = nil
@@ -91,6 +122,7 @@ final class IMessageChatPasteCoordinator: NSObject, UITextPasteDelegate {
         for item in items { item.setNoResult() }
     }
 
+    /// 将单个系统粘贴项目转换为文件占位、网页链接或带操作版本的纯文本。
     func textPasteConfigurationSupporting(_ textPasteConfigurationSupporting: any UITextPasteConfigurationSupporting,
                                           transform item: any UITextPasteItem) {
         guard textView?.isInputSuspended == false else { item.setNoResult(); return }
@@ -130,6 +162,7 @@ final class IMessageChatPasteCoordinator: NSObject, UITextPasteDelegate {
         }
     }
 
+    /// 校验粘贴版本与输入状态后，向 UIKit 提交异步加载的文本或 URL 结果。
     private func finishText(id: UUID, generation current: Int, string: String?, isFileURL: Bool, snapshot: SelectionSnapshot?) {
         pendingLoads[id] = nil
         guard let item = pendingItems.removeValue(forKey: id) else { return }
@@ -143,6 +176,9 @@ final class IMessageChatPasteCoordinator: NSObject, UITextPasteDelegate {
         } else { item.setNoResult() }
     }
 
+    /// 按 UIKit 提供的顺序连接粘贴结果，不注入额外分隔字符。
+    ///
+    /// 包含附件时先让原生事务结束，再异步提交混合内容，避免系统收尾改写选区。
     func textPasteConfigurationSupporting(_ textPasteConfigurationSupporting: any UITextPasteConfigurationSupporting,
                                           combineItemAttributedStrings itemStrings: [NSAttributedString],
                                           for textRange: UITextRange) -> NSAttributedString {
@@ -166,6 +202,9 @@ final class IMessageChatPasteCoordinator: NSObject, UITextPasteDelegate {
         return result
     }
 
+    /// 校验操作版本和选区，将有序混合内容交给附件入口或执行纯文本替换。
+    ///
+    /// - Returns: 操作后的编辑器选区；无法安全应用结果时保留原目标范围。
     func textPasteConfigurationSupporting(_ textPasteConfigurationSupporting: any UITextPasteConfigurationSupporting,
                                           performPasteOf attributedString: NSAttributedString,
                                           to textRange: UITextRange) -> UITextRange {

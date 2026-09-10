@@ -7,15 +7,22 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
+/// 在导航栏中呈现联系人头像、名称与副标题的自适应视图。
 final class IMessageContactTitleView: QuickLayoutView {
 
+    /// 导航标题允许占用的最大宽度，单位为点。
     private static let maximumTitleWidth: CGFloat = 220
+    /// 用于约束联系人标题的标准导航栏内容高度，单位为点。
     private static let navigationBarHeight: CGFloat = 44
 
+    /// 显示联系人头像的图像视图。
     let avatarView = UIImageView()
+    /// 显示联系人名称的标签。
     let nameLabel = UILabel()
+    /// 显示会话渠道或当前状态的副标题标签。
     let subtitleLabel = UILabel()
 
+    /// 定义 `IMessageContactTitleView` 的布局层级、间距和对齐方式。
     override var body: Layout {
         HStack(spacing: 7) {
             avatarView.resizable().frame(width: 30, height: 30)
@@ -26,6 +33,9 @@ final class IMessageContactTitleView: QuickLayoutView {
         }
     }
 
+    /// 使用指定初始边框创建 `IMessageContactTitleView`，并配置其子视图和默认外观。
+    ///
+    /// - Parameter frame: 在父视图坐标系中指定的初始边框。
     override init(frame: CGRect) {
         super.init(frame: frame)
         avatarView.image = UIImage(systemName: "person.crop.circle.fill")
@@ -46,6 +56,7 @@ final class IMessageContactTitleView: QuickLayoutView {
         isAccessibilityElement = true
     }
 
+    /// `IMessageContactTitleView` 在当前内容与布局约束下的固有尺寸。
     override var intrinsicContentSize: CGSize {
         fittingTitleSize(
             in: CGSize(
@@ -70,10 +81,14 @@ final class IMessageContactTitleView: QuickLayoutView {
         )
     }
 
+    /// 不支持从归档创建 `IMessageContactTitleView`。
+    ///
+    /// 请使用代码初始化方法创建此对象。
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
+    /// 更新联系人副标题、辅助功能描述及标题尺寸。
     func configure(subtitle: String) {
         subtitleLabel.text = subtitle
         accessibilityLabel = "Alex, \(subtitle)"
@@ -82,6 +97,7 @@ final class IMessageContactTitleView: QuickLayoutView {
         superview?.setNeedsLayout()
     }
 
+    /// 在导航栏宽高约束内测量联系人标题所需尺寸。
     private func fittingTitleSize(in proposal: CGSize) -> CGSize {
         let measuredSize = super.sizeThatFits(proposal)
         return CGSize(
@@ -95,6 +111,7 @@ final class IMessageContactTitleView: QuickLayoutView {
 }
 
 #if DEBUG
+/// 创建指定布局方向的联系人导航标题预览。
 @MainActor
 private func makeIMessageContactTitlePreview(
     direction: UIUserInterfaceLayoutDirection

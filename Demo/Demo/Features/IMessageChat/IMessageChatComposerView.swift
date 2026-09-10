@@ -13,39 +13,47 @@ import UIKit
 final class IMessageChatTextView: UITextView {
     /// 只拦截编辑，不修改 `isEditable` 或第一响应者状态。
     var isInputSuspended = false
+    /// 允许粘贴时、执行系统粘贴之前调用的闭包。
     var willPaste: (() -> Void)?
 
+    /// 在输入未暂停时通知粘贴准备回调，并执行系统粘贴。
     override func paste(_ sender: Any?) {
         guard !isInputSuspended else { return }
         willPaste?()
         super.paste(sender)
     }
 
+    /// 在输入未暂停时将文字交给系统文本输入实现。
     override func insertText(_ text: String) {
         guard !isInputSuspended else { return }
         super.insertText(text)
     }
 
+    /// 在输入未暂停时执行系统向后删除操作。
     override func deleteBackward() {
         guard !isInputSuspended else { return }
         super.deleteBackward()
     }
 
+    /// 在输入未暂停时更新输入法组合文本及其内部选区。
     override func setMarkedText(_ markedText: String?, selectedRange: NSRange) {
         guard !isInputSuspended else { return }
         super.setMarkedText(markedText, selectedRange: selectedRange)
     }
 
+    /// 在输入未暂停时提交当前输入法组合文本。
     override func unmarkText() {
         guard !isInputSuspended else { return }
         super.unmarkText()
     }
 
+    /// 在输入未暂停时使用系统文本输入接口替换指定范围。
     override func replace(_ range: UITextRange, withText text: String) {
         guard !isInputSuspended else { return }
         super.replace(range, withText: text)
     }
 
+    /// 返回当前编辑动作是否可用；输入暂停期间禁用编辑菜单动作。
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
         !isInputSuspended && super.canPerformAction(action, withSender: sender)
     }
@@ -61,6 +69,9 @@ final class IMessageChatComposerHitButton: UIButton {
     /// 按钮响应触控所使用的最小尺寸。
     var minimumHitSize = CGSize(width: 44, height: 44)
 
+    /// 返回指定触点是否位于扩展后的最小触控区域。
+    ///
+    /// 隐藏、透明或禁止交互时不响应命中；扩展区域不改变视觉边框。
     override func point(
         inside point: CGPoint,
         with event: UIEvent?
@@ -88,15 +99,21 @@ final class IMessageChatComposerHitButton: UIButton {
 /// 44 点控件区域向卡片内部延伸，不随视觉边距变化。
 @available(iOS 26.0, *)
 final class IMessageChatDraftRemoveButton: UIButton {
+    /// 删除符号相对卡片边缘的视觉内缩量，单位为点。
     var visualInset: CGFloat = 4 {
         didSet { setNeedsLayout() }
     }
+    /// 承载删除符号的圆形背景视图。
     private let circleView = UIView()
+    /// 显示删除叉号的图像视图。
     private let crossView = UIImageView(image: UIImage(
         systemName: "xmark",
         withConfiguration: UIImage.SymbolConfiguration(pointSize: 10, weight: .bold)
     ))
 
+    /// 使用指定初始边框创建 `IMessageChatDraftRemoveButton`，并配置其子视图和默认外观。
+    ///
+    /// - Parameter frame: 在父视图坐标系中指定的初始边框。
     override init(frame: CGRect) {
         super.init(frame: frame)
         circleView.backgroundColor = UIColor(white: 0.45, alpha: 0.85)
@@ -108,14 +125,19 @@ final class IMessageChatDraftRemoveButton: UIButton {
         addSubview(circleView)
     }
 
+    /// 不支持从归档创建 `IMessageChatDraftRemoveButton`。
+    ///
+    /// 请使用代码初始化方法创建此对象。
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
+    /// 按钮的高亮状态；变化时同步调整圆形背景的反馈外观。
     override var isHighlighted: Bool {
         didSet { circleView.alpha = isHighlighted ? 0.6 : 1 }
     }
 
+    /// 根据当前边界更新 `IMessageChatDraftRemoveButton` 的子视图布局与图层几何。
     override func layoutSubviews() {
         super.layoutSubviews()
         circleView.frame = CGRect(
@@ -127,18 +149,31 @@ final class IMessageChatDraftRemoveButton: UIButton {
 
 /// ``IMessageChatComposerView`` 使用的本地化字符串。
 nonisolated struct IMessageChatComposerStrings: Equatable, Sendable {
+    /// 空文本草稿显示的占位文字。
     let placeholder: String
+    /// 发送按钮的本地化辅助功能标签。
     let send: String
+    /// 附件菜单入口的本地化标签。
     let addAttachment: String
+    /// 音频录制菜单项的本地化标题。
     let audio: String
+    /// 开始听写操作的本地化标签。
     let dictate: String
+    /// 停止听写操作的本地化标签。
     let stopDictation: String
+    /// 停止录音操作的本地化标签。
     let stopRecording: String
+    /// 取消音频草稿操作的本地化标签。
     let cancelAudio: String
+    /// 播放音频操作的本地化标签。
     let playAudio: String
+    /// 暂停音频操作的本地化标签。
     let pauseAudio: String
+    /// 草稿非空、无法开始录音时显示的提示文字。
     let recordingRequiresEmptyDraft: String
+    /// 文件选择菜单项的本地化标题；默认值为 `Files`。
     var file: String = "Files"
+    /// 链接插入菜单项的本地化标题；默认值为 `Link`。
     var link: String = "Link"
 }
 
@@ -148,21 +183,29 @@ nonisolated struct IMessageChatComposerStrings: Equatable, Sendable {
 /// ViewController 选择对应协调器；Composer 不直接呈现
 /// `PHPickerViewController`、播放器或相机界面。
 nonisolated enum IMessageChatAttachmentKind: Equatable, Sendable {
+    /// 从照片图库选择图片或视频。
     case photo
+    /// 录制音频附件。
     case audio
+    /// 从系统文件选择器导入文件。
     case file
+    /// 输入网页 URL 并创建链接附件。
     case link
 }
 
 /// 按 TextKit 文档位置排列的发送片段，不携带文件所有权。
 nonisolated enum IMessageChatDraftSegment: Equatable, Sendable {
+    /// 编辑器中保留原始空格与换行的文字段。
     case text(String)
+    /// 按稳定标识符引用的内联附件段。
     case attachment(UUID)
 }
 
 /// 一次编辑事务中的正文和附件占位，顺序与用户插入内容一致。
 nonisolated enum IMessageChatEditorInsertion {
+    /// 在当前选区插入的纯文本内容。
     case text(String)
+    /// 在当前选区插入的文档附件草稿。
     case attachment(IMessageChatDocumentDraft)
 }
 
@@ -172,20 +215,35 @@ nonisolated enum IMessageChatEditorInsertion {
 /// 被业务层接受；文本仅在 `.sendText` 返回 `true` 后清空，附件草稿也只在发送
 /// 成功后由其所有者提交。
 nonisolated enum IMessageChatComposerAction: Equatable, Sendable {
+    /// 按编辑器顺序发送文字段与文档附件引用。
     case sendDocuments([IMessageChatDraftSegment])
+    /// 删除指定稳定身份的文档草稿。
     case removeDocument(UUID)
+    /// 打开指定稳定身份的文档草稿预览。
     case openDocument(UUID)
+    /// 将有效网页 URL 插入为链接草稿。
     case insertLink(URL)
+    /// 发送指定文本草稿。
     case sendText(String)
+    /// 发送当前媒体组草稿及附带的文本。
     case sendMediaDraft(String)
+    /// 从媒体草稿中删除指定项目。
     case removeMediaDraftItem(UUID)
+    /// 请求显示指定种类的附件输入入口。
     case requestAttachment(kind: IMessageChatAttachmentKind)
+    /// 停止当前录音并保留有效音频供预览。
     case stopAudioRecording
+    /// 取消当前附件草稿。
     case cancelAttachmentDraft
+    /// 发送当前音频附件草稿。
     case sendAttachmentDraft
+    /// 切换音频草稿的播放与暂停状态。
     case toggleAudioPreviewPlayback
+    /// 请求开始麦克风听写。
     case startDictation
+    /// 请求结束当前听写。
     case stopDictation
+    /// 报告听写期间发生的手动编辑，使上层停止覆盖文本。
     case manualEditDuringDictation
 }
 
@@ -194,10 +252,15 @@ nonisolated enum IMessageChatComposerAction: Equatable, Sendable {
 /// 状态只包含 View 所需的值类型数据，不持有录音器、播放器或语音识别任务。
 /// 媒体预览只传递值类型草稿，不把资源选择器或播放器对象放入输入栏状态。
 nonisolated enum IMessageChatComposerState: Equatable, Sendable {
+    /// 没有活动录音或听写的常规文本编辑状态。
     case idle
+    /// 正在请求权限或准备语音识别资源。
     case preparingSpeech
+    /// 正在听写，并携带当前累计识别文本。
     case dictating(text: String)
+    /// 正在录音，并携带已录制秒数与归一化波形。
     case recording(elapsed: TimeInterval, waveform: [Float])
+    /// 预览已录制音频，并携带播放状态与 `0...1` 范围的进度。
     case audioPreview(
         attachment: IMessageChatAudioAttachment,
         isPlaying: Bool,
@@ -216,20 +279,33 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     /// 录音计量和播放进度属于同一模式内的数据更新，不应触发 Composer
     /// 重新布局，否则高频刷新会使玻璃背景和固定内边距产生视觉抖动。
     private enum LayoutMode: Equatable {
+        /// 显示常规文本输入与附件入口。
         case idle
+        /// 显示语音识别准备状态。
         case preparingSpeech
+        /// 显示活动听写状态。
         case dictating
+        /// 显示录音波形、时长与停止操作。
         case recording
+        /// 显示音频草稿预览与发送操作。
         case preview
+        /// 显示照片或视频草稿条带。
         case mediaDraft
+        /// 显示草稿非空时的短暂录音不可用提示。
         case recordingUnavailable
+        /// 显示包含内联文档卡片的文本编辑器。
         case documentAttachments
     }
 
+    /// 输入栏各状态共用的布局尺寸，长度单位均为点。
     private enum Metrics {
+        /// 输入栏内容相对页面左右边缘的内边距。
         static let horizontalPadding: CGFloat = 16
+        /// 输入栏内容相对上下边缘的内边距。
         static let verticalPadding: CGFloat = 8
+        /// 单行文本输入区域的基准高度。
         static let textInputHeight: CGFloat = 44
+        /// 文本操作区域为发送或听写按钮保留的宽度。
         static let textActionWidth: CGFloat = 44
 
         /// 文本和音频预览发送按钮共用的横向胶囊视觉尺寸。
@@ -237,10 +313,15 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         /// 该尺寸来自 iPhone 16 Pro 设计图的 @3x 像素测量；按钮命中区域
         /// 仍由 ``IMessageChatComposerHitButton`` 扩展到 44 × 44 点。
         static let sendButtonWidth: CGFloat = 38
+        /// 发送按钮的视觉高度。
         static let sendButtonHeight: CGFloat = 28
+        /// 文本听写按钮的布局高度。
         static let textDictationButtonHeight: CGFloat = 40
+        /// 文本操作控件之间的间距。
         static let textActionSpacing: CGFloat = 4
+        /// 文本操作区域语义起始侧的额外内边距。
         static let textLeadingPadding: CGFloat = 4
+        /// 文本操作区域语义结束侧的额外内边距。
         static let textTrailingPadding: CGFloat = 6
 
         /// 文本发送按钮与输入玻璃底边之间的设计间距。
@@ -250,7 +331,9 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
 
         /// 麦克风按钮用于保持与文本发送按钮相同的尾部布局高度。
         static let textDictationBottomPadding: CGFloat = 2
+        /// 录音和音频预览胶囊的高度。
         static let mediaInputHeight: CGFloat = 64
+        /// 录音波形与控制区域之间的水平间距。
         static let recordingHorizontalSpacing: CGFloat = 12
 
         /// 录音和预览玻璃内所有内容共用的四边基础内边距。
@@ -264,31 +347,53 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         /// 该留白用于匹配设计图中没有前置播放按钮时的波形视觉起点；停止按钮
         /// 仍然只使用共享的 14 点结束内边距。
         static let recordingWaveformLeadingInset: CGFloat = 14
+        /// 媒体控制按钮的视觉尺寸。
         static let mediaControlSize: CGFloat = 36
+        /// 媒体控制按钮的最小布局触控尺寸。
         static let mediaControlHitSize: CGFloat = 44
+        /// 音频预览控件之间的水平间距。
         static let previewHorizontalSpacing: CGFloat = 8
+        /// 照片和视频草稿条带的固定高度。
         static let mediaDraftHeight: CGFloat = 120
+        /// 媒体草稿条带与其余输入内容之间的间距。
         static let mediaDraftSpacing: CGFloat = 8
     }
 
+    /// 启用 TextKit 2、承载文字与内联附件的文本编辑器。
     let textView = IMessageChatTextView(usingTextLayoutManager: true)
+    /// 接管系统粘贴并保留文字与附件顺序的协调器。
     lazy var pasteCoordinator = IMessageChatPasteCoordinator(textView: textView)
+    /// 粘贴解析出待导入来源后调用的闭包。
     var pasteAttachments: (([IMessageChatPasteSource]) -> Void)?
+    /// 编辑器为空时显示提示文字的标签。
     let placeholderLabel = UILabel()
     /// 草稿阻止录音时显示的短暂说明。
     let recordingUnavailableLabel = UILabel()
+    /// 展开照片、录音、文件和链接菜单的按钮。
     let attachmentButton = UIButton(type: .system)
+    /// 发送当前文字或混合草稿的按钮。
     let sendButton = IMessageChatComposerHitButton(type: .system)
+    /// 开始或停止实时听写的按钮。
     let dictationButton = UIButton(type: .system)
+    /// 停止录音并保留有效草稿的按钮。
     let recordingStopButton = IMessageChatComposerHitButton(type: .system)
+    /// 丢弃当前音频草稿的按钮。
     let audioCancelButton = UIButton(type: .system)
+    /// 切换音频草稿播放与暂停的按钮。
     let audioPlayButton = IMessageChatComposerHitButton(type: .system)
+    /// 发送当前音频草稿的按钮。
     let audioSendButton = IMessageChatComposerHitButton(type: .system)
+    /// 显示实时录音音量的固定槽位波形视图。
     let recordingWaveformView = IMessageWaveformView()
+    /// 显示音频草稿波形和播放位置的视图。
     let previewWaveformView = IMessageWaveformView()
+    /// 显示当前已录制时长的标签。
     let recordingDurationLabel = UILabel()
+    /// 显示音频预览时长或播放时间的标签。
     let previewDurationLabel = UILabel()
+    /// 按选择顺序显示照片和视频草稿的横向条带。
     let mediaDraftStripView = IMessageChatMediaDraftStripView()
+    /// 分隔媒体草稿与文本操作区域的视图。
     let mediaDraftSeparatorView = UIView()
 
     /// 用户在输入栏中发起操作时调用。
@@ -303,6 +408,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     /// 文本编辑器取得第一响应者时调用，用于完成照片 Sheet 到键盘的交接。
     var textInputDidBeginEditing: (() -> Void)?
 
+    /// 当前输入栏使用的本地化文字集合。
     private var strings = IMessageChatComposerStrings(
         placeholder: "iMessage",
         send: "Send",
@@ -316,9 +422,11 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         pauseAudio: "Pause audio",
         recordingRequiresEmptyDraft: "To record audio, clear the input field."
     )
+    /// 驱动录音、听写和预览控件显示的媒体状态。
     private var composerState: IMessageChatComposerState = .idle
     /// 当前有序媒体草稿；提示只改变展示，导入结果继续通过 `applyMediaDraft` 更新。
     private(set) var mediaDraft: IMessageChatMediaDraftPresentation?
+    /// 媒体草稿及预览操作使用的本地化文字集合。
     private var mediaStrings = IMessageChatMediaStrings(
         photo: "Photos",
         itemsFormat: "%d items",
@@ -335,10 +443,15 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         lastItem: "Last item",
         positionFormat: "%d of %d"
     )
+    /// 最近一次测量得到的文本输入高度，单位为点。
     private var currentInputHeight = Metrics.textInputHeight
+    /// 指示正在回填识别文本的布尔值，避免将更新误判为手动输入。
     private var isApplyingTranscription = false
+    /// 按稳定身份保存的活跃 TextKit 附件对象。
     private(set) var textAttachments: [UUID: IMessageChatTextAttachment] = [:]
+    /// 指示正在核对编辑器附件身份的布尔值，用于阻止递归核对。
     private var isReconcilingAttachments = false
+    /// 指示混合内容替换事务尚未结束的布尔值，用于忽略中间编辑回调。
     private var isInsertingContents = false
 
     /// 提示属于输入栏展示状态，不占用音频控制器或麦克风。
@@ -347,10 +460,14 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     var recordingHintSleeper: @MainActor @Sendable (Duration) async throws -> Void = {
         try await Task.sleep(for: $0)
     }
+    /// 控制录音不可用提示自动结束的延时任务。
     private var recordingHintTask: Task<Void, Never>?
+    /// 录音提示操作的递增版本，用于忽略旧任务的完成回调。
     private var recordingHintGeneration = 0
+    /// 提示期间保留的文本滚动偏移，在恢复布局后应用。
     private var retainedTextContentOffset: CGPoint?
 
+    /// 附件菜单按钮使用的玻璃背景容器。
     private lazy var attachmentGlassView: QuickLayoutVisualEffectView = {
         let effect = UIGlassEffect(style: .regular)
         effect.isInteractive = true
@@ -363,6 +480,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         return glassView
     }()
 
+    /// 组织文本编辑器、媒体草稿与操作区域的布局容器。
     private lazy var editorContainer: QuickLayoutView = QuickLayoutView { [self] in
         ZStack(alignment: .topLeading) { [unowned self] in
             self.textView.resizable()
@@ -381,6 +499,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         }
     }
 
+    /// 常规文本输入区域使用的玻璃背景容器。
     private lazy var inputGlassView: QuickLayoutVisualEffectView = {
         let effect = UIGlassEffect(style: .regular)
         effect.isInteractive = true
@@ -422,6 +541,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         }
     }()
 
+    /// 固定当前编辑高度并观察可用宽度变化的文本编辑区域布局。
     @LayoutBuilder
     private var textEditorLayout: Layout {
         editorContainer
@@ -434,6 +554,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             )
     }
 
+    /// 内联附件模式下独立操作行的高度，单位为点。
     private var documentActionHeight: CGFloat {
         guard !textAttachments.isEmpty && !isShowingRecordingUnavailableHint else { return 0 }
         switch composerState {
@@ -444,6 +565,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         }
     }
 
+    /// 录音状态使用的玻璃背景容器。
     private lazy var recordingGlassView: QuickLayoutVisualEffectView = {
         let effect = UIGlassEffect(style: .regular)
         effect.isInteractive = true
@@ -475,6 +597,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         return glassView
     }()
 
+    /// 音频预览状态使用的玻璃背景容器。
     private lazy var previewGlassView: QuickLayoutVisualEffectView = {
         let effect = UIGlassEffect(style: .regular)
         effect.isInteractive = true
@@ -505,6 +628,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         return glassView
     }()
 
+    /// 音频取消按钮使用的独立玻璃背景容器。
     private lazy var audioCancelGlassView: QuickLayoutVisualEffectView = {
         let effect = UIGlassEffect(style: .regular)
         effect.isInteractive = true
@@ -522,6 +646,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         return glassView
     }()
 
+    /// 固定音频预览时长标签布局的容器。
     private lazy var previewDurationContainer = QuickLayoutView { [unowned self] in
         self.previewDurationLabel
             .fixedSize()
@@ -529,6 +654,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             .padding(.vertical, 4)
     }
 
+    /// 根据可发送内容与听写状态选择发送或听写按钮的布局。
     @LayoutBuilder
     private var textActionLayout: Layout {
         switch composerState {
@@ -582,6 +708,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             : Metrics.textSendBottomPadding
     }
 
+    /// 定义 `IMessageChatComposerView` 的布局层级、间距和对齐方式。
     @LayoutBuilder
     override var body: Layout {
         ZStack(alignment: .bottom) {
@@ -617,19 +744,27 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         .padding(.vertical, Metrics.verticalPadding)
     }
 
+    /// 使用指定初始边框创建 `IMessageChatComposerView`，并配置其子视图和默认外观。
+    ///
+    /// - Parameter frame: 在父视图坐标系中指定的初始边框。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 不支持从归档创建 `IMessageChatComposerView`。
+    ///
+    /// 请使用代码初始化方法创建此对象。
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
+    /// 在输入栏释放时取消录音提示的延时任务。
     deinit {
         recordingHintTask?.cancel()
     }
 
+    /// 进入窗口后重新测量文本；离开窗口时使粘贴任务和录音提示失效。
     override func didMoveToWindow() {
         super.didMoveToWindow()
         guard window != nil else {
@@ -642,6 +777,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         }
     }
 
+    /// 根据当前边界更新 `IMessageChatComposerView` 的子视图布局与图层几何。
     override func layoutSubviews() {
         super.layoutSubviews()
         if !isShowingRecordingUnavailableHint, let retainedTextContentOffset {
@@ -708,6 +844,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         heightDidChange?()
     }
 
+    /// 在动态字体类别变化后刷新附件尺寸、TextKit 布局与输入高度。
     override func traitCollectionDidChange(
         _ previousTraitCollection: UITraitCollection?
     ) {
@@ -723,6 +860,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         updateTextHeight()
     }
 
+    /// `IMessageChatComposerView` 在当前内容与布局约束下的固有尺寸。
     override var intrinsicContentSize: CGSize {
         CGSize(
             width: UIView.noIntrinsicMetric,
@@ -730,6 +868,10 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         )
     }
 
+    /// 返回 `IMessageChatComposerView` 在指定建议尺寸下所需的大小。
+    ///
+    /// - Parameter size: 父视图提供的建议尺寸。
+    /// - Returns: 当前内容对应的适配尺寸。
     override func sizeThatFits(_ size: CGSize) -> CGSize {
         CGSize(
             width: size.width,
@@ -750,6 +892,9 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         return text.string.replacingOccurrences(of: "\u{FFFC}", with: "")
     }
 
+    /// 指示当前是否可以直接发送音频预览草稿的布尔值。
+    ///
+    /// 要求处于音频预览、没有媒体组及普通文本，并且未显示录音不可用提示。
     var canSendAudioDraft: Bool {
         guard case .audioPreview = composerState else { return false }
         return mediaDraft == nil && plainDraftText.isEmpty && !isShowingRecordingUnavailableHint
@@ -816,6 +961,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
     var draftSegments: [IMessageChatDraftSegment] {
         var result: [IMessageChatDraftSegment] = []
         var body = ""
+        /// 将当前累计的非空文字追加为草稿段，并清空文字缓冲区。
         func flush() {
             if !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { result.append(.text(body)) }
             body = ""
@@ -835,6 +981,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         return result
     }
 
+    /// 创建带附件身份标记的分隔换行，使发送时可排除编辑器生成的排版字符。
     private func documentSeparator(_ id: UUID) -> NSAttributedString {
         NSAttributedString(string: "\n", attributes: [
             IMessageChatTextAttachment.separatorKey: id.uuidString,
@@ -842,6 +989,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         ])
     }
 
+    /// 创建并登记内联附件，绑定尺寸变化、打开与删除回调。
     private func makeTextAttachment(_ draft: IMessageChatDocumentDraft) -> IMessageChatTextAttachment {
         let attachment = IMessageChatTextAttachment(draft: draft)
         textAttachments[draft.id] = attachment
@@ -861,6 +1009,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         return attachment
     }
 
+    /// 更新同一身份附件的草稿内容，并刷新卡片与输入栏状态。
     func updateDocument(_ draft: IMessageChatDocumentDraft) {
         guard let attachment = textAttachments[draft.id] else { return }
         attachment.draft = draft
@@ -868,6 +1017,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         updateComposerState()
     }
 
+    /// 按编辑器中的实际排列顺序返回活跃文档附件标识符。
     var orderedDocumentIDs: [UUID] {
         var ids: [UUID] = []
         textView.textStorage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: textView.textStorage.length)) { value, _, _ in
@@ -877,6 +1027,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         return ids
     }
 
+    /// 恢复普通文字的字体与颜色，防止继续输入时继承附件属性。
     private func resetTypingAttributes() {
         textView.typingAttributes = [
             .font: textView.font ?? UIFont.preferredFont(forTextStyle: .body),
@@ -884,6 +1035,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         ]
     }
 
+    /// 将当前布局方向应用到全部内联附件，并刷新其视图和测量。
     private func refreshTextAttachments() {
         for attachment in textAttachments.values {
             attachment.direction = textView.effectiveUserInterfaceLayoutDirection
@@ -907,6 +1059,11 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         textView.selectedRange = selection
     }
 
+    /// 移除指定附件的活跃身份及回调，并清理编辑器中的失效引用。
+    ///
+    /// - Parameters:
+    ///   - id: 要移除的附件稳定标识符。
+    ///   - notify: 是否向上层发送文档删除动作。
     func removeDocument(_ id: UUID, notify: Bool) {
         guard let attachment = textAttachments.removeValue(forKey: id) else { return }
         attachment.open = nil
@@ -1095,6 +1252,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         setNeedsQuickLayout()
     }
 
+    /// 响应文本变化，核对附件身份并更新输入属性、发送状态与输入高度。
     func textViewDidChange(_ textView: UITextView) {
         guard !isInsertingContents else { return }
         reconcileTextAttachments()
@@ -1103,6 +1261,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         updateTextHeight()
     }
 
+    /// 将开始编辑事件转发给页面，由页面协调照片面板到键盘的交接。
     func textViewDidBeginEditing(_ textView: UITextView) {
         textInputDidBeginEditing?()
     }
@@ -1121,6 +1280,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         return true
     }
 
+    /// 根据录音、预览、提示及媒体草稿状态解析的内容高度。
     private var resolvedContentHeight: CGFloat {
         // 提示临时覆盖附件展示；外层高度必须与内部的单行提示保持一致。
         if isShowingRecordingUnavailableHint { return Metrics.textInputHeight }
@@ -1151,6 +1311,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         }
     }
 
+    /// 常规输入层保留的高度，用于在媒体状态切换期间稳定布局。
     private var retainedTextInputHeight: CGFloat {
         if isShowingRecordingUnavailableHint { return Metrics.textInputHeight }
         if !textAttachments.isEmpty { return currentInputHeight + mediaDraftAdditionalHeight + documentActionHeight }
@@ -1162,12 +1323,14 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         }
     }
 
+    /// 指示当前纯文本移除首尾空白后是否可发送的布尔值。
     private var hasSendableText: Bool {
         !plainDraftText
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .isEmpty
     }
 
+    /// 指示当前文字、内联附件或媒体草稿是否满足发送条件的布尔值。
     private var hasSendableContent: Bool {
         if textAttachments.values.contains(where: { $0.draft.status != .ready }) { return false }
         if let mediaDraft {
@@ -1176,6 +1339,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         return !textAttachments.isEmpty || hasSendableText
     }
 
+    /// 媒体草稿存在时需要额外预留的条带与间距高度。
     private var mediaDraftAdditionalHeight: CGFloat {
         mediaDraft == nil
             ? 0
@@ -1187,6 +1351,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         1 / max(1, traitCollection.displayScale)
     }
 
+    /// 配置输入控件、动态字体、辅助功能标识和操作回调。
     private func configureViews() {
         pasteCoordinator.insertAttachments = { [weak self] sources in
             guard let self, !isShowingRecordingUnavailableHint else { return }
@@ -1390,6 +1555,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         }
     }
 
+    /// 配置带强调背景的符号按钮，并绑定辅助功能标识与目标动作。
     private func configureProminentButton(
         _ button: UIButton,
         symbolName: String,
@@ -1462,6 +1628,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         button.addTarget(self, action: action, for: .touchUpInside)
     }
 
+    /// 使用当前本地化文字重建附件菜单，并在提示期间忽略菜单操作。
     private func updateAttachmentMenu() {
         let photoAction = UIAction(
             title: mediaStrings.photo,
@@ -1492,6 +1659,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         attachmentButton.menu = UIMenu(children: [photoAction, audioAction, fileAction, linkAction])
     }
 
+    /// 按草稿内容类型转发发送动作，并在上层受理后清空对应内容。
     @objc private func sendButtonDidTap() {
         guard !isShowingRecordingUnavailableHint, hasSendableContent else { return }
         let text = plainDraftText
@@ -1512,6 +1680,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         updateTextHeight()
     }
 
+    /// 根据当前听写状态转发开始或停止听写动作。
     @objc private func dictationButtonDidTap() {
         guard !isShowingRecordingUnavailableHint else { return }
         switch composerState {
@@ -1522,23 +1691,28 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         }
     }
 
+    /// 转发停止录音动作。
     @objc private func recordingStopButtonDidTap() {
         _ = actionRequested?(.stopAudioRecording)
     }
 
+    /// 转发取消当前音频草稿的动作。
     @objc private func audioCancelButtonDidTap() {
         _ = actionRequested?(.cancelAttachmentDraft)
     }
 
+    /// 转发音频预览播放或暂停动作。
     @objc private func audioPlayButtonDidTap() {
         _ = actionRequested?(.toggleAudioPreviewPlayback)
     }
 
+    /// 在音频草稿可发送时转发发送动作。
     @objc private func audioSendButtonDidTap() {
         guard canSendAudioDraft else { return }
         _ = actionRequested?(.sendAttachmentDraft)
     }
 
+    /// 根据当前输入与媒体状态同步控件显示、交互、辅助功能标签及波形。
     private func updateComposerState() {
         let showsTextInput: Bool
         switch composerState {
@@ -1590,6 +1764,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         inputGlassView.setNeedsQuickLayout()
     }
 
+    /// 按可用宽度测量文本内容，并在有效高度变化时通知页面更新布局。
     private func updateTextHeight(availableWidth: CGFloat? = nil) {
         guard !isShowingRecordingUnavailableHint else { return }
         let font = textView.font ?? .preferredFont(forTextStyle: .body)
@@ -1637,6 +1812,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
 }
 
 #if DEBUG
+/// 创建指定草稿、媒体状态和布局方向的输入栏预览，可选择显示录音不可用提示。
 @MainActor
 private func makeIMessageChatComposerPreview(
     text: String,

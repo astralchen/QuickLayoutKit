@@ -13,17 +13,27 @@ import UIKit
 @available(iOS 26.0, *)
 final class IMessageChatViewController: DemoQuickLayoutHostingController {
 
+    /// 聊天演示页面标题使用的本地化资源键。
     override var localizedTitleKey: String? { "demo.imessage.title" }
 
+    /// 保存消息并生成时间线展示状态的视图模型。
     let viewModel: IMessageChatViewModel
+    /// 呈现消息时间线和单元格交互的会话视图。
     let conversationView = IMessageConversationView()
+    /// 承载文本、听写和附件草稿输入的视图。
     let composerView = IMessageChatComposerView()
+    /// 导航栏中显示联系人头像和副标题的视图。
     let contactTitleView = IMessageContactTitleView(frame: .zero)
+    /// 协调页面录音、音频播放和实时听写的控制器。
     let audioController: IMessageChatAudioController
+    /// 负责内联文件、链接及混合粘贴草稿的控制器。
     let documentController: IMessageChatDocumentController
+    /// 负责照片面板展示和媒体组导入的控制器。
     let photoController: IMessageChatPhotoPickerController
+    /// 由页面所有附件功能共享的文件存储。
     let attachmentStore: any IMessageChatAttachmentStoring
 
+    /// 识别已提交音频文件的服务，与输入栏实时听写分开运行。
     private var audioFileTranscriber: any IMessageChatAudioFileTranscribing = IMessageChatAudioFileTranscriber()
 
     /// 文件转写独立于录音/播放；异步启动保证发送调用栈先完成附件提交。
@@ -33,14 +43,19 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         self?.viewModel.updateAudioTranscript(text, messageID: messageID, attachmentID: attachmentID)
     }
 
+    /// 提供系统键盘可见性、几何和动画上下文的观察对象。
     private let keyboardObserver = QuickLayoutKeyboardObserver()
+    /// 页面持有的 Combine 订阅，释放时自动取消。
     private var cancellables: Set<AnyCancellable> = []
+    /// 当前输入栏需要避让的底部内容遮挡高度，单位为点。
     private var bottomObstruction: CGFloat = 0
     /// 模态菜单暂时接管焦点时，保存编辑器的目标选区。
     private var documentMenuSelection: NSRange?
+    /// 以页面视图为坐标基准协调键盘与照片面板交接的对象。
     private lazy var bottomObstructionCoordinator =
         IMessageChatBottomObstructionCoordinator(hostView: view)
 
+    /// 创建共享同一附件目录、使用系统媒体协作者的聊天页面。
     convenience init() {
         let attachmentStore = IMessageChatPageAttachmentStore()
         let audioController = IMessageChatAudioController(
@@ -91,6 +106,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         super.init(nibName: nil, bundle: nil)
     }
 
+    /// 使用指定消息模型、音频控制器和附件存储组装页面依赖。
     private init(
         viewModel: IMessageChatViewModel,
         audioController: IMessageChatAudioController,
@@ -106,6 +122,9 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         super.init(nibName: nil, bundle: nil)
     }
 
+    /// 不支持从归档创建 `IMessageChatViewController`。
+    ///
+    /// 请使用代码初始化方法创建此对象。
     required init?(coder: NSCoder) {
         let audioController = IMessageChatAudioController()
         self.audioController = audioController
@@ -121,6 +140,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         super.init(coder: coder)
     }
 
+    /// 定义 `IMessageChatViewController` 的布局层级、间距和对齐方式。
     override var body: Layout {
         VStack(spacing: 0) {
             conversationView
@@ -134,6 +154,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         .safeAreaPadding(.all, 0)
     }
 
+    /// 配置导航标题、保存状态与交互绑定，并开始观察消息和底部遮挡变化。
     override func viewDidLoad() {
         quickLayoutKeyboardSafeAreaBehavior = .disabled
         super.viewDidLoad()
@@ -162,20 +183,26 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         configureBottomObstruction()
     }
 
+    /// 在页面布局完成后重新采样键盘与照片面板的遮挡几何。
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         bottomObstructionCoordinator.refreshGeometry()
     }
 
+    /// 管理附件保存操作、状态反馈和页面退出失效的协调器。
     private let attachmentSaveCoordinator = IMessageChatAttachmentSaveCoordinator()
+    /// 指示页面或其父容器正在退出聊天层级的布尔值。
     private var isLeavingChat = false
+    /// 指示页面退出清理已经执行的布尔值，防止重复取消和删除资源。
     private var hasCleanedUpChat = false
 
+    /// 在页面即将出现时重置退出标记，使取消返回手势后仍可继续使用。
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         isLeavingChat = false
     }
 
+    /// 停止当前音频播放，并沿父控制器层级判断是否正在退出聊天。
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         audioController.stopPlayback()
@@ -190,6 +217,9 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         }
     }
 
+    /// 在页面确实退出且转场未取消时统一清理任务、草稿、面板与附件目录。
+    ///
+    /// 临时被其他界面覆盖不触发整页资源清理。
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         // 临时覆盖只停播放；交互式返回取消后仍需要这些附件和页面任务。
@@ -210,6 +240,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         attachmentStore.removeAll()
     }
 
+    /// 刷新联系人、输入栏、媒体动作和时间线使用的本地化内容。
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
         contactTitleView.configure(
@@ -251,6 +282,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         viewModel.refreshLocalizedContent()
     }
 
+    /// 将应用布局方向同步到输入栏、联系人标题和消息时间线。
     override func reloadLayoutDirection(
         _ direction: UIUserInterfaceLayoutDirection
     ) {
@@ -263,6 +295,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         setNeedsQuickLayout()
     }
 
+    /// 连接输入栏动作、媒体状态、文档插入和消息交互到页面控制器。
     private func configureInteractions() {
         composerView.actionRequested = { [weak self] action in
             self?.handleComposerAction(action) ?? false
@@ -480,6 +513,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         return true
     }
 
+    /// 展示网页地址输入框，并将有效 URL 交给文档草稿控制器。
     private func presentLinkEntry() {
         let alert = UIAlertController(title: DemoLocalization.text("imessage.attachment.link"), message: nil, preferredStyle: .alert)
         alert.addTextField { field in
@@ -505,6 +539,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         (presentedViewController ?? self).present(alert, animated: true)
     }
 
+    /// 根据附件保存错误显示本地化提示，并按需提供系统设置入口。
     private func presentAttachmentSaveFailure(_ error: Error) {
         guard !hasCleanedUpChat, viewIfLoaded?.window != nil, presentedViewController == nil else { return }
         let denied = (error as? IMessageChatAttachmentSaveError) == .photoPermissionDenied
@@ -553,6 +588,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         }
     }
 
+    /// 绑定视图模型更新，将新状态渲染到时间线并提交待转写的音频文件。
     private func bindViewModel() {
         viewModel.bind { [weak self] state, reason in
             guard let self else { return }
@@ -563,6 +599,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         }
     }
 
+    /// 观察键盘事件，更新照片面板高度缓存并按遮挡协调结果决定是否跟随滚动。
     private func observeKeyboard() {
         keyboardObserver.$context
             .dropFirst()
@@ -590,6 +627,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
             .store(in: &cancellables)
     }
 
+    /// 绑定有效遮挡高度变化，按动画来源更新输入栏位置并保留历史消息阅读位置。
     private func configureBottomObstruction() {
         bottomObstructionCoordinator.heightDidChange = { [weak self] height, context in
             guard let self else { return }
@@ -619,6 +657,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         bottomObstructionCoordinator.refreshGeometry()
     }
 
+    /// 按当前应用语言生成媒体界面共用的文字集合。
     private func makeMediaStrings() -> IMessageChatMediaStrings {
         IMessageChatMediaStrings(
             photo: DemoLocalization.text("imessage.attachment.photo"),
@@ -702,6 +741,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
 }
 
 #if DEBUG
+/// 创建使用固定时钟与示例依赖的完整聊天页面预览。
 @MainActor
 private func makeIMessageChatViewControllerPreview() -> UIViewController {
     let viewModel = IMessageChatViewModel(

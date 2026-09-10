@@ -75,6 +75,9 @@ final class IMessageWaveformView: UIView {
         didSet { setNeedsDisplay() }
     }
 
+    /// 使用指定初始边框创建 `IMessageWaveformView`，并配置其子视图和默认外观。
+    ///
+    /// - Parameter frame: 在父视图坐标系中指定的初始边框。
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .clear
@@ -82,10 +85,14 @@ final class IMessageWaveformView: UIView {
         isAccessibilityElement = false
     }
 
+    /// 不支持从归档创建 `IMessageWaveformView`。
+    ///
+    /// 请使用代码初始化方法创建此对象。
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
+    /// 按采样振幅绘制波形，并根据布局方向与播放进度区分已播放区域。
     override func draw(_ rect: CGRect) {
         guard let context = UIGraphicsGetCurrentContext(), !samples.isEmpty else {
             return
@@ -196,25 +203,37 @@ final class IMessageAudioBubbleView: QuickLayoutView {
 
     /// 参考截图的音频蓝色，不受系统版本默认 tintColor 变化影响。
     static let audioBlue = UIColor(red: 65 / 255, green: 142 / 255, blue: 246 / 255, alpha: 1)
+    /// 收到的音频气泡在浅色与深色外观下使用的动态填充颜色。
     private static let incomingFill = UIColor { traits in
         traits.userInterfaceStyle == .dark
             ? UIColor.secondarySystemFill.resolvedColor(with: traits)
             : UIColor(red: 233 / 255, green: 233 / 255, blue: 235 / 255, alpha: 1)
     }
 
+    /// 用于触发播放操作的按钮。
     let playButton = UIButton(type: .system)
+    /// 显示附件波形和播放进度的绘制视图。
     let waveformView = IMessageWaveformView()
+    /// 显示音频或视频时长的标签。
     let durationLabel = UILabel()
+    /// 显示完整音频转写文本的多行标签。
     let transcriptLabel = UILabel()
+    /// 组合气泡主体与尾部的遮罩容器图层。
     private let bubbleMask = CALayer()
+    /// 绘制圆角气泡主体的遮罩图层。
     private let bodyMask = CALayer()
+    /// 绘制气泡尾部轮廓的形状遮罩图层。
     private let tailMask = CAShapeLayer()
 
+    /// 用户点击音频播放按钮时调用的闭包。
     var playbackRequested: (() -> Void)?
 
+    /// 当前气泡显示的音频附件；未配置时为 `nil`。
     private var attachment: IMessageChatAudioAttachment?
+    /// 当前消息的接收或发出方向，用于确定气泡外观与语义对齐。
     private var direction: IMessageChatDirection = .incoming
 
+    /// 定义 `IMessageAudioBubbleView` 的布局层级、间距和对齐方式。
     override var body: Layout {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
@@ -235,6 +254,9 @@ final class IMessageAudioBubbleView: QuickLayoutView {
         .padding(.bottom, 22)
     }
 
+    /// 使用指定初始边框创建 `IMessageAudioBubbleView`，并配置其子视图和默认外观。
+    ///
+    /// - Parameter frame: 在父视图坐标系中指定的初始边框。
     override init(frame: CGRect) {
         super.init(frame: frame)
         layer.mask = bubbleMask
@@ -277,6 +299,9 @@ final class IMessageAudioBubbleView: QuickLayoutView {
         isAccessibilityElement = false
     }
 
+    /// 不支持从归档创建 `IMessageAudioBubbleView`。
+    ///
+    /// 请使用代码初始化方法创建此对象。
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -359,12 +384,14 @@ final class IMessageAudioBubbleView: QuickLayoutView {
         accessibilityLabel = nil
     }
 
+    /// 在视图进入或离开窗口时更新动态字体与布局。
     override func didMoveToWindow() {
         super.didMoveToWindow()
         updateFonts()
         setNeedsQuickLayout()
     }
 
+    /// 根据当前内容大小类别更新动态字体。
     private func updateFonts() {
         transcriptLabel.font = .preferredFont(forTextStyle: .subheadline, compatibleWith: traitCollection)
         durationLabel.font = .monospacedDigitSystemFont(
@@ -372,6 +399,7 @@ final class IMessageAudioBubbleView: QuickLayoutView {
         )
     }
 
+    /// 根据当前边界更新 `IMessageAudioBubbleView` 的子视图布局与图层几何。
     override func layoutSubviews() {
         super.layoutSubviews()
         guard bounds.width > 0, bounds.height > 6 else { return }
@@ -399,6 +427,7 @@ final class IMessageAudioBubbleView: QuickLayoutView {
         CATransaction.commit()
     }
 
+    /// 将播放按钮事件转发给播放请求回调。
     @objc private func playButtonDidTap() {
         playbackRequested?()
     }
@@ -429,19 +458,27 @@ final class IMessageAudioBubbleView: QuickLayoutView {
 /// 承载音频消息气泡的可复用时间线 Cell。
 final class IMessageAudioBubbleCell: QuickLayoutCollectionViewCell {
 
+    /// 显示音频波形、时长和转写文本的气泡视图。
     let bubbleView = IMessageAudioBubbleView(frame: .zero)
+    /// 显示发送进度、失败入口及送达文本的状态视图。
     let deliveryStatusView = IMessageChatDeliveryStatusView()
+    /// 状态视图中用于显示本地化送达文本的标签。
     var deliveryLabel: UILabel { deliveryStatusView.label }
 
+    /// 用户请求切换播放时调用的闭包，参数为消息身份与音频附件。
     var playbackRequested: ((Int, IMessageChatAudioAttachment) -> Void)?
 
+    /// 当前绑定的消息展示模型；未配置或复用清理后为 `nil`。
     private var message: IMessageChatMessagePresentation?
+    /// 当前布局允许的消息气泡最大宽度，单位为点。
     private var maximumBubbleWidth: CGFloat = 300
 
+    /// 需要随单元格同步更新布局方向的内容视图。
     override var quickLayoutDirectionViews: [UIView] {
         super.quickLayoutDirectionViews + [bubbleView]
     }
 
+    /// 定义 `IMessageAudioBubbleCell` 的布局层级、间距和对齐方式。
     @LayoutBuilder
     override var body: Layout {
         HStack(spacing: 0) {
@@ -474,6 +511,9 @@ final class IMessageAudioBubbleCell: QuickLayoutCollectionViewCell {
         .padding(.vertical, 2)
     }
 
+    /// 使用指定初始边框创建 `IMessageAudioBubbleCell`，并配置其子视图和默认外观。
+    ///
+    /// - Parameter frame: 在父视图坐标系中指定的初始边框。
     override init(frame: CGRect) {
         super.init(frame: frame)
         quickLayoutHorizontalFlexibility = .fixedSize
@@ -487,10 +527,14 @@ final class IMessageAudioBubbleCell: QuickLayoutCollectionViewCell {
         isAccessibilityElement = false
     }
 
+    /// 不支持从归档创建 `IMessageAudioBubbleCell`。
+    ///
+    /// 请使用代码初始化方法创建此对象。
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
+    /// 根据列表提供的宽度更新内容宽度限制，并返回自适应高度的布局属性。
     override func preferredLayoutAttributesFitting(
         _ layoutAttributes: UICollectionViewLayoutAttributes
     ) -> UICollectionViewLayoutAttributes {
@@ -557,6 +601,7 @@ final class IMessageAudioBubbleCell: QuickLayoutCollectionViewCell {
         )
     }
 
+    /// 为复用清理 `IMessageAudioBubbleCell` 的内容与临时状态。
     override func prepareForReuse() {
         super.prepareForReuse()
         message = nil
@@ -571,6 +616,7 @@ final class IMessageAudioBubbleCell: QuickLayoutCollectionViewCell {
 }
 
 #if DEBUG
+/// 创建指定收发方向及可选转写文本的音频气泡预览控制器。
 @MainActor
 private func makeIMessageAudioBubblePreview(
     direction: IMessageChatDirection, transcript: String? = nil

@@ -5,6 +5,9 @@ import UIKit
 /// UI 回归通过启动参数使用真实本地附件；正常启动不改变会话内容。
 @MainActor
 enum IMessageChatSavePreviewFixtures {
+    /// 根据调试启动参数创建真实本地保存样例，并登记为已提交附件。
+    ///
+    /// 未指定支持的样例类型时返回 `nil`；文件生成失败时抛出错误。
     static func attachment(store: any IMessageChatAttachmentStoring) throws -> IMessageChatAttachment? {
         let arguments = ProcessInfo.processInfo.arguments
         guard let index = arguments.firstIndex(of: "-imessage-save-fixture"), arguments.indices.contains(index + 1) else { return nil }
