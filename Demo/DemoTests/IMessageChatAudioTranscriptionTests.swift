@@ -124,7 +124,7 @@ struct IMessageChatAudioTranscriptionTests {
         let outgoing = try makeAudio(), incoming = try makeAudio()
         defer { for audio in [outgoing, incoming] { try? FileManager.default.removeItem(at: audio.fileURL) } }
         let model = IMessageChatViewModel(
-            localizer: DemoLocalizer { key, _ in key }, clock: Date.init,
+            localizer: Localizer { key, _ in key }, clock: Date.init,
             replyAudioSynthesizer: ReplySynthesizer(audio: incoming),
             sleeper: { _ in try await Task.sleep(for: .milliseconds(10)) }
         )
@@ -441,7 +441,7 @@ struct IMessageChatAudioTranscriptionTests {
     }
 
     private func makeModel() -> IMessageChatViewModel {
-        IMessageChatViewModel(localizer: DemoLocalizer { key, _ in key }, clock: Date.init,
+        IMessageChatViewModel(localizer: Localizer { key, _ in key }, clock: Date.init,
                              sleeper: { _ in try await Task.sleep(for: .seconds(3600)) })
     }
 

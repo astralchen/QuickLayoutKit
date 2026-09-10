@@ -118,7 +118,7 @@ struct IMessageChatEquivalentReplyTests {
     }
 
     private func makeModel(sleeper: @escaping IMessageChatViewModel.Sleeper = { _ in }) -> IMessageChatViewModel {
-        IMessageChatViewModel(localizer: DemoLocalizer { key, _ in key }, clock: Date.init, sleeper: sleeper)
+        IMessageChatViewModel(localizer: Localizer { key, _ in key }, clock: Date.init, sleeper: sleeper)
     }
 
     private func messages(_ model: IMessageChatViewModel) -> [IMessageChatMessagePresentation] {

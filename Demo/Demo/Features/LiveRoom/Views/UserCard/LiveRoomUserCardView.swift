@@ -80,16 +80,16 @@ final class LiveRoomUserCardView: LiveRoomCardView {
 
     func configure(seat: LiveRoomSeat) {
         let color = LiveRoomTheme.seatColor(at: seat.themeIndex)
-        titleLabel.text = DemoLocalization.text("liveRoom.userCard.title")
-        nameLabel.text = DemoLocalization.text(seat.nameKey)
+        titleLabel.text = Localization.text("liveRoom.userCard.title")
+        nameLabel.text = Localization.text(seat.nameKey)
         seatLabel.text = seat.id == 0
-            ? DemoLocalization.text("liveRoom.userCard.hostSeat")
-            : DemoLocalization.text("liveRoom.userCard.guestSeat", seat.id)
-        scoreLabel.text = DemoLocalization.text(
+            ? Localization.text("liveRoom.userCard.hostSeat")
+            : Localization.text("liveRoom.userCard.guestSeat", seat.id)
+        scoreLabel.text = Localization.text(
             "liveRoom.seat.score",
             seat.score
         )
-        microphoneLabel.text = DemoLocalization.text(
+        microphoneLabel.text = Localization.text(
             seat.isMuted ? "liveRoom.seat.muted" : "liveRoom.seat.speaking"
         )
         avatarBackgroundView.backgroundColor = color.withAlphaComponent(0.22)
@@ -106,7 +106,7 @@ final class LiveRoomUserCardView: LiveRoomCardView {
             systemName: seat.isMuted ? "mic.slash.fill" : "waveform"
         )
         microphoneImageView.tintColor = seat.isMuted ? .systemRed : .systemGreen
-        closeButton.accessibilityLabel = DemoLocalization.text("common.close")
+        closeButton.accessibilityLabel = Localization.text("common.close")
         setNeedsQuickLayout()
     }
 

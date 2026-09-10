@@ -29,11 +29,11 @@ struct LocalizationOverviewService {
 
     static let live = LocalizationOverviewService(
         snapshot: {
-            let controller = DemoLocalization.localizationController
+            let controller = Localization.localizationController
             let followSystem = Language(
                 identifier: LocalizationController.followSystemLocaleIdentifier,
                 nativeName: "",
-                localizedName: DemoLocalization.localeDisplayName(
+                localizedName: Localization.localeDisplayName(
                     controller.currentLocale
                 ),
                 isFollowSystemOption: true
@@ -42,15 +42,15 @@ struct LocalizationOverviewService {
                 Language(
                     identifier: locale.identifier,
                     nativeName: locale.nativeDisplayName,
-                    localizedName: DemoLocalization.localeDisplayName(locale),
+                    localizedName: Localization.localeDisplayName(locale),
                     isFollowSystemOption: false
                 )
             }
 
             return Snapshot(
-                currentLanguageSummary: DemoLocalization.currentLanguageSummary(),
+                currentLanguageSummary: Localization.currentLanguageSummary(),
                 usesRightToLeftLayout:
-                    DemoLocalization.currentLayoutDirection == .rightToLeft,
+                    Localization.currentLayoutDirection == .rightToLeft,
                 selectedIdentifier: controller.followsSystemLocale
                     ? LocalizationController.followSystemLocaleIdentifier
                     : controller.currentLocale.identifier,
@@ -58,7 +58,7 @@ struct LocalizationOverviewService {
             )
         },
         selectLanguage: { identifier in
-            DemoLocalization.setLocale(identifier: identifier)
+            Localization.setLocale(identifier: identifier)
         }
     )
 }
@@ -79,7 +79,7 @@ final class LocalizationOverviewViewModel {
         let languages: [LanguageOption]
     }
 
-    private let localizer: DemoLocalizer
+    private let localizer: Localizer
     private let service: LocalizationOverviewService
     private var render: ((State) -> Void)?
 
@@ -90,7 +90,7 @@ final class LocalizationOverviewViewModel {
     }
 
     init(
-        localizer: DemoLocalizer,
+        localizer: Localizer,
         service: LocalizationOverviewService
     ) {
         self.localizer = localizer
@@ -121,7 +121,7 @@ final class LocalizationOverviewViewModel {
     }
 
     private static func makeState(
-        localizer: DemoLocalizer,
+        localizer: Localizer,
         snapshot: LocalizationOverviewService.Snapshot
     ) -> State {
         State(

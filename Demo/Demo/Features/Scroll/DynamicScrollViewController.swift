@@ -10,7 +10,7 @@ import AppLocalization
 import QuickLayout
 import QuickLayoutKit
 
-class DynamicScrollViewController: DemoQuickLayoutHostingController {
+class DynamicScrollViewController: LocalizedQuickLayoutHostingController {
 
     private enum Metrics {
         static let horizontalContentMargin: CGFloat = 16

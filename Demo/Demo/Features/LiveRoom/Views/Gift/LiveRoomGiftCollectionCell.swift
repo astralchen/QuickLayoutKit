@@ -60,8 +60,8 @@ private final class LiveRoomGiftItemButton: QuickLayoutButton {
         imageSide = gift.effectStyle == .celebration ? 23 : 20
         imageView.image = UIImage(systemName: gift.symbolName)
         imageView.tintColor = color
-        titleLabel.text = DemoLocalization.text(gift.titleKey)
-        priceLabel.text = DemoLocalization.text("liveRoom.gift.price", gift.price)
+        titleLabel.text = Localization.text(gift.titleKey)
+        priceLabel.text = Localization.text("liveRoom.gift.price", gift.price)
         priceLabel.textColor = isSelected
             ? .systemYellow
             : UIColor.white.withAlphaComponent(0.42)
@@ -78,10 +78,10 @@ private final class LiveRoomGiftItemButton: QuickLayoutButton {
         layer.shadowOpacity = isSelected && gift.effectStyle != .trail ? 0.55 : 0
         layer.shadowRadius = gift.effectStyle == .celebration ? 9 : 5
         self.isSelected = isSelected
-        accessibilityLabel = DemoLocalization.text(gift.titleKey)
+        accessibilityLabel = Localization.text(gift.titleKey)
         accessibilityValue = isSelected
-            ? DemoLocalization.text("liveRoom.gift.selected")
-            : DemoLocalization.text("liveRoom.gift.price", gift.price)
+            ? Localization.text("liveRoom.gift.selected")
+            : Localization.text("liveRoom.gift.price", gift.price)
         setNeedsQuickLayout()
     }
 

@@ -41,16 +41,16 @@ final class LiveRoomRechargePackageButton: QuickLayoutButton {
         package: LiveRoomRechargePackage,
         isSelected: Bool
     ) {
-        amountLabel.text = DemoLocalization.text(
+        amountLabel.text = Localization.text(
             "liveRoom.recharge.package.amount",
             package.amount
         )
         detailLabel.text = package.bonus > 0
-            ? DemoLocalization.text(
+            ? Localization.text(
                 "liveRoom.recharge.package.bonus",
                 package.bonus
             )
-            : DemoLocalization.text("liveRoom.recharge.package.standard")
+            : Localization.text("liveRoom.recharge.package.standard")
         amountLabel.textColor = isSelected ? .systemYellow : .white
         detailLabel.textColor = isSelected
             ? UIColor.systemYellow.withAlphaComponent(0.86)
@@ -66,7 +66,7 @@ final class LiveRoomRechargePackageButton: QuickLayoutButton {
         layer.borderWidth = isSelected ? 2 : 1
         self.isSelected = isSelected
         accessibilityValue = isSelected
-            ? DemoLocalization.text("liveRoom.recharge.package.selected")
+            ? Localization.text("liveRoom.recharge.package.selected")
             : nil
         setNeedsQuickLayout()
     }

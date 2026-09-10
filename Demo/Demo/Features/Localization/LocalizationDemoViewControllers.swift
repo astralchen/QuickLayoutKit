@@ -10,7 +10,7 @@ import AppLocalization
 import QuickLayout
 import QuickLayoutKit
 
-final class LocalizationOverviewViewController: DemoQuickLayoutHostingController {
+final class LocalizationOverviewViewController: LocalizedQuickLayoutHostingController {
     override var localizedTitleKey: String? { "demo.localizationOverview.title" }
 
     private let viewModel: LocalizationOverviewViewModel
@@ -79,7 +79,7 @@ final class LocalizationOverviewViewController: DemoQuickLayoutHostingController
     ) {
         super.reloadLayoutDirection(direction)
 
-        let update = DemoLocalization.layoutDirectionUpdate(direction)
+        let update = Localization.layoutDirectionUpdate(direction)
         UIViewLayoutDirectionUpdater.apply(
             update,
             to: [scrollView, bodyLabel, currentLanguageLabel, directionLabel]
@@ -173,14 +173,14 @@ final class LocalizationOverviewViewController: DemoQuickLayoutHostingController
     }
 }
 
-final class UIKitLocalizationShowcaseViewController: DemoViewController {
+final class UIKitLocalizationShowcaseViewController: LocalizedViewController {
     override var localizedTitleKey: String? { "demo.uikitLocalization.title" }
 
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
     private let modalButton: UIButton = {
         var configuration = UIButton.Configuration.plain()
-        configuration.title = DemoLocalization.text("uikit.showModal")
+        configuration.title = Localization.text("uikit.showModal")
         return UIButton(configuration: configuration)
     }()
     private let collectionView: UICollectionView
@@ -195,12 +195,12 @@ final class UIKitLocalizationShowcaseViewController: DemoViewController {
         layout.minimumLineSpacing = 12
         layout.itemSize = CGSize(width: 132, height: 64)
         collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        cellRegistration = DemoLocalization.reusableContext.makeCellRegistration {
+        cellRegistration = Localization.reusableContext.makeCellRegistration {
             cell,
             _,
             item in
             cell.configure(
-                text: DemoLocalization.text(
+                text: Localization.text(
                     "uikit.collection.\(item + 1)"
                 )
             )
@@ -243,15 +243,15 @@ final class UIKitLocalizationShowcaseViewController: DemoViewController {
         ])
 
         reloadLocalizedContent()
-        reloadLayoutDirection(DemoLocalization.currentUIKitDirection)
+        reloadLayoutDirection(Localization.currentUIKitDirection)
     }
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        titleLabel.text = DemoLocalization.text("demo.uikitLocalization.title")
-        subtitleLabel.text = DemoLocalization.text("uikit.showcase.subtitle")
+        titleLabel.text = Localization.text("demo.uikitLocalization.title")
+        subtitleLabel.text = Localization.text("uikit.showcase.subtitle")
         if var configuration = modalButton.configuration {
-            configuration.title = DemoLocalization.text("uikit.showModal")
+            configuration.title = Localization.text("uikit.showModal")
             modalButton.configuration = configuration
         } else {
             assertionFailure("Modal button requires UIButton.Configuration")
@@ -267,7 +267,7 @@ final class UIKitLocalizationShowcaseViewController: DemoViewController {
         }
         modalButton.configuration = modalButton.configuration
         collectionView.applyLocalization(
-            DemoLocalization.layoutDirectionUpdate(direction),
+            Localization.layoutDirectionUpdate(direction),
             preservingVisibleItem: true
         )
     }
@@ -275,7 +275,7 @@ final class UIKitLocalizationShowcaseViewController: DemoViewController {
     @objc private func showModal() {
         let modal = LocalizationModalViewController()
         let navigationController = UINavigationController(rootViewController: modal)
-        navigationController.view.semanticContentAttribute = DemoLocalization.currentLayoutDirection.semanticContentAttribute
+        navigationController.view.semanticContentAttribute = Localization.currentLayoutDirection.semanticContentAttribute
         present(navigationController, animated: true)
     }
 }
@@ -300,7 +300,7 @@ extension UIKitLocalizationShowcaseViewController: UICollectionViewDelegate {
         willDisplay cell: UICollectionViewCell,
         forItemAt indexPath: IndexPath
     ) {
-        DemoLocalization.reusableContext.restoreOnAttachment(cell)
+        Localization.reusableContext.restoreOnAttachment(cell)
     }
 }
 
@@ -339,7 +339,7 @@ private final class LocalizationShowcaseCell: UICollectionViewCell {
     }
 }
 
-private final class LocalizationModalViewController: DemoViewController {
+private final class LocalizationModalViewController: LocalizedViewController {
     override var localizedTitleKey: String? { "uikit.showModal" }
 
     private let label = UILabel()
@@ -356,14 +356,14 @@ private final class LocalizationModalViewController: DemoViewController {
             label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
             label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24)
         ])
-        navigationItem.leftBarButtonItem = UIBarButtonItem(title: DemoLocalization.text("common.close"), style: .prominent, target: self, action: #selector(close))
+        navigationItem.leftBarButtonItem = UIBarButtonItem(title: Localization.text("common.close"), style: .prominent, target: self, action: #selector(close))
         reloadLocalizedContent()
     }
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        label.text = DemoLocalization.text("uikit.modal.message")
-        navigationItem.leftBarButtonItem?.title = DemoLocalization.text("common.close")
+        label.text = Localization.text("uikit.modal.message")
+        navigationItem.leftBarButtonItem?.title = Localization.text("common.close")
     }
 
     override func reloadLayoutDirection(
@@ -380,7 +380,7 @@ private final class LocalizationModalViewController: DemoViewController {
     }
 }
 
-final class DirectionalNavigationDemoViewController: DemoViewController {
+final class DirectionalNavigationDemoViewController: LocalizedViewController {
     override var localizedTitleKey: String? { "demo.directionalNavigation.title" }
 
     private let label = UILabel()
@@ -410,13 +410,13 @@ final class DirectionalNavigationDemoViewController: DemoViewController {
         ])
 
         reloadLocalizedContent()
-        reloadLayoutDirection(DemoLocalization.currentUIKitDirection)
+        reloadLayoutDirection(Localization.currentUIKitDirection)
     }
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        label.text = DemoLocalization.text("navigation.body")
-        reloadLayoutDirection(DemoLocalization.currentUIKitDirection)
+        label.text = Localization.text("navigation.body")
+        reloadLayoutDirection(Localization.currentUIKitDirection)
         updateEdgeLabel()
     }
 
@@ -427,14 +427,14 @@ final class DirectionalNavigationDemoViewController: DemoViewController {
         [label, edgeLabel].forEach {
             $0.semanticContentAttribute = attribute
         }
-        let leading = UIBarButtonItem(title: DemoLocalization.text("navigation.leading"), style: .plain, target: nil, action: nil)
-        let trailing = UIBarButtonItem(title: DemoLocalization.text("navigation.trailing"), style: .plain, target: nil, action: nil)
+        let leading = UIBarButtonItem(title: Localization.text("navigation.leading"), style: .plain, target: nil, action: nil)
+        let trailing = UIBarButtonItem(title: Localization.text("navigation.trailing"), style: .plain, target: nil, action: nil)
         let language = UIBarButtonItem(
             image: UIImage(systemName: "globe"),
             primaryAction: nil,
-            menu: DemoLocalization.languageMenu()
+            menu: Localization.languageMenu()
         )
-        language.accessibilityLabel = DemoLocalization.text("language.menu.accessibility")
+        language.accessibilityLabel = Localization.text("language.menu.accessibility")
 
         switch direction {
         case .leftToRight:
@@ -454,15 +454,15 @@ final class DirectionalNavigationDemoViewController: DemoViewController {
     }
 
     private func updateEdgeLabel() {
-        let layoutDirection = DemoLocalization.currentLayoutDirection
+        let layoutDirection = Localization.currentLayoutDirection
         let edgeKey = DirectionalLayout.backSwipeEdge(
             layoutDirection: layoutDirection
         ) == .right
             ? "navigation.edge.right"
             : "navigation.edge.left"
-        edgeLabel.text = DemoLocalization.text(
+        edgeLabel.text = Localization.text(
             "navigation.edge.summary",
-            DemoLocalization.text(edgeKey),
+            Localization.text(edgeKey),
             DirectionalLayout.backChevronSystemName(
                 layoutDirection: layoutDirection
             )
@@ -470,7 +470,7 @@ final class DirectionalNavigationDemoViewController: DemoViewController {
     }
 }
 
-final class SemanticGestureDemoViewController: DemoViewController {
+final class SemanticGestureDemoViewController: LocalizedViewController {
     override var localizedTitleKey: String? { "demo.semanticGesture.title" }
 
     private let containerView = UIView()
@@ -516,7 +516,7 @@ final class SemanticGestureDemoViewController: DemoViewController {
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        hintLabel.text = DemoLocalization.text("gesture.hint")
+        hintLabel.text = Localization.text("gesture.hint")
         updateResultLabel()
     }
 
@@ -542,7 +542,7 @@ final class SemanticGestureDemoViewController: DemoViewController {
         translationX = gesture.translation(in: containerView).x
         lastDirection = DirectionalLayout.semanticHorizontalDirection(
             translationX: translationX,
-            layoutDirection: DemoLocalization.currentLayoutDirection
+            layoutDirection: Localization.currentLayoutDirection
         )
         updateResultLabel()
     }
@@ -551,39 +551,39 @@ final class SemanticGestureDemoViewController: DemoViewController {
         let directionText: String
         switch lastDirection {
         case .leading:
-            directionText = DemoLocalization.text("gesture.leading")
+            directionText = Localization.text("gesture.leading")
         case .trailing:
-            directionText = DemoLocalization.text("gesture.trailing")
+            directionText = Localization.text("gesture.trailing")
         case nil:
-            directionText = DemoLocalization.text("gesture.none")
+            directionText = Localization.text("gesture.none")
         }
 
         let isBackSwipe = DirectionalLayout.isBackSwipe(
             translationX: translationX,
-            layoutDirection: DemoLocalization.currentLayoutDirection
+            layoutDirection: Localization.currentLayoutDirection
         )
-        let backSwipeText = DemoLocalization.text(
+        let backSwipeText = Localization.text(
             isBackSwipe ? "common.boolean.true" : "common.boolean.false"
         )
         resultLabel.text = [
             directionText,
-            DemoLocalization.text(
+            Localization.text(
                 "gesture.translation",
                 Int64(translationX)
             ),
-            DemoLocalization.text("gesture.backSwipe", backSwipeText),
+            Localization.text("gesture.backSwipe", backSwipeText),
         ].joined(separator: "\n")
     }
 }
 
-final class LocalizationBoundaryDemoViewController: DemoViewController {
+final class LocalizationBoundaryDemoViewController: LocalizedViewController {
     override var localizedTitleKey: String? { "demo.localizationBoundary.title" }
 
     private let bodyLabel = UILabel()
     private let metadataLabel = UILabel()
     private let alertButton: UIButton = {
         var configuration = UIButton.Configuration.plain()
-        configuration.title = DemoLocalization.text(
+        configuration.title = Localization.text(
             "boundary.recreateAlert"
         )
         return UIButton(configuration: configuration)
@@ -616,10 +616,10 @@ final class LocalizationBoundaryDemoViewController: DemoViewController {
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        bodyLabel.text = DemoLocalization.text("boundary.body")
-        metadataLabel.text = DemoLocalization.text("boundary.systemMetadata")
+        bodyLabel.text = Localization.text("boundary.body")
+        metadataLabel.text = Localization.text("boundary.systemMetadata")
         if var configuration = alertButton.configuration {
-            configuration.title = DemoLocalization.text(
+            configuration.title = Localization.text(
                 "boundary.recreateAlert"
             )
             alertButton.configuration = configuration
@@ -642,11 +642,11 @@ final class LocalizationBoundaryDemoViewController: DemoViewController {
 
     @objc private func showBoundaryAlert() {
         let alert = UIAlertController(
-            title: DemoLocalization.text("demo.localizationBoundary.title"),
-            message: "\(DemoLocalization.text("boundary.body"))\n\n\(DemoLocalization.text("boundary.systemMetadata"))",
+            title: Localization.text("demo.localizationBoundary.title"),
+            message: "\(Localization.text("boundary.body"))\n\n\(Localization.text("boundary.systemMetadata"))",
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: DemoLocalization.text("common.ok"), style: .default))
+        alert.addAction(UIAlertAction(title: Localization.text("common.ok"), style: .default))
         present(alert, animated: true)
     }
 }

@@ -252,10 +252,10 @@ final class IMessageConversationView: UIView {
                                     cell.configure(
                                         message,
                                         playback: playbackState,
-                                        playAccessibilityLabel: DemoLocalization.text(
+                                        playAccessibilityLabel: Localization.text(
                                             "imessage.audio.play"
                                         ),
-                                        pauseAccessibilityLabel: DemoLocalization.text(
+                                        pauseAccessibilityLabel: Localization.text(
                                             "imessage.audio.pause"
                                         )
                                     )
@@ -351,10 +351,10 @@ final class IMessageConversationView: UIView {
                 in collectionView.visibleCells {
             cell.updatePlayback(
                 playback,
-                playAccessibilityLabel: DemoLocalization.text(
+                playAccessibilityLabel: Localization.text(
                     "imessage.audio.play"
                 ),
-                pauseAccessibilityLabel: DemoLocalization.text(
+                pauseAccessibilityLabel: Localization.text(
                     "imessage.audio.pause"
                 )
             )
@@ -367,7 +367,7 @@ final class IMessageConversationView: UIView {
     ) {
         lastAppliedLayoutDirection = direction
         collectionView.applyLocalization(
-            DemoLocalization.layoutDirectionUpdate(direction),
+            Localization.layoutDirectionUpdate(direction),
             preservingVisibleItem: true,
             rebuildingLayoutWith: { [unowned self] in
                 makeCollectionViewLayout()
@@ -436,7 +436,7 @@ final class IMessageConversationView: UIView {
         let direction = lastAppliedLayoutDirection
             ?? collectionView.effectiveUserInterfaceLayoutDirection
         collectionView.applyLocalization(
-            DemoLocalization.layoutDirectionUpdate(
+            Localization.layoutDirectionUpdate(
                 direction,
                 reasons: [.layoutDirection, .configuration]
             ),

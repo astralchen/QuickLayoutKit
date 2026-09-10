@@ -34,7 +34,7 @@ final class CounterViewModel {
 
     typealias StateObserver = (State) -> Void
 
-    private let localizer: DemoLocalizer
+    private let localizer: Localizer
     private let goal: Int
     private var count: Int
     private var stateObserver: StateObserver?
@@ -52,7 +52,7 @@ final class CounterViewModel {
     init(
         initialCount: Int = 0,
         goal: Int = 8,
-        localizer: DemoLocalizer
+        localizer: Localizer
     ) {
         self.localizer = localizer
         self.goal = max(goal, 1)
@@ -100,7 +100,7 @@ final class CounterViewModel {
     private static func makeState(
         count: Int,
         goal: Int,
-        localizer: DemoLocalizer
+        localizer: Localizer
     ) -> State {
         let remaining = max(goal - count, 0)
         let statusTitleKey: String

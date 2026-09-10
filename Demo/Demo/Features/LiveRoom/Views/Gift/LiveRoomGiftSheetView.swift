@@ -248,7 +248,7 @@ final class LiveRoomGiftSheetView:
     }
 
     func reloadLocalizedContent() {
-        recipientTitleLabel.text = DemoLocalization.text(
+        recipientTitleLabel.text = Localization.text(
             "liveRoom.gift.recipient.title"
         )
         updateButtons(reloadsGifts: true)

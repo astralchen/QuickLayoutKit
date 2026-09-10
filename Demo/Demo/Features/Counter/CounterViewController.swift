@@ -10,7 +10,7 @@ import AppLocalization
 import QuickLayout
 import QuickLayoutKit
 
-final class CounterViewController: DemoQuickLayoutHostingController {
+final class CounterViewController: LocalizedQuickLayoutHostingController {
 
     override var localizedTitleKey: String? { "demo.counter.title" }
 
@@ -71,7 +71,7 @@ final class CounterViewController: DemoQuickLayoutHostingController {
     ) {
         super.reloadLayoutDirection(direction)
 
-        let update = DemoLocalization.layoutDirectionUpdate(direction)
+        let update = Localization.layoutDirectionUpdate(direction)
         UIViewLayoutDirectionUpdater.apply(
             update,
             to: [
@@ -115,19 +115,19 @@ final class CounterViewController: DemoQuickLayoutHostingController {
         guard viewModel.state.canReset else { return }
 
         let alert = UIAlertController(
-            title: DemoLocalization.text("counter.reset.confirm.title"),
-            message: DemoLocalization.text("counter.reset.confirm.message"),
+            title: Localization.text("counter.reset.confirm.title"),
+            message: Localization.text("counter.reset.confirm.message"),
             preferredStyle: .alert
         )
         alert.addAction(
             UIAlertAction(
-                title: DemoLocalization.text("counter.reset.cancel"),
+                title: Localization.text("counter.reset.cancel"),
                 style: .cancel
             )
         )
         alert.addAction(
             UIAlertAction(
-                title: DemoLocalization.text("counter.reset.action"),
+                title: Localization.text("counter.reset.action"),
                 style: .destructive
             ) { [weak self] _ in
                 self?.viewModel.reset()

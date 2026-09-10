@@ -18,7 +18,7 @@ extension LiveRoomRechargeView {
     ) {
         successAnimationCount += 1
         successOverlayView.configure(
-            message: DemoLocalization.text(
+            message: Localization.text(
                 "liveRoom.recharge.success",
                 creditedAmount
             )
@@ -36,7 +36,7 @@ extension LiveRoomRechargeView {
             !UIAccessibility.isReduceMotionEnabled
         else {
             balanceCardView.updateBalance(
-                DemoLocalization.text(
+                Localization.text(
                     "liveRoom.recharge.balance.value",
                     updatedBalance
                 )
@@ -119,7 +119,7 @@ extension LiveRoomRechargeView {
         balanceAnimationTo = to
         balanceAnimationStartTime = CACurrentMediaTime()
         contentView.balanceCardView.updateBalance(
-            DemoLocalization.text("liveRoom.recharge.balance.value", from)
+            Localization.text("liveRoom.recharge.balance.value", from)
         )
         let displayLink = CADisplayLink(
             target: self,
@@ -139,7 +139,7 @@ extension LiveRoomRechargeView {
         let displayedBalance = balanceAnimationFrom
             + Int((difference * easedProgress).rounded())
         contentView.balanceCardView.updateBalance(
-            DemoLocalization.text(
+            Localization.text(
                 "liveRoom.recharge.balance.value",
                 displayedBalance
             )
@@ -150,7 +150,7 @@ extension LiveRoomRechargeView {
             balanceDisplayLink = nil
         }
         contentView.balanceCardView.updateBalance(
-            DemoLocalization.text(
+            Localization.text(
                 "liveRoom.recharge.balance.value",
                 balanceAnimationTo
             )

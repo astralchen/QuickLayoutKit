@@ -190,7 +190,7 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
             switch source {
             case .provider(let provider, let identifier):
                 type = UTType(identifier) ?? .data
-                name = provider.suggestedName ?? DemoLocalization.text("imessage.attachment.pastedFile")
+                name = provider.suggestedName ?? Localization.text("imessage.attachment.pastedFile")
             case .fileURL(let url):
                 type = UTType(filenameExtension: url.pathExtension) ?? .data
                 name = url.lastPathComponent

@@ -23,7 +23,7 @@ UIKit / QuickLayout 方向适配原则：
 */
 
 // MARK: - 主演示控制器
-class SemanticContentDemoViewController: DemoQuickLayoutHostingController {
+class SemanticContentDemoViewController: LocalizedQuickLayoutHostingController {
 
     override var localizedTitleKey: String? { "demo.semantic.title" }
 
@@ -32,17 +32,17 @@ class SemanticContentDemoViewController: DemoQuickLayoutHostingController {
     let descLabel = UILabel()
 
     // 演示分区
-    let unspecifiedSection = DemoSection(
+    let unspecifiedSection = SemanticContentSectionView(
         titleKey: "semantic.unspecified",
         semantic: .unspecified
     )
 
-    let ltrSection = DemoSection(
+    let ltrSection = SemanticContentSectionView(
         titleKey: "semantic.ltr",
         semantic: .forceLeftToRight
     )
 
-    let rtlSection = DemoSection(
+    let rtlSection = SemanticContentSectionView(
         titleKey: "semantic.rtl",
         semantic: .forceRightToLeft
     )
@@ -62,8 +62,8 @@ class SemanticContentDemoViewController: DemoQuickLayoutHostingController {
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        titleLabel.text = DemoLocalization.text("semantic.header.title")
-        descLabel.text = DemoLocalization.text("semantic.header.subtitle")
+        titleLabel.text = Localization.text("semantic.header.title")
+        descLabel.text = Localization.text("semantic.header.subtitle")
         unspecifiedSection.reloadLocalizedContent()
         ltrSection.reloadLocalizedContent()
         rtlSection.reloadLocalizedContent()
@@ -74,7 +74,7 @@ class SemanticContentDemoViewController: DemoQuickLayoutHostingController {
     ) {
         super.reloadLayoutDirection(direction)
 
-        let update = DemoLocalization.layoutDirectionUpdate(direction)
+        let update = Localization.layoutDirectionUpdate(direction)
         UIViewLayoutDirectionUpdater.apply(
             update,
             to: [scrollView, titleLabel, descLabel].map {
@@ -119,7 +119,7 @@ class SemanticContentDemoViewController: DemoQuickLayoutHostingController {
 
 // MARK: - 演示分区组件
 @QuickLayout
-class DemoSection: UIView {
+class SemanticContentSectionView: UIView {
 
     let titleLabel = UILabel()
     let semantic: UISemanticContentAttribute
@@ -169,7 +169,7 @@ class DemoSection: UIView {
     }
 
     func reloadLocalizedContent() {
-        titleLabel.text = DemoLocalization.text(titleKey)
+        titleLabel.text = Localization.text(titleKey)
         example1.reloadLocalizedContent()
         example2.reloadLocalizedContent()
         example3.reloadLocalizedContent()
@@ -258,7 +258,7 @@ class ExampleRow1: UIView {
     }
 
     func reloadLocalizedContent() {
-        textLabel.text = DemoLocalization.text("semantic.phone")
+        textLabel.text = Localization.text("semantic.phone")
         setNeedsLayout()
     }
 }
@@ -324,8 +324,8 @@ class ExampleRow2: UIView {
     }
 
     func reloadLocalizedContent() {
-        leadingTitleLabel.text = DemoLocalization.text("semantic.leading")
-        trailingTitleLabel.text = DemoLocalization.text("semantic.trailing")
+        leadingTitleLabel.text = Localization.text("semantic.leading")
+        trailingTitleLabel.text = Localization.text("semantic.trailing")
         setNeedsLayout()
     }
 }
@@ -369,7 +369,7 @@ class ExampleRow3: UIView {
     }
 
     func reloadLocalizedContent() {
-        descLabel.text = DemoLocalization.text("semantic.avatar")
+        descLabel.text = Localization.text("semantic.avatar")
         setNeedsLayout()
     }
 }
@@ -378,7 +378,7 @@ class ExampleRow3: UIView {
 class ExampleRow4: UIView {
     let button: UIButton = {
         var configuration = UIButton.Configuration.filled()
-        configuration.title = DemoLocalization.text("semantic.next")
+        configuration.title = Localization.text("semantic.next")
         configuration.image = UIImage(systemName: "arrow.right")
         configuration.imagePlacement = .leading
         configuration.imagePadding = 8
@@ -408,7 +408,7 @@ class ExampleRow4: UIView {
 
     func reloadLocalizedContent() {
         if var configuration = button.configuration {
-            configuration.title = DemoLocalization.text("semantic.next")
+            configuration.title = Localization.text("semantic.next")
             button.configuration = configuration
         } else {
             assertionFailure("Semantic demo button requires UIButton.Configuration")

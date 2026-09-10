@@ -9,7 +9,7 @@ import UIKit
 import QuickLayout
 import QuickLayoutKit
 
-final class ProfileViewController: DemoQuickLayoutHostingController {
+final class ProfileViewController: LocalizedQuickLayoutHostingController {
 
     override var localizedTitleKey: String? { "demo.profile.title" }
 
@@ -45,41 +45,41 @@ final class ProfileViewController: DemoQuickLayoutHostingController {
         super.reloadLocalizedContent()
 
         heroView.configure(
-            name: DemoLocalization.text("profile.name"),
-            role: DemoLocalization.text("profile.role"),
-            location: DemoLocalization.text("profile.location"),
-            availability: DemoLocalization.text("profile.availability")
+            name: Localization.text("profile.name"),
+            role: Localization.text("profile.role"),
+            location: Localization.text("profile.location"),
+            availability: Localization.text("profile.availability")
         )
         statsView.configure(
             projects: .init(
-                value: DemoLocalization.text("profile.stats.projects.value"),
-                title: DemoLocalization.text("profile.stats.projects.title")
+                value: Localization.text("profile.stats.projects.value"),
+                title: Localization.text("profile.stats.projects.title")
             ),
             followers: .init(
-                value: DemoLocalization.text("profile.stats.followers.value"),
-                title: DemoLocalization.text("profile.stats.followers.title")
+                value: Localization.text("profile.stats.followers.value"),
+                title: Localization.text("profile.stats.followers.title")
             ),
             response: .init(
-                value: DemoLocalization.text("profile.stats.response.value"),
-                title: DemoLocalization.text("profile.stats.response.title")
+                value: Localization.text("profile.stats.response.value"),
+                title: Localization.text("profile.stats.response.title")
             )
         )
         aboutView.configure(
-            title: DemoLocalization.text("profile.section.about"),
-            body: DemoLocalization.text("profile.bio")
+            title: Localization.text("profile.section.about"),
+            body: Localization.text("profile.bio")
         )
         activityView.configure(
-            sectionTitle: DemoLocalization.text("profile.section.activity"),
-            title: DemoLocalization.text("profile.activity.title"),
-            detail: DemoLocalization.text("profile.activity.detail")
+            sectionTitle: Localization.text("profile.section.activity"),
+            title: Localization.text("profile.activity.title"),
+            detail: Localization.text("profile.activity.detail")
         )
         skillsView.configure(
-            title: DemoLocalization.text("profile.section.skills"),
-            skills: skillLocalizationKeys.map(DemoLocalization.text)
+            title: Localization.text("profile.section.skills"),
+            skills: skillLocalizationKeys.map(Localization.text)
         )
         actionsView.configure(
-            messageTitle: DemoLocalization.text("profile.action.message"),
-            portfolioTitle: DemoLocalization.text("profile.action.portfolio")
+            messageTitle: Localization.text("profile.action.message"),
+            portfolioTitle: Localization.text("profile.action.portfolio")
         )
 
         setNeedsQuickLayout()

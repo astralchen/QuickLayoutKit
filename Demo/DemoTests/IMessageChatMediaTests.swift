@@ -738,7 +738,7 @@ struct IMessageChatMediaTests {
 
     private func makeViewModel() -> IMessageChatViewModel {
         IMessageChatViewModel(
-            localizer: DemoLocalizer { key, _ in "localized.\(key)" },
+            localizer: Localizer { key, _ in "localized.\(key)" },
             clock: { Date(timeIntervalSince1970: 1_800_000_000) },
             sleeper: { duration in try await Task.sleep(for: duration) }
         )

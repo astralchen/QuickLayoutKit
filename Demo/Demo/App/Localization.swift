@@ -1,5 +1,5 @@
 //
-//  DemoLocalization.swift
+//  Localization.swift
 //  Demo
 //
 //  Created by Codex on 2026/6/2.
@@ -9,7 +9,7 @@ import UIKit
 import AppLocalization
 
 @MainActor
-enum DemoLocalization {
+enum Localization {
     private static let languageMenuItemAccessibilityIdentifier =
         "demo.language.menu"
 
@@ -35,10 +35,21 @@ enum DemoLocalization {
         localizationController: localizationController
     )
 
+    /// 输入组件跟随自己的公开方向边界，兼顾独立方向演示与正常应用语言刷新。
+    /// 每次读取最新快照；弱引用容器，避免输入绑定反向持有组件。
+    static func inputContext(for container: UIView) -> UIKitLocalizationContext {
+        UIKitLocalizationContext { [weak container] in
+            layoutDirectionUpdate(
+                container?.effectiveUserInterfaceLayoutDirection ?? currentUIKitDirection
+            ).snapshot
+        }
+    }
+
     private static let sceneCoordinator = UIWindowSceneLocalizationCoordinator(
         localizationController: localizationController
     )
     private static var notificationToken: NSObjectProtocol?
+    private static var lastDistributedSnapshot: LocalizationSnapshot?
 
     static var currentLayoutDirection: AppUserInterfaceLayoutDirection {
         localizationController.layoutDirection
@@ -56,6 +67,11 @@ enum DemoLocalization {
         _ direction: UIUserInterfaceLayoutDirection,
         reasons: UIKitLocalizationUpdateReason = [.layoutDirection]
     ) -> UIKitLocalizationUpdate {
+        let snapshot = localizationController.currentSnapshot
+        if direction == snapshot.layoutDirection.uiLayoutDirection {
+            return UIKitLocalizationUpdate(snapshot: snapshot, reasons: reasons)
+        }
+        // 仅供独立方向演示使用；正常语言刷新始终保留真实语言、选择状态和版本。
         let locale: AppLocale = direction == .rightToLeft ? .arabic : .englishUS
         return UIKitLocalizationUpdate(
             snapshot: LocalizationSnapshot(
@@ -71,6 +87,7 @@ enum DemoLocalization {
         // 方向边界只设置在窗口和控制器上。若通过 UIView appearance proxy 设置，
         // 每个新视图都会把继承方向固化为显式值，导致既有子树无法跟随运行时切换。
         guard notificationToken == nil else { return }
+        lastDistributedSnapshot = localizationController.currentSnapshot
         notificationToken = NotificationCenter.default.addObserver(
             forName: LocalizationController.localizationDidChangeNotification,
             object: localizationController,
@@ -85,9 +102,16 @@ enum DemoLocalization {
                     == localizationController.currentSnapshot.revision else {
                     return
                 }
+                // 合并的是最终状态与上次实际分发状态之间的差异，不能只保留最后一条
+                // 增量通知，否则 RTL → 中文 → 英文会漏掉第一步的方向变化。
+                let mergedChange = LocalizationChange(
+                    previous: lastDistributedSnapshot ?? change.previous,
+                    current: change.current
+                )
+                lastDistributedSnapshot = change.current
                 // Demo 主动查找已连接场景，使没有 SceneDelegate 的交互式 #Preview 窗口
                 // 也能与正式应用接收同一次原子更新。
-                sceneCoordinator.reloadAllScenes(for: change)
+                sceneCoordinator.reloadAllScenes(for: mergedChange)
             }
         }
     }
@@ -208,19 +232,19 @@ enum DemoLocalization {
 
 extension UIViewController {
     @MainActor
-    func installDemoLanguageMenu() {
-        DemoLocalization.installLanguageMenu(on: self)
+    func installLanguageMenu() {
+        Localization.installLanguageMenu(on: self)
     }
 
     @MainActor
-    func reloadDemoLanguageMenu() {
-        DemoLocalization.reloadLanguageMenu(on: self)
+    func reloadLanguageMenu() {
+        Localization.reloadLanguageMenu(on: self)
     }
 
     @MainActor
-    func applyDemoLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
+    func applyLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
         UIViewLayoutDirectionUpdater.apply(
-            DemoLocalization.layoutDirectionUpdate(direction),
+            Localization.layoutDirectionUpdate(direction),
             to: [UIViewLayoutDirectionTarget(view, policy: .followApplication)]
         )
     }

@@ -21,17 +21,17 @@ final class MainViewModel {
 
         struct Route: Equatable {
             let id: String
-            let route: DemoRoute
+            let route: MainRoute
             let title: String
         }
     }
 
     typealias StateHandler = (State) -> Void
-    typealias SelectionHandler = (DemoRoute) -> Void
+    typealias SelectionHandler = (MainRoute) -> Void
 
     private struct SectionDefinition {
         let titleKey: String
-        let routes: [DemoRoute]
+        let routes: [MainRoute]
     }
 
     private static let sectionDefinitions: [SectionDefinition] = [
@@ -75,17 +75,18 @@ final class MainViewModel {
         ),
     ]
 
-    private let localizer: DemoLocalizer
+    private let localizer: Localizer
     private var stateHandler: StateHandler?
     private var selectionHandler: SelectionHandler?
 
     private(set) var state: State
+    private(set) var searchQuery = ""
 
     convenience init() {
         self.init(localizer: .live)
     }
 
-    init(localizer: DemoLocalizer) {
+    init(localizer: Localizer) {
         self.localizer = localizer
         state = Self.makeState(
             definitions: Self.sectionDefinitions,
@@ -109,12 +110,20 @@ final class MainViewModel {
     func reloadLocalizedContent() {
         state = Self.makeState(
             definitions: Self.sectionDefinitions,
-            localizer: localizer
+            localizer: localizer,
+            query: searchQuery
         )
         stateHandler?(state)
     }
 
-    func select(_ route: DemoRoute) {
+    func updateSearchQuery(_ query: String) {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard query != searchQuery else { return }
+        searchQuery = query
+        reloadLocalizedContent()
+    }
+
+    func select(_ route: MainRoute) {
         guard state.sections.contains(where: { section in
             section.routes.contains(where: { $0.route == route })
         }) else {
@@ -125,11 +134,12 @@ final class MainViewModel {
 
     private static func makeState(
         definitions: [SectionDefinition],
-        localizer: DemoLocalizer
+        localizer: Localizer,
+        query: String = ""
     ) -> State {
         State(
-            sections: definitions.map { definition in
-                State.Section(
+            sections: definitions.compactMap { definition in
+                let section = State.Section(
                     id: definition.titleKey,
                     title: localizer.text(definition.titleKey),
                     routes: definition.routes.map { route in
@@ -139,6 +149,17 @@ final class MainViewModel {
                             title: localizer.text(route.titleKey)
                         )
                     }
+                )
+                guard !query.isEmpty else { return section }
+                let routes = section.routes.filter {
+                    $0.title.localizedStandardContains(query)
+                        || section.title.localizedStandardContains(query)
+                }
+                guard !routes.isEmpty else { return nil }
+                return State.Section(
+                    id: section.id,
+                    title: section.title,
+                    routes: routes
                 )
             }
         )

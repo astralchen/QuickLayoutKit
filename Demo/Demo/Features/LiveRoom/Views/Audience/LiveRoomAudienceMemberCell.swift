@@ -65,18 +65,18 @@ final class LiveRoomAudienceMemberCell: QuickLayoutCollectionViewCell {
         nameLabel.text = member.displayName
         switch member.presence {
         case let .onMicrophone(seatNumber):
-            presenceLabel.text = DemoLocalization.text(
+            presenceLabel.text = Localization.text(
                 "liveRoom.audience.onMicrophone",
                 seatNumber
             )
             presenceLabel.textColor = .systemGreen
         case .listening:
-            presenceLabel.text = DemoLocalization.text(
+            presenceLabel.text = Localization.text(
                 "liveRoom.audience.listening"
             )
             presenceLabel.textColor = UIColor.white.withAlphaComponent(0.54)
         }
-        contributionLabel.text = DemoLocalization.text(
+        contributionLabel.text = Localization.text(
             "liveRoom.audience.contribution",
             member.contributionScore
         )
@@ -88,7 +88,7 @@ final class LiveRoomAudienceMemberCell: QuickLayoutCollectionViewCell {
         .compactMap { $0 }
         .joined(separator: ", ")
         accessibilityIdentifier = "liveRoom.audience.member.\(member.id)"
-        accessibilityHint = DemoLocalization.text(
+        accessibilityHint = Localization.text(
             "liveRoom.audience.profile.openHint"
         )
         accessibilityTraits.insert(.button)

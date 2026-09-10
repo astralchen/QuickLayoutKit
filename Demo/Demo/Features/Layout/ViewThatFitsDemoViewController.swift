@@ -11,7 +11,7 @@ import QuickLayoutKit
 import UIKit
 
 /// 交互验证 `ViewThatFits` 候选顺序、约束轴与回退规则的页面。
-final class ViewThatFitsDemoViewController: DemoQuickLayoutHostingController {
+final class ViewThatFitsDemoViewController: LocalizedQuickLayoutHostingController {
 
     enum Scenario: Int, CaseIterable, Sendable {
         case defaultBothAxes
@@ -195,15 +195,15 @@ final class ViewThatFitsDemoViewController: DemoQuickLayoutHostingController {
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        introLabel.text = DemoLocalization.text("viewThatFits.intro")
-        previousButton.accessibilityLabel = DemoLocalization.text(
+        introLabel.text = Localization.text("viewThatFits.intro")
+        previousButton.accessibilityLabel = Localization.text(
             "viewThatFits.previous"
         )
-        nextButton.accessibilityLabel = DemoLocalization.text(
+        nextButton.accessibilityLabel = Localization.text(
             "viewThatFits.next"
         )
-        widthTitleLabel.text = DemoLocalization.text("viewThatFits.width")
-        heightTitleLabel.text = DemoLocalization.text("viewThatFits.height")
+        widthTitleLabel.text = Localization.text("viewThatFits.width")
+        heightTitleLabel.text = Localization.text("viewThatFits.height")
         updateScenarioPresentation()
         updateObservedSelection()
     }
@@ -418,7 +418,7 @@ final class ViewThatFitsDemoViewController: DemoQuickLayoutHostingController {
     }
 
     private func updateExpectedPresentation() {
-        expectedLabel.text = DemoLocalization.text(
+        expectedLabel.text = Localization.text(
             "viewThatFits.expected",
             expectedCandidateIdentifier ?? "—"
         )
@@ -431,7 +431,7 @@ final class ViewThatFitsDemoViewController: DemoQuickLayoutHostingController {
 
     private func updateObservedSelection() {
         let selected = selectedCandidateIdentifier ?? "—"
-        let text = DemoLocalization.text("viewThatFits.selected", selected)
+        let text = Localization.text("viewThatFits.selected", selected)
         guard metricsLabel.text != text else { return }
         metricsLabel.text = text
         setNeedsQuickLayout()

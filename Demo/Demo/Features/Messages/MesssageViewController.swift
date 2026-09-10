@@ -9,7 +9,7 @@ import UIKit
 import AppLocalization
 import ListKit
 
-final class MesssageViewController: DemoViewController {
+final class MesssageViewController: LocalizedViewController {
 
     override var localizedTitleKey: String? { "demo.messages.title" }
 
@@ -44,7 +44,7 @@ final class MesssageViewController: DemoViewController {
         view.backgroundColor = .white
         setupCollectionView()
         bindViewModel()
-        reloadLayoutDirection(DemoLocalization.currentUIKitDirection)
+        reloadLayoutDirection(Localization.currentUIKitDirection)
     }
 
     override func reloadLocalizedContent() {
@@ -82,7 +82,7 @@ final class MesssageViewController: DemoViewController {
     private func render(_ state: MessageListViewModel.State) {
         renderGeneration &+= 1
         let generation = renderGeneration
-        let expectedRevision = DemoLocalization.localizationController
+        let expectedRevision = Localization.localizationController
             .currentSnapshot.revision
 
         adapter.apply(
@@ -92,7 +92,7 @@ final class MesssageViewController: DemoViewController {
                 // 用旧 snapshot 的时序覆盖当前方向。
                 guard let self,
                       self.renderGeneration == generation,
-                      expectedRevision == DemoLocalization.localizationController
+                      expectedRevision == Localization.localizationController
                         .currentSnapshot.revision else { return }
                 self.refreshMaterializedContentLayoutDirection()
             }
@@ -146,7 +146,7 @@ final class MesssageViewController: DemoViewController {
     ) {
         guard let collectionView else { return }
         collectionView.applyLocalization(
-            DemoLocalization.layoutDirectionUpdate(direction),
+            Localization.layoutDirectionUpdate(direction),
             preservingVisibleItem: false,
             rebuildingLayoutWith: { [unowned self] in
                 adapter.makeCompositionalLayout()

@@ -9,7 +9,7 @@ import UIKit
 import QuickLayout
 import QuickLayoutKit
 
-class KeyboardHandlingViewController: DemoQuickLayoutHostingController {
+class KeyboardHandlingViewController: LocalizedQuickLayoutHostingController {
 
     override var localizedTitleKey: String? { "demo.keyboard.title" }
 

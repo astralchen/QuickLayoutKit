@@ -120,15 +120,15 @@ extension LiveRoomViewController {
 
     func reloadPublicChat(scrollToLatest: Bool) {
         let seedMessages = [
-            DemoLocalization.text("liveRoom.messages.first"),
-            DemoLocalization.text("liveRoom.messages.second"),
-            DemoLocalization.text("liveRoom.messages.third"),
+            Localization.text("liveRoom.messages.first"),
+            Localization.text("liveRoom.messages.second"),
+            Localization.text("liveRoom.messages.third"),
         ]
         let initialMessages = (0..<8).map { index in
             seedMessages[index % seedMessages.count]
         }
         let messages = initialMessages + viewModel.sentPublicMessages.map {
-            DemoLocalization.text("liveRoom.messages.me", $0)
+            Localization.text("liveRoom.messages.me", $0)
         }
         let followTitleKey: String
         switch viewModel.state.pendingFollowingState {
@@ -142,8 +142,8 @@ extension LiveRoomViewController {
                 : "liveRoom.messages.follow"
         }
         messagesView.configure(
-            title: DemoLocalization.text("liveRoom.messages.title"),
-            follow: DemoLocalization.text(followTitleKey),
+            title: Localization.text("liveRoom.messages.title"),
+            follow: Localization.text(followTitleKey),
             isFollowing: viewModel.state.isFollowing,
             isFollowRequesting:
                 viewModel.state.pendingFollowingState != nil,

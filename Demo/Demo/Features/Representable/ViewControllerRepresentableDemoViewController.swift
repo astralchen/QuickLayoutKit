@@ -10,7 +10,7 @@ import AppLocalization
 import QuickLayout
 import QuickLayoutKit
 
-final class ViewControllerRepresentableDemoViewController: DemoQuickLayoutHostingController {
+final class ViewControllerRepresentableDemoViewController: LocalizedQuickLayoutHostingController {
 
     override var localizedTitleKey: String? { "demo.representable.title" }
 
@@ -65,7 +65,7 @@ final class ViewControllerRepresentableDemoViewController: DemoQuickLayoutHostin
         )
         updateButtonTitle(resetButton, titleKey: "representable.reset")
         (lazyChild.ifLoaded?.viewController as? LoggingChildViewController)?
-            .applyLocalization(DemoLocalization.currentUIKitUpdate)
+            .applyLocalization(Localization.currentUIKitUpdate)
         refreshStateLabel()
     }
 
@@ -210,7 +210,7 @@ private extension ViewControllerRepresentableDemoViewController {
             let child = makeLoggingChild(name: name)
             let host = QuickLayoutViewControllerRepresentable(child)
             applyLayoutDirection(
-                DemoLocalization.currentUIKitDirection,
+                Localization.currentUIKitDirection,
                 to: host
             )
             host.eventHandler = { [weak self] event in
@@ -228,7 +228,7 @@ private extension ViewControllerRepresentableDemoViewController {
         _ direction: UIUserInterfaceLayoutDirection,
         to host: QuickLayoutViewControllerRepresentable
     ) {
-        let update = DemoLocalization.layoutDirectionUpdate(direction)
+        let update = Localization.layoutDirectionUpdate(direction)
         UIViewLayoutDirectionUpdater.apply(
             update,
             to: [UIViewLayoutDirectionTarget(host, policy: .followApplication)]
@@ -259,7 +259,7 @@ private extension ViewControllerRepresentableDemoViewController {
 
     func makeButton(titleKey: String, action: Selector) -> UIButton {
         var configuration = UIButton.Configuration.filled()
-        configuration.title = DemoLocalization.text(titleKey)
+        configuration.title = Localization.text(titleKey)
         configuration.baseBackgroundColor = .systemBlue.withAlphaComponent(0.12)
         configuration.baseForegroundColor = .systemBlue
         configuration.cornerStyle = .medium
@@ -275,7 +275,7 @@ private extension ViewControllerRepresentableDemoViewController {
             assertionFailure("Representable buttons require UIButton.Configuration")
             return
         }
-        configuration.title = DemoLocalization.text(titleKey)
+        configuration.title = Localization.text(titleKey)
         button.configuration = configuration
     }
 
@@ -355,7 +355,7 @@ private final class LoggingChildViewController: UIViewController, UIKitLocalizat
     private let subtitleLabel = UILabel()
     private let actionButton: UIButton = {
         var configuration = UIButton.Configuration.filled()
-        configuration.title = DemoLocalization.text(
+        configuration.title = Localization.text(
             "representable.child.button"
         )
         configuration.baseBackgroundColor = .systemGreen.withAlphaComponent(0.16)
@@ -403,7 +403,7 @@ private final class LoggingChildViewController: UIViewController, UIKitLocalizat
         view.addSubview(subtitleLabel)
         view.addSubview(actionButton)
         self.view = view
-        applyLocalization(DemoLocalization.currentUIKitUpdate)
+        applyLocalization(Localization.currentUIKitUpdate)
     }
 
     override func viewDidLoad() {
@@ -424,10 +424,10 @@ private final class LoggingChildViewController: UIViewController, UIKitLocalizat
             )
         }
         guard update.requiresLocalizedContentRefresh else { return }
-        titleLabel.text = DemoLocalization.text("representable.child.title", name)
-        subtitleLabel.text = DemoLocalization.text("representable.child.subtitle")
+        titleLabel.text = Localization.text("representable.child.title", name)
+        subtitleLabel.text = Localization.text("representable.child.subtitle")
         if var configuration = actionButton.configuration {
-            configuration.title = DemoLocalization.text(
+            configuration.title = Localization.text(
                 "representable.child.button"
             )
             actionButton.configuration = configuration

@@ -43,7 +43,7 @@ final class DynamicScrollViewModel {
         let color: ColorToken
     }
 
-    private let localizer: DemoLocalizer
+    private let localizer: Localizer
     private var items: [StoredItem] = []
     private var nextItemID = 0
     private var stateObserver: StateObserver?
@@ -59,7 +59,7 @@ final class DynamicScrollViewModel {
 
     init(
         initialItemCount: Int = 10,
-        localizer: DemoLocalizer
+        localizer: Localizer
     ) {
         self.localizer = localizer
         state = State(

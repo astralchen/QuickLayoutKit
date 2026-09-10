@@ -532,7 +532,7 @@ final class IMessageChatAttachmentCard: QuickLayoutView, UIGestureRecognizerDele
             titleLabel.text = file.displayName
             let type = UTType(file.typeIdentifier)
             let typeName = type?.conforms(to: .audio) == true
-                ? DemoLocalization.text("imessage.audio.attachment.recording")
+                ? Localization.text("imessage.audio.attachment.recording")
                 : file.fileURL.pathExtension.uppercased()
             detailLabel.text = "\(typeName) · \(ByteCountFormatter.string(fromByteCount: file.byteCount, countStyle: .file))"
             let symbol = type?.conforms(to: .audio) == true ? "music.note"
@@ -556,7 +556,7 @@ final class IMessageChatAttachmentCard: QuickLayoutView, UIGestureRecognizerDele
                 let thumbnail = UIImage(contentsOfFile: media.thumbnailFileURL.path)
                 icon.image = thumbnail ?? UIImage(systemName: isVideo ? "video.fill" : "photo")
                 icon.contentMode = thumbnail == nil ? .scaleAspectFit : .scaleAspectFill
-                titleLabel.text = DemoLocalization.text(isVideo ? "imessage.media.video"
+                titleLabel.text = Localization.text(isVideo ? "imessage.media.video"
                     : media.isAnimatedImage ? "imessage.media.animatedImage" : "imessage.media.image")
                 if let duration = media.kind.duration {
                     detailLabel.text = IMessageAudioBubbleView.durationText(duration)
@@ -564,18 +564,18 @@ final class IMessageChatAttachmentCard: QuickLayoutView, UIGestureRecognizerDele
                     detailLabel.text = "\(Int(media.pixelSize.width)) × \(Int(media.pixelSize.height))"
                 }
             } else {
-                titleLabel.text = DemoLocalization.text("imessage.media.image")
+                titleLabel.text = Localization.text("imessage.media.image")
                 icon.image = UIImage(systemName: "photo")
             }
         case .audio(let audio):
-            titleLabel.text = DemoLocalization.text("imessage.audio.attachment.recording")
+            titleLabel.text = Localization.text("imessage.audio.attachment.recording")
             detailLabel.text = IMessageAudioBubbleView.durationText(audio.duration)
             icon.image = UIImage(systemName: "waveform")
             accessibilityIdentifier = "imessage.attachment.audio.card"
         }
         configuredDraft = draft
         if draft.status != .ready {
-            detailLabel.text = DemoLocalization.text(draft.status == .importing
+            detailLabel.text = Localization.text(draft.status == .importing
                 ? "imessage.media.importing" : "imessage.attachment.importFailed")
         }
         titleLabel.textAlignment = .natural
@@ -596,13 +596,13 @@ final class IMessageChatAttachmentCard: QuickLayoutView, UIGestureRecognizerDele
         var actions: [UIAccessibilityCustomAction] = []
         if canOpen {
             actions.append(UIAccessibilityCustomAction(
-                name: DemoLocalization.text("imessage.media.openPreview"), target: self, selector: #selector(accessibleOpen)
+                name: Localization.text("imessage.media.openPreview"), target: self, selector: #selector(accessibleOpen)
             ))
         }
-        removeButton.accessibilityLabel = DemoLocalization.text("imessage.media.remove")
+        removeButton.accessibilityLabel = Localization.text("imessage.media.remove")
         if remove != nil {
             actions.append(UIAccessibilityCustomAction(
-                name: DemoLocalization.text("imessage.media.remove"), target: self, selector: #selector(accessibleRemove)
+                name: Localization.text("imessage.media.remove"), target: self, selector: #selector(accessibleRemove)
             ))
         }
         accessibilityCustomActions = actions.isEmpty ? nil : actions

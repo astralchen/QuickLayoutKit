@@ -95,8 +95,8 @@ extension LiveRoomViewController {
         guard presentedViewController == nil else { return }
         pendingRechargeRequiredBalance = max(0, requiredBalance)
         let alert = UIAlertController(
-            title: DemoLocalization.text("liveRoom.recharge.alert.title"),
-            message: DemoLocalization.text(
+            title: Localization.text("liveRoom.recharge.alert.title"),
+            message: Localization.text(
                 "liveRoom.recharge.alert.message",
                 currentBalance,
                 requiredBalance
@@ -106,7 +106,7 @@ extension LiveRoomViewController {
         alert.view.accessibilityIdentifier = "liveRoom.recharge.alert"
         alert.addAction(
             UIAlertAction(
-                title: DemoLocalization.text("liveRoom.recharge.alert.cancel"),
+                title: Localization.text("liveRoom.recharge.alert.cancel"),
                 style: .cancel
             ) { [weak self] _ in
                 self?.pendingRechargeRequiredBalance = nil
@@ -114,7 +114,7 @@ extension LiveRoomViewController {
         )
         alert.addAction(
             UIAlertAction(
-                title: DemoLocalization.text("liveRoom.recharge.alert.action"),
+                title: Localization.text("liveRoom.recharge.alert.action"),
                 style: .default
             ) { [weak self] _ in
                 self?.proceedToRecharge()
@@ -280,13 +280,13 @@ extension LiveRoomViewController {
         recipients: [LiveRoomSeat]
     ) {
         let recipientNames = recipients
-            .map { DemoLocalization.text($0.nameKey) }
-            .joined(separator: DemoLocalization.text("liveRoom.gift.name.separator"))
+            .map { Localization.text($0.nameKey) }
+            .joined(separator: Localization.text("liveRoom.gift.name.separator"))
         UIAccessibility.post(
             notification: .announcement,
-            argument: DemoLocalization.text(
+            argument: Localization.text(
                 "liveRoom.gift.sent.quantity",
-                DemoLocalization.text(gift.titleKey),
+                Localization.text(gift.titleKey),
                 quantity,
                 recipientNames
             )

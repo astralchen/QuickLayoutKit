@@ -65,7 +65,7 @@ final class IMessageChatViewModel {
     private static let timestampInterval: TimeInterval = 5 * 60
 
     /// 将消息资源键解析为当前语言文字的本地化服务。
-    private let localizer: DemoLocalizer
+    private let localizer: Localizer
     /// 生成消息时间的可注入时钟。
     private let clock: Clock
     /// 在生成模拟回复时捕获当前语言的区域设置提供者。
@@ -108,7 +108,7 @@ final class IMessageChatViewModel {
             localizer: .live,
             clock: Date.init,
             localeProvider: {
-                DemoLocalization.localizationController.currentLocale.locale
+                Localization.localizationController.currentLocale.locale
             },
             replyAudioSynthesizer: nil,
             sleeper: { duration in
@@ -127,7 +127,7 @@ final class IMessageChatViewModel {
             localizer: .live,
             clock: Date.init,
             localeProvider: {
-                DemoLocalization.localizationController.currentLocale.locale
+                Localization.localizationController.currentLocale.locale
             },
             replyAudioSynthesizer: replyAudioSynthesizer,
             sleeper: { duration in
@@ -147,10 +147,10 @@ final class IMessageChatViewModel {
     ///   - readReceiptsEnabled: 是否处理阅读回执，默认值为 `true`。
     ///   - sleeper: 可取消的模拟时序延时操作。
     init(
-        localizer: DemoLocalizer,
+        localizer: Localizer,
         clock: @escaping Clock,
         localeProvider: @escaping LocaleProvider = {
-            DemoLocalization.localizationController.currentLocale.locale
+            Localization.localizationController.currentLocale.locale
         },
         replyAudioSynthesizer: (any IMessageChatReplyAudioSynthesizing)? = nil,
         messageSender: (any IMessageChatMessageSending)? = nil,
@@ -588,7 +588,7 @@ final class IMessageChatViewModel {
                     sourceMessageID: message.id,
                     text: Self.timestampText(
                         for: message.sentAt,
-                        locale: DemoLocalization.localizationController
+                        locale: Localization.localizationController
                             .currentLocale.locale
                     )
                 )

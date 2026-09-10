@@ -56,7 +56,7 @@ private func makeLiveRoomRechargeContentPreview() -> UIViewController {
             selectedAmount: package.amount
         )
         view.footerView.configureRechargeButton(
-            title: DemoLocalization.text(
+            title: Localization.text(
                 "liveRoom.recharge.confirm",
                 package.creditedAmount ?? 0
             )

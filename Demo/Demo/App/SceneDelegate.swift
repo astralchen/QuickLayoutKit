@@ -18,7 +18,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // 连接到此代理并不表示场景或会话刚刚创建；新会话配置由 AppDelegate 提供。
         guard scene is UIWindowScene else { return }
         if let window {
-            DemoLocalization.register(window: window)
+            Localization.register(window: window)
         }
     }
 
@@ -26,14 +26,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // 系统释放场景后，清理下次连接时可以重新创建的场景资源。
         // 场景可能在进入后台后断开并再次连接；断开并不表示会话已经被丢弃。
         if let window {
-            DemoLocalization.unregister(window: window)
+            Localization.unregister(window: window)
         }
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) {
         // 场景进入活跃状态后，恢复非活跃期间暂停或尚未启动的任务。
         if let window {
-            DemoLocalization.synchronize(window: window)
+            Localization.synchronize(window: window)
         }
     }
 
@@ -42,7 +42,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneWillEnterForeground(_ scene: UIScene) {
-        DemoLocalization.refreshSystemLocaleIfNeeded()
+        Localization.refreshSystemLocaleIfNeeded()
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {

@@ -11,7 +11,7 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
-final class LiveRoomViewController: DemoQuickLayoutHostingController {
+final class LiveRoomViewController: LocalizedQuickLayoutHostingController {
 
     override var localizedTitleKey: String? { "demo.liveRoom.title" }
 
@@ -200,18 +200,17 @@ final class LiveRoomViewController: DemoQuickLayoutHostingController {
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        reloadRoomHeader(using: viewModel.state)
         reloadPublicChat(scrollToLatest: false)
         actionBarView.configure(
-            message: DemoLocalization.text("liveRoom.action.message"),
-            microphone: DemoLocalization.text("liveRoom.action.microphone"),
-            gift: DemoLocalization.text("liveRoom.action.gift"),
-            more: DemoLocalization.text("liveRoom.action.more"),
-            inputPlaceholder: DemoLocalization.text(
+            message: Localization.text("liveRoom.action.message"),
+            microphone: Localization.text("liveRoom.action.microphone"),
+            gift: Localization.text("liveRoom.action.gift"),
+            more: Localization.text("liveRoom.action.more"),
+            inputPlaceholder: Localization.text(
                 "liveRoom.action.input.placeholder"
             ),
-            send: DemoLocalization.text("liveRoom.action.send"),
-            cancel: DemoLocalization.text("liveRoom.action.cancel")
+            send: Localization.text("liveRoom.action.send"),
+            cancel: Localization.text("liveRoom.action.cancel")
         )
         render(viewModel.state)
     }
@@ -376,19 +375,19 @@ final class LiveRoomViewController: DemoQuickLayoutHostingController {
 
     private func reloadRoomHeader(using state: LiveRoomViewModel.State) {
         roomHeaderView.configure(
-            roomTitle: DemoLocalization.text("liveRoom.room.title"),
-            roomSubtitle: DemoLocalization.text("liveRoom.room.subtitle"),
-            audience: DemoLocalization.text(
+            roomTitle: Localization.text("liveRoom.room.title"),
+            roomSubtitle: Localization.text("liveRoom.room.subtitle"),
+            audience: Localization.text(
                 "liveRoom.room.audience",
                 state.audienceCount
             ),
-            audienceAccessibilityHint: DemoLocalization.text(
+            audienceAccessibilityHint: Localization.text(
                 "liveRoom.audience.openHint"
             ),
-            avatarAccessibilityLabel: DemoLocalization.text(
+            avatarAccessibilityLabel: Localization.text(
                 "liveRoom.info.avatar.accessibility"
             ),
-            avatarAccessibilityHint: DemoLocalization.text(
+            avatarAccessibilityHint: Localization.text(
                 "liveRoom.info.avatar.hint"
             )
         )

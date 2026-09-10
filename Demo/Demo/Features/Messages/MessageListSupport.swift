@@ -32,7 +32,7 @@ enum MessageListFactory {
 
     static func localizedItems(
         repeating repetitionCount: Int = 1,
-        localizer: DemoLocalizer
+        localizer: Localizer
     ) -> [MessageListItem] {
         let messages = MessageModel.localizedMockData(localizer: localizer)
         return (0..<max(0, repetitionCount)).flatMap { group in

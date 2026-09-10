@@ -11,7 +11,7 @@ import QuickLayoutKit
 import UIKit
 
 /// 交互验证 `contentMargins` 不同 placement 与修饰器组合的页面。
-final class ContentMarginsDemoViewController: DemoQuickLayoutHostingController {
+final class ContentMarginsDemoViewController: LocalizedQuickLayoutHostingController {
 
     enum Scenario: Int, CaseIterable, Sendable {
         case automaticAll
@@ -164,11 +164,11 @@ final class ContentMarginsDemoViewController: DemoQuickLayoutHostingController {
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        introLabel.text = DemoLocalization.text("contentMargins.intro")
-        previousButton.accessibilityLabel = DemoLocalization.text(
+        introLabel.text = Localization.text("contentMargins.intro")
+        previousButton.accessibilityLabel = Localization.text(
             "contentMargins.previous"
         )
-        nextButton.accessibilityLabel = DemoLocalization.text(
+        nextButton.accessibilityLabel = Localization.text(
             "contentMargins.next"
         )
         updateScenarioPresentation()

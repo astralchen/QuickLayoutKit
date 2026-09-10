@@ -12,7 +12,7 @@ import QuickLayoutKit
 import UIKit
 
 final class LiveRoomAudienceSheetViewController:
-    DemoQuickLayoutHostingController {
+    LocalizedQuickLayoutHostingController {
 
     let viewModel: LiveRoomAudienceViewModel
 
@@ -57,12 +57,12 @@ final class LiveRoomAudienceSheetViewController:
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
         sheetView.configure(
-            title: DemoLocalization.text("liveRoom.audience.title"),
-            summary: DemoLocalization.text(
+            title: Localization.text("liveRoom.audience.title"),
+            summary: Localization.text(
                 "liveRoom.room.audience",
                 viewModel.state.totalCount
             ),
-            subtitle: DemoLocalization.text("liveRoom.audience.subtitle")
+            subtitle: Localization.text("liveRoom.audience.subtitle")
         )
         renderMembers()
     }
@@ -75,7 +75,7 @@ final class LiveRoomAudienceSheetViewController:
             .appLayoutDirection
             .semanticContentAttribute
         sheetView.collectionView.applyLocalization(
-            DemoLocalization.layoutDirectionUpdate(direction),
+            Localization.layoutDirectionUpdate(direction),
             preservingVisibleItem: true,
             rebuildingLayoutWith: { [unowned self] in
                 makeAudienceListLayout()
@@ -114,7 +114,7 @@ final class LiveRoomAudienceSheetViewController:
                 guard let self, generation == renderGeneration else { return }
                 // ListKit 完成 diff 后 Cell 才全部物化，再同步当前语言方向和自适应尺寸。
                 sheetView.collectionView.applyLocalization(
-                    DemoLocalization.layoutDirectionUpdate(
+                    Localization.layoutDirectionUpdate(
                         sheetView.collectionView
                             .effectiveUserInterfaceLayoutDirection,
                         reasons: [.layoutDirection, .configuration]

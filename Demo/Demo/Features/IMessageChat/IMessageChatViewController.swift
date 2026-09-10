@@ -11,7 +11,7 @@ import UIKit
 
 /// 支持文本、录制音频和语音转写草稿的一对一聊天 Demo。
 @available(iOS 26.0, *)
-final class IMessageChatViewController: DemoQuickLayoutHostingController {
+final class IMessageChatViewController: LocalizedQuickLayoutHostingController {
 
     /// 聊天演示页面标题使用的本地化资源键。
     override var localizedTitleKey: String? { "demo.imessage.title" }
@@ -168,7 +168,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
         attachmentSaveCoordinator.stateDidChange = { [weak self] key, state in
             self?.conversationView.updateSaveState(state, for: key)
             if state == .completed {
-                UIAccessibility.post(notification: .announcement, argument: DemoLocalization.text("imessage.save.completed"))
+                UIAccessibility.post(notification: .announcement, argument: Localization.text("imessage.save.completed"))
             }
         }
         attachmentSaveCoordinator.failed = { [weak self] error in self?.presentAttachmentSaveFailure(error) }
@@ -244,37 +244,37 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
         contactTitleView.configure(
-            subtitle: DemoLocalization.text("imessage.contact.subtitle")
+            subtitle: Localization.text("imessage.contact.subtitle")
         )
         contactTitleView.sizeToFit()
         let mediaStrings = makeMediaStrings()
         composerView.configure(
             strings: IMessageChatComposerStrings(
-                placeholder: DemoLocalization.text(
+                placeholder: Localization.text(
                     "imessage.composer.placeholder"
                 ),
-                send: DemoLocalization.text("imessage.composer.send"),
-                addAttachment: DemoLocalization.text(
+                send: Localization.text("imessage.composer.send"),
+                addAttachment: Localization.text(
                     "imessage.attachment.add"
                 ),
-                audio: DemoLocalization.text("imessage.attachment.audio"),
-                dictate: DemoLocalization.text("imessage.dictation.start"),
-                stopDictation: DemoLocalization.text(
+                audio: Localization.text("imessage.attachment.audio"),
+                dictate: Localization.text("imessage.dictation.start"),
+                stopDictation: Localization.text(
                     "imessage.dictation.stop"
                 ),
-                stopRecording: DemoLocalization.text(
+                stopRecording: Localization.text(
                     "imessage.audio.record.stop"
                 ),
-                cancelAudio: DemoLocalization.text(
+                cancelAudio: Localization.text(
                     "imessage.audio.cancel"
                 ),
-                playAudio: DemoLocalization.text("imessage.audio.play"),
-                pauseAudio: DemoLocalization.text("imessage.audio.pause"),
-                recordingRequiresEmptyDraft: DemoLocalization.text(
+                playAudio: Localization.text("imessage.audio.play"),
+                pauseAudio: Localization.text("imessage.audio.pause"),
+                recordingRequiresEmptyDraft: Localization.text(
                     "imessage.audio.record.requiresEmptyDraft"
                 ),
-                file: DemoLocalization.text("imessage.attachment.file"),
-                link: DemoLocalization.text("imessage.attachment.link")
+                file: Localization.text("imessage.attachment.file"),
+                link: Localization.text("imessage.attachment.link")
             ),
             mediaStrings: mediaStrings
         )
@@ -450,7 +450,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
 
         case .startDictation:
             audioController.startDictation(
-                locale: DemoLocalization.localizationController
+                locale: Localization.localizationController
                     .currentLocale.locale
             )
             return true
@@ -515,17 +515,17 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
 
     /// 展示网页地址输入框，并将有效 URL 交给文档草稿控制器。
     private func presentLinkEntry() {
-        let alert = UIAlertController(title: DemoLocalization.text("imessage.attachment.link"), message: nil, preferredStyle: .alert)
+        let alert = UIAlertController(title: Localization.text("imessage.attachment.link"), message: nil, preferredStyle: .alert)
         alert.addTextField { field in
             field.placeholder = "https://example.com"
             field.keyboardType = .URL
             field.autocapitalizationType = .none
             field.autocorrectionType = .no
         }
-        alert.addAction(UIAlertAction(title: DemoLocalization.text("imessage.action.cancel"), style: .cancel) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: Localization.text("imessage.action.cancel"), style: .cancel) { [weak self] _ in
             self?.documentMenuSelection = nil
         })
-        let add = UIAlertAction(title: DemoLocalization.text("imessage.attachment.add"), style: .default) { [weak self, weak alert] _ in
+        let add = UIAlertAction(title: Localization.text("imessage.attachment.add"), style: .default) { [weak self, weak alert] _ in
             guard let self, let value = alert?.textFields?.first?.text,
                   let url = URL(string: value.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
             _ = documentController.insertLink(url)
@@ -543,11 +543,11 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
     private func presentAttachmentSaveFailure(_ error: Error) {
         guard !hasCleanedUpChat, viewIfLoaded?.window != nil, presentedViewController == nil else { return }
         let denied = (error as? IMessageChatAttachmentSaveError) == .photoPermissionDenied
-        let alert = UIAlertController(title: DemoLocalization.text("imessage.error.title"),
-            message: DemoLocalization.text(denied ? "imessage.save.permissionDenied" : "imessage.save.failed"), preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: DemoLocalization.text("imessage.action.ok"), style: .cancel))
+        let alert = UIAlertController(title: Localization.text("imessage.error.title"),
+            message: Localization.text(denied ? "imessage.save.permissionDenied" : "imessage.save.failed"), preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: Localization.text("imessage.action.ok"), style: .cancel))
         if denied {
-            alert.addAction(UIAlertAction(title: DemoLocalization.text("imessage.action.settings"), style: .default) { _ in
+            alert.addAction(UIAlertAction(title: Localization.text("imessage.action.settings"), style: .default) { _ in
                 guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
                 UIApplication.shared.open(url)
             })
@@ -594,7 +594,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
             guard let self else { return }
             conversationView.render(state, reason: reason)
             audioTranscription.enqueue(state, locale: IMessageChatSpeechConfiguration.recognitionLocale(
-                for: DemoLocalization.localizationController.currentLocale.locale
+                for: Localization.localizationController.currentLocale.locale
             ))
         }
     }
@@ -660,24 +660,24 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
     /// 按当前应用语言生成媒体界面共用的文字集合。
     private func makeMediaStrings() -> IMessageChatMediaStrings {
         IMessageChatMediaStrings(
-            photo: DemoLocalization.text("imessage.attachment.photo"),
-            itemsFormat: DemoLocalization.text("imessage.media.items"),
-            image: DemoLocalization.text("imessage.media.image"),
-            animatedImage: DemoLocalization.text(
+            photo: Localization.text("imessage.attachment.photo"),
+            itemsFormat: Localization.text("imessage.media.items"),
+            image: Localization.text("imessage.media.image"),
+            animatedImage: Localization.text(
                 "imessage.media.animatedImage"
             ),
-            video: DemoLocalization.text("imessage.media.video"),
-            videoDurationFormat: DemoLocalization.text(
+            video: Localization.text("imessage.media.video"),
+            videoDurationFormat: Localization.text(
                 "imessage.media.videoDuration"
             ),
-            importing: DemoLocalization.text("imessage.media.importing"),
-            remove: DemoLocalization.text("imessage.media.remove"),
-            play: DemoLocalization.text("imessage.media.play"),
-            openPreview: DemoLocalization.text("imessage.media.openPreview"),
-            close: DemoLocalization.text("imessage.media.close"),
-            firstItem: DemoLocalization.text("imessage.media.first"),
-            lastItem: DemoLocalization.text("imessage.media.last"),
-            positionFormat: DemoLocalization.text("imessage.media.position")
+            importing: Localization.text("imessage.media.importing"),
+            remove: Localization.text("imessage.media.remove"),
+            play: Localization.text("imessage.media.play"),
+            openPreview: Localization.text("imessage.media.openPreview"),
+            close: Localization.text("imessage.media.close"),
+            firstItem: Localization.text("imessage.media.first"),
+            lastItem: Localization.text("imessage.media.last"),
+            positionFormat: Localization.text("imessage.media.position")
         )
     }
 
@@ -709,8 +709,8 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
             "imessage.error.mediaInvalid"
         }
         let alert = UIAlertController(
-            title: DemoLocalization.text("imessage.error.title"),
-            message: DemoLocalization.text(messageKey),
+            title: Localization.text("imessage.error.title"),
+            message: Localization.text(messageKey),
             preferredStyle: .alert
         )
         let presenter = presentedViewController ?? self
@@ -718,7 +718,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
               presenter.presentedViewController == nil else { return }
         alert.addAction(
             UIAlertAction(
-                title: DemoLocalization.text("imessage.action.ok"),
+                title: Localization.text("imessage.action.ok"),
                 style: .cancel
             )
         )
@@ -726,7 +726,7 @@ final class IMessageChatViewController: DemoQuickLayoutHostingController {
             || failure == .speechPermissionDenied {
             alert.addAction(
                 UIAlertAction(
-                    title: DemoLocalization.text("imessage.action.settings"),
+                    title: Localization.text("imessage.action.settings"),
                     style: .default
                 ) { _ in
                     guard let url = URL(

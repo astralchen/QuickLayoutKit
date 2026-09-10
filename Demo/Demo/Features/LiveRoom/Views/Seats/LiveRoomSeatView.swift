@@ -233,17 +233,17 @@ final class LiveRoomSeatView: QuickLayoutView {
             "liveRoom.seat.waveform.\(slotPresentation.position.rawValue)"
         let score = assignment?.score ?? 0
         scoreLabel.text = score > 0
-            ? DemoLocalization.text("liveRoom.seat.score", score)
-            : DemoLocalization.text("liveRoom.seat.available")
+            ? Localization.text("liveRoom.seat.score", score)
+            : Localization.text("liveRoom.seat.available")
         if let occupantNameKey = assignment?.occupantNameKey {
-            nameLabel.text = DemoLocalization.text(occupantNameKey)
+            nameLabel.text = Localization.text(occupantNameKey)
         } else {
             nameLabel.text = emptySeatName(
                 for: slotPresentation.position.rawValue
             )
         }
         accessibilityLabel = nameLabel.text
-        accessibilityValue = DemoLocalization.text(
+        accessibilityValue = Localization.text(
             isMuted ? "liveRoom.seat.muted" : "liveRoom.seat.speaking"
         )
         let position = slotPresentation.position.rawValue
@@ -442,16 +442,16 @@ final class LiveRoomSeatView: QuickLayoutView {
     private func emptySeatName(for position: Int) -> String {
         switch position {
         case 0:
-            return DemoLocalization.text("liveRoom.userCard.hostSeat")
+            return Localization.text("liveRoom.userCard.hostSeat")
         case 8:
-            return DemoLocalization.text("liveRoom.seat.eight")
+            return Localization.text("liveRoom.seat.eight")
         case 1...7:
-            return DemoLocalization.text(
+            return Localization.text(
                 "liveRoom.userCard.guestSeat",
                 position
             )
         default:
-            return DemoLocalization.text("liveRoom.seat.available")
+            return Localization.text("liveRoom.seat.available")
         }
     }
 

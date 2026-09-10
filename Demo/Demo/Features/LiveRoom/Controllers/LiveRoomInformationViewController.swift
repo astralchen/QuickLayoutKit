@@ -11,7 +11,7 @@ import QuickLayoutKit
 import UIKit
 
 final class LiveRoomInformationViewController:
-    DemoQuickLayoutHostingController {
+    LocalizedQuickLayoutHostingController {
 
     override var localizedTitleKey: String? {
         "liveRoom.info.navigationTitle"
@@ -45,44 +45,44 @@ final class LiveRoomInformationViewController:
         informationView.configure(
             content: LiveRoomInformationView.Content(
                 profile: .init(
-                    roomTitle: DemoLocalization.text("liveRoom.room.title"),
-                    roomSubtitle: DemoLocalization.text(
+                    roomTitle: Localization.text("liveRoom.room.title"),
+                    roomSubtitle: Localization.text(
                         "liveRoom.room.subtitle"
                     ),
-                    avatarAccessibilityLabel: DemoLocalization.text(
+                    avatarAccessibilityLabel: Localization.text(
                         "liveRoom.info.avatar.accessibility"
                     ),
-                    liveStatus: DemoLocalization.text(
+                    liveStatus: Localization.text(
                         "liveRoom.info.status.live"
                     )
                 ),
                 details: .init(
-                    title: DemoLocalization.text(
+                    title: Localization.text(
                         "liveRoom.info.details.title"
                     ),
                     roomID: .init(
-                        title: DemoLocalization.text("liveRoom.info.roomID"),
+                        title: Localization.text("liveRoom.info.roomID"),
                         value: state.information.roomID
                     ),
                     host: .init(
-                        title: DemoLocalization.text("liveRoom.info.host"),
+                        title: Localization.text("liveRoom.info.host"),
                         value: state.information.hostDisplayName
                     ),
                     audience: .init(
-                        title: DemoLocalization.text(
+                        title: Localization.text(
                             "liveRoom.info.audience"
                         ),
-                        value: DemoLocalization.text(
+                        value: Localization.text(
                             "liveRoom.room.audience",
                             state.audienceCount
                         )
                     )
                 ),
                 announcement: .init(
-                    title: DemoLocalization.text(
+                    title: Localization.text(
                         "liveRoom.info.announcement.title"
                     ),
-                    value: DemoLocalization.text(
+                    value: Localization.text(
                         "liveRoom.info.announcement.value"
                     )
                 )

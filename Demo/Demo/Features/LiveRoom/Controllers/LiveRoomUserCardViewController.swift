@@ -10,7 +10,7 @@ import QuickLayoutKit
 import UIKit
 
 final class LiveRoomUserCardViewController:
-    DemoQuickLayoutHostingController {
+    LocalizedQuickLayoutHostingController {
 
     let seatID: Int
 
@@ -37,7 +37,7 @@ final class LiveRoomUserCardViewController:
         view.accessibilityIdentifier = "liveRoom.userCard.overlay"
 
         dismissButton.backgroundColor = UIColor.black.withAlphaComponent(0.56)
-        dismissButton.accessibilityLabel = DemoLocalization.text("common.close")
+        dismissButton.accessibilityLabel = Localization.text("common.close")
         dismissButton.action = { [weak self] in self?.dismissUserCard() }
         cardView.closeButton.action = { [weak self] in self?.dismissUserCard() }
     }
@@ -49,7 +49,7 @@ final class LiveRoomUserCardViewController:
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        dismissButton.accessibilityLabel = DemoLocalization.text("common.close")
+        dismissButton.accessibilityLabel = Localization.text("common.close")
         cardView.configure(seat: seat)
     }
 

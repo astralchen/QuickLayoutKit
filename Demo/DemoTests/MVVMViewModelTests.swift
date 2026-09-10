@@ -18,12 +18,12 @@ struct MVVMViewModelTests {
         let routes = viewModel.state.sections.flatMap(\.routes).map(\.route)
 
         #expect(viewModel.state.sections.count == 3)
-        #expect(routes.count == DemoRoute.allCases.count)
-        #expect(Set(routes) == Set(DemoRoute.allCases))
+        #expect(routes.count == MainRoute.allCases.count)
+        #expect(Set(routes) == Set(MainRoute.allCases))
         #expect(viewModel.state.sections[0].title == "first.main.section.quicklayout")
 
         var replayedState: MainViewModel.State?
-        var selectedRoute: DemoRoute?
+        var selectedRoute: MainRoute?
         viewModel.bind(
             stateDidChange: { replayedState = $0 },
             routeDidSelect: { selectedRoute = $0 }
@@ -36,6 +36,50 @@ struct MVVMViewModelTests {
         strings.prefix = "second."
         viewModel.reloadLocalizedContent()
         #expect(viewModel.state.sections[0].title == "second.main.section.quicklayout")
+        #expect(viewModel.state.sections[0].routes[0].title.hasPrefix("second."))
+    }
+
+    @Test func mainSearchFiltersRoutesAndCategoriesAndRestoresTheCatalog() {
+        let localizer = Localizer { key, _ in
+            switch key {
+            case "demo.imessage.title": "iMessage 聊天"
+            case "main.section.localization": "Languages"
+            default: key
+            }
+        }
+        let viewModel = MainViewModel(localizer: localizer)
+        let original = viewModel.state
+        var selectedRoutes: [MainRoute] = []
+        viewModel.bind(stateDidChange: { _ in }, routeDidSelect: { selectedRoutes.append($0) })
+
+        viewModel.updateSearchQuery("  IMESSAGE \n")
+        #expect(viewModel.state.sections.flatMap(\.routes).map(\.route) == [.imessageChat])
+        viewModel.select(.imessageChat)
+        viewModel.select(.counter)
+        #expect(selectedRoutes == [.imessageChat])
+
+        viewModel.updateSearchQuery("聊天")
+        #expect(viewModel.state.sections.flatMap(\.routes).map(\.route) == [.imessageChat])
+        viewModel.updateSearchQuery("languages")
+        #expect(viewModel.state.sections == [original.sections[2]])
+        viewModel.updateSearchQuery("does-not-exist")
+        #expect(viewModel.state.sections.isEmpty)
+        viewModel.updateSearchQuery(" \n")
+        #expect(viewModel.state == original)
+    }
+
+    @Test func mainSearchReevaluatesLocalizedTitlesWithoutLosingTheQuery() {
+        let strings = MutableStrings(prefix: "first.")
+        let viewModel = MainViewModel(localizer: strings.localizer)
+        viewModel.updateSearchQuery("first.demo.counter")
+        #expect(viewModel.state.sections.flatMap(\.routes).map(\.route) == [.counter])
+
+        strings.prefix = "second."
+        viewModel.reloadLocalizedContent()
+        #expect(viewModel.searchQuery == "first.demo.counter")
+        #expect(viewModel.state.sections.isEmpty)
+        viewModel.updateSearchQuery("")
+        #expect(viewModel.state.sections.flatMap(\.routes).count == MainRoute.allCases.count)
         #expect(viewModel.state.sections[0].routes[0].title.hasPrefix("second."))
     }
 
@@ -284,8 +328,8 @@ private final class MutableStrings {
         self.prefix = prefix
     }
 
-    var localizer: DemoLocalizer {
-        DemoLocalizer { [weak self] key, arguments in
+    var localizer: Localizer {
+        Localizer { [weak self] key, arguments in
             let prefix = self?.prefix ?? ""
             guard !arguments.isEmpty else { return prefix + key }
             let values = arguments.map { String(describing: $0) }

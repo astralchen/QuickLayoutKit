@@ -208,8 +208,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomRechargeBalanceCardPreservesCompleteTextLines() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let viewController = LiveRoomRechargeViewController(
             currentBalance: 12_048,
@@ -742,8 +742,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomPublicChatMessagesFillAvailableWidthOnIPad() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let viewController = LiveRoomViewController()
         let navigationController = UINavigationController(
@@ -783,8 +783,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomOccupiedSeatPresentsUserCardAndEmptySeatDoesNot() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -858,15 +858,15 @@ struct DemoTests {
 
         #expect(
             nameLabel.text
-                == DemoLocalization.text("liveRoom.user.party.1")
+                == Localization.text("liveRoom.user.party.1")
         )
         #expect(
             scoreLabel.text
-                == DemoLocalization.text("liveRoom.seat.score", 3_820)
+                == Localization.text("liveRoom.seat.score", 3_820)
         )
         #expect(
             microphoneLabel.text
-                == DemoLocalization.text("liveRoom.seat.speaking")
+                == Localization.text("liveRoom.seat.speaking")
         )
         let scoreIntrinsicSize = scoreLabel.sizeThatFits(
             CGSize(
@@ -903,8 +903,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomFollowButtonShowsRequestingState() async throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let requestHandler = ControlledLiveRoomFollowRequestHandler()
         let viewModel = LiveRoomViewModel(
@@ -1031,8 +1031,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomAudienceButtonPresentsAdaptiveSheet() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -1127,8 +1127,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomAudienceItemPushesUserProfile() async throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -1221,9 +1221,9 @@ struct DemoTests {
         )
         #expect(memberIDLabel.text == String(selectedMember.id))
 
-        DemoLocalization.setLocale(identifier: "ar")
+        Localization.setLocale(identifier: "ar")
         profileViewController.applyLocalization(
-            DemoLocalization.currentUIKitUpdate
+            Localization.currentUIKitUpdate
         )
         #expect(profileViewController.title == "الملف الشخصي")
         #expect(!profileViewController.navigationItem.hidesBackButton)
@@ -1235,8 +1235,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomAvatarPushesInformationController() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -1341,9 +1341,9 @@ struct DemoTests {
             #expect(label.frame.maxY <= profileHostView.bounds.height + 0.5)
         }
 
-        DemoLocalization.setLocale(identifier: "ar")
+        Localization.setLocale(identifier: "ar")
         informationViewController.applyLocalization(
-            DemoLocalization.currentUIKitUpdate
+            Localization.currentUIKitUpdate
         )
         #expect(!informationViewController.navigationItem.hidesBackButton)
         #expect(informationViewController.navigationItem.leftBarButtonItem == nil)
@@ -1360,8 +1360,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomGiftFlowSelectsOccupiedRecipientAndCompletesFlight() async throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -1418,7 +1418,7 @@ struct DemoTests {
         #expect(giftSheet.giftBalance == 12_800)
         #expect(
             giftSheet.balanceStatusText
-                == DemoLocalization.text("liveRoom.gift.balance", 12_800)
+                == Localization.text("liveRoom.gift.balance", 12_800)
         )
         #expect(giftSheet.giftColumnCount == 4)
         let giftScrollView = giftSheet.giftScrollView
@@ -1577,13 +1577,13 @@ struct DemoTests {
         #expect(giftSheet.selectedRecipientSeatIDs.isEmpty)
         #expect(
             giftSheet.recipientStatusText
-                == DemoLocalization.text("liveRoom.gift.recipient.required")
+                == Localization.text("liveRoom.gift.recipient.required")
         )
         activate(selectAllButton)
         #expect(giftSheet.selectedRecipientSeatIDs == [0, 1, 2, 3, 4, 6, 7])
         #expect(
             giftSheet.recipientStatusText
-                == DemoLocalization.text("liveRoom.gift.recipient.count", 7)
+                == Localization.text("liveRoom.gift.recipient.count", 7)
         )
         giftSheet.view.layoutIfNeeded()
         #expect(recipientButton.layer.borderWidth == 0)
@@ -1598,7 +1598,7 @@ struct DemoTests {
         )
         #expect(
             (selectAllButton as? LiveRoomGiftSelectAllButton)?.displayedTitle
-                == DemoLocalization.text("liveRoom.gift.selectAll")
+                == Localization.text("liveRoom.gift.selectAll")
         )
         #expect(!selectAllButton.isDescendant(of: recipientScrollView))
         let recipientFogView = try #require(
@@ -1629,7 +1629,7 @@ struct DemoTests {
         #expect(giftSheet.giftBalance == 12_424)
         #expect(
             giftSheet.balanceStatusText
-                == DemoLocalization.text("liveRoom.gift.balance", 12_424)
+                == Localization.text("liveRoom.gift.balance", 12_424)
         )
         #expect(viewController.giftSheetViewController === giftSheet)
         #expect(viewController.isGiftSheetVisible)
@@ -1683,7 +1683,7 @@ struct DemoTests {
         #expect(giftSheet.giftBalance == 12_048)
         #expect(
             giftSheet.balanceStatusText
-                == DemoLocalization.text(
+                == Localization.text(
                     "liveRoom.gift.balance.insufficient",
                     12_048
                 )
@@ -1695,12 +1695,12 @@ struct DemoTests {
         )
         #expect(
             rechargeAlert.title
-                == DemoLocalization.text("liveRoom.recharge.alert.title")
+                == Localization.text("liveRoom.recharge.alert.title")
         )
         #expect(rechargeAlert.actions.count == 2)
         #expect(
             rechargeAlert.actions.last?.title
-                == DemoLocalization.text("liveRoom.recharge.alert.action")
+                == Localization.text("liveRoom.recharge.alert.action")
         )
         viewController.proceedToRecharge()
         #expect(await waitForCondition {
@@ -1812,7 +1812,7 @@ struct DemoTests {
         #expect(rechargeViewController.rechargeSuccessAnimationCount == 1)
         #expect(
             rechargeViewController.rechargeStatusText
-                == DemoLocalization.text("liveRoom.recharge.success", 32_400)
+                == Localization.text("liveRoom.recharge.success", 32_400)
         )
         if !UIAccessibility.isReduceMotionEnabled {
             #expect(rechargeViewController.isRechargeSuccessAnimationVisible)
@@ -1824,7 +1824,7 @@ struct DemoTests {
         }
         #expect(
             rechargeBalanceLabel.text
-                == DemoLocalization.text(
+                == Localization.text(
                     "liveRoom.recharge.balance.value",
                     44_448
                 )
@@ -1840,13 +1840,13 @@ struct DemoTests {
         #expect(reopenedGiftSheet.giftBalance == 44_448)
         #expect(
             reopenedGiftSheet.balanceStatusText
-                == DemoLocalization.text("liveRoom.gift.balance", 44_448)
+                == Localization.text("liveRoom.gift.balance", 44_448)
         )
     }
 
     @Test func liveRoomGiftQuantityMenuUpdatesCostBalanceAndLayout() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -1945,7 +1945,7 @@ struct DemoTests {
         #expect(giftSheet.giftBalance == 12_600)
         #expect(
             giftSheet.balanceStatusText
-                == DemoLocalization.text("liveRoom.gift.balance", 12_600)
+                == Localization.text("liveRoom.gift.balance", 12_600)
         )
 
         #expect(giftSheet.setSelectedGiftQuantity(1_314))
@@ -1955,7 +1955,7 @@ struct DemoTests {
         #expect(giftSheet.giftBalance == 12_600)
         #expect(
             giftSheet.balanceStatusText
-                == DemoLocalization.text(
+                == Localization.text(
                     "liveRoom.gift.balance.insufficient",
                     12_600
                 )
@@ -1979,8 +1979,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomGiftSheetFitsIPhoneSEAndCurrentFiveSeatState() async throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -2070,8 +2070,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomGiftRecipientListScrollsWhenUsersExceedViewport() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let recipients = (0..<12).map { index in
             LiveRoomSeat(
@@ -2163,8 +2163,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomGiftGridExpandsColumnsInsideIPadContainer() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -2224,8 +2224,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomGiftGridUsesFiveColumnsInsideMediumContainer() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -2262,8 +2262,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomNineSeatSecondRowKeepsTextAtIdealSize() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let viewModel = LiveRoomViewModel(
             stageSnapshot: LiveRoomViewModel.makeDefaultStageSnapshot(
@@ -2364,8 +2364,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomSeatNamesSeparateOccupantsFromVacantSlots() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let viewController = LiveRoomViewController(
             viewModel: LiveRoomViewModel()
@@ -2393,25 +2393,25 @@ struct DemoTests {
 
         #expect(
             try seatName(at: 6)
-                == DemoLocalization.text("liveRoom.user.party.5")
+                == Localization.text("liveRoom.user.party.5")
         )
         #expect(
             try seatName(at: 7)
-                == DemoLocalization.text("liveRoom.user.party.6")
+                == Localization.text("liveRoom.user.party.6")
         )
         #expect(
             try seatName(at: 5)
-                == DemoLocalization.text("liveRoom.userCard.guestSeat", 5)
+                == Localization.text("liveRoom.userCard.guestSeat", 5)
         )
         #expect(
             try seatName(at: 8)
-                == DemoLocalization.text("liveRoom.seat.eight")
+                == Localization.text("liveRoom.seat.eight")
         )
     }
 
     @Test func liveRoomFiveSeatLayoutUsesLargeHostAndFitsNarrowScreen() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let viewController = LiveRoomViewController()
         applyLiveRoomSnapshot(
@@ -2537,8 +2537,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomMessageButtonSendsScrollsAndRemovesComposer() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let viewController = LiveRoomViewController()
         viewController.configureQuickLayoutKeyboardSafeAreaForTesting(
@@ -2787,8 +2787,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomActionBarUsesSafeAreaOrViewBottomWithoutExtraSpacing() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let viewController = LiveRoomViewController()
         let navigationController = UINavigationController(
@@ -2930,8 +2930,8 @@ struct DemoTests {
     }
 
     @Test func safeAreaPaddingDemoCoversQuickLayoutCombinations() throws {
-        DemoLocalization.setLocale(identifier: "en-US")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "en-US")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let viewController = SafeAreaPaddingDemoViewController()
         let navigationController = UINavigationController(
@@ -3157,8 +3157,8 @@ struct DemoTests {
     }
 
     @Test func contentMarginsDemoCoversSwiftUIPlacementCombinations() throws {
-        DemoLocalization.setLocale(identifier: "en-US")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "en-US")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let viewController = ContentMarginsDemoViewController()
         let navigationController = UINavigationController(
@@ -3270,8 +3270,8 @@ struct DemoTests {
     }
 
     @Test func viewThatFitsDemoCoversSwiftUISelectionContract() throws {
-        DemoLocalization.setLocale(identifier: "en-US")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "en-US")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let viewController = ViewThatFitsDemoViewController()
         let navigationController = UINavigationController(
@@ -3310,14 +3310,14 @@ struct DemoTests {
             )
             #expect(
                 viewController.expectedLabel.text
-                    == DemoLocalization.text(
+                    == Localization.text(
                         "viewThatFits.expected",
                         expectedCandidate.identifier
                     )
             )
             #expect(
                 viewController.metricsLabel.text
-                    == DemoLocalization.text(
+                    == Localization.text(
                         "viewThatFits.selected",
                         expectedCandidate.identifier
                     )
@@ -3338,7 +3338,7 @@ struct DemoTests {
         #expect(viewController.expectedCandidateIdentifier == "A")
         #expect(
             viewController.expectedLabel.text
-                == DemoLocalization.text("viewThatFits.expected", "A")
+                == Localization.text("viewThatFits.expected", "A")
         )
         #expect(
             viewController.selectedCandidateSize
@@ -3355,7 +3355,7 @@ struct DemoTests {
         #expect(viewController.expectedCandidateIdentifier == "B")
         #expect(
             viewController.expectedLabel.text
-                == DemoLocalization.text("viewThatFits.expected", "B")
+                == Localization.text("viewThatFits.expected", "B")
         )
         #expect(
             viewController.selectedCandidateSize
@@ -3372,7 +3372,7 @@ struct DemoTests {
         #expect(viewController.expectedCandidateIdentifier == "C")
         #expect(
             viewController.expectedLabel.text
-                == DemoLocalization.text("viewThatFits.expected", "C")
+                == Localization.text("viewThatFits.expected", "C")
         )
         #expect(
             viewController.selectedCandidateSize
@@ -3393,11 +3393,11 @@ struct DemoTests {
         #expect(viewController.selectedCandidateIdentifier == "B")
         #expect(
             viewController.expectedLabel.text
-                == DemoLocalization.text("viewThatFits.expected", "B")
+                == Localization.text("viewThatFits.expected", "B")
         )
         #expect(
             viewController.metricsLabel.text
-                == DemoLocalization.text("viewThatFits.selected", "B")
+                == Localization.text("viewThatFits.selected", "B")
         )
     }
 
@@ -3439,8 +3439,8 @@ struct DemoTests {
     }
 
     @Test func positionAndZIndexDemoUsesPhysicalPointsAndLayerOrdering() throws {
-        DemoLocalization.setLocale(identifier: "en-US")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "en-US")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let viewController = PositionAndZIndexDemoViewController()
         let navigationController = UINavigationController(
@@ -3541,7 +3541,7 @@ struct DemoTests {
     }
 
     private func layout(
-        _ viewController: DemoQuickLayoutHostingController,
+        _ viewController: LocalizedQuickLayoutHostingController,
         in navigationController: UINavigationController
     ) {
         navigationController.view.setNeedsLayout()
@@ -3658,11 +3658,11 @@ struct DemoTests {
         #expect(viewController.weeklyProgressView.progress == 0.72)
         #expect(
             viewController.weeklyProgressLabel.text
-                == DemoLocalization.text("dashboard.weekly.progress")
+                == Localization.text("dashboard.weekly.progress")
         )
         #expect(
             viewController.recentActivityLabel.text
-                == DemoLocalization.text("dashboard.activity.title")
+                == Localization.text("dashboard.activity.title")
         )
     }
 
@@ -4019,9 +4019,9 @@ struct DemoTests {
     }
 
     @Test func horizontalScrollDemoUsesViewportRelativeCards() {
-        DemoLocalization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en-US")
         defer {
-            DemoLocalization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en-US")
         }
 
         let viewController = HorizontalScrollViewViewController()
@@ -4191,9 +4191,9 @@ struct DemoTests {
     }
 
     @Test func horizontalScrollDemoHasContentOnFirstNavigationLayout() throws {
-        DemoLocalization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en-US")
         defer {
-            DemoLocalization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en-US")
         }
 
         let rootViewController = UIViewController()
@@ -4221,9 +4221,9 @@ struct DemoTests {
     }
 
     @Test func horizontalScrollDemoKeepsLandscapeContentInsideSafeArea() throws {
-        DemoLocalization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en-US")
         defer {
-            DemoLocalization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en-US")
         }
 
         let viewController = HorizontalScrollViewViewController()
@@ -4278,12 +4278,12 @@ struct DemoTests {
         let labels = viewController.view.allSubviews(of: UILabel.self)
         let headlineLabel = try #require(
             labels.first {
-                $0.text == DemoLocalization.text("horizontal.explore.headline")
+                $0.text == Localization.text("horizontal.explore.headline")
             }
         )
         let footerLabel = try #require(
             labels.first {
-                $0.text == DemoLocalization.text("horizontal.explore.hint")
+                $0.text == Localization.text("horizontal.explore.hint")
             }
         )
         let headlineFrame = headlineLabel.convert(
@@ -4351,9 +4351,9 @@ struct DemoTests {
     }
 
     @Test func horizontalScrollDemoModelsLocalizedDestinationDiscovery() throws {
-        DemoLocalization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en-US")
         defer {
-            DemoLocalization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en-US")
         }
 
         let viewController = HorizontalScrollViewViewController()
@@ -4390,18 +4390,18 @@ struct DemoTests {
         #expect(firstCard.accessibilityTraits.contains(.button))
         #expect(
             firstCard.destinationTitle
-                == DemoLocalization.text(
+                == Localization.text(
                     "horizontal.explore.destination.lakeside.title"
                 )
         )
         #expect(
             englishLabels.contains {
-                $0.text == DemoLocalization.text("horizontal.explore.headline")
+                $0.text == Localization.text("horizontal.explore.headline")
             }
         )
         #expect(
             englishLabels.contains {
-                $0.text == DemoLocalization.text(
+                $0.text == Localization.text(
                     "horizontal.explore.page",
                     1,
                     viewController.views.count
@@ -4426,7 +4426,7 @@ struct DemoTests {
 
         #expect(
             englishLabels.contains {
-                $0.text == DemoLocalization.text(
+                $0.text == Localization.text(
                     "horizontal.explore.page",
                     2,
                     viewController.views.count
@@ -4434,7 +4434,7 @@ struct DemoTests {
             }
         )
 
-        DemoLocalization.setLocale(identifier: "ar")
+        Localization.setLocale(identifier: "ar")
         window.semanticContentAttribute = .forceRightToLeft
         viewController.reloadLocalizedContent()
         viewController.reloadLayoutDirection(.rightToLeft)
@@ -4456,7 +4456,7 @@ struct DemoTests {
 
         #expect(
             viewController.views[0].destinationTitle
-                == DemoLocalization.text(
+                == Localization.text(
                     "horizontal.explore.destination.lakeside.title"
                 )
         )
@@ -4469,8 +4469,8 @@ struct DemoTests {
     }
 
     @Test func counterDemoFallsBackToVerticalActionsWhenNarrow() {
-        DemoLocalization.setLocale(identifier: "en-US")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "en-US")
+        defer { Localization.setLocale(identifier: "en-US") }
         let viewController = CounterViewController()
         viewController.loadViewIfNeeded()
         viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 500)
@@ -5146,7 +5146,7 @@ struct DemoTests {
     }
 
     @Test func dynamicScrollCardsExposeLocalizedDeletionAffordance() throws {
-        let localizer = DemoLocalizer { key, arguments in
+        let localizer = Localizer { key, arguments in
             guard !arguments.isEmpty else { return key }
             return key + ": "
                 + arguments.map { String(describing: $0) }
@@ -5237,7 +5237,7 @@ struct DemoTests {
 
     @Test func dynamicScrollCachedCardMirrorsAndRelocalizesFromLTRToRTL() throws {
         var prefix = "ltr."
-        let localizer = DemoLocalizer { key, arguments in
+        let localizer = Localizer { key, arguments in
             let suffix = arguments.isEmpty
                 ? ""
                 : ": " + arguments.map { String(describing: $0) }
@@ -6169,61 +6169,61 @@ struct DemoTests {
     }
 
     @Test func demoLocalizationResolvesCoreLanguages() {
-        DemoLocalization.setLocale(identifier: "en-US")
-        #expect(DemoLocalization.text("main.title") == "Examples")
-        #expect(DemoLocalization.text("demo.localizationOverview.title") == "Language Center")
+        Localization.setLocale(identifier: "en-US")
+        #expect(Localization.text("main.title") == "Examples")
+        #expect(Localization.text("demo.localizationOverview.title") == "Language Center")
 
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        #expect(DemoLocalization.text("main.title") == "示例")
-        #expect(DemoLocalization.text("language.follow.system") == "跟随系统")
+        Localization.setLocale(identifier: "zh-Hans")
+        #expect(Localization.text("main.title") == "示例")
+        #expect(Localization.text("language.follow.system") == "跟随系统")
 
-        DemoLocalization.setLocale(identifier: "ar")
-        #expect(DemoLocalization.text("main.title") == "الأمثلة")
-        #expect(DemoLocalization.text("profile.section.about") == "نبذة")
+        Localization.setLocale(identifier: "ar")
+        #expect(Localization.text("main.title") == "الأمثلة")
+        #expect(Localization.text("profile.section.about") == "نبذة")
         #expect(
-            DemoLocalization.text("profile.skill.localization")
+            Localization.text("profile.skill.localization")
                 == "التوطين"
         )
         #expect(
-            DemoLocalization.text("profile.action.portfolio")
+            Localization.text("profile.action.portfolio")
                 == "معرض الأعمال"
         )
         #expect(
-            DemoLocalization.text("uikit.showModal")
+            Localization.text("uikit.showModal")
                 == "عرض نافذة مشروطة"
         )
         #expect(
-            DemoLocalization.text("boundary.recreateAlert")
+            Localization.text("boundary.recreateAlert")
                 == "إعادة إنشاء التنبيه"
         )
-        #expect(DemoLocalization.text("navigation.leading") == "عنصر البداية")
-        #expect(DemoLocalization.text("navigation.trailing") == "عنصر النهاية")
+        #expect(Localization.text("navigation.leading") == "عنصر البداية")
+        #expect(Localization.text("navigation.trailing") == "عنصر النهاية")
         #expect(
-            DemoLocalization.text(
+            Localization.text(
                 "navigation.edge.summary",
-                DemoLocalization.text("navigation.edge.right"),
+                Localization.text("navigation.edge.right"),
                 "chevron.right"
             ).removingBidiIsolationMarks
                 == "حافة الرجوع: اليمين، علامة الاتجاه: chevron.right"
         )
         #expect(
-            DemoLocalization.text("gesture.translation", Int64(0))
+            Localization.text("gesture.translation", Int64(0))
                 == "الإزاحة الأفقية: 0"
         )
         #expect(
-            DemoLocalization.text(
+            Localization.text(
                 "gesture.backSwipe",
-                DemoLocalization.text("common.boolean.false")
+                Localization.text("common.boolean.false")
             ).removingBidiIsolationMarks == "إيماءة الرجوع: لا"
         )
-        #expect(DemoLocalization.currentLayoutDirection == .rightToLeft)
+        #expect(Localization.currentLayoutDirection == .rightToLeft)
 
-        DemoLocalization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en-US")
     }
 
     @Test func arabicDiagnosticScreensRenderLocalizedText() throws {
-        DemoLocalization.setLocale(identifier: "ar")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "ar")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let navigation = DirectionalNavigationDemoViewController()
         navigation.loadViewIfNeeded()
@@ -6322,11 +6322,11 @@ struct DemoTests {
         )
         defer {
             window.isHidden = true
-            DemoLocalization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en-US")
         }
 
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        DemoLocalization.installLanguageMenu(on: viewController)
+        Localization.setLocale(identifier: "zh-Hans")
+        Localization.installLanguageMenu(on: viewController)
         navigationController.navigationBar.semanticContentAttribute =
             .forceLeftToRight
         navigationController.view.layoutIfNeeded()
@@ -6350,8 +6350,8 @@ struct DemoTests {
                 > navigationController.navigationBar.bounds.midX
         )
 
-        DemoLocalization.setLocale(identifier: "ar")
-        DemoLocalization.reloadLanguageMenu(on: viewController)
+        Localization.setLocale(identifier: "ar")
+        Localization.reloadLanguageMenu(on: viewController)
         navigationController.navigationBar.semanticContentAttribute =
             .forceRightToLeft
         navigationController.navigationBar.setNeedsLayout()
@@ -6376,8 +6376,8 @@ struct DemoTests {
                 < navigationController.navigationBar.bounds.midX
         )
 
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        DemoLocalization.reloadLanguageMenu(on: viewController)
+        Localization.setLocale(identifier: "zh-Hans")
+        Localization.reloadLanguageMenu(on: viewController)
         navigationController.navigationBar.semanticContentAttribute =
             .forceLeftToRight
         navigationController.navigationBar.setNeedsLayout()
@@ -6403,8 +6403,8 @@ struct DemoTests {
     }
 
     @Test func liveRoomKeepsSystemBackButtonAfterSwitchingToArabic() {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
-        defer { DemoLocalization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
 
         let rootViewController = UIViewController()
         let navigationController = UINavigationController(
@@ -6421,8 +6421,8 @@ struct DemoTests {
         #expect(liveRoomViewController.navigationItem.leftBarButtonItem == nil)
         #expect(!liveRoomViewController.navigationItem.hidesBackButton)
 
-        DemoLocalization.setLocale(identifier: "ar")
-        DemoLocalization.reloadLanguageMenu(on: liveRoomViewController)
+        Localization.setLocale(identifier: "ar")
+        Localization.reloadLanguageMenu(on: liveRoomViewController)
 
         let languageItem = liveRoomViewController.navigationItem
             .rightBarButtonItem
@@ -6434,7 +6434,7 @@ struct DemoTests {
     }
 
     @Test func plainNavigationPreviewReceivesLanguageMenuSelections() async throws {
-        DemoLocalization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en-US")
 
         let profileViewController = ProfileViewController()
         let navigationController = UINavigationController(
@@ -6446,27 +6446,27 @@ struct DemoTests {
         )
 
         defer {
-            DemoLocalization.unregister(window: window)
+            Localization.unregister(window: window)
             window.isHidden = true
-            DemoLocalization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en-US")
         }
 
         #expect(profileViewController.title == "Profile")
 
-        DemoLocalization.setLocale(identifier: "ar")
+        Localization.setLocale(identifier: "ar")
         let appliedArabic = await waitForCondition {
             profileViewController.title
-                == DemoLocalization.text("demo.profile.title")
+                == Localization.text("demo.profile.title")
                 && window.semanticContentAttribute == .forceRightToLeft
                 && profileViewController.view.semanticContentAttribute
                     == .forceRightToLeft
         }
         #expect(appliedArabic)
 
-        DemoLocalization.setLocale(identifier: "zh-Hans")
+        Localization.setLocale(identifier: "zh-Hans")
         let appliedChinese = await waitForCondition {
             profileViewController.title
-                == DemoLocalization.text("demo.profile.title")
+                == Localization.text("demo.profile.title")
                 && window.semanticContentAttribute == .forceLeftToRight
                 && profileViewController.view.semanticContentAttribute
                     == .forceLeftToRight
@@ -6575,8 +6575,9 @@ struct DemoTests {
         #expect(localizations["ar"]?.stringUnit.value.isEmpty == false)
     }
 
-    @Test func mainMenuUsesListKitCellsWithQuickLayoutContentViews() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
+    @Test func mainMenuUsesNativeListContentAndDisclosureAccessories() throws {
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
         let main = MainViewController()
         main.loadViewIfNeeded()
         main.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
@@ -6587,64 +6588,26 @@ struct DemoTests {
         #expect(main.view is QuickLayoutView)
         #expect(main.collectionView.superview === main.view)
         #expect(main.view.allSubviews(of: QuickLayoutScrollView.self).isEmpty)
-        #expect(
-            main.collectionView.numberOfSections == expectedSections.count
-        )
+        #expect(main.collectionView.numberOfSections == expectedSections.count)
         for (index, section) in expectedSections.enumerated() {
-            #expect(
-                main.collectionView.numberOfItems(inSection: index)
-                    == section.routes.count
-            )
+            #expect(main.collectionView.numberOfItems(inSection: index) == section.routes.count)
         }
 
-        let cell = try mainMenuCell(
-            at: IndexPath(item: 0, section: 0),
-            in: main
-        )
-        let configuration = try #require(
-            cell.contentConfiguration as? MainMenuContentConfiguration
-        )
-        let contentView = try #require(
-            cell
-                .allSubviews(of: MainMenuContentView.self)
-                .first
-        )
-
-        #expect(configuration.title == "横向滚动")
-        #expect(configuration.iconSystemName == "arrow.left.and.right")
-        #expect(contentView.iconImageView.image != nil)
-        #expect(contentView.titleLabel.text == configuration.title)
-        #expect(contentView.superview != nil)
-        #expect(
-            contentView.intrinsicContentSize
-                == CGSize(
-                    width: UIView.noIntrinsicMetric,
-                    height: UIView.noIntrinsicMetric
-                )
-        )
-
-        let narrowSize = contentView.sizeThatFits(
-            CGSize(width: 180, height: CGFloat.greatestFiniteMagnitude)
-        )
-        let wideSize = contentView.sizeThatFits(
-            CGSize(width: 320, height: CGFloat.greatestFiniteMagnitude)
-        )
-        #expect(abs(narrowSize.width - 180) < 1)
-        #expect(abs(wideSize.width - 320) < 1)
-        #expect(narrowSize.height >= 52)
-        #expect(wideSize.height >= 52)
-        #expect(cell.accessories.isEmpty)
-
-        for route in DemoRoute.allCases {
-            #expect(
-                UIImage(systemName: route.iconSystemName) != nil,
-                "Missing SF Symbol for \(route): \(route.iconSystemName)"
-            )
+        let cell = try mainMenuCell(at: IndexPath(item: 0, section: 0), in: main)
+        let configuration = try #require(cell.contentConfiguration as? UIListContentConfiguration)
+        #expect(configuration.text == "横向滚动")
+        #expect(configuration.image != nil)
+        #expect(configuration.textProperties.numberOfLines == 0)
+        #expect(cell.accessories.count == 1)
+        #expect(cell.accessibilityIdentifier == "demo.horizontalScroll.title")
+        #expect(!cell.allSubviews(of: UIListContentView.self).isEmpty)
+        for route in MainRoute.allCases {
+            #expect(UIImage(systemName: route.iconSystemName) != nil)
         }
     }
 
     @Test func mainMenuReloadsRouteTitlesAfterLanguageChange() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
+        Localization.setLocale(identifier: "zh-Hans")
         let main = MainViewController()
         let testWindow = try makeVisibleTestWindow(
             rootViewController: main,
@@ -6652,19 +6615,19 @@ struct DemoTests {
         )
         defer {
             testWindow.isHidden = true
-            DemoLocalization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en-US")
         }
 
         let chineseTitles = try [0, 1, 4].map { item in
             try mainMenuConfiguration(
                 at: IndexPath(item: item, section: 2),
                 in: main
-            ).title
+            ).text
         }
 
         #expect(chineseTitles == ["语言中心", "UIKit 本地化", "SwiftUI 桥接"])
 
-        DemoLocalization.setLocale(identifier: "ar")
+        Localization.setLocale(identifier: "ar")
         main.reloadLocalizedContent()
         main.reloadLayoutDirection(.rightToLeft)
         main.view.layoutIfNeeded()
@@ -6680,8 +6643,8 @@ struct DemoTests {
         )
 
         #expect(
-            arabicConfiguration.title
-                == DemoLocalizer.live.text("demo.localizationOverview.title")
+            arabicConfiguration.text
+                == Localizer.live.text("demo.localizationOverview.title")
         )
         #expect(
             arabicCell.effectiveUserInterfaceLayoutDirection == .rightToLeft
@@ -6689,12 +6652,12 @@ struct DemoTests {
     }
 
     @Test func allLoadedUIKitDemoButtonsUseConfigurations() throws {
-        DemoLocalization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en-US")
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
         defer {
             UIView.setAnimationsEnabled(animationsWereEnabled)
-            DemoLocalization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en-US")
         }
 
         let source = UIViewController()
@@ -6707,12 +6670,12 @@ struct DemoTests {
         )
         defer { testWindow.isHidden = true }
 
-        let router = DemoRouter()
+        let router = MainRouter()
         var inspectedButtonCount = 0
 
         // SwiftUI owns the implementation behind SwiftUI.Button; this guard
         // covers the UIKit buttons authored by the Demo target.
-        for route in DemoRoute.allCases where route != .swiftUIBridge {
+        for route in MainRoute.allCases where route != .swiftUIBridge {
             router.navigate(to: route, from: source)
             let destination = try #require(
                 navigationController.topViewController
@@ -6737,8 +6700,42 @@ struct DemoTests {
         #expect(inspectedButtonCount > 0)
     }
 
-    @Test func mainMenuSectionHeadersFollowQuickLayoutDirection() throws {
-        DemoLocalization.setLocale(identifier: "ar")
+    @Test func mainMenuSectionHeaderMeasuresMultilineAccessibilityText() async throws {
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
+        let main = MainViewController()
+        main.traitOverrides.preferredContentSizeCategory = .accessibilityExtraExtraExtraLarge
+        let window = try makeVisibleTestWindow(
+            rootViewController: main,
+            size: CGSize(width: 320, height: 844)
+        )
+        defer { window.isHidden = true }
+        let indexPath = IndexPath(item: 0, section: 0)
+        #expect(await waitForCondition {
+            window.layoutIfNeeded()
+            main.view.layoutIfNeeded()
+            main.collectionView.layoutIfNeeded()
+            let header = main.collectionView.supplementaryView(
+                forElementKind: UICollectionView.elementKindSectionHeader,
+                at: indexPath
+            )
+            return (header?.bounds.height ?? 0) > 80
+        })
+        let header = try #require(main.collectionView.supplementaryView(
+            forElementKind: UICollectionView.elementKindSectionHeader,
+            at: indexPath
+        ) as? MainMenuSectionHeaderView)
+        let textGuide = try #require(header.listContentView.textLayoutGuide)
+        let textFrame = header.listContentView.convert(textGuide.layoutFrame, to: header)
+        #expect(textFrame.minY >= 0)
+        #expect(textFrame.maxY <= header.bounds.height + 1)
+        let cell = try #require(main.collectionView.cellForItem(at: indexPath))
+        #expect(cell.frame.minY >= header.frame.maxY - 1)
+    }
+
+    @Test func mainMenuSectionHeadersFollowNativeListDirection() throws {
+        Localization.setLocale(identifier: "ar")
+        defer { Localization.setLocale(identifier: "en-US") }
         let main = MainViewController()
         main.loadViewIfNeeded()
         main.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
@@ -6746,59 +6743,28 @@ struct DemoTests {
         main.view.setNeedsLayout()
         main.view.layoutIfNeeded()
 
-        let headerView = try #require(
-            main.collectionView.supplementaryView(
-                forElementKind: UICollectionView.elementKindSectionHeader,
-                at: IndexPath(item: 0, section: 0)
-            ) as? MainMenuSectionHeaderView
-        )
-        let quickLayoutHeader = headerView.titleLabel
+        let header = try #require(main.collectionView.supplementaryView(
+            forElementKind: UICollectionView.elementKindSectionHeader,
+            at: IndexPath(item: 0, section: 0)
+        ) as? MainMenuSectionHeaderView)
+        #expect(header.listContentView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(header.accessibilityTraits.contains(.header))
+        #expect((header.listContentView.configuration as? UIListContentConfiguration)?.text == Localization.text("main.section.quicklayout"))
 
-        #expect(quickLayoutHeader.textAlignment == .natural)
-        #expect(
-            main.collectionView.semanticContentAttribute == .forceRightToLeft
-        )
-        #expect(
-            quickLayoutHeader.effectiveUserInterfaceLayoutDirection
-                == .rightToLeft
-        )
-        let rightToLeftFrame = quickLayoutHeader.convert(
-            quickLayoutHeader.bounds,
-            to: headerView
-        )
-        #expect(rightToLeftFrame.maxX > headerView.bounds.width - 32)
-
-        DemoLocalization.setLocale(identifier: "zh-Hans")
+        Localization.setLocale(identifier: "zh-Hans")
         main.reloadLocalizedContent()
-        main.reloadLayoutDirection(DemoLocalization.currentUIKitDirection)
+        main.reloadLayoutDirection(.leftToRight)
         main.view.setNeedsLayout()
         main.view.layoutIfNeeded()
-
-        let leftToRightHeaderView = try #require(
-            main.collectionView.supplementaryView(
-                forElementKind: UICollectionView.elementKindSectionHeader,
-                at: IndexPath(item: 0, section: 0)
-            ) as? MainMenuSectionHeaderView
-        )
-        let leftToRightHeader = leftToRightHeaderView.titleLabel
-
-        #expect(leftToRightHeader.text == "QuickLayout 示例")
-        #expect(leftToRightHeader.textAlignment == .natural)
-        #expect(
-            leftToRightHeader.effectiveUserInterfaceLayoutDirection
-                == .leftToRight
-        )
-        let leftToRightFrame = leftToRightHeader.convert(
-            leftToRightHeader.bounds,
-            to: leftToRightHeaderView
-        )
-        #expect(leftToRightFrame.minX < 32)
-        #expect(leftToRightFrame.minX < rightToLeftFrame.minX)
-
-        DemoLocalization.setLocale(identifier: "en-US")
+        let restored = try #require(main.collectionView.supplementaryView(
+            forElementKind: UICollectionView.elementKindSectionHeader,
+            at: IndexPath(item: 0, section: 0)
+        ) as? MainMenuSectionHeaderView)
+        #expect(restored.listContentView.effectiveUserInterfaceLayoutDirection == .leftToRight)
+        #expect((restored.listContentView.configuration as? UIListContentConfiguration)?.text == "QuickLayout 示例")
     }
 
-    @Test func mainMenuRebuildsAndMirrorsItsQuickLayoutContentRoundTrip() throws {
+    @Test func mainMenuRebuildsAndMirrorsItsNativeListContentRoundTrip() throws {
         let main = MainViewController()
         let testWindow = try makeVisibleTestWindow(
             rootViewController: main,
@@ -6817,17 +6783,11 @@ struct DemoTests {
         let ltrCell = try mainMenuCell(at: indexPath, in: main)
         let contentView = try #require(
             ltrCell
-                .allSubviews(of: MainMenuContentView.self)
+                .allSubviews(of: UIListContentView.self)
                 .first
         )
-        let ltrTitleFrame = contentView.titleLabel.convert(
-            contentView.titleLabel.bounds,
-            to: contentView
-        )
-        let ltrChevronFrame = contentView.disclosureImageView.convert(
-            contentView.disclosureImageView.bounds,
-            to: contentView
-        )
+        let ltrTitleFrame = (try #require(contentView.textLayoutGuide)).layoutFrame
+        let ltrImageFrame = (try #require(contentView.imageLayoutGuide)).layoutFrame
 
         main.reloadLayoutDirection(.rightToLeft)
         main.view.layoutIfNeeded()
@@ -6839,17 +6799,11 @@ struct DemoTests {
         let rtlCell = try mainMenuCell(at: indexPath, in: main)
         let rtlContentView = try #require(
             rtlCell
-                .allSubviews(of: MainMenuContentView.self)
+                .allSubviews(of: UIListContentView.self)
                 .first
         )
-        let rtlTitleFrame = rtlContentView.titleLabel.convert(
-            rtlContentView.titleLabel.bounds,
-            to: rtlContentView
-        )
-        let rtlChevronFrame = rtlContentView.disclosureImageView.convert(
-            rtlContentView.disclosureImageView.bounds,
-            to: rtlContentView
-        )
+        let rtlTitleFrame = (try #require(rtlContentView.textLayoutGuide)).layoutFrame
+        let rtlImageFrame = (try #require(rtlContentView.imageLayoutGuide)).layoutFrame
 
         #expect(rightToLeftCollectionView !== leftToRightCollectionView)
         #expect(leftToRightCollectionView.superview == nil)
@@ -6865,9 +6819,10 @@ struct DemoTests {
                 == .forceRightToLeft
         )
         #expect(rtlCell.effectiveUserInterfaceLayoutDirection == .rightToLeft)
-        #expect(rtlContentView.quickLayoutEnvironment.layoutDirection == .rightToLeft)
-        #expect(rtlTitleFrame.minX > ltrTitleFrame.minX)
-        #expect(rtlChevronFrame.minX < ltrChevronFrame.minX)
+        #expect(rtlContentView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(rtlTitleFrame.midX < rtlImageFrame.midX)
+        #expect(ltrTitleFrame.midX > ltrImageFrame.midX)
+        #expect(rtlImageFrame.minX > ltrImageFrame.minX)
 
         main.reloadLayoutDirection(.leftToRight)
         main.view.layoutIfNeeded()
@@ -6879,7 +6834,7 @@ struct DemoTests {
         let restoredCell = try mainMenuCell(at: indexPath, in: main)
         let restoredContentView = try #require(
             restoredCell
-                .allSubviews(of: MainMenuContentView.self)
+                .allSubviews(of: UIListContentView.self)
                 .first
         )
 
@@ -6898,19 +6853,63 @@ struct DemoTests {
         )
         #expect(restoredCell.effectiveUserInterfaceLayoutDirection == .leftToRight)
         #expect(
-            restoredContentView.quickLayoutEnvironment.layoutDirection
+            restoredContentView.effectiveUserInterfaceLayoutDirection
                 == .leftToRight
         )
         #expect(
-            restoredContentView.titleLabel.convert(
-                restoredContentView.titleLabel.bounds,
-                to: restoredContentView
-            ).approximatelyEquals(ltrTitleFrame)
+            (try #require(restoredContentView.textLayoutGuide)).layoutFrame.approximatelyEquals(ltrTitleFrame)
         )
     }
 
+    @Test func mainMenuSearchRoutesTheFilteredItemAndClearsItsEmptyState() async throws {
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
+        let router = RecordingMainRouter()
+        let main = MainViewController(viewModel: MainViewModel(), router: router)
+        main.loadViewIfNeeded()
+        main.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        let search = try #require(main.navigationItem.searchController)
+        search.searchBar.text = "iMessage"
+        main.updateSearchResults(for: search)
+        #expect(await waitForCondition {
+            main.collectionView.numberOfSections == 1
+                && main.collectionView.numberOfItems(inSection: 0) == 1
+        })
+        main.view.layoutIfNeeded()
+        #expect(main.collectionView.numberOfSections == 1)
+        #expect(main.collectionView.numberOfItems(inSection: 0) == 1)
+        let indexPath = IndexPath(item: 0, section: 0)
+        let cell = try mainMenuCell(at: indexPath, in: main)
+        #expect(cell.accessibilityIdentifier == "demo.imessage.title")
+        main.collectionView.delegate?.collectionView?(main.collectionView, didSelectItemAt: indexPath)
+        #expect(router.routes == [.imessageChat])
+
+        search.searchBar.text = "does-not-exist"
+        main.updateSearchResults(for: search)
+        #expect(await waitForCondition { main.collectionView.numberOfSections == 0 })
+        #expect(main.collectionView.numberOfSections == 0)
+        #expect(main.contentUnavailableConfiguration != nil)
+        search.searchBar.text = ""
+        main.updateSearchResults(for: search)
+        #expect(await waitForCondition { main.collectionView.numberOfSections == 3 })
+        #expect(main.collectionView.numberOfSections == 3)
+        #expect(main.contentUnavailableConfiguration == nil)
+    }
+
+    @Test func mainMenuClearsSelectionWhenReturningToTheCatalog() throws {
+        let main = MainViewController()
+        main.loadViewIfNeeded()
+        main.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        main.view.layoutIfNeeded()
+        let indexPath = IndexPath(item: 0, section: 0)
+        _ = try mainMenuCell(at: indexPath, in: main)
+        main.collectionView.selectItem(at: indexPath, animated: false, scrollPosition: [])
+        main.viewWillAppear(false)
+        #expect(main.collectionView.indexPathsForSelectedItems?.isEmpty != false)
+    }
+
     @Test func mainMenuSelectionRoutesThroughListKit() throws {
-        let router = RecordingDemoRouter()
+        let router = RecordingMainRouter()
         let main = MainViewController(
             viewModel: MainViewModel(),
             router: router
@@ -6942,7 +6941,7 @@ struct DemoTests {
         rootViewController.view.addSubview(inheritedContainer)
         window.semanticContentAttribute = .forceRightToLeft
         UIViewLayoutDirectionUpdater.apply(
-            DemoLocalization.layoutDirectionUpdate(.rightToLeft),
+            Localization.layoutDirectionUpdate(.rightToLeft),
             to: [rootViewController.view, inheritedContainer, inheritedLabel]
                 .map {
                     UIViewLayoutDirectionTarget(
@@ -6964,7 +6963,7 @@ struct DemoTests {
 
         window.semanticContentAttribute = .forceLeftToRight
         UIViewLayoutDirectionUpdater.apply(
-            DemoLocalization.layoutDirectionUpdate(.leftToRight),
+            Localization.layoutDirectionUpdate(.leftToRight),
             to: [rootViewController.view, inheritedContainer, inheritedLabel]
                 .map {
                     UIViewLayoutDirectionTarget(
@@ -7051,9 +7050,9 @@ struct DemoTests {
     }
 
     @Test func profileKeepsLandscapeSectionsInsideTheSafeViewport() throws {
-        DemoLocalization.setLocale(identifier: "zh-Hans")
+        Localization.setLocale(identifier: "zh-Hans")
         defer {
-            DemoLocalization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en-US")
         }
 
         let viewController = ProfileViewController()
@@ -7121,9 +7120,9 @@ struct DemoTests {
     }
 
     @Test func profileCardTitlesShareTheSameLogicalLeadingEdge() throws {
-        DemoLocalization.setLocale(identifier: "ar")
+        Localization.setLocale(identifier: "ar")
         defer {
-            DemoLocalization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en-US")
         }
 
         let viewController = ProfileViewController()
@@ -7136,10 +7135,10 @@ struct DemoTests {
         )
         viewController.view.layoutIfNeeded()
 
-        DemoLocalization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en-US")
         viewController.applyLocalization(
             .initial(
-                snapshot: DemoLocalization.localizationController.currentSnapshot
+                snapshot: Localization.localizationController.currentSnapshot
             )
         )
 
@@ -7155,9 +7154,9 @@ struct DemoTests {
             )
         ]
         let titleTexts = [
-            DemoLocalization.text("profile.section.about"),
-            DemoLocalization.text("profile.section.activity"),
-            DemoLocalization.text("profile.section.skills")
+            Localization.text("profile.section.about"),
+            Localization.text("profile.section.activity"),
+            Localization.text("profile.section.skills")
         ]
         let titleLabels = try titleTexts.map { title in
             try #require(
@@ -7233,7 +7232,7 @@ struct DemoTests {
     }
 
     @Test func profileSkillFlowReusesAndMirrorsItsFirstChipRoundTrip() throws {
-        let firstSkillTitle = DemoLocalization.text("profile.skill.uikit")
+        let firstSkillTitle = Localization.text("profile.skill.uikit")
         let viewController = ProfileViewController()
         viewController.loadViewIfNeeded()
         viewController.view.frame = CGRect(
@@ -7296,7 +7295,7 @@ struct DemoTests {
     }
 
     @Test func overviewPageReflectsArabicDirection() {
-        DemoLocalization.setLocale(identifier: "ar")
+        Localization.setLocale(identifier: "ar")
         let viewController = LocalizationOverviewViewController()
         viewController.loadViewIfNeeded()
         viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
@@ -7310,11 +7309,11 @@ struct DemoTests {
         #expect(labels.contains { $0.contains("RTL") })
         #expect(viewController.view.semanticContentAttribute == .forceRightToLeft)
 
-        DemoLocalization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en-US")
     }
 
     @Test func uikitShowcaseAppliesCollectionDirection() throws {
-        DemoLocalization.setLocale(identifier: "ar")
+        Localization.setLocale(identifier: "ar")
         let viewController = UIKitLocalizationShowcaseViewController()
         viewController.loadViewIfNeeded()
         viewController.reloadLayoutDirection(.rightToLeft)
@@ -7323,12 +7322,12 @@ struct DemoTests {
 
         #expect(collectionView.semanticContentAttribute == .forceRightToLeft)
 
-        DemoLocalization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en-US")
     }
 
     @Test func localizationOverviewMirrorsItsReusedLeadingContent() throws {
         var usesRightToLeftLayout = false
-        let localizer = DemoLocalizer { key, _ in key }
+        let localizer = Localizer { key, _ in key }
         let languageIdentifier = "test.system"
         let service = LocalizationOverviewService(
             snapshot: {
@@ -7801,7 +7800,7 @@ struct DemoTests {
 
     @Test func collectionMessagesInheritDirectionForVisibleAndNewContent() async throws {
         var prefix = "ltr."
-        let localizer = DemoLocalizer { key, _ in prefix + key }
+        let localizer = Localizer { key, _ in prefix + key }
         let viewController = MesssageViewController(
             viewModel: MessageListViewModel(
                 configuration: .collection,
@@ -8187,7 +8186,7 @@ struct DemoTests {
         let sectionEdgeTolerance: CGFloat = 1
         let sectionSizingTolerance: CGFloat = 1.01
         var prefix = "ltr."
-        let localizer = DemoLocalizer { key, _ in prefix + key }
+        let localizer = Localizer { key, _ in prefix + key }
         let viewController = MessageTableViewController(
             viewModel: MessageListViewModel(
                 configuration: .table,
@@ -8862,7 +8861,7 @@ struct DemoTests {
     @Test func iMessageChatSendReplyAndReadFlowIsDeterministic() async throws {
         let sleeper = ControlledIMessageSleeper()
         let fixedDate = Date(timeIntervalSince1970: 1_800_000_000)
-        let localizer = DemoLocalizer { key, _ in "localized.\(key)" }
+        let localizer = Localizer { key, _ in "localized.\(key)" }
         let viewModel = IMessageChatViewModel(
             localizer: localizer,
             clock: { fixedDate },
@@ -8936,7 +8935,7 @@ struct DemoTests {
         let localization = MutableIMessageLocalization(prefix: "first")
         let sleeper = ControlledIMessageSleeper()
         let viewModel = IMessageChatViewModel(
-            localizer: DemoLocalizer { key, _ in
+            localizer: Localizer { key, _ in
                 localization.text(for: key)
             },
             clock: { Date(timeIntervalSince1970: 1_800_000_000) },
@@ -8986,7 +8985,7 @@ struct DemoTests {
             waveform: [0, 0.4, 2]
         )
         let viewModel = IMessageChatViewModel(
-            localizer: DemoLocalizer { key, _ in "localized.\(key)" },
+            localizer: Localizer { key, _ in "localized.\(key)" },
             clock: { Date(timeIntervalSince1970: 1_800_000_000) },
             sleeper: { duration in
                 try await sleeper.sleep(duration)
@@ -9036,7 +9035,7 @@ struct DemoTests {
         let sleeper = ControlledIMessageSleeper()
         let synthesizer = ControlledIMessageReplyAudioSynthesizer()
         let viewModel = IMessageChatViewModel(
-            localizer: DemoLocalizer { key, _ in "localized.\(key)" },
+            localizer: Localizer { key, _ in "localized.\(key)" },
             clock: { Date(timeIntervalSince1970: 1_800_000_000) },
             localeProvider: { Locale(identifier: "zh-Hans") },
             replyAudioSynthesizer: synthesizer,
@@ -9094,7 +9093,7 @@ struct DemoTests {
             waveform: [0.2, 0.8]
         )
         let viewModel = IMessageChatViewModel(
-            localizer: DemoLocalizer { key, _ in "localized.\(key)" },
+            localizer: Localizer { key, _ in "localized.\(key)" },
             clock: { Date(timeIntervalSince1970: 1_800_000_000) },
             localeProvider: { Locale(identifier: "zh-Hans") },
             replyAudioSynthesizer: synthesizer,
@@ -9145,7 +9144,7 @@ struct DemoTests {
         try Data([0]).write(to: fileURL)
         defer { try? FileManager.default.removeItem(at: fileURL) }
         let viewModel = IMessageChatViewModel(
-            localizer: DemoLocalizer { key, _ in "localized.\(key)" },
+            localizer: Localizer { key, _ in "localized.\(key)" },
             clock: { Date(timeIntervalSince1970: 1_800_000_000) },
             localeProvider: { Locale(identifier: "ar") },
             replyAudioSynthesizer: synthesizer,
@@ -9198,7 +9197,7 @@ struct DemoTests {
         try Data([0]).write(to: fileURL)
         defer { try? FileManager.default.removeItem(at: fileURL) }
         let viewModel = IMessageChatViewModel(
-            localizer: DemoLocalizer { key, _ in "localized.\(key)" },
+            localizer: Localizer { key, _ in "localized.\(key)" },
             clock: { Date(timeIntervalSince1970: 1_800_000_000) },
             localeProvider: { Locale(identifier: "en") },
             replyAudioSynthesizer: synthesizer,
@@ -9272,7 +9271,7 @@ struct DemoTests {
             }
         }
         let viewModel = IMessageChatViewModel(
-            localizer: DemoLocalizer { key, _ in "localized.\(key)" },
+            localizer: Localizer { key, _ in "localized.\(key)" },
             clock: { Date(timeIntervalSince1970: 1_800_000_000) },
             localeProvider: { Locale(identifier: "en") },
             replyAudioSynthesizer: synthesizer,
@@ -9348,7 +9347,7 @@ struct DemoTests {
 
         let sleeper = ControlledIMessageSleeper()
         let viewModel = IMessageChatViewModel(
-            localizer: DemoLocalizer { key, _ in
+            localizer: Localizer { key, _ in
                 localization.text(for: key)
             },
             clock: { Date(timeIntervalSince1970: 1_800_000_000) },
@@ -9695,7 +9694,7 @@ struct DemoTests {
 
         do {
             let viewModel = IMessageChatViewModel(
-                localizer: DemoLocalizer { key, _ in key },
+                localizer: Localizer { key, _ in key },
                 clock: { Date(timeIntervalSince1970: 1_800_000_000) },
                 sleeper: { duration in
                     try await sleeper.sleep(duration)
@@ -9784,7 +9783,7 @@ struct DemoTests {
         composer.applyLayoutDirection(.rightToLeft)
         #expect(composer.semanticContentAttribute == .forceRightToLeft)
         #expect(composer.textView.semanticContentAttribute == .forceRightToLeft)
-        #expect(composer.textView.textAlignment == .natural)
+        #expect(composer.textView.textAlignment == .right)
         composer.applyLayoutDirection(.leftToRight)
         #expect(composer.semanticContentAttribute == .forceLeftToRight)
     }
@@ -10186,21 +10185,21 @@ struct DemoTests {
     }
 
     @Test func semanticGestureUsesDirectionalLayout() {
-        DemoLocalization.setLocale(identifier: "ar")
+        Localization.setLocale(identifier: "ar")
 
         let physicalRight = DirectionalLayout.semanticHorizontalDirection(
             translationX: 20,
-            layoutDirection: DemoLocalization.currentLayoutDirection
+            layoutDirection: Localization.currentLayoutDirection
         )
         let isBackSwipe = DirectionalLayout.isBackSwipe(
             translationX: -20,
-            layoutDirection: DemoLocalization.currentLayoutDirection
+            layoutDirection: Localization.currentLayoutDirection
         )
 
         #expect(physicalRight == .leading)
         #expect(isBackSwipe)
 
-        DemoLocalization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en-US")
     }
 }
 
@@ -10532,10 +10531,10 @@ private func mainMenuCell(
 private func mainMenuConfiguration(
     at indexPath: IndexPath,
     in viewController: MainViewController
-) throws -> MainMenuContentConfiguration {
+) throws -> UIListContentConfiguration {
     let cell = try mainMenuCell(at: indexPath, in: viewController)
     return try #require(
-        cell.contentConfiguration as? MainMenuContentConfiguration
+        cell.contentConfiguration as? UIListContentConfiguration
     )
 }
 
@@ -10739,14 +10738,343 @@ private final class RepresentableTestChildViewController: UIViewController {
 }
 
 @MainActor
-private final class RecordingDemoRouter: DemoRouting {
+private final class RecordingMainRouter: MainRouting {
 
-    private(set) var routes: [DemoRoute] = []
+    private(set) var routes: [MainRoute] = []
 
     func navigate(
-        to route: DemoRoute,
+        to route: MainRoute,
         from sourceViewController: UIViewController
     ) {
         routes.append(route)
+    }
+}
+
+@MainActor
+@Suite(.serialized)
+struct MainNavigationRTLTests {
+    @MainActor
+    private final class InputLocaleState {
+        var locale: AppLocale = .simplifiedChinese { didSet { revision += 1 } }
+        private var revision: UInt64 = 0
+        var snapshot: LocalizationSnapshot {
+            LocalizationSnapshot(locale: locale, followsSystemLocale: false, revision: revision)
+        }
+    }
+
+    @Test func inputBindingsPreserveCaretAndCompositionInARealWindow() async throws {
+        for kind in ["field", "secure", "multiline"] {
+            let controller = UIViewController()
+            let view: UIView = kind == "multiline" ? UITextView() : UITextField()
+            view.frame = CGRect(x: 20, y: 150, width: 310, height: kind == "multiline" ? 140 : 44)
+            controller.view.addSubview(view)
+            let window = try makeVisibleTestWindow(rootViewController: controller)
+            window.makeKeyAndVisible()
+            defer { window.isHidden = true }
+            let state = InputLocaleState()
+            let context = UIKitLocalizationContext {
+                state.snapshot
+            }
+            let binding: UIKitTextInputLocalizationBinding
+            if let field = view as? UITextField {
+                field.isSecureTextEntry = kind == "secure"
+                field.autocorrectionType = .no
+                binding = context.makeTextInputBinding(to: field)
+            } else {
+                binding = context.makeTextInputBinding(to: view as! UITextView)
+            }
+            let input = view as! any UITextInput
+            view.becomeFirstResponder()
+            try #require(await waitForCondition { view.isFirstResponder })
+            for next in [AppLocale.simplifiedChinese, .arabic, .englishUS, .arabic] {
+                state.locale = next
+                binding.refresh()
+                for text in ["", "VV77", "uu天", "مرحبا", ""] {
+                    input.selectedTextRange = input.textRange(from: input.beginningOfDocument, to: input.endOfDocument)
+                    if text.isEmpty { input.deleteBackward() } else { input.insertText(text) }
+                    let rtl = next == .arabic
+                    #expect(await waitForCondition {
+                        view.layoutIfNeeded()
+                        let start = view.convert(input.caretRect(for: input.beginningOfDocument), from: input.textInputView)
+                        let end = view.convert(input.caretRect(for: input.endOfDocument), from: input.textInputView)
+                        let edge = rtl ? max(start.midX, end.midX) : min(start.midX, end.midX)
+                        return rtl ? edge > view.bounds.midX : edge < view.bounds.midX
+                    }, "控件：\(kind)，语言：\(next.identifier)，文本：\(text)")
+                }
+            }
+            if kind != "secure" {
+                state.locale = .simplifiedChinese
+                binding.refresh()
+                input.setMarkedText("zhong", selectedRange: NSRange(location: 5, length: 0))
+                try #require(input.markedTextRange != nil)
+                state.locale = .arabic
+                binding.refresh()
+                #expect(input.markedTextRange != nil)
+                #expect(view.isFirstResponder)
+                // 通过真实 UITextInput 提交组合文本，不伪造编辑通知。
+                input.insertText("中")
+                #expect(await waitForCondition {
+                    input.markedTextRange == nil
+                        && ((view as? UITextField)?.textAlignment ?? (view as? UITextView)?.textAlignment) == .right
+                })
+                #expect(input.text(in: input.textRange(from: input.beginningOfDocument, to: input.endOfDocument)!) == "中")
+            }
+            view.resignFirstResponder()
+            view.becomeFirstResponder()
+            #expect(view.isFirstResponder)
+            withExtendedLifetime(binding) {}
+        }
+    }
+
+    @Test func formAndKeyboardInputsRefreshAcrossLanguageChanges() async throws {
+        defer { Localization.setLocale(identifier: "zh-Hans") }
+        for controller in [ScrollViewWithKeyboardViewController(), KeyboardHandlingViewController()] as [LocalizedQuickLayoutHostingController] {
+            let navigation = UINavigationController(rootViewController: controller)
+            let window = try makeVisibleTestWindow(rootViewController: navigation)
+            window.makeKeyAndVisible()
+            Localization.register(window: window)
+            defer {
+                Localization.unregister(window: window)
+                window.isHidden = true
+            }
+            let fields = controller.view.allSubviews(of: UITextField.self)
+            let notes = controller.view.allSubviews(of: UITextView.self).filter(\.isEditable)
+            try #require(!fields.isEmpty)
+            for language in ["zh-Hans", "ar", "en-US", "ar"] {
+                Localization.setLocale(identifier: language)
+                let expected: NSTextAlignment = language == "ar" ? .right : .left
+                #expect(await waitForCondition {
+                    fields.allSatisfy { $0.textAlignment == expected }
+                        && notes.allSatisfy { $0.textAlignment == expected }
+                })
+                for field in fields {
+                    field.becomeFirstResponder()
+                    field.selectedTextRange = field.textRange(from: field.beginningOfDocument, to: field.endOfDocument)
+                    field.insertText("uu天123")
+                    #expect(await waitForCondition { field.textAlignment == expected })
+                    #expect(field.text == "uu天123")
+                    field.resignFirstResponder()
+                }
+            }
+        }
+    }
+
+    @Test func localizedTextViewKeepsUndoHistory() async throws {
+        let controller = UIViewController()
+        let view = UITextView(frame: CGRect(x: 20, y: 150, width: 310, height: 140))
+        controller.view.addSubview(view)
+        let window = try makeVisibleTestWindow(rootViewController: controller)
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        let state = InputLocaleState()
+        let binding = UIKitLocalizationContext {
+            state.snapshot
+        }.makeTextInputBinding(to: view)
+        view.becomeFirstResponder()
+        try #require(await waitForCondition { view.isFirstResponder })
+        let undo = try #require(view.undoManager)
+        undo.beginUndoGrouping()
+        view.insertText("hello")
+        undo.endUndoGrouping()
+        state.locale = .arabic
+        binding.refresh()
+        #expect(undo.canUndo)
+        undo.undo()
+        #expect(view.text.isEmpty)
+        #expect(view.isFirstResponder)
+    }
+
+    @Test func searchCaretAndTextFollowInterfaceAlignment() async throws {
+        Localization.setLocale(identifier: "ar")
+        let main = MainViewController()
+        let navigation = UINavigationController(rootViewController: main)
+        let window = try makeVisibleTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
+        window.makeKeyAndVisible()
+        Localization.register(window: window)
+        let search = try #require(main.navigationItem.searchController)
+        let field = search.searchBar.searchTextField
+        defer {
+            search.isActive = false
+            Localization.unregister(window: window)
+            window.isHidden = true
+            Localization.setLocale(identifier: "en-US")
+        }
+        search.isActive = true
+        #expect(await waitForCondition { field.window != nil })
+        field.becomeFirstResponder()
+        #expect(await waitForCondition { field.isFirstResponder && field.bounds.width > 100 })
+
+        for language in ["ar", "zh-Hans", "en-US", "ar"] {
+            Localization.setLocale(identifier: language)
+            try #require(await waitForCondition {
+                main.title == Localization.text("main.title")
+                    && navigation.navigationBar.traitCollection.layoutDirection == (language == "ar" ? .rightToLeft : .leftToRight)
+            }, "语言：\(language)，当前：\(Localization.currentLanguageSummary())，标题：\(main.title ?? "nil")")
+            let isRTL = language == "ar"
+            // 空内容、英文数字、中文混排、阿拉伯文都应对齐到界面的同一侧。
+            for text in ["", "VV77", "uu天", "مرحبا", ""] {
+                field.selectedTextRange = field.textRange(from: field.beginningOfDocument, to: field.endOfDocument)
+                if text.isEmpty {
+                    field.deleteBackward()
+                } else {
+                    field.insertText(text)
+                }
+                var start = CGRect.zero
+                var end = CGRect.zero
+                // UIKit 编辑布局可能延迟到下一轮主线程，等待实际光标几何完成更新。
+                let aligned = await waitForCondition {
+                    navigation.view.layoutIfNeeded()
+                    field.layoutIfNeeded()
+                    start = field.convert(field.caretRect(for: field.beginningOfDocument), from: field.textInputView)
+                    end = field.convert(field.caretRect(for: field.endOfDocument), from: field.textInputView)
+                    let edge = isRTL ? max(start.midX, end.midX) : min(start.midX, end.midX)
+                    let followsWritingOrder = text.isEmpty || (text == "مرحبا"
+                        ? start.minX > end.minX : start.minX < end.minX)
+                    return followsWritingOrder && (isRTL ? edge > field.bounds.midX : edge < field.bounds.midX)
+                }
+                #expect(aligned,
+                        "语言：\(language)，文本：\(text)，实际文本：\(field.text ?? "")，对齐：\(field.textAlignment.rawValue)，起点：\(start)，终点：\(end)，输入框：\(field.bounds)")
+            }
+            field.resignFirstResponder()
+            field.becomeFirstResponder()
+            navigation.view.layoutIfNeeded()
+            let emptyCaret = field.convert(field.caretRect(for: field.beginningOfDocument), from: field.textInputView)
+            #expect(isRTL ? emptyCaret.midX > field.bounds.midX : emptyCaret.midX < field.bounds.midX)
+        }
+    }
+
+    @Test(arguments: ["zh-Hans", "ar"])
+    func mainNavigationEnvironmentFollowsRuntimeLanguageChanges(initialLanguage: String) async throws {
+        Localization.setLocale(identifier: initialLanguage)
+        let main = MainViewController()
+        let navigation = UINavigationController(rootViewController: main)
+        navigation.traitOverrides.preferredContentSizeCategory = .large
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigation,
+            size: CGSize(width: 390, height: 844)
+        )
+        Localization.register(window: window)
+        defer {
+            Localization.unregister(window: window)
+            window.isHidden = true
+            Localization.setLocale(identifier: "en-US")
+        }
+
+        for identifier in [initialLanguage, "ar", "zh-Hans", "ar"] {
+            Localization.setLocale(identifier: identifier)
+            #expect(await waitForCondition {
+                main.title == Localization.text("main.title")
+                    && main.collectionView.effectiveUserInterfaceLayoutDirection
+                        == Localization.currentUIKitDirection
+            })
+            let isRTL = identifier == "ar"
+            #expect(await waitForCondition {
+                navigation.navigationBar.traitCollection.layoutDirection
+                    == (isRTL ? .rightToLeft : .leftToRight)
+            })
+            #expect(navigation.navigationBar.effectiveUserInterfaceLayoutDirection
+                == Localization.currentUIKitDirection)
+            #expect(main.navigationItem.largeTitleDisplayMode == .always)
+            #expect(main.navigationItem.titleView == nil)
+            #expect(main.contentScrollView(for: .top) === main.collectionView)
+        }
+    }
+
+    @Test func rapidLanguageChangesPreserveThePendingDirectionChange() async throws {
+        Localization.setLocale(identifier: "ar")
+        let main = MainViewController()
+        let navigation = UINavigationController(rootViewController: main)
+        let window = try makeVisibleTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
+        Localization.register(window: window)
+        defer {
+            Localization.unregister(window: window)
+            window.isHidden = true
+            Localization.setLocale(identifier: "en-US")
+        }
+        #expect(await waitForCondition { navigation.navigationBar.traitCollection.layoutDirection == .rightToLeft })
+        // 中间通知尚未执行时继续选择同方向语言，最终仍必须刷新导航容器。
+        Localization.setLocale(identifier: "zh-Hans")
+        Localization.setLocale(identifier: "en-US")
+        #expect(await waitForCondition {
+            main.title == Localization.text("main.title")
+                && navigation.navigationBar.traitCollection.layoutDirection == .leftToRight
+                && main.collectionView.effectiveUserInterfaceLayoutDirection == .leftToRight
+        })
+    }
+
+    @Test func mainControllerReleasesAfterConfiguringItsList() async throws {
+        weak var retained: MainViewController?
+        autoreleasepool {
+            let main = MainViewController()
+            retained = main
+            main.loadViewIfNeeded()
+            main.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+            main.view.layoutIfNeeded()
+        }
+        #expect(await waitForCondition { retained == nil })
+    }
+
+    @Test(arguments: ["zh-Hans", "ar"])
+    func languageChangesPreserveTheVisibleRoute(initialLanguage: String) async throws {
+        Localization.setLocale(identifier: initialLanguage)
+        let main = MainViewController()
+        let navigation = UINavigationController(rootViewController: main)
+        let window = try makeVisibleTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
+        Localization.register(window: window)
+        defer {
+            Localization.unregister(window: window)
+            window.isHidden = true
+            Localization.setLocale(identifier: "en-US")
+        }
+        #expect(await waitForCondition { main.collectionView.numberOfItems(inSection: 0) > 10 })
+        main.collectionView.scrollToItem(at: IndexPath(item: 10, section: 0), at: .top, animated: false)
+        main.collectionView.contentOffset.y += 17
+        // 等待导航栏完成滚动联动，再记录用户实际看到的条目与偏移。
+        try await Task.sleep(for: .milliseconds(100))
+        let before = try #require(main.collectionView.captureLocalizationAnchor())
+        for language in [initialLanguage == "ar" ? "zh-Hans" : "ar", initialLanguage] {
+            Localization.setLocale(identifier: language)
+            let restored = await waitForCondition {
+                navigation.view.layoutIfNeeded()
+                guard main.title == Localization.text("main.title"),
+                      let after = main.collectionView.captureLocalizationAnchor() else { return false }
+                return main.collectionView.effectiveUserInterfaceLayoutDirection == Localization.currentUIKitDirection
+                    && after.indexPath == before.indexPath
+                    && abs(after.offsetFromViewportTop - before.offsetFromViewportTop) < 2
+            }
+            let after = main.collectionView.captureLocalizationAnchor()
+            #expect(restored, "语言：\(language)，原位置：\(before)，实际位置：\(String(describing: after))")
+        }
+    }
+
+    @Test func directionUpdatesPreserveTheActualLanguageSnapshot() {
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
+        let snapshot = Localization.localizationController.currentSnapshot
+        let update = Localization.layoutDirectionUpdate(.leftToRight)
+        #expect(update.snapshot == snapshot)
+    }
+
+    @Test func swiftUIBridgeKeepsItsHostedControllerAcrossLanguageChanges() async throws {
+        Localization.setLocale(identifier: "zh-Hans")
+        let bridge = SwiftUILocalizationBridgeDemoViewController()
+        let navigation = UINavigationController(rootViewController: bridge)
+        let window = try makeVisibleTestWindow(rootViewController: navigation)
+        Localization.register(window: window)
+        defer {
+            Localization.unregister(window: window)
+            window.isHidden = true
+            Localization.setLocale(identifier: "en-US")
+        }
+        let host = try #require(bridge.children.first)
+        for language in ["ar", "en-US"] {
+            Localization.setLocale(identifier: language)
+            #expect(await waitForCondition {
+                bridge.title == Localization.text("demo.swiftUIBridge.title")
+                    && host.view.effectiveUserInterfaceLayoutDirection == Localization.currentUIKitDirection
+            })
+            #expect(bridge.children.count == 1)
+            #expect(bridge.children.first === host)
+        }
     }
 }

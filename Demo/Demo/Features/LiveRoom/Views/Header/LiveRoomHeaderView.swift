@@ -144,7 +144,7 @@ final class LiveRoomHeaderView: LiveRoomCardView {
 
         moreImageView.tintColor = .white
         moreImageView.contentMode = .scaleAspectFit
-        moreImageView.accessibilityLabel = DemoLocalization.text(
+        moreImageView.accessibilityLabel = Localization.text(
             "liveRoom.action.more"
         )
     }

@@ -97,7 +97,7 @@ final class LiveRoomGiftRecipientButton: QuickLayoutButton {
             ? (usesCompactMetrics ? 17 : 20)
             : 0
         symbolImageView.clipsToBounds = usesPhotoAvatar
-        nameLabel.text = DemoLocalization.text(recipient.nameKey)
+        nameLabel.text = Localization.text(recipient.nameKey)
         nameLabel.textColor = isSelected
             ? .white
             : UIColor.white.withAlphaComponent(0.70)
@@ -194,7 +194,7 @@ final class LiveRoomGiftSelectAllButton: QuickLayoutButton {
         isSelected: Bool,
         usesCompactMetrics: Bool
     ) {
-        titleLabel.text = DemoLocalization.text("liveRoom.gift.selectAll")
+        titleLabel.text = Localization.text("liveRoom.gift.selectAll")
         titleLabel.font = .systemFont(
             ofSize: usesCompactMetrics ? 10 : 11,
             weight: .semibold

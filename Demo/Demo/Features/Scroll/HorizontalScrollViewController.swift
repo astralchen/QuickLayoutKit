@@ -42,7 +42,7 @@ struct HorizontalCarouselLayoutMetrics: Sendable {
 }
 
 final class HorizontalScrollViewViewController:
-    DemoQuickLayoutHostingController,
+    LocalizedQuickLayoutHostingController,
     UIScrollViewDelegate {
 
     override var localizedTitleKey: String? { "demo.horizontalScroll.title" }
@@ -84,26 +84,26 @@ final class HorizontalScrollViewViewController:
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
 
-        eyebrowLabel.text = DemoLocalization.text("horizontal.explore.eyebrow")
-        headlineLabel.text = DemoLocalization.text("horizontal.explore.headline")
-        subtitleLabel.text = DemoLocalization.text("horizontal.explore.subtitle")
-        gestureLabel.text = DemoLocalization.text("horizontal.explore.hint")
+        eyebrowLabel.text = Localization.text("horizontal.explore.eyebrow")
+        headlineLabel.text = Localization.text("horizontal.explore.headline")
+        subtitleLabel.text = Localization.text("horizontal.explore.subtitle")
+        gestureLabel.text = Localization.text("horizontal.explore.hint")
 
         zip(views, HorizontalDestinationCardView.Palette.allCases)
             .forEach { cardView, palette in
                 let prefix = palette.localizationKeyPrefix
                 cardView.configure(
                     .init(
-                        tag: DemoLocalization.text("horizontal.explore.tag"),
-                        title: DemoLocalization.text("\(prefix).title"),
-                        location: DemoLocalization.text("\(prefix).location"),
-                        summary: DemoLocalization.text("\(prefix).summary"),
+                        tag: Localization.text("horizontal.explore.tag"),
+                        title: Localization.text("\(prefix).title"),
+                        location: Localization.text("\(prefix).location"),
+                        summary: Localization.text("\(prefix).summary"),
                         rating: palette.rating,
-                        price: DemoLocalization.text("\(prefix).price"),
-                        priceCaption: DemoLocalization.text(
+                        price: Localization.text("\(prefix).price"),
+                        priceCaption: Localization.text(
                             "horizontal.explore.priceCaption"
                         ),
-                        accessibilityHint: DemoLocalization.text(
+                        accessibilityHint: Localization.text(
                             "horizontal.explore.card.accessibilityHint"
                         )
                     )
@@ -289,7 +289,7 @@ final class HorizontalScrollViewViewController:
         )
         alertController.addAction(
             UIAlertAction(
-                title: DemoLocalization.text("common.close"),
+                title: Localization.text("common.close"),
                 style: .cancel
             )
         )
@@ -297,7 +297,7 @@ final class HorizontalScrollViewViewController:
     }
 
     private func updatePageLabel() {
-        pageLabel.text = DemoLocalization.text(
+        pageLabel.text = Localization.text(
             "horizontal.explore.page",
             currentPage + 1,
             views.count

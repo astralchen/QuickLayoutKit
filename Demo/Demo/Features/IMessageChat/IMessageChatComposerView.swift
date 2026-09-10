@@ -361,6 +361,9 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
 
     /// 启用 TextKit 2、承载文字与内联附件的文本编辑器。
     let textView = IMessageChatTextView(usingTextLayoutManager: true)
+    private lazy var inputBinding = Localization.inputContext(for: self)
+        .makeTextInputBinding(to: textView)
+
     /// 接管系统粘贴并保留文字与附件顺序的协调器。
     lazy var pasteCoordinator = IMessageChatPasteCoordinator(textView: textView)
     /// 粘贴解析出待导入来源后调用的闭包。
@@ -772,6 +775,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             dismissRecordingUnavailableHint()
             return
         }
+        inputBinding.refresh()
         DispatchQueue.main.async { [weak self] in
             self?.updateTextHeight()
         }
@@ -1029,10 +1033,12 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
 
     /// 恢复普通文字的字体与颜色，防止继续输入时继承附件属性。
     private func resetTypingAttributes() {
+        guard textView.markedTextRange == nil else { return }
         textView.typingAttributes = [
             .font: textView.font ?? UIFont.preferredFont(forTextStyle: .body),
             .foregroundColor: UIColor.label,
         ]
+        inputBinding.refresh()
     }
 
     /// 将当前布局方向应用到全部内联附件，并刷新其视图和测量。
@@ -1180,6 +1186,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                 textView.textStorage.setAttributedString(body)
             }
             isApplyingTranscription = false
+            inputBinding.refresh()
             updateTextHeight()
         case .recording(let elapsed, let waveform):
             recordingWaveformView.samples = waveform
@@ -1244,9 +1251,9 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         mediaDraftStripView.semanticContentAttribute = semanticAttribute
         mediaDraftSeparatorView.semanticContentAttribute = semanticAttribute
         textView.semanticContentAttribute = semanticAttribute
-        textView.textAlignment = .natural
+        inputBinding.refresh()
         placeholderLabel.semanticContentAttribute = semanticAttribute
-        placeholderLabel.textAlignment = .natural
+        placeholderLabel.textAlignment = textView.textAlignment
         recordingUnavailableLabel.semanticContentAttribute = semanticAttribute
         refreshTextAttachments()
         setNeedsQuickLayout()
@@ -1257,13 +1264,19 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         guard !isInsertingContents else { return }
         reconcileTextAttachments()
         resetTypingAttributes()
+        placeholderLabel.textAlignment = textView.textAlignment
         updateComposerState()
         updateTextHeight()
     }
 
     /// 将开始编辑事件转发给页面，由页面协调照片面板到键盘的交接。
     func textViewDidBeginEditing(_ textView: UITextView) {
+        inputBinding.refresh()
         textInputDidBeginEditing?()
+    }
+
+    func textViewDidChangeSelection(_ textView: UITextView) {
+        inputBinding.refresh()
     }
 
     /// 在 UIKit 应用手动文本编辑前停止正在进行的语音转写。
@@ -1389,7 +1402,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
         textView.font = .preferredFont(forTextStyle: .body)
         textView.adjustsFontForContentSizeCategory = true
         textView.textColor = .label
-        textView.textAlignment = .natural
+        inputBinding.refresh()
         textView.textContainerInset = UIEdgeInsets(
             top: 8,
             left: 8,

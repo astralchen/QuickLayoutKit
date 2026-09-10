@@ -42,7 +42,7 @@ final class MessageTableListView: UIView {
     ) {
         renderGeneration &+= 1
         let generation = renderGeneration
-        let expectedRevision = DemoLocalization.localizationController
+        let expectedRevision = Localization.localizationController
             .currentSnapshot.revision
 
         adapter.apply(
@@ -53,7 +53,7 @@ final class MessageTableListView: UIView {
                     return
                 }
                 guard self.renderGeneration == generation,
-                      expectedRevision == DemoLocalization.localizationController
+                      expectedRevision == Localization.localizationController
                         .currentSnapshot.revision else {
                     completion?()
                     return
@@ -128,7 +128,7 @@ final class MessageTableListView: UIView {
         lastAppliedLayoutDirection = direction
         // 方向边界由 table 容器控制，同时保留用户当前看到的逻辑行。
         tableView.applyLocalization(
-            DemoLocalization.layoutDirectionUpdate(direction),
+            Localization.layoutDirectionUpdate(direction),
             preservingVisibleRow: true
         )
     }
@@ -144,7 +144,7 @@ final class MessageTableListView: UIView {
         let direction = lastAppliedLayoutDirection
             ?? tableView.effectiveUserInterfaceLayoutDirection
         tableView.applyLocalization(
-            DemoLocalization.layoutDirectionUpdate(
+            Localization.layoutDirectionUpdate(
                 direction,
                 reasons: [.layoutDirection, .configuration]
             ),

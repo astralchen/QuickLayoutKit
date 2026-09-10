@@ -392,6 +392,6 @@ final class IMessageChatAttachmentSaveButton: UIButton {
         case .saving: "imessage.save.saving"
         case .completed, .hidden: "imessage.save.completed"
         }
-        accessibilityLabel = DemoLocalization.text(key)
+        accessibilityLabel = Localization.text(key)
     }
 }

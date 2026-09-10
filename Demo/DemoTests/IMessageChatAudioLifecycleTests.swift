@@ -274,7 +274,7 @@ private final class Fixture {
     let store = IMessageChatPageAttachmentStore()
     let audio: IMessageChatAudioAttachment
     let media: IMessageChatAudioController
-    let model = IMessageChatViewModel(localizer: DemoLocalizer { key, _ in key }, clock: Date.init,
+    let model = IMessageChatViewModel(localizer: Localizer { key, _ in key }, clock: Date.init,
                                      sleeper: { _ in try await Task.sleep(for: .seconds(3600)) })
 
     init(audioSession: IMessageChatAudioSessionControlling? = nil) throws {

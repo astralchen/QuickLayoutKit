@@ -11,7 +11,7 @@ import QuickLayoutKit
 import UIKit
 
 /// 交互验证 `safeAreaPadding` 边缘选择、组合顺序和 QuickLayout `nil` 契约的页面。
-final class SafeAreaPaddingDemoViewController: DemoQuickLayoutHostingController {
+final class SafeAreaPaddingDemoViewController: LocalizedQuickLayoutHostingController {
 
     enum Scenario: Int, CaseIterable, Sendable {
         case baseline
@@ -164,11 +164,11 @@ final class SafeAreaPaddingDemoViewController: DemoQuickLayoutHostingController 
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        introLabel.text = DemoLocalization.text("safeAreaPadding.intro")
-        previousButton.accessibilityLabel = DemoLocalization.text(
+        introLabel.text = Localization.text("safeAreaPadding.intro")
+        previousButton.accessibilityLabel = Localization.text(
             "safeAreaPadding.previous"
         )
-        nextButton.accessibilityLabel = DemoLocalization.text(
+        nextButton.accessibilityLabel = Localization.text(
             "safeAreaPadding.next"
         )
         updateScenarioPresentation()

@@ -11,7 +11,7 @@ import QuickLayoutKit
 import UIKit
 
 final class LiveRoomAudienceProfileViewController:
-    DemoQuickLayoutHostingController {
+    LocalizedQuickLayoutHostingController {
 
     override var localizedTitleKey: String? {
         "liveRoom.audience.profile.navigationTitle"
@@ -46,29 +46,29 @@ final class LiveRoomAudienceProfileViewController:
             content: LiveRoomAudienceProfileView.Content(
                 displayName: member.displayName,
                 avatarImage: member.avatarImage,
-                avatarAccessibilityLabel: DemoLocalization.text(
+                avatarAccessibilityLabel: Localization.text(
                     "liveRoom.audience.profile.avatar",
                     member.displayName
                 ),
                 presence: localizedPresence(member.presence),
-                detailsTitle: DemoLocalization.text(
+                detailsTitle: Localization.text(
                     "liveRoom.audience.profile.details.title"
                 ),
-                memberIDTitle: DemoLocalization.text(
+                memberIDTitle: Localization.text(
                     "liveRoom.audience.profile.memberID"
                 ),
                 memberID: String(member.id),
-                contributionTitle: DemoLocalization.text(
+                contributionTitle: Localization.text(
                     "liveRoom.audience.profile.contribution.title"
                 ),
-                contribution: DemoLocalization.text(
+                contribution: Localization.text(
                     "liveRoom.audience.contribution",
                     member.contributionScore
                 ),
-                aboutTitle: DemoLocalization.text(
+                aboutTitle: Localization.text(
                     "liveRoom.audience.profile.about.title"
                 ),
-                about: DemoLocalization.text(
+                about: Localization.text(
                     "liveRoom.audience.profile.about.value",
                     member.displayName
                 ),
@@ -96,12 +96,12 @@ final class LiveRoomAudienceProfileViewController:
     ) -> String {
         switch presence {
         case let .onMicrophone(seatNumber):
-            return DemoLocalization.text(
+            return Localization.text(
                 "liveRoom.audience.onMicrophone",
                 seatNumber
             )
         case .listening:
-            return DemoLocalization.text("liveRoom.audience.listening")
+            return Localization.text("liveRoom.audience.listening")
         }
     }
 }

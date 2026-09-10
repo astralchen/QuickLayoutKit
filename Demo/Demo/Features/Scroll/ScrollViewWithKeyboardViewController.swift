@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import AppLocalization
 import QuickLayout
 import QuickLayoutKit
 import Combine
@@ -176,7 +177,7 @@ class NotesFieldView: UIView {
 
 // MARK: - 主控制器
 
-class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
+class ScrollViewWithKeyboardViewController: LocalizedQuickLayoutHostingController {
 
     override var localizedTitleKey: String? { "demo.form.title" }
 
@@ -197,6 +198,11 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
     let phoneTextField = UITextField()
     let addressTextField = UITextField()
     let notesTextView = UITextView()
+    private lazy var inputContext = Localization.inputContext(for: view)
+    private lazy var inputBindings = [nameTextField, emailTextField, phoneTextField, addressTextField]
+        .map { inputContext.makeTextInputBinding(to: $0) }
+        + [inputContext.makeTextInputBinding(to: notesTextView)]
+
     let customInputButton: UIButton = {
         var configuration = UIButton.Configuration.tinted()
         configuration.cornerStyle = .large
@@ -369,10 +375,7 @@ class ScrollViewWithKeyboardViewController: DemoQuickLayoutHostingController {
             }
             $0.setNeedsLayout()
         }
-        [nameTextField, emailTextField, phoneTextField, addressTextField].forEach {
-            $0.textAlignment = direction == .rightToLeft ? .right : .left
-        }
-        notesTextView.textAlignment = direction == .rightToLeft ? .right : .left
+        inputBindings.forEach { $0.refresh() }
 
         scrollView.setNeedsLayout()
         setNeedsQuickLayout()

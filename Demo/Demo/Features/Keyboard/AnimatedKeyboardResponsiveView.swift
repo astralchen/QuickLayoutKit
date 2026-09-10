@@ -5,6 +5,7 @@
 //  Created by Sondra on 2026/1/27.
 //
 import UIKit
+import AppLocalization
 import QuickLayout
 import QuickLayoutKit
 import Combine
@@ -14,6 +15,7 @@ import Combine
 class AnimatedKeyboardResponsiveView: UIView {
 
     let textField = UITextField()
+    private lazy var inputBinding = Localization.inputContext(for: self).makeTextInputBinding(to: textField)
     let submitButton: UIButton = {
         var configuration = UIButton.Configuration.filled()
         configuration.cornerStyle = .capsule
@@ -65,9 +67,9 @@ class AnimatedKeyboardResponsiveView: UIView {
     }
 
     func reloadLocalizedContent() {
-        textField.placeholder = DemoLocalization.text("keyboard.placeholder")
+        textField.placeholder = Localization.text("keyboard.placeholder")
         if var configuration = submitButton.configuration {
-            configuration.title = DemoLocalization.text("common.submit")
+            configuration.title = Localization.text("common.submit")
             submitButton.configuration = configuration
         }
         updateKeyboardDiagnostics()
@@ -92,7 +94,7 @@ class AnimatedKeyboardResponsiveView: UIView {
         if let configuration = submitButton.configuration {
             submitButton.configuration = configuration
         }
-        textField.textAlignment = direction == .rightToLeft ? .right : .left
+        inputBinding.refresh()
         setNeedsLayout()
     }
 
@@ -124,20 +126,20 @@ class AnimatedKeyboardResponsiveView: UIView {
     private func updateKeyboardDiagnostics() {
         let resolved = keyboardContext.resolved(in: self)
         diagnosticsLabel.text = [
-            DemoLocalization.text("keyboard.diagnostics.title"),
-            DemoLocalization.text(
+            Localization.text("keyboard.diagnostics.title"),
+            Localization.text(
                 "keyboard.diagnostics.event",
                 keyboardContext.event.demoDescription
             ),
-            DemoLocalization.text(
+            Localization.text(
                 "keyboard.diagnostics.rawFrame",
                 keyboardContext.endFrame.demoDescription
             ),
-            DemoLocalization.text(
+            Localization.text(
                 "keyboard.diagnostics.intersection",
                 resolved.intersection.demoDescription
             ),
-            DemoLocalization.text(
+            Localization.text(
                 "keyboard.diagnostics.height",
                 Int64(resolved.height)
             ),

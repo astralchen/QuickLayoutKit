@@ -220,7 +220,7 @@ struct IMessageChatMessageStatusTests {
     }
 
     private func makeModel(_ sender: StatusSender, _ delay: StatusDelay, receipts: Bool = true) -> IMessageChatViewModel {
-        IMessageChatViewModel(localizer: DemoLocalizer { key, _ in key }, clock: Date.init,
+        IMessageChatViewModel(localizer: Localizer { key, _ in key }, clock: Date.init,
                              messageSender: sender, readReceiptsEnabled: receipts, sleeper: { try await delay.sleep($0) })
     }
     private func message(_ model: IMessageChatViewModel, _ id: Int) -> IMessageChatMessagePresentation? {

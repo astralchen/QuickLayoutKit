@@ -359,7 +359,7 @@ quickLayoutKeyboardSafeAreaBehavior = .disabled
 页面通过 Demo 内部路由进入：
 
 ```swift
-DemoRoute.imessageChat
+MainRoute.imessageChat
 ```
 
 每个独立 `UIView`、`UICollectionViewCell` 与 `UIViewController` 都在自身源文件末尾声明 `#Preview`，统一放在 `#if DEBUG` 内。方向敏感组件包含 RTL 变体；录音、预览、播放和 incoming/outgoing 音频气泡使用 `IMessageChatPreviewData` 的确定性数据。

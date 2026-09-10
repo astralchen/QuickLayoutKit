@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		4C4B00032FD0000000000003 /* ListKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4C4B00022FD0000000000002 /* ListKit */; };
 		7714E9A22EFE2AB100F8BC60 /* QuickLayoutKit in Frameworks */ = {isa = PBXBuildFile; productRef = 7714E9A12EFE2AB100F8BC60 /* QuickLayoutKit */; };
-		774E5D7F303ED45B00073AD4 /* AppLocalization in Frameworks */ = {isa = PBXBuildFile; productRef = 774E5D7E303ED45B00073AD4 /* AppLocalization */; };
 		77BB26A63040283A001C1ED9 /* AppLocalization in Frameworks */ = {isa = PBXBuildFile; productRef = 77BB26A53040283A001C1ED9 /* AppLocalization */; };
 /* End PBXBuildFile section */
 
@@ -75,7 +74,6 @@
 			files = (
 				4C4B00032FD0000000000003 /* ListKit in Frameworks */,
 				77BB26A63040283A001C1ED9 /* AppLocalization in Frameworks */,
-				774E5D7F303ED45B00073AD4 /* AppLocalization in Frameworks */,
 				7714E9A22EFE2AB100F8BC60 /* QuickLayoutKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -139,7 +137,6 @@
 			packageProductDependencies = (
 				4C4B00022FD0000000000002 /* ListKit */,
 				7714E9A12EFE2AB100F8BC60 /* QuickLayoutKit */,
-				774E5D7E303ED45B00073AD4 /* AppLocalization */,
 				77BB26A53040283A001C1ED9 /* AppLocalization */,
 			);
 			productName = Demo;
@@ -652,10 +649,6 @@
 		7714E9A12EFE2AB100F8BC60 /* QuickLayoutKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = QuickLayoutKit;
-		};
-		774E5D7E303ED45B00073AD4 /* AppLocalization */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = AppLocalization;
 		};
 		77BB26A53040283A001C1ED9 /* AppLocalization */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -8,7 +8,7 @@
 import UIKit
 import AppLocalization
 
-final class MessageTableViewController: DemoViewController {
+final class MessageTableViewController: LocalizedViewController {
 
     override var localizedTitleKey: String? {
         "demo.tableMessages.title"

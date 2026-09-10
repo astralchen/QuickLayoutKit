@@ -49,7 +49,7 @@ final class IMessageChatDeliveryStatusView: UIControl {
         failureImage.isHidden = status != .failed
         isUserInteractionEnabled = status == .failed
         accessibilityLabel = message?.deliveryText
-        accessibilityHint = status == .failed ? DemoLocalization.text("imessage.status.retry.hint") : nil
+        accessibilityHint = status == .failed ? Localization.text("imessage.status.retry.hint") : nil
         accessibilityTraits = status == .failed ? .button : .staticText
         accessibilityIdentifier = status == .failed ? "imessage.message.retry" : "imessage.message.status"
         invalidateIntrinsicContentSize()

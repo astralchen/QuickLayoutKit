@@ -10,7 +10,7 @@ import AppLocalization
 import QuickLayout
 import QuickLayoutKit
 
-final class DashboardViewController: DemoQuickLayoutHostingController {
+final class DashboardViewController: LocalizedQuickLayoutHostingController {
 
     override var localizedTitleKey: String? { "demo.dashboard.title" }
 
@@ -49,43 +49,43 @@ final class DashboardViewController: DemoQuickLayoutHostingController {
         super.reloadLocalizedContent()
 
         profileSummaryView.configure(
-            name: DemoLocalization.text("dashboard.name"),
-            score: DemoLocalization.text("dashboard.score", 1_250),
-            achievement: DemoLocalization.text("dashboard.achievement"),
-            trend: DemoLocalization.text("dashboard.score.trend")
+            name: Localization.text("dashboard.name"),
+            score: Localization.text("dashboard.score", 1_250),
+            achievement: Localization.text("dashboard.achievement"),
+            trend: Localization.text("dashboard.score.trend")
         )
-        overviewLabel.text = DemoLocalization.text("dashboard.overview")
+        overviewLabel.text = Localization.text("dashboard.overview")
         weeklyGoalView.configure(
-            title: DemoLocalization.text("dashboard.weekly.title"),
-            progressText: DemoLocalization.text("dashboard.weekly.progress"),
-            detail: DemoLocalization.text("dashboard.weekly.detail")
+            title: Localization.text("dashboard.weekly.title"),
+            progressText: Localization.text("dashboard.weekly.progress"),
+            detail: Localization.text("dashboard.weekly.detail")
         )
-        recentActivityLabel.text = DemoLocalization.text(
+        recentActivityLabel.text = Localization.text(
             "dashboard.activity.title"
         )
 
         metricsOverviewView.configure(
             focus: (
-                value: DemoLocalization.text("dashboard.metric.focus.value"),
-                title: DemoLocalization.text("dashboard.metric.focus")
+                value: Localization.text("dashboard.metric.focus.value"),
+                title: Localization.text("dashboard.metric.focus")
             ),
             streak: (
-                value: DemoLocalization.text("dashboard.metric.streak.value"),
-                title: DemoLocalization.text("dashboard.metric.streak")
+                value: Localization.text("dashboard.metric.streak.value"),
+                title: Localization.text("dashboard.metric.streak")
             ),
             ranking: (
-                value: DemoLocalization.text("dashboard.metric.ranking.value"),
-                title: DemoLocalization.text("dashboard.metric.ranking")
+                value: Localization.text("dashboard.metric.ranking.value"),
+                title: Localization.text("dashboard.metric.ranking")
             )
         )
         activityFeedView.configure(
             goal: (
-                title: DemoLocalization.text("dashboard.activity.goal.title"),
-                detail: DemoLocalization.text("dashboard.activity.goal.detail")
+                title: Localization.text("dashboard.activity.goal.title"),
+                detail: Localization.text("dashboard.activity.goal.detail")
             ),
             badge: (
-                title: DemoLocalization.text("dashboard.activity.badge.title"),
-                detail: DemoLocalization.text("dashboard.activity.badge.detail")
+                title: Localization.text("dashboard.activity.badge.title"),
+                detail: Localization.text("dashboard.activity.badge.detail")
             )
         )
 

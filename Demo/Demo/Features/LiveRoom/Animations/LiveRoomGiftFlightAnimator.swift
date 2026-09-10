@@ -406,9 +406,9 @@ final class LiveRoomGiftFlightAnimator {
         ])
 
         let titleLabel = UILabel()
-        titleLabel.text = DemoLocalization.text(
+        titleLabel.text = Localization.text(
             "liveRoom.gift.celebration",
-            DemoLocalization.text(gift.titleKey)
+            Localization.text(gift.titleKey)
         )
         titleLabel.textColor = .white
         titleLabel.font = .systemFont(ofSize: 17, weight: .bold)

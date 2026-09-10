@@ -79,6 +79,7 @@ final class LiveRoomActionBarView: LiveRoomCardView, UITextFieldDelegate {
     // UIButton 暂时只保留在需要承载 UIMenu 的入口；QuickLayoutButton 不代理菜单 API。
     private let moreButton = UIButton(type: .system)
     private let messageInputView = LiveRoomMessageInputView()
+    private lazy var inputBinding = Localization.reusableContext.makeTextInputBinding(to: messageTextField)
     private let sendButton = LiveRoomCapsuleTextButton(frame: .zero)
     private let cancelButton = LiveRoomSymbolButton(frame: .zero)
 
@@ -170,6 +171,7 @@ final class LiveRoomActionBarView: LiveRoomCardView, UITextFieldDelegate {
         send: String,
         cancel: String
     ) {
+        inputBinding.refresh()
         messageButton.configure(title: message, symbolName: "message.fill")
         microphoneButton.accessibilityLabel = microphone
         giftButton.accessibilityLabel = gift
@@ -232,7 +234,7 @@ final class LiveRoomActionBarView: LiveRoomCardView, UITextFieldDelegate {
         messageTextField.borderStyle = .none
         messageTextField.font = .preferredFont(forTextStyle: .body)
         messageTextField.adjustsFontForContentSizeCategory = true
-        messageTextField.textAlignment = .natural
+        inputBinding.refresh()
         messageTextField.keyboardAppearance = .dark
         messageTextField.clearButtonMode = .whileEditing
         messageTextField.returnKeyType = .send
@@ -268,12 +270,18 @@ final class LiveRoomActionBarView: LiveRoomCardView, UITextFieldDelegate {
         cancelButton.action = { [weak self] in self?.cancelMessage() }
     }
 
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil { inputBinding.refresh() }
+    }
+
     private func showMessageComposer() {
         guard !isShowingMessageComposer else { return }
         isShowingMessageComposer = true
         updateComposerAppearance()
         setNeedsQuickLayout()
         layoutIfNeeded()
+        inputBinding.refresh()
         messageTextField.becomeFirstResponder()
     }
 
@@ -301,6 +309,7 @@ final class LiveRoomActionBarView: LiveRoomCardView, UITextFieldDelegate {
 
     private func dismissMessageComposer() {
         messageTextField.text = nil
+        inputBinding.refresh()
         updateSendButtonState()
         messageTextField.resignFirstResponder()
         isShowingMessageComposer = false

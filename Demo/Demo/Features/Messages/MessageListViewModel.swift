@@ -46,14 +46,14 @@ final class MessageListViewModel {
     }
 
     private let configuration: Configuration
-    private let localizer: DemoLocalizer
+    private let localizer: Localizer
     private var render: ((State) -> Void)?
 
     private(set) var state: State
 
     init(
         configuration: Configuration,
-        localizer: DemoLocalizer
+        localizer: Localizer
     ) {
         self.configuration = configuration
         self.localizer = localizer
@@ -67,7 +67,7 @@ final class MessageListViewModel {
         self.init(configuration: configuration, localizer: .live)
     }
 
-    convenience init(localizer: DemoLocalizer) {
+    convenience init(localizer: Localizer) {
         self.init(configuration: .collection, localizer: localizer)
     }
 
@@ -90,7 +90,7 @@ final class MessageListViewModel {
 
     private static func makeState(
         configuration: Configuration,
-        localizer: DemoLocalizer
+        localizer: Localizer
     ) -> State {
         State(
             items: MessageListFactory.localizedItems(
@@ -114,7 +114,7 @@ final class MessageListViewModel {
 
     private static func localizedText(
         for key: String?,
-        localizer: DemoLocalizer
+        localizer: Localizer
     ) -> String? {
         guard let key else { return nil }
         return localizer.text(key)

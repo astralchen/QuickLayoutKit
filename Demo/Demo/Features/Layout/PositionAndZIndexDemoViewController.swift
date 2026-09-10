@@ -10,7 +10,7 @@ import AppLocalization
 import QuickLayout
 import QuickLayoutKit
 
-final class PositionAndZIndexDemoViewController: DemoQuickLayoutHostingController {
+final class PositionAndZIndexDemoViewController: LocalizedQuickLayoutHostingController {
 
     override var localizedTitleKey: String? {
         "demo.positionAndZIndex.title"
@@ -47,11 +47,11 @@ final class PositionAndZIndexDemoViewController: DemoQuickLayoutHostingControlle
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        introLabel.text = DemoLocalization.text("positionAndZIndex.intro")
-        positionDescriptionLabel.text = DemoLocalization.text(
+        introLabel.text = Localization.text("positionAndZIndex.intro")
+        positionDescriptionLabel.text = Localization.text(
             "positionAndZIndex.position.description"
         )
-        zIndexDescriptionLabel.text = DemoLocalization.text(
+        zIndexDescriptionLabel.text = Localization.text(
             "positionAndZIndex.zIndex.description"
         )
     }

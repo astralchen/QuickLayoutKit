@@ -8,36 +8,37 @@
 import UIKit
 
 @MainActor
-protocol DemoRouting: AnyObject {
-    func navigate(to route: DemoRoute, from sourceViewController: UIViewController)
+protocol MainRouting: AnyObject {
+    func navigate(to route: MainRoute, from sourceViewController: UIViewController)
 }
 
 @MainActor
-final class DemoRouter: DemoRouting {
+final class MainRouter: MainRouting {
 
-    private let localizer: DemoLocalizer
+    private let localizer: Localizer
 
     convenience init() {
         self.init(localizer: .live)
     }
 
-    init(localizer: DemoLocalizer) {
+    init(localizer: Localizer) {
         self.localizer = localizer
     }
 
     func navigate(
-        to route: DemoRoute,
+        to route: MainRoute,
         from sourceViewController: UIViewController
     ) {
         let destination = makeViewController(for: route)
         destination.navigationItem.title = localizer.text(route.titleKey)
+        destination.navigationItem.largeTitleDisplayMode = .never
         sourceViewController.navigationController?.pushViewController(
             destination,
             animated: true
         )
     }
 
-    private func makeViewController(for route: DemoRoute) -> UIViewController {
+    private func makeViewController(for route: MainRoute) -> UIViewController {
         switch route {
         case .horizontalScroll:
             HorizontalScrollViewViewController()

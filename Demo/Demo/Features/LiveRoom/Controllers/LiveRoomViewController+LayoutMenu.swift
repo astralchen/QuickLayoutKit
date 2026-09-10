@@ -23,7 +23,7 @@ extension LiveRoomViewController {
 
         if capabilities.contains(.switchRoomType) {
             let partyAction = UIAction(
-                title: DemoLocalization.text("liveRoom.layout.nine"),
+                title: Localization.text("liveRoom.layout.nine"),
                 image: UIImage(systemName: "person.3.sequence.fill"),
                 attributes: isExecuting ? .disabled : [],
                 state: state.snapshot.businessMode == .party ? .on : .off
@@ -31,7 +31,7 @@ extension LiveRoomViewController {
                 self?.submitBusinessCommand(.switchRoomType(.party))
             }
             let individualAction = UIAction(
-                title: DemoLocalization.text("liveRoom.layout.five"),
+                title: Localization.text("liveRoom.layout.five"),
                 image: UIImage(systemName: "person.crop.circle"),
                 attributes: isExecuting ? .disabled : [],
                 state: state.snapshot.businessMode == .individual ? .on : .off
@@ -50,7 +50,7 @@ extension LiveRoomViewController {
             state.snapshot.businessMode == .individual {
             let isEnabled = state.snapshot.audienceSeatState == .enabled
             let audienceAction = UIAction(
-                title: DemoLocalization.text(
+                title: Localization.text(
                     isEnabled
                         ? "liveRoom.condition.cancel"
                         : "liveRoom.condition.satisfy"
@@ -74,7 +74,7 @@ extension LiveRoomViewController {
         if capabilities.contains(.startPK) {
             children.append(
                 UIAction(
-                    title: DemoLocalization.text("liveRoom.business.pk.start"),
+                    title: Localization.text("liveRoom.business.pk.start"),
                     image: UIImage(systemName: "bolt.horizontal.circle.fill"),
                     attributes: isExecuting ? .disabled : []
                 ) { [weak self] _ in
@@ -86,7 +86,7 @@ extension LiveRoomViewController {
         if capabilities.contains(.endPK) {
             children.append(
                 UIAction(
-                    title: DemoLocalization.text("liveRoom.business.pk.end"),
+                    title: Localization.text("liveRoom.business.pk.end"),
                     image: UIImage(systemName: "xmark.circle.fill"),
                     attributes: isExecuting ? .disabled : []
                 ) { [weak self] _ in
@@ -96,7 +96,7 @@ extension LiveRoomViewController {
         }
 
         return UIMenu(
-            title: DemoLocalization.text("liveRoom.layout.title"),
+            title: Localization.text("liveRoom.layout.title"),
             image: UIImage(systemName: "ellipsis.circle"),
             children: children
         )
@@ -108,17 +108,17 @@ extension LiveRoomViewController {
             let didSucceed = await viewModel.performBusinessCommand(command)
             guard !didSucceed, presentedViewController == nil else { return }
             let alert = UIAlertController(
-                title: DemoLocalization.text(
+                title: Localization.text(
                     "liveRoom.business.command.failure.title"
                 ),
-                message: DemoLocalization.text(
+                message: Localization.text(
                     "liveRoom.business.command.failure.message"
                 ),
                 preferredStyle: .alert
             )
             alert.addAction(
                 UIAlertAction(
-                    title: DemoLocalization.text("common.ok"),
+                    title: Localization.text("common.ok"),
                     style: .default
                 )
             )

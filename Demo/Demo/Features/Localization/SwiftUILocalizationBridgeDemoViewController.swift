@@ -9,7 +9,7 @@ import UIKit
 import SwiftUI
 import AppLocalization
 
-final class SwiftUILocalizationBridgeDemoViewController: DemoViewController {
+final class SwiftUILocalizationBridgeDemoViewController: LocalizedViewController {
     override var localizedTitleKey: String? { "demo.swiftUIBridge.title" }
 
     private var hostingController: UIHostingController<AnyView>?
@@ -17,42 +17,32 @@ final class SwiftUILocalizationBridgeDemoViewController: DemoViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
-        rebuildHostedView()
-    }
-
-    override func reloadLocalizedContent() {
-        super.reloadLocalizedContent()
-        rebuildHostedView()
+        installHostedViewIfNeeded()
     }
 
     override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
         super.reloadLayoutDirection(direction)
-        rebuildHostedView()
+        guard let hostingController else { return }
+        // SwiftUI 文案和布局由观察到的本地化环境更新，UIKit 只同步宿主视图边界。
+        UIViewLayoutDirectionUpdater.apply(
+            Localization.currentUIKitUpdate,
+            to: [UIViewLayoutDirectionTarget(
+                hostingController.view,
+                policy: .fixed(direction.appLayoutDirection.semanticContentAttribute)
+            )]
+        )
     }
 
-    private func rebuildHostedView() {
-        let update = DemoLocalization.currentUIKitUpdate
+    private func installHostedViewIfNeeded() {
+        guard hostingController == nil else { return }
+        let update = Localization.currentUIKitUpdate
         let root = AnyView(
             SwiftUILocalizationBridgeView(
-                localizationController: DemoLocalization.localizationController,
-                resolver: DemoLocalization.resolver
+                localizationController: Localization.localizationController,
+                resolver: Localization.resolver
             )
-            .appLocalizationEnvironment(DemoLocalization.localizationController)
+            .appLocalizationEnvironment(Localization.localizationController)
         )
-
-        if let hostingController {
-            UIViewLayoutDirectionUpdater.apply(
-                update,
-                to: [
-                    UIViewLayoutDirectionTarget(
-                        hostingController.view,
-                        policy: .followApplication
-                    )
-                ]
-            )
-            hostingController.rootView = root
-            return
-        }
 
         let hostingController = UIHostingController(rootView: root)
         UIViewLayoutDirectionUpdater.apply(

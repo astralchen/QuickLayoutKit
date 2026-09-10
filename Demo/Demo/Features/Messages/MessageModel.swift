@@ -26,7 +26,7 @@ extension MessageModel {
     }
 
     static func localizedMockData(
-        localizer: DemoLocalizer
+        localizer: Localizer
     ) -> [MessageModel] {
         [
             MessageModel(

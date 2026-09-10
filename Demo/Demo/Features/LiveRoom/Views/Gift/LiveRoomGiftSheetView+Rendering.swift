@@ -13,7 +13,7 @@ import UIKit
 extension LiveRoomGiftSheetView {
 
     func updateBalanceLabel() {
-        balanceLabel.text = DemoLocalization.text(
+        balanceLabel.text = Localization.text(
             showsInsufficientBalancePrompt
                 ? "liveRoom.gift.balance.insufficient"
                 : "liveRoom.gift.balance",
@@ -27,12 +27,12 @@ extension LiveRoomGiftSheetView {
 
     func updateRecipientStatusLabel() {
         if showsRecipientRequiredPrompt {
-            recipientTitleLabel.text = DemoLocalization.text(
+            recipientTitleLabel.text = Localization.text(
                 "liveRoom.gift.recipient.required"
             )
             recipientTitleLabel.textColor = .systemPink
         } else {
-            recipientTitleLabel.text = DemoLocalization.text(
+            recipientTitleLabel.text = Localization.text(
                 "liveRoom.gift.recipient.count",
                 selectedRecipientUserIDs.count
             )
@@ -41,7 +41,7 @@ extension LiveRoomGiftSheetView {
             )
         }
         if selectedRecipientUserIDs.isEmpty {
-            sendButton.accessibilityHint = DemoLocalization.text(
+            sendButton.accessibilityHint = Localization.text(
                 "liveRoom.gift.recipient.required"
             )
         } else if let selectedGift = gifts.first(where: {
@@ -52,7 +52,7 @@ extension LiveRoomGiftSheetView {
                 recipientCount: selectedRecipientUserIDs.count
             )
             sendButton.accessibilityHint = overflow || totalCost > giftBalance
-                ? DemoLocalization.text(
+                ? Localization.text(
                     "liveRoom.gift.balance.insufficient",
                     giftBalance
                 )
@@ -72,9 +72,9 @@ extension LiveRoomGiftSheetView {
                 isSelected: isSelected,
                 usesCompactMetrics: usesCompactMetrics
             )
-            button.accessibilityLabel = DemoLocalization.text(recipient.nameKey)
+            button.accessibilityLabel = Localization.text(recipient.nameKey)
             button.accessibilityValue = isSelected
-                ? DemoLocalization.text("liveRoom.gift.selected")
+                ? Localization.text("liveRoom.gift.selected")
                 : nil
         }
 
@@ -84,7 +84,7 @@ extension LiveRoomGiftSheetView {
         ) {
             let isSelected = category == selectedCategory
             button.configure(
-                title: DemoLocalization.text(category.titleKey),
+                title: Localization.text(category.titleKey),
                 font: .systemFont(
                     ofSize: usesCompactMetrics ? 11 : 13,
                     weight: isSelected ? .bold : .semibold
@@ -107,7 +107,7 @@ extension LiveRoomGiftSheetView {
                 )
             )
             button.accessibilityValue = isSelected
-                ? DemoLocalization.text("liveRoom.gift.selected")
+                ? Localization.text("liveRoom.gift.selected")
                 : nil
         }
 
@@ -121,7 +121,7 @@ extension LiveRoomGiftSheetView {
             $0.id == selectedGiftID
         }) {
             sendButton.configure(
-                title: DemoLocalization.text("liveRoom.gift.send.action"),
+                title: Localization.text("liveRoom.gift.send.action"),
                 font: .systemFont(ofSize: 16, weight: .semibold),
                 foregroundColor: UIColor(
                     red: 0.12,
@@ -139,9 +139,9 @@ extension LiveRoomGiftSheetView {
             )
             let (giftValue, giftValueOverflow) = selectedGift.price
                 .multipliedReportingOverflow(by: selectedGiftQuantity)
-            giftSummaryLabel.text = DemoLocalization.text(
+            giftSummaryLabel.text = Localization.text(
                 "liveRoom.gift.summary",
-                DemoLocalization.text(selectedGift.titleKey),
+                Localization.text(selectedGift.titleKey),
                 giftValueOverflow ? Int.max : giftValue
             )
         }
@@ -153,7 +153,7 @@ extension LiveRoomGiftSheetView {
             isSelected: selectsAllRecipients,
             usesCompactMetrics: usesCompactMetrics
         )
-        selectAllButton.accessibilityLabel = DemoLocalization.text(
+        selectAllButton.accessibilityLabel = Localization.text(
             selectsAllRecipients
                 ? "liveRoom.gift.selectAll.cancel"
                 : "liveRoom.gift.selectAll"
@@ -187,18 +187,18 @@ extension LiveRoomGiftSheetView {
         let selectedOption = giftQuantityOptions.first {
             $0.value == selectedGiftQuantity
         }
-        quantityButton.accessibilityLabel = DemoLocalization.text(
+        quantityButton.accessibilityLabel = Localization.text(
             "liveRoom.gift.quantity.accessibility",
             selectedGiftQuantity,
             selectedOption.map {
-                DemoLocalization.text($0.titleKey)
+                Localization.text($0.titleKey)
             } ?? ""
         )
         quantityButton.menu = UIMenu(
-            title: DemoLocalization.text("liveRoom.gift.quantity.title"),
+            title: Localization.text("liveRoom.gift.quantity.title"),
             children: giftQuantityOptions.map { option in
                 let action = UIAction(
-                    title: "\(option.value)  \(DemoLocalization.text(option.titleKey))"
+                    title: "\(option.value)  \(Localization.text(option.titleKey))"
                 ) { [weak self] _ in
                     self?.selectGiftQuantity(option.value)
                 }

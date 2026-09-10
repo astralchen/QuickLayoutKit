@@ -11,7 +11,7 @@ import QuickLayoutKit
 import UIKit
 
 final class LiveRoomGiftSheetViewController:
-    DemoQuickLayoutHostingController {
+    LocalizedQuickLayoutHostingController {
 
     var recipientSeatIDs: [Int] {
         recipients.map { $0.position.rawValue }
@@ -308,7 +308,7 @@ final class LiveRoomGiftSheetViewController:
 
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
-        backdropButton.accessibilityLabel = DemoLocalization.text(
+        backdropButton.accessibilityLabel = Localization.text(
             "liveRoom.gift.close"
         )
         sheetView.reloadLocalizedContent()

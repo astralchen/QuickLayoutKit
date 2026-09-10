@@ -10,7 +10,7 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
-final class LiveRoomRechargeViewController: DemoQuickLayoutHostingController {
+final class LiveRoomRechargeViewController: LocalizedQuickLayoutHostingController {
 
     override var localizedTitleKey: String? { "liveRoom.recharge.page.title" }
 
@@ -89,13 +89,13 @@ final class LiveRoomRechargeViewController: DemoQuickLayoutHostingController {
             )
         else {
             rechargeView.showFailureStatus(
-                DemoLocalization.text("liveRoom.recharge.failure")
+                Localization.text("liveRoom.recharge.failure")
             )
             UINotificationFeedbackGenerator().notificationOccurred(.error)
             return
         }
         rechargeView.showSuccessStatus(
-            DemoLocalization.text(
+            Localization.text(
                 "liveRoom.recharge.success",
                 transaction.creditedAmount
             )
@@ -116,23 +116,23 @@ final class LiveRoomRechargeViewController: DemoQuickLayoutHostingController {
     func updateContent(preservingStatus: Bool = false) {
         let creditedAmount = viewModel.selectedPackage?.creditedAmount ?? 0
         rechargeView.configure(
-            balanceCaption: DemoLocalization.text(
+            balanceCaption: Localization.text(
                 "liveRoom.recharge.balance.title"
             ),
-            balanceText: DemoLocalization.text(
+            balanceText: Localization.text(
                 "liveRoom.recharge.balance.value",
                 currentBalance
             ),
-            requirementText: DemoLocalization.text(
+            requirementText: Localization.text(
                 "liveRoom.recharge.required",
                 initialRequiredBalance
             ),
-            packageTitle: DemoLocalization.text(
+            packageTitle: Localization.text(
                 "liveRoom.recharge.package.title"
             ),
             packages: viewModel.packages,
             selectedPackageAmount: selectedPackageAmount,
-            rechargeTitle: DemoLocalization.text(
+            rechargeTitle: Localization.text(
                 "liveRoom.recharge.confirm",
                 creditedAmount
             ),

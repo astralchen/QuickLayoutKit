@@ -64,7 +64,7 @@ final class FormViewModel {
         let actionTitle: String
     }
 
-    private let localizer: DemoLocalizer
+    private let localizer: Localizer
     private var render: ((State) -> Void)?
 
     private(set) var state: State
@@ -75,7 +75,7 @@ final class FormViewModel {
         self.init(localizer: .live)
     }
 
-    init(localizer: DemoLocalizer) {
+    init(localizer: Localizer) {
         self.localizer = localizer
         state = Self.makeState(localizer: localizer)
     }
@@ -121,7 +121,7 @@ final class FormViewModel {
         )
     }
 
-    private static func makeState(localizer: DemoLocalizer) -> State {
+    private static func makeState(localizer: Localizer) -> State {
         State(
             headerTitle: localizer.text("form.header.title"),
             headerSubtitle: localizer.text("form.header.subtitle"),
