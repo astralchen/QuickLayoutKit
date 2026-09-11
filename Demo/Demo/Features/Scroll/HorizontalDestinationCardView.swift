@@ -215,23 +215,27 @@ final class HorizontalDestinationCardView: QuickLayoutView {
 
     private var detailsLayout: Layout {
         VStack(alignment: .leading, spacing: 9) {
-            titleLabel
+            VStack(alignment: .leading, spacing: 9) {
+                titleLabel
 
-            HStack(spacing: 5) {
-                locationIconView
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 13, height: 13)
-                locationLabel
-                Spacer()
-                ratingIconView
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 13, height: 13)
-                ratingLabel
+                HStack(spacing: 5) {
+                    locationIconView
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 13, height: 13)
+                    locationLabel
+                    Spacer()
+                    ratingIconView
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 13, height: 13)
+                    ratingLabel
+                }
+
+                summaryLabel
             }
-
-            summaryLabel
+            // 内容区吸收 idealLayout 等高后多出的空间，文字靠顶部，分割线和价格区靠底部。
+            .frame(maxHeight: .infinity, alignment: .topLeading)
 
             separatorView
                 .resizable(axis: .horizontal)
