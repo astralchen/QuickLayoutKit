@@ -13,6 +13,28 @@ enum IMessageChatSavePreviewFixtures {
         guard let index = arguments.firstIndex(of: "-imessage-save-fixture"), arguments.indices.contains(index + 1) else { return nil }
         let attachment: IMessageChatAttachment
         switch arguments[index + 1] {
+        case "stack2", "stack5", "stack20":
+            let count = Int(arguments[index + 1].dropFirst(5)) ?? 5
+            let colors: [UIColor] = [.systemOrange, .systemBlue, .systemGreen, .systemPurple, .systemPink]
+            let items = try (0..<count).map { index in
+                let url = store.makeFileURL(prefix: "stack-preview-\(index)", pathExtension: "png")
+                let image = UIGraphicsImageRenderer(size: CGSize(width: 432, height: 600)).image { context in
+                    colors[index % colors.count].setFill()
+                    context.fill(CGRect(x: 0, y: 0, width: 432, height: 600))
+                    UIColor.white.withAlphaComponent(0.15).setFill()
+                    context.cgContext.fillEllipse(in: CGRect(x: 170, y: 40, width: 300, height: 300))
+                    ("\(index + 1)" as NSString).draw(at: CGPoint(x: 35, y: 35), withAttributes: [
+                        .font: UIFont.boldSystemFont(ofSize: 100), .foregroundColor: UIColor.white
+                    ])
+                    ("MEDIA STACK" as NSString).draw(at: CGPoint(x: 35, y: 500), withAttributes: [
+                        .font: UIFont.boldSystemFont(ofSize: 32), .foregroundColor: UIColor.white
+                    ])
+                }
+                try image.pngData()?.write(to: url)
+                return IMessageChatMediaItem(assetIdentifier: nil, originalFileURL: url,
+                                            thumbnailFileURL: url, pixelSize: image.size, kind: .image)
+            }
+            attachment = .mediaGroup(.init(items: items))
         case "photo", "group":
             let url = store.makeFileURL(prefix: "save-preview", pathExtension: "png")
             let image = UIGraphicsImageRenderer(size: CGSize(width: 300, height: 200)).image { context in

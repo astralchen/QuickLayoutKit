@@ -312,7 +312,10 @@
 				DEVELOPMENT_TEAM = MP8ZV9A8HZ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Demo/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = Demo;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "The demo uses the microphone to record audio messages and convert speech to text.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "The demo adds received photos and videos to your photo library when you tap Save.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "The demo uses speech recognition to turn your voice into a message draft and transcribe sent and received audio messages.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -346,7 +349,10 @@
 				DEVELOPMENT_TEAM = MP8ZV9A8HZ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Demo/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = Demo;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "The demo uses the microphone to record audio messages and convert speech to text.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "The demo adds received photos and videos to your photo library when you tap Save.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "The demo uses speech recognition to turn your voice into a message draft and transcribe sent and received audio messages.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;

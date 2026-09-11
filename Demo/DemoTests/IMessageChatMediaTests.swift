@@ -389,10 +389,343 @@ struct IMessageChatMediaTests {
         #expect(IMessageChatMediaStackPolicy.targetIndex(frontIndex: 2, itemCount: 5, translationX: 50, velocityX: 0) == 1)
         #expect(IMessageChatMediaStackPolicy.targetIndex(frontIndex: 0, itemCount: 5, translationX: 50, velocityX: 0) == nil)
         #expect(IMessageChatMediaStackPolicy.targetIndex(frontIndex: 4, itemCount: 5, translationX: -50, velocityX: 0) == nil)
-        #expect(IMessageChatMediaStackPolicy.shouldCommit(translationX: 44, velocityX: 0, cardWidth: 216))
-        #expect(!IMessageChatMediaStackPolicy.shouldCommit(translationX: 43, velocityX: 549, cardWidth: 216))
-        #expect(IMessageChatMediaStackPolicy.shouldCommit(translationX: -2, velocityX: -550, cardWidth: 216))
-        #expect(!IMessageChatMediaStackPolicy.shouldCommit(translationX: -2, velocityX: 700, cardWidth: 216))
+        #expect(IMessageChatMediaStackPolicy.shouldCommit(translationX: 130, velocityX: 0, isReordered: true))
+        #expect(!IMessageChatMediaStackPolicy.shouldCommit(translationX: 43, velocityX: 549, isReordered: false))
+        #expect(IMessageChatMediaStackPolicy.shouldCommit(translationX: -2, velocityX: -550, isReordered: false))
+        #expect(!IMessageChatMediaStackPolicy.shouldCommit(translationX: -2, velocityX: 700, isReordered: false))
+    }
+
+    /// 换层后略微回拖越过同一临界值即恢复，越过起点后重新计算另一侧候选。
+    @Test func stackPreviewReordersReversiblyWithoutChangingItsStartIndex() {
+        var state = IMessageChatMediaStackPolicy.Interaction(startIndex: 2, itemCount: 5, cardWidth: 200)
+        for (distance, reordered) in [(-119.0, false), (-120, true), (-119.9, false),
+                                       (-120, true), (-119.9, false), (-112, false),
+                                       (-108, false), (-107, false), (-150, true), (-80, false)] {
+            state.update(translationX: distance)
+            #expect(state.isReordered == reordered)
+            #expect(state.startIndex == 2)
+            #expect(state.candidateIndex == 3)
+            #expect(state.committedIndex(velocityX: 0) == (reordered ? 3 : nil))
+        }
+        state.update(translationX: 40)
+        #expect(state.candidateIndex == 1)
+        #expect(!state.isReordered)
+        state.update(translationX: 120)
+        #expect(state.committedIndex(velocityX: 0) == 1)
+        state.update(translationX: 0)
+        #expect(state.candidateIndex == nil)
+        #expect(!state.isReordered)
+    }
+
+    /// 左右两个方向均在同一距离恢复真实卡片层级，且松手取消不发布索引。
+    @Test func stackRestoresLayerImmediatelyBelowTheReorderThreshold() throws {
+        let fixture = try MediaFixture(itemCount: 5)
+        defer { fixture.remove() }
+        for sign in [CGFloat(-1), CGFloat(1)] {
+            let view = makeStackView(fixture.group, frontIndex: 2)
+            let candidate = sign < 0 ? 3 : 1
+            let width = try #require(view.visibleCardFrame(forMediaIndex: 2)?.width)
+            let threshold = width * 0.60
+            var changeCount = 0
+            view.frontIndexDidChange = { _, _ in changeCount += 1 }
+            view.handlePan(state: .began, translationX: 0, velocityX: sign * 100)
+            for _ in 0..<3 {
+                view.handlePan(state: .changed, translationX: sign * threshold, velocityX: 0)
+                #expect(view.visibleCardZPosition(forMediaIndex: candidate)! > view.visibleCardZPosition(forMediaIndex: 2)!)
+                view.handlePan(state: .changed, translationX: sign * (threshold - 0.1), velocityX: 0)
+                #expect(view.visibleCardZPosition(forMediaIndex: 2)! > view.visibleCardZPosition(forMediaIndex: candidate)!)
+                #expect(view.frontMediaIndex == 2)
+                #expect(changeCount == 0)
+            }
+            view.handlePan(state: .ended, translationX: sign * (threshold - 0.1), velocityX: 0, animated: false)
+            #expect(view.frontMediaIndex == 2)
+            #expect(changeCount == 0)
+        }
+    }
+
+    /// 阈值取自实际宽度，速度仅用于松手判定，边界不会被快速甩动穿透。
+    @Test func stackReleaseUsesActualWidthVelocityAndCollectionBoundaries() {
+        for width in [120.0, 216.0] {
+            var state = IMessageChatMediaStackPolicy.Interaction(startIndex: 0, itemCount: 2, cardWidth: width)
+            state.update(translationX: -width * 0.61)
+            #expect(state.isReordered)
+            #expect(state.progress == 1)
+            state.update(translationX: -width * 0.50)
+            #expect(state.committedIndex(velocityX: 0) == nil)
+            state.update(translationX: -2)
+            #expect(!state.isReordered)
+            #expect(state.committedIndex(velocityX: -550) == 1)
+            #expect(state.committedIndex(velocityX: -549) == nil)
+            #expect(state.committedIndex(velocityX: 700) == nil)
+            state.update(translationX: 200)
+            #expect(state.progress == 0)
+            #expect(state.displayedTranslationX == 18)
+            #expect(state.committedIndex(velocityX: 900) == nil)
+        }
+        var last = IMessageChatMediaStackPolicy.Interaction(startIndex: 19, itemCount: 20, cardWidth: 216)
+        last.update(translationX: -200)
+        #expect(last.displayedTranslationX == -18)
+        #expect(last.committedIndex(velocityX: -900) == nil)
+    }
+
+    /// 一次手势可多次换层，普通重新配置和布局不能提前提交或清除预览。
+    @Test func stackDraggingPreservesIdentityAndCommitsOnlyAtRelease() throws {
+        let fixture = try MediaFixture(itemCount: 5, videoIndices: [0])
+        defer { fixture.remove() }
+        let view = makeStackView(fixture.group)
+        let cardID = view.visibleCardObjectIdentifier(forMediaIndex: 0)
+        let size = view.intrinsicContentSize
+        var changes: [(Int, Int)] = []
+        view.frontIndexDidChange = { changes.append(($0, $1)) }
+        view.handlePan(state: .began, translationX: 0, velocityX: -100)
+        view.handlePan(state: .changed, translationX: -140, velocityX: 0)
+        #expect(view.frontMediaIndex == 0)
+        #expect(changes.isEmpty)
+        #expect(view.visibleCardZPosition(forMediaIndex: 1)! > view.visibleCardZPosition(forMediaIndex: 0)!)
+        let transform = try #require(view.visibleCardTransform(forMediaIndex: 0))
+        #expect(abs(hypot(transform.a, transform.b) - 0.72) < 0.001)
+        let center = view.visibleCardCenter(forMediaIndex: 0)
+        view.configure(messageID: 8, direction: .outgoing, group: fixture.group, frontIndex: 0, strings: mediaStrings)
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+        #expect(view.visibleCardTransform(forMediaIndex: 0) == transform)
+        #expect(view.visibleCardCenter(forMediaIndex: 0) == center)
+        #expect(view.visibleCardObjectIdentifier(forMediaIndex: 0) == cardID)
+        #expect(view.mediaIndex(at: .zero) == nil)
+        view.handlePan(state: .changed, translationX: -100, velocityX: 0)
+        #expect(view.visibleCardZPosition(forMediaIndex: 0)! > view.visibleCardZPosition(forMediaIndex: 1)!)
+        view.handlePan(state: .changed, translationX: -140, velocityX: 0)
+        #expect(changes.isEmpty)
+        view.handlePan(state: .ended, translationX: -140, velocityX: 0, animated: false)
+        #expect(view.frontMediaIndex == 1)
+        #expect(changes.count == 1)
+        #expect(changes.first?.0 == 8 && changes.first?.1 == 1)
+        #expect(view.visibleCardObjectIdentifier(forMediaIndex: 0) == cardID)
+        #expect(view.intrinsicContentSize == size)
+        #expect(view.visibleCardTransform(forMediaIndex: 0) == view.visibleCardRestingTransform(forMediaIndex: 0))
+        #expect(view.visibleCardZPosition(forMediaIndex: 1) == 30)
+    }
+
+    /// 未过阈值、越界后回拖和系统取消均完整恢复所有卡片，而非只恢复原封面。
+    @Test func stackCancellationRestoresEveryCard() throws {
+        let fixture = try MediaFixture(itemCount: 5)
+        defer { fixture.remove() }
+        for terminal in [UIGestureRecognizer.State.ended, .cancelled, .failed] {
+            let view = makeStackView(fixture.group, frontIndex: 2)
+            var changeCount = 0
+            view.frontIndexDidChange = { _, _ in changeCount += 1 }
+            let centers = (0..<5).map { view.visibleCardCenter(forMediaIndex: $0) }
+            view.handlePan(state: .began, translationX: 0, velocityX: -100)
+            view.handlePan(state: .changed, translationX: -150, velocityX: 0)
+            if terminal == .ended {
+                view.handlePan(state: .changed, translationX: -60, velocityX: 0)
+            }
+            view.handlePan(state: terminal, translationX: terminal == .ended ? -60 : -150,
+                           velocityX: terminal == .ended ? 0 : -900, animated: false)
+            #expect(view.frontMediaIndex == 2)
+            #expect(changeCount == 0)
+            for index in 0..<5 {
+                #expect(view.visibleCardTransform(forMediaIndex: index) == view.visibleCardRestingTransform(forMediaIndex: index))
+                #expect(view.visibleCardCenter(forMediaIndex: index) == centers[index])
+                #expect(view.visibleCardZPosition(forMediaIndex: index) == CGFloat(30 - abs(index - 2)))
+            }
+        }
+    }
+
+    /// 大组窗口只在提交后移动；拖动中的方向、窄屏和边界复用共享同一逻辑。
+    @Test func stackWindowAndGeometryChangesKeepConfirmedState() throws {
+        let fixture = try MediaFixture(itemCount: 20)
+        defer { fixture.remove() }
+        for direction in [IMessageChatDirection.incoming, .outgoing] {
+            for semantic in [UISemanticContentAttribute.forceLeftToRight, .forceRightToLeft] {
+                let view = makeStackView(fixture.group, frontIndex: 2, direction: direction)
+                view.semanticContentAttribute = semantic
+                view.frame.size.width = 180
+                view.setNeedsLayout()
+                view.layoutIfNeeded()
+                let width = try #require(view.visibleCardFrame(forMediaIndex: 2)?.width)
+                let stableIDs = (1...4).map { view.visibleCardObjectIdentifier(forMediaIndex: $0) }
+                view.handlePan(state: .began, translationX: 0, velocityX: -100)
+                view.handlePan(state: .changed, translationX: -width * 0.7, velocityX: 0)
+                #expect(view.visibleCardCount == 5)
+                #expect(view.visibleCardObjectIdentifier(forMediaIndex: 5) == nil)
+                view.handlePan(state: .ended, translationX: -width * 0.7, velocityX: 0, animated: false)
+                #expect(view.frontMediaIndex == 3)
+                #expect(view.visibleCardCount == 5)
+                for index in 1...4 {
+                    #expect(view.visibleCardObjectIdentifier(forMediaIndex: index) == stableIDs[index - 1])
+                }
+                view.handlePan(state: .began, translationX: 0, velocityX: 100)
+                view.handlePan(state: .ended, translationX: width * 0.7, velocityX: 0, animated: false)
+                #expect(view.frontMediaIndex == 2)
+                for index in 1...4 {
+                    #expect(view.visibleCardObjectIdentifier(forMediaIndex: index) == stableIDs[index - 1])
+                }
+                view.handlePan(state: .began, translationX: 0, velocityX: -100)
+                view.handlePan(state: .changed, translationX: -140, velocityX: 0)
+                view.frame.size.width = 160
+                view.setNeedsLayout()
+                view.layoutIfNeeded()
+                view.handlePan(state: .ended, translationX: -140, velocityX: -900, animated: false)
+                #expect(view.frontMediaIndex == 2)
+                #expect(view.visibleCardTransform(forMediaIndex: 2) == .identity)
+                view.handlePan(state: .began, translationX: -140, velocityX: -100)
+                view.semanticContentAttribute = semantic == .forceLeftToRight ? .forceRightToLeft : .forceLeftToRight
+                view.setNeedsLayout()
+                view.layoutIfNeeded()
+                view.handlePan(state: .ended, translationX: -140, velocityX: 0, animated: false)
+                #expect(view.frontMediaIndex == 2)
+                #expect(view.visibleCardTransform(forMediaIndex: 2) == .identity)
+            }
+        }
+    }
+
+    /// 收尾阻止重入；复用和同 ID 媒体内容替换后旧完成回调不得写入新绑定。
+    @Test func stackAnimationPublishesOnceAndRejectsStaleCompletion() async throws {
+        let fixture = try MediaFixture(itemCount: 5)
+        defer { fixture.remove() }
+        let view = makeStackView(fixture.group)
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.windows.first(where: \.isKeyWindow)
+        let window = UIWindow(windowScene: scene)
+        let host = UIViewController()
+        window.rootViewController = host
+        host.view.addSubview(view)
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey() }
+        var changes: [Int] = []
+        view.frontIndexDidChange = { _, index in changes.append(index) }
+        view.handlePan(state: .began, translationX: 0, velocityX: -100)
+        view.handlePan(state: .ended, translationX: -2, velocityX: -600)
+        #expect(view.frontMediaIndex == 1)
+        #expect(changes == [1])
+        view.accessibilityIncrement()
+        view.handlePan(state: .began, translationX: -150, velocityX: -900)
+        #expect(changes == [1])
+        view.reset()
+        let replacement = IMessageChatMediaGroupAttachment(id: fixture.group.id, items: Array(fixture.group.items.prefix(2)))
+        view.configure(messageID: 99, direction: .incoming, group: replacement, frontIndex: 0, strings: mediaStrings)
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(view.frontMediaIndex == 0)
+        #expect(changes == [1])
+        #expect(view.visibleCardCount == 2)
+        #expect(view.visibleCardTransform(forMediaIndex: 0) == .identity)
+    }
+
+    /// 旋转卡片外接矩形的空角不应误选媒体，交互阶段不解析预览目标。
+    @Test func stackTapUsesTransformedCardCoordinates() throws {
+        let fixture = try MediaFixture(itemCount: 5)
+        defer { fixture.remove() }
+        let view = makeStackView(fixture.group)
+        let center = try #require(view.visibleCardCenter(forMediaIndex: 0))
+        #expect(view.mediaIndex(at: center) == 0)
+        let back = try #require(view.visibleCardFrame(forMediaIndex: 4))
+        let transform = try #require(view.visibleCardTransform(forMediaIndex: 4))
+        let enclosingRect = CGRect(x: -back.width / 2, y: -back.height / 2, width: back.width, height: back.height)
+            .applying(transform).offsetBy(dx: back.midX, dy: back.midY)
+        let emptyCorner = CGPoint(x: enclosingRect.maxX - 0.1, y: enclosingRect.maxY - 0.1)
+        #expect(view.mediaIndex(at: emptyCorner) == nil)
+        view.handlePan(state: .began, translationX: 0, velocityX: -100)
+        #expect(view.mediaIndex(at: center) == nil)
+        view.handlePan(state: .ended, translationX: -140, velocityX: 0, animated: false)
+        #expect(view.mediaIndex(at: try #require(view.visibleCardCenter(forMediaIndex: 1))) == 1)
+    }
+
+    /// 提交回调可以同步复用视图；旧路径不得覆盖新组或继续旧动画。
+    @Test func stackCommitCanSynchronouslyReconfigureTheView() throws {
+        let fixture = try MediaFixture(itemCount: 5)
+        defer { fixture.remove() }
+        let view = makeStackView(fixture.group)
+        var changeCount = 0
+        view.frontIndexDidChange = { _, _ in
+            changeCount += 1
+            view.configure(messageID: 99, direction: .incoming, group: fixture.group, frontIndex: 4, strings: mediaStrings)
+        }
+        defer { view.frontIndexDidChange = nil }
+        view.handlePan(state: .began, translationX: 0, velocityX: -100)
+        view.handlePan(state: .ended, translationX: -150, velocityX: 0, animated: false)
+        view.layoutIfNeeded()
+        #expect(view.frontMediaIndex == 4)
+        #expect(changeCount == 1)
+        #expect(view.visibleCardZPosition(forMediaIndex: 4) == 30)
+    }
+
+    /// 在真实窗口捕获五个交互阶段，检查整张视频卡片和下一条消息的稳定位置。
+    @Test func stackInteractionRendersReferenceStagesInRealWindow() async throws {
+        let fixture = try MediaFixture(itemCount: 5, videoIndices: [0])
+        defer { fixture.remove() }
+        let colors: [UIColor] = [.systemOrange, .systemBlue, .systemGreen, .systemPurple, .systemPink]
+        for (index, item) in fixture.group.items.enumerated() {
+            let image = UIGraphicsImageRenderer(size: CGSize(width: 432, height: 600)).image { context in
+                colors[index].setFill()
+                context.fill(CGRect(x: 0, y: 0, width: 432, height: 600))
+                ("\(index + 1)" as NSString).draw(at: CGPoint(x: 35, y: 35), withAttributes: [
+                    .font: UIFont.boldSystemFont(ofSize: 100), .foregroundColor: UIColor.white
+                ])
+            }
+            try image.pngData()?.write(to: item.thumbnailFileURL)
+        }
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.windows.first(where: \.isKeyWindow)
+        let window = UIWindow(windowScene: scene)
+        let host = UIViewController()
+        window.rootViewController = host
+        window.overrideUserInterfaceStyle = .light
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey() }
+        let canvas = UIView(frame: CGRect(x: 0, y: 0, width: 402, height: 874))
+        canvas.backgroundColor = .systemBackground
+        host.view.addSubview(canvas)
+        let cell = IMessageChatMediaBubbleCell(frame: .zero)
+        canvas.addSubview(cell)
+        cell.configure(.init(id: 8, direction: .outgoing, attachment: .mediaGroup(fixture.group), deliveryText: "Delivered"),
+                       group: fixture.group, frontIndex: 0, strings: mediaStrings)
+        let attributes = UICollectionViewLayoutAttributes(forCellWith: IndexPath(item: 0, section: 0))
+        attributes.size = CGSize(width: 402, height: 52)
+        cell.frame = CGRect(origin: CGPoint(x: 0, y: 170), size: cell.preferredLayoutAttributesFitting(attributes).size)
+        cell.setNeedsLayout()
+        cell.layoutIfNeeded()
+        let next = UILabel(frame: CGRect(x: 24, y: cell.frame.maxY + 30, width: 330, height: 50))
+        next.text = "下一条消息保持原位"
+        canvas.addSubview(next)
+        let nextFrame = next.frame
+        let cellSize = cell.frame.size
+        let view = cell.mediaView
+        try await Task.sleep(for: .milliseconds(200))
+        func capture(_ name: String) {
+            let image = UIGraphicsImageRenderer(bounds: canvas.bounds).image { _ in
+                canvas.drawHierarchy(in: canvas.bounds, afterScreenUpdates: true)
+            }
+            Attachment.record(image, named: "media-stack-\(name).png")
+            #expect(cell.frame.size == cellSize)
+            #expect(next.frame == nextFrame)
+        }
+        capture("01-resting")
+        view.handlePan(state: .began, translationX: 0, velocityX: -100)
+        view.handlePan(state: .changed, translationX: -110, velocityX: 0)
+        capture("02-dragging")
+        view.handlePan(state: .changed, translationX: -140, velocityX: 0)
+        capture("03-reordered")
+        view.handlePan(state: .changed, translationX: -90, velocityX: 0)
+        capture("04-returned")
+        view.handlePan(state: .ended, translationX: -140, velocityX: 0, animated: false)
+        capture("05-committed")
+        #expect(view.frontMediaIndex == 1)
+    }
+
+    /// 创建使用真实布局宽度的媒体堆叠，供交互回归复用。
+    private func makeStackView(
+        _ group: IMessageChatMediaGroupAttachment,
+        frontIndex: Int = 0,
+        direction: IMessageChatDirection = .outgoing
+    ) -> IMessageChatMediaMessageView {
+        let view = IMessageChatMediaMessageView()
+        view.configure(messageID: 8, direction: direction, group: group, frontIndex: frontIndex, strings: mediaStrings)
+        view.frame = CGRect(origin: .zero, size: view.intrinsicContentSize)
+        view.layoutIfNeeded()
+        return view
     }
 
     @Test func stackStateSurvivesReuseAndPrunesDeletedMessages() {

@@ -147,18 +147,70 @@ nonisolated enum IMessageChatMediaStackPolicy {
         return (0..<itemCount).contains(target) ? target : nil
     }
 
-    /// 返回拖动距离或同向速度是否达到切换封面的提交阈值。
+    /// 返回已进入换层状态或同向速度是否允许在松手时提交。
     static func shouldCommit(
         translationX: CGFloat,
         velocityX: CGFloat,
-        cardWidth: CGFloat
+        isReordered: Bool
     ) -> Bool {
-        let passedDistance = abs(translationX) >= max(44, cardWidth * 0.18)
         let velocityMatchesTranslation = translationX == 0
             || velocityX == 0
             || (translationX < 0) == (velocityX < 0)
         let passedVelocity = abs(velocityX) >= 550 && velocityMatchesTranslation
-        return passedDistance || passedVelocity
+        return isReordered || passedVelocity
+    }
+
+    /// 一次拖动的纯预览状态；开始索引固定，换层不代表已提交封面。
+    struct Interaction: Equatable {
+        /// 手指开始拖动时已确认的封面索引。
+        let startIndex: Int
+        /// 手势开始时的媒体数量。
+        let itemCount: Int
+        /// 手势开始时卡片的实际宽度，单位为点。
+        let cardWidth: CGFloat
+        /// 相对手势起点的原始水平位移。
+        private(set) var translationX: CGFloat = 0
+        /// 当前拖动方向的相邻媒体；越界或没有方向时为 `nil`。
+        private(set) var candidateIndex: Int?
+        /// 候选卡片是否临时盖在原封面上方。
+        private(set) var isReordered = false
+
+        /// 根据位移更新候选项和临时层级；换层与恢复共用同一临界值，不使用速度预览换层。
+        mutating func update(translationX: CGFloat) {
+            self.translationX = translationX
+            let candidate = IMessageChatMediaStackPolicy.targetIndex(
+                frontIndex: startIndex, itemCount: itemCount,
+                translationX: translationX, velocityX: translationX
+            )
+            candidateIndex = candidate
+            guard candidate != nil, cardWidth > 0 else {
+                isReordered = false
+                return
+            }
+            isReordered = abs(translationX) >= cardWidth * 0.60
+        }
+
+        /// 有效相邻卡片的展开进度；边界阻尼不展开候选卡片。
+        var progress: CGFloat {
+            guard candidateIndex != nil, cardWidth > 0 else { return 0 }
+            return min(1, abs(translationX) / (cardWidth * 0.60))
+        }
+
+        /// 实际应用的水平位移；集合首尾将拖动限制在十八点内。
+        var displayedTranslationX: CGFloat {
+            candidateIndex == nil ? max(-18, min(18, translationX * 0.2)) : translationX
+        }
+
+        /// 松手后应提交的相邻索引；仅此方法允许速度参与短甩判定。
+        func committedIndex(velocityX: CGFloat) -> Int? {
+            guard IMessageChatMediaStackPolicy.shouldCommit(
+                translationX: translationX, velocityX: velocityX, isReordered: isReordered
+            ) else { return nil }
+            return isReordered ? candidateIndex : IMessageChatMediaStackPolicy.targetIndex(
+                frontIndex: startIndex, itemCount: itemCount,
+                translationX: translationX, velocityX: velocityX
+            )
+        }
     }
 }
 
@@ -604,6 +656,14 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
     private(set) var frontMediaIndex = 0
     /// 指示封面切换动画尚未结束的布尔值，用于限制手势重入。
     private var isAnimating = false
+    /// 当前尚未提交的拖动预览；收尾和静止阶段为 `nil`。
+    private var interaction: IMessageChatMediaStackPolicy.Interaction?
+    /// 使取消、重新绑定之前的动画完成回调失效的递增令牌。
+    private var transitionGeneration: UInt = 0
+    /// 最近布局使用的边界尺寸，用于取消几何已失效的交互。
+    private var laidOutSize: CGSize = .zero
+    /// 最近布局使用的界面方向；变化后重新建立静止几何。
+    private var laidOutDirection: UIUserInterfaceLayoutDirection?
     /// 根据当前单张媒体或堆叠内容计算的固有尺寸。
     private var resolvedSize = CGSize(width: 252, height: 252)
 
@@ -647,7 +707,25 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
     /// 根据当前边界更新 `IMessageChatMediaMessageView` 的子视图布局与图层几何。
     override func layoutSubviews() {
         super.layoutSubviews()
+        if laidOutSize != bounds.size || laidOutDirection != effectiveUserInterfaceLayoutDirection {
+            invalidateInteraction()
+            laidOutSize = bounds.size
+            laidOutDirection = effectiveUserInterfaceLayoutDirection
+            bindCards()
+        }
+        guard !isAnimating else { return }
         layoutCards()
+        applyInteraction()
+    }
+
+    /// 离开窗口时取消尚未确认的拖动，并清理正在收尾的动画。
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window == nil {
+            invalidateInteraction()
+            bindCards()
+            layoutCards()
+        }
     }
 
     /// 绑定有序媒体组与封面位置，更新卡片数量、固有尺寸和辅助功能信息。
@@ -658,11 +736,15 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
         frontIndex: Int,
         strings: IMessageChatMediaStrings
     ) {
+        let resolvedIndex = min(max(0, frontIndex), max(0, group.items.count - 1))
+        let keepsBinding = self.messageID == messageID && self.group == group
+            && self.direction == direction && frontMediaIndex == resolvedIndex
+        if !keepsBinding { invalidateInteraction() }
         self.messageID = messageID
         self.direction = direction
         self.group = group
         self.strings = strings
-        frontMediaIndex = min(max(0, frontIndex), max(0, group.items.count - 1))
+        frontMediaIndex = resolvedIndex
         ensureCardCount(
             min(
                 group.items.count,
@@ -683,12 +765,13 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
         )
         accessibilityHint = strings.openPreview
         updateAccessibilityLabel()
-        bindCards()
+        if interaction == nil && !isAnimating { bindCards() }
         setNeedsLayout()
     }
 
     /// 清空媒体绑定、标题、遮罩和辅助功能状态，并重置全部卡片。
     func reset() {
+        invalidateInteraction()
         group = nil
         strings = nil
         messageID = 0
@@ -701,7 +784,8 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
         accessibilityLabel = nil
         accessibilityValue = nil
         accessibilityHint = nil
-        cards.forEach { $0.reset() }
+        cards.forEach { $0.reset(); $0.isHidden = true }
+        panGesture.isEnabled = false
     }
 
     /// 通过辅助功能递增操作切换到下一媒体项目。
@@ -719,67 +803,105 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
         guard gestureRecognizer === panGesture,
               let group,
               group.items.count > 1,
-              !isAnimating else { return false }
+              !isAnimating, interaction == nil else { return false }
         let velocity = panGesture.velocity(in: self)
         return IMessageChatMediaStackPolicy.isHorizontalPan(velocity: velocity)
     }
 
-    /// 按卡片层级解析点击的媒体项目，并请求从该位置打开预览。
+    /// 按卡片真实局部坐标命中媒体；拖动和收尾期间不打开预览。
     @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
-        guard let group else { return }
+        guard gesture.state == .ended, let group,
+              !isAnimating, interaction == nil else { return }
         let location = gesture.location(in: self)
-        let index = cards
-            .sorted { $0.layer.zPosition > $1.layer.zPosition }
-            .first(where: { !$0.isHidden && $0.frame.contains(location) })?
-            .mediaIndex ?? frontMediaIndex
+        let hitsTitle = !itemCountLabel.isHidden
+            && (itemCountLabel.frame.contains(location) || itemCountIcon.frame.contains(location))
+        guard let index = mediaIndex(at: location) ?? (hitsTitle ? frontMediaIndex : nil) else { return }
         previewRequested?(messageID, group, index)
     }
 
-    /// 根据拖动阶段更新前景卡片变换，达到阈值时切换，否则恢复原位。
-    @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
-        guard let group, group.items.count > 1, !isAnimating else { return }
-        let translation = gesture.translation(in: self)
-        let velocity = gesture.velocity(in: self)
-        let targetIndex = IMessageChatMediaStackPolicy.targetIndex(
-            frontIndex: frontMediaIndex,
-            itemCount: group.items.count,
-            translationX: translation.x,
-            velocityX: velocity.x
-        )
-        let directionalX = abs(translation.x) >= 8 ? translation.x : velocity.x
-        let atBoundary = targetIndex == nil && directionalX != 0
+    /// 返回指定位置最上方的实际卡片，不使用旋转后的外接矩形命中。
+    func mediaIndex(at location: CGPoint) -> Int? {
+        guard !isAnimating, interaction == nil else { return nil }
+        return cards.sorted { $0.layer.zPosition > $1.layer.zPosition }
+            .first { !$0.isHidden && $0.point(inside: $0.convert(location, from: self), with: nil) }?
+            .mediaIndex
+    }
 
-        switch gesture.state {
-        case .changed:
-            let rawX = translation.x
-            let x = atBoundary ? max(-18, min(18, rawX * 0.2)) : rawX
-            frontCard?.transform = CGAffineTransform(translationX: x, y: 0)
-                .rotated(by: max(-4, min(4, x / 45)) * .pi / 180)
-        case .ended:
-            let shouldCommit = IMessageChatMediaStackPolicy.shouldCommit(
-                translationX: translation.x,
-                velocityX: velocity.x,
-                cardWidth: Metrics.groupCardSize.width
+    /// 将系统手势生命周期传入可测试的同一条交互路径。
+    @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
+        handlePan(
+            state: gesture.state,
+            translationX: gesture.translation(in: self).x,
+            velocityX: gesture.velocity(in: self).x
+        )
+    }
+
+    /// 更新临时展示；仅正常松手允许确认索引，系统取消始终恢复原位。
+    func handlePan(
+        state: UIGestureRecognizer.State,
+        translationX: CGFloat,
+        velocityX: CGFloat,
+        animated: Bool = true
+    ) {
+        guard let group, group.items.count > 1, !isAnimating else { return }
+        switch state {
+        case .began:
+            guard interaction == nil else { return }
+            layoutIfNeeded()
+            guard let frontCard, frontCard.bounds.width > 0 else { return }
+            interaction = .init(
+                startIndex: frontMediaIndex, itemCount: group.items.count,
+                cardWidth: frontCard.bounds.width
             )
-            if let targetIndex, shouldCommit {
-                move(to: targetIndex, animated: true, velocityX: velocity.x)
-            } else {
-                restoreCards(animated: true)
-            }
+            interaction?.update(translationX: translationX)
+            applyInteraction()
+        case .changed:
+            guard interaction != nil else { return }
+            interaction?.update(translationX: translationX)
+            applyInteraction()
+        case .ended:
+            guard interaction != nil else { return }
+            interaction?.update(translationX: translationX)
+            applyInteraction()
+            let targetIndex = interaction?.committedIndex(velocityX: velocityX)
+            settle(to: targetIndex, animated: animated, velocityX: velocityX)
         case .cancelled, .failed:
-            restoreCards(animated: true)
+            guard interaction != nil else { return }
+            settle(to: nil, animated: animated)
         default:
             break
         }
     }
 
-    /// 切换到指定媒体索引，并根据动画与减弱动态效果设置选择过渡方式。
-    ///
-    /// 越界请求恢复卡片并朗读首尾提示；切换不会改变附件原始顺序。
-    private func move(to index: Int, animated: Bool, velocityX: CGFloat = 0) {
-        guard let group else { return }
+    /// 从静止姿态重建可逆预览；不会重新绑定媒体或发布封面变化。
+    private func applyInteraction() {
+        guard let interaction,
+              let movingCard = cards.first(where: { $0.mediaIndex == interaction.startIndex && !$0.isHidden })
+        else { return }
+        for card in cards where !card.isHidden {
+            card.center = CGPoint(x: card.restingFrame.midX, y: card.restingFrame.midY)
+            card.transform = card.restingTransform
+            card.layer.zPosition = CGFloat(30 - abs(card.mediaIndex - interaction.startIndex))
+        }
+        let progress = interaction.progress
+        let reducedMotion = UIAccessibility.isReduceMotionEnabled
+        let scale = reducedMotion ? 1 : 1 - 0.28 * progress
+        let angle = reducedMotion ? 0 : (interaction.translationX < 0 ? -1.0 : 1.0) * 10 * progress * .pi / 180
+        movingCard.center.x += interaction.displayedTranslationX
+        movingCard.transform = CGAffineTransform(rotationAngle: angle).scaledBy(x: scale, y: scale)
+        guard let candidate = cards.first(where: {
+            $0.mediaIndex == interaction.candidateIndex && !$0.isHidden
+        }) else { return }
+        let restingAngle = atan2(candidate.restingTransform.b, candidate.restingTransform.a)
+        candidate.transform = CGAffineTransform(rotationAngle: reducedMotion ? 0 : restingAngle * (1 - progress))
+        candidate.center.y += (movingCard.restingFrame.midY - candidate.restingFrame.midY) * progress
+        candidate.layer.zPosition = interaction.isReordered ? 31 : 29
+    }
+
+    /// 通过辅助功能请求相邻封面；交互过程中不接受重复切换。
+    private func move(to index: Int, animated: Bool) {
+        guard let group, interaction == nil, !isAnimating else { return }
         guard group.items.indices.contains(index) else {
-            restoreCards(animated: animated)
             let announcement = index < 0 ? strings?.firstItem : strings?.lastItem
             if let announcement {
                 UIAccessibility.post(notification: .announcement, argument: announcement)
@@ -787,110 +909,63 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
             return
         }
         guard index != frontMediaIndex else { return }
-        if !animated {
-            frontMediaIndex = index
-            bindCards()
-            layoutCards()
-            finishMove(to: index, in: group)
+        settle(to: index, animated: animated)
+    }
+
+    /// 从当前姿态连续收拢，并在收尾后整理可见窗口；提交回调在动画前仅发出一次。
+    private func settle(to targetIndex: Int?, animated: Bool, velocityX: CGFloat = 0) {
+        guard let group else { return }
+        let bindingMessageID = messageID
+        let cardWidth = interaction?.cardWidth ?? frontCard?.bounds.width ?? 1
+        interaction = nil
+        isAnimating = true
+        transitionGeneration &+= 1
+        let generation = transitionGeneration
+        if let targetIndex {
+            frontMediaIndex = targetIndex
+            updateAccessibilityPosition()
+            frontIndexDidChange?(bindingMessageID, targetIndex)
+        }
+        // 回调可能同步触发列表刷新、复用或再次配置，必须在继续动画前重验身份。
+        guard generation == transitionGeneration, messageID == bindingMessageID, self.group == group else { return }
+        let completion: (Bool) -> Void = { [weak self] _ in
+            guard let self, self.transitionGeneration == generation,
+                  self.messageID == bindingMessageID, self.group == group else { return }
+            self.isAnimating = false
+            self.bindCards()
+            self.layoutCards()
+            if targetIndex != nil { self.announcePosition(in: group) }
+        }
+        let changes = { [weak self] in self?.layoutCards() }
+        guard animated else {
+            changes()
+            completion(true)
             return
         }
         if UIAccessibility.isReduceMotionEnabled {
-            isAnimating = true
-            UIView.transition(
-                with: self,
-                duration: 0.16,
-                options: [.transitionCrossDissolve, .beginFromCurrentState],
-                animations: { [weak self] in
-                    guard let self else { return }
-                    self.frontMediaIndex = index
-                    self.bindCards()
-                    self.layoutCards()
-                },
-                completion: { [weak self] _ in
-                    self?.finishMove(to: index, in: group)
-                }
+            UIView.animate(withDuration: 0.16, animations: { changes() }, completion: completion)
+        } else {
+            UIView.animate(
+                withDuration: targetIndex == nil ? 0.22 : 0.28,
+                delay: 0,
+                usingSpringWithDamping: targetIndex == nil ? 0.78 : 0.86,
+                initialSpringVelocity: min(8, abs(velocityX) / max(1, cardWidth)),
+                options: [.beginFromCurrentState, .allowUserInteraction],
+                animations: { changes() }, completion: completion
             )
-            return
         }
-        isAnimating = true
-        let previousIndex = frontMediaIndex
-        let movingCard = frontCard
-        let revealedCard = cards.first { !$0.isHidden && $0.mediaIndex == index }
-        if !UIAccessibility.isReduceMotionEnabled {
-            revealedCard?.transform = CGAffineTransform(scaleX: 0.965, y: 0.965)
-        }
-        let changes = { [weak self] in
-            guard let self else { return }
-            movingCard?.alpha = 0.12
-            movingCard?.transform = CGAffineTransform(
-                translationX: index > self.frontMediaIndex ? -72 : 72,
-                y: 0
-            ).rotated(
-                by: (index > self.frontMediaIndex ? -4 : 4) * .pi / 180
-            )
-            revealedCard?.transform = .identity
-        }
-        let completion: (Bool) -> Void = { [weak self] _ in
-            guard let self else { return }
-            self.frontMediaIndex = index
-            self.bindCards()
-            self.layoutCards()
-            let retiredCard = self.cards.first {
-                !$0.isHidden && $0.mediaIndex == previousIndex
-            }
-            if animated && !UIAccessibility.isReduceMotionEnabled,
-               let retiredCard {
-                retiredCard.alpha = 0
-                retiredCard.transform = CGAffineTransform(
-                    translationX: index > previousIndex ? -12 : 12,
-                    y: 0
-                ).concatenating(retiredCard.restingTransform)
-                UIView.animate(
-                    withDuration: 0.12,
-                    delay: 0,
-                    options: [.beginFromCurrentState, .allowUserInteraction],
-                    animations: {
-                        retiredCard.alpha = 1
-                        retiredCard.transform = retiredCard.restingTransform
-                    },
-                    completion: { [weak self] _ in
-                        self?.finishMove(to: index, in: group)
-                    }
-                )
-            } else {
-                self.finishMove(to: index, in: group)
-            }
-        }
-        let normalizedVelocity = abs(velocityX) / max(1, Metrics.groupCardSize.width)
-        UIView.animate(
-            withDuration: 0.28,
-            delay: 0,
-            usingSpringWithDamping: 0.86,
-            initialSpringVelocity: normalizedVelocity,
-            options: [.beginFromCurrentState, .allowUserInteraction],
-            animations: changes,
-            completion: completion
-        )
     }
 
-    /// 将前景卡片恢复到静止变换，按需使用弹簧动画。
-    private func restoreCards(animated: Bool) {
-        let changes: () -> Void = { [weak self] in
-            guard let frontCard = self?.frontCard else { return }
-            frontCard.transform = frontCard.restingTransform
+    /// 取消交互并使旧动画回调失效；已在松手时确认的索引不会回退。
+    private func invalidateInteraction() {
+        transitionGeneration &+= 1
+        interaction = nil
+        isAnimating = false
+        cards.forEach { $0.layer.removeAllAnimations() }
+        if panGesture.state == .began || panGesture.state == .changed {
+            panGesture.isEnabled = false
+            panGesture.isEnabled = (group?.items.count ?? 0) > 1
         }
-        guard animated && !UIAccessibility.isReduceMotionEnabled else {
-            changes()
-            return
-        }
-        UIView.animate(
-            withDuration: 0.22,
-            delay: 0,
-            usingSpringWithDamping: 0.78,
-            initialSpringVelocity: 0,
-            options: [.beginFromCurrentState, .allowUserInteraction],
-            animations: changes
-        )
     }
 
     /// 为当前可见索引窗口匹配已有卡片，保留相同媒体身份并复用其他卡片。
@@ -914,7 +989,16 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
             }) {
                 card = reusableCards.remove(at: existingIndex)
             } else {
-                card = reusableCards.removeFirst()
+                // 返回上一窗口时，新首项不能抢走后续仍需保留的卡片身份。
+                let spareIndex = reusableCards.firstIndex { candidate in
+                    !visibleIndices.contains { requiredIndex in
+                        candidate.represents(
+                            messageID: messageID, groupID: group.id,
+                            itemID: group.items[requiredIndex].id
+                        )
+                    }
+                }!
+                card = reusableCards.remove(at: spareIndex)
             }
             orderedCards.append(card)
             card.isHidden = false
@@ -979,9 +1063,8 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
                 itemCount: group.items.count
             )
             for card in cards where !card.isHidden {
-                guard let position = visibleIndices.firstIndex(of: card.mediaIndex) else {
-                    continue
-                }
+                // 收尾阶段仍保留原窗口；离开窗口的卡片也连续移动到新封面背后。
+                let position = card.mediaIndex - (visibleIndices.first ?? 0)
                 let visualPosition = outwardSign > 0
                     ? position
                     : visibleIndices.count - position - 1
@@ -1014,6 +1097,7 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
             itemCountIcon.frame = .zero
             itemCountLabel.frame = .zero
             let card = cards[0]
+            card.transform = .identity
             card.frame = bounds
             card.restingFrame = bounds
             card.layer.mask = singleMaskLayer
@@ -1078,6 +1162,16 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
         cards.first { !$0.isHidden && $0.mediaIndex == index }?.restingTransform
     }
 
+    /// 返回包含当前交互缩放和旋转的卡片变换，供交互回归测试使用。
+    func visibleCardTransform(forMediaIndex index: Int) -> CGAffineTransform? {
+        cards.first { !$0.isHidden && $0.mediaIndex == index }?.transform
+    }
+
+    /// 返回当前交互卡片的中心位置，供连续拖动和布局回归测试使用。
+    func visibleCardCenter(forMediaIndex index: Int) -> CGPoint? {
+        cards.first { !$0.isHidden && $0.mediaIndex == index }?.center
+    }
+
     /// 当前参与展示的卡片层数。
     var visibleCardCount: Int {
         cards.lazy.filter { !$0.isHidden }.count
@@ -1093,26 +1187,23 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
         cards.first { !$0.isHidden && $0.mediaIndex == frontMediaIndex }
     }
 
-    /// 完成封面切换，解除动画状态并发布索引和辅助功能位置更新。
-    private func finishMove(
-        to index: Int,
-        in group: IMessageChatMediaGroupAttachment
-    ) {
-        isAnimating = false
-        frontIndexDidChange?(messageID, index)
-        UISelectionFeedbackGenerator().selectionChanged()
+    /// 同步已确认封面的辅助功能类型和位置，预览换层不调用此方法。
+    private func updateAccessibilityPosition() {
         updateAccessibilityLabel()
         accessibilityValue = String(
             format: strings?.positionFormat ?? "%d/%d",
-            index + 1,
-            group.items.count
+            frontMediaIndex + 1,
+            group?.items.count ?? 0
         )
-        let kind = group.items[index].kind.isVideo ? strings?.video : strings?.image
+    }
+
+    /// 有效提交收尾后给出一次触觉和辅助功能反馈；不再次发布索引。
+    private func announcePosition(in group: IMessageChatMediaGroupAttachment) {
+        UISelectionFeedbackGenerator().selectionChanged()
+        let kind = group.items[frontMediaIndex].kind.isVideo ? strings?.video : strings?.image
         UIAccessibility.post(
             notification: .announcement,
-            argument: [accessibilityValue, kind]
-                .compactMap { $0 }
-                .joined(separator: ", ")
+            argument: [accessibilityValue, kind].compactMap { $0 }.joined(separator: ", ")
         )
     }
 
