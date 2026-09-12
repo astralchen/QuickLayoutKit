@@ -107,7 +107,7 @@ extension MainRoute {
             .systemOrange
         case .liveRoom:
             .systemPink
-        case .imessageChat, .collectionContentConfiguration, .tableContentConfiguration:
+        case .imessageChat, .collectionContentConfiguration, .waterfallContentConfiguration, .tableContentConfiguration:
             .systemGreen
         case .representable, .swiftUIBridge:
             .systemOrange

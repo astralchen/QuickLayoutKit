@@ -110,14 +110,6 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         quickLayoutSizeThatFits(size) ?? super.sizeThatFits(size)
     }
 
-    open override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
-        let attributes = super.preferredLayoutAttributesFitting(layoutAttributes)
-        if let size = quickLayoutSizeThatFits(layoutAttributes.size) {
-            attributes.size = size
-        }
-        return attributes
-    }
-
     open override func quickLayoutFlexibility(for axis: Axis) -> Flexibility {
         switch axis {
         case .horizontal:
@@ -669,11 +661,12 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         quickLayoutSizeThatFits(size) ?? super.sizeThatFits(size)
     }
 
+    /// https://developer.apple.com/documentation/uikit/building-high-performance-lists-and-collection-views
     open override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
-        let attributes = super.preferredLayoutAttributesFitting(layoutAttributes)
-        if let size = quickLayoutSizeThatFits(layoutAttributes.size) {
-            attributes.size = size
-        }
+        // 保留布局提供的属性，并通过公开测量入口尊重子类的尺寸调整。
+        // 不先调用 super，以免 UIKit 已经调用 sizeThatFits 后再次测量内容。
+        let attributes = layoutAttributes.copy() as! UICollectionViewLayoutAttributes
+        attributes.size = sizeThatFits(layoutAttributes.size)
         return attributes
     }
 

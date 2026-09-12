@@ -106,6 +106,7 @@ final class ContentConfigurationCollectionViewController: LocalizedViewControlle
                             model: model,
                             cornerRadius: 8
                         )
+                        print(cell.contentView)
                     }
                     .onSelect { context in
                         context.collectionView.deselectItem(

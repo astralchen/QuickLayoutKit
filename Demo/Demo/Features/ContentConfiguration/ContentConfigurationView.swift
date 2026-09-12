@@ -70,23 +70,6 @@ final class ContentConfigurationView: QuickLayoutContentView {
         applyCurrentContentConfiguration()
     }
 
-    override var intrinsicContentSize: CGSize {
-        // UIKit 通过 intrinsicContentSize 测量配置内容，正文高度随可用宽度变化。
-        let width = bounds.width > 0 ? bounds.width : CGFloat.infinity
-        let size = sizeThatFits(
-            CGSize(width: width, height: .infinity)
-        )
-        return CGSize(width: UIView.noIntrinsicMetric, height: size.height)
-    }
-
-    override var bounds: CGRect {
-        didSet {
-            if bounds.width != oldValue.width {
-                invalidateIntrinsicContentSize()
-            }
-        }
-    }
-
     override func applyContentConfiguration(
         _ configuration: UIContentConfiguration
     ) {
@@ -110,11 +93,6 @@ final class ContentConfigurationView: QuickLayoutContentView {
         titleLabel.alpha = contentAlpha
         detailLabel.alpha = contentAlpha
         super.applyContentConfiguration(configuration)
-    }
-
-    override func setNeedsQuickLayout() {
-        super.setNeedsQuickLayout()
-        invalidateIntrinsicContentSize()
     }
 }
 

@@ -50,6 +50,7 @@ final class MainViewModel {
                 .liveRoom,
                 .imessageChat,
                 .collectionContentConfiguration,
+                .waterfallContentConfiguration,
                 .tableContentConfiguration,
                 .keyboard,
                 .form,

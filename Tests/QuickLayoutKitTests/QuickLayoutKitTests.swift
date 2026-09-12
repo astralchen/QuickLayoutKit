@@ -671,6 +671,11 @@ struct QuickLayoutKitTests {
             #expect(reusableView.sizeThatFits(proposedSize) == expectedSize)
             #expect(reusableView.sizeThatFits(proposedSize) == cell.sizeThatFits(proposedSize))
             #expect(reusableView.preferredLayoutAttributesFitting(attributes).size == expectedSize)
+            let cellAttributes = UICollectionViewLayoutAttributes(
+                forCellWith: IndexPath(item: 0, section: 0)
+            )
+            cellAttributes.size = proposedSize
+            #expect(cell.preferredLayoutAttributesFitting(cellAttributes).size == expectedSize)
         }
     }
 

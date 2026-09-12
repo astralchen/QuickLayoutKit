@@ -64,6 +64,8 @@ final class MainRouter: MainRouting {
             IMessageChatViewController()
         case .collectionContentConfiguration:
             ContentConfigurationCollectionViewController()
+        case .waterfallContentConfiguration:
+            ContentConfigurationWaterfallViewController()
         case .tableContentConfiguration:
             ContentConfigurationTableViewController()
         case .keyboard:

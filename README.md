@@ -564,6 +564,10 @@ QuickLayout `body`、自适应尺寸、环境更新和从外层列表恢复布�
 `.fixedSize`，垂直弹性保留 `.fullyFlexible`，即可由基类完成自适应测量，无需重写
 `preferredLayoutAttributesFitting(_:)`。
 
+集合单元格通过 UIKit 默认的拟合流程调用 `sizeThatFits(_:)`；补充视图在布局属性副本上
+使用同一个测量入口更新尺寸。需要调整测量结果时，可重写 `sizeThatFits(_:)` 并调用
+`super`，框架不会再用一次额外的 `body` 测量覆盖该结果。
+
 ```swift
 final class MessageCell: QuickLayoutCollectionViewCell {
     private let titleLabel = UILabel()
@@ -584,6 +588,67 @@ final class MessageCell: QuickLayoutCollectionViewCell {
 自定义 `UIContentConfiguration` 使用 `QuickLayoutContentView`。子类在初始化末尾调用一次
 `applyCurrentContentConfiguration()`，并重写 `applyContentConfiguration(_:)` 验证具体配置
 类型、更新内容，最后调用 `super`。
+
+`QuickLayoutContentView` 默认由容器提供宽度、内容决定高度。基类将 UIKit 的
+`intrinsicContentSize` 测量转发到公开的 `sizeThatFits(_:)`，并在宽度变化或调用
+`setNeedsQuickLayout()` 时使固有尺寸失效，因此子类无需重复实现这些适配。尚未获得
+有效宽度时先按不受限宽度测量。其他策略可通过继承的双轴弹性属性配置：纵向自适应使用
+水平 `.fixedSize`、垂直 `.fullyFlexible`，横向则相反。固定轴不提供固有尺寸，弹性轴通过
+公开测量提供结果；双轴固定时不进行固有尺寸测量。只有约束轴变化才触发尺寸失效，
+不向上查找 cell，也不从 `body` 的布局弹性推断 UIKit 的尺寸策略。
+
+Demo 主菜单的「内容配置瀑布流」使用原生 `UICollectionViewListCell` 承载图文卡片。
+切换纵向／横向滚动、点击展开正文、切换语言或系统字号，可以验证自适应尺寸及复用。
+页面根据容器自动计算行列数并显示当前数量：纵向最小列宽约 160pt、横向最小行高约 200pt，
+最小尺寸随 Dynamic Type 缩放。方向控件保留在顶部，背景及内容 inset 避免滚动内容遮挡控件。
+页面将 40 条内容分成四个带标题和圆角背景的 section，每组 10 条。
+`ContentConfigurationWaterfallLayout` 的构造方式参考 `UICollectionViewCompositionalLayout`：
+`init(section:configuration:)` 对所有分组使用同一配置，
+`init(sectionProvider:configuration:)` 按 section 返回配置。provider 接收原生
+`NSCollectionLayoutEnvironment`，通过 `container.effectiveContentSize` 和 `traitCollection`
+计算自动行列数。全局 `Configuration` 包含 `scrollDirection`、`interSectionSpacing` 和 `contentInsetsReference`。
+
+`Section` 包含 `laneCount`、`contentInsets`、`interItemSpacing`、`interLaneSpacing`、
+`itemLengthDimension`、`boundarySupplementaryItems` 和 `decorationItems`。
+`laneCount` 在纵向表示列数、横向表示行数；长度在纵向表示高度、横向表示宽度。
+`itemLengthDimension` 使用原生 `NSCollectionLayoutDimension`：`.absolute(50)` 固定长度，
+`.estimated(240)` 启用自适应，也支持容器宽高比例；`itemLengthDimensionProvider` 可按条目覆盖。
+provider 返回完整配置，返回 nil 时使用 `Section()` 默认值。没有无参初始化或布局级 section 指标。
+页面使用 12pt 间距和边距、240pt 估算长度。
+
+```swift
+let background = NSCollectionLayoutDecorationItem.background(elementKind: "section.background")
+var section = ContentConfigurationWaterfallLayout.Section()
+section.itemLengthDimension = .estimated(240)
+section.decorationItems = [background]
+let layout = ContentConfigurationWaterfallLayout(
+    section: section,
+    configuration: .init(scrollDirection: .vertical, interSectionSpacing: 12)
+)
+layout.register(MyBackgroundView.self, forDecorationViewOfKind: "section.background")
+```
+
+布局通过 `sizingForItem(at:)` 统一生成 `ItemSizing`：确定的交叉轴约束、无限的自适应
+主轴约束以及双轴 `Flexibility`。CellRegistration 将其写入内容配置，卡片设置继承的弹性
+属性并在 `body` 固定相应宽度或高度。布局属性仍使用有限估算长度，实际主轴长度由 UIKit
+拟合回调返回；页面与布局不提前测量内容。横向卡片使用最多 96pt 高的封面，
+文本通过 `ViewThatFits(in: .vertical)` 在不同栏宽中选择能容纳完整内容的布局。
+
+布局支持多 section、边界补充视图固定效果、原生 `UIContentInsetsReference` 和 RTL。
+`boundarySupplementaryItems` 使用原生 `NSCollectionLayoutBoundarySupplementaryItem`，
+支持主轴两端各一个元素及自定义 kind：纵向 top/bottom、横向 leading/trailing，交叉轴铺满，
+主轴使用 absolute 长度；通过 `pinToVisibleBounds` 固定。当前不支持补充视图 estimated、
+非零 offset/contentInsets 或 extendsBoundary=false，遇到这些描述会忽略并输出 DEBUG 诊断。
+`.automatic` 的 section 边距参考继承全局配置；全局默认 `.none`，仍尊重 adjustedContentInset。
+section 与背景使用 `NSDirectionalEdgeInsets`，leading / trailing 随布局方向解析。
+`decorationItems` 直接使用 UIKit 描述类型，支持 elementKind、contentInsets 和 zIndex；
+背景覆盖 section 自然范围，不随固定 header/footer 移动，不参与内容测量。
+配置及装饰描述在解析时复制，外部数据变化后调用 `invalidateSectionConfigurations(reason:)` 重新解析，
+仅装饰变化会保留有效测量。整体测量环境可通过 `invalidateMeasurements(reason:)` 强制失效。
+`itemMetadataProvider` 提供稳定 ID 和内容版本，与 collection view delegate 解耦。缓存按稳定 ID、内容版本、
+约束、尺寸模式、方向和环境区分；内容配置按条目 ID 比较策略并重新配置受影响项。
+Debug 控制台筛选 `[ContentWaterfall]` 可查看条目 ID、方向、交叉轴长度、估算与拟合长度、
+失效原因；日志不额外测量。
 
 `quickLayoutDirectionViews` 只应包含需要跟随外层列表的公开视图。不要遍历 UIKit 私有子视图；
 具有固定播放或空间语义的子视图也不应加入该数组。
