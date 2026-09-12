@@ -564,6 +564,12 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
 /// 使用 QuickLayout 描述内容的集合复用视图。
 open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody, QuickLayoutUpdating, QuickLayoutEnvironmentUpdating {
 
+    /// 复用视图的水平尺寸弹性。
+    open var quickLayoutHorizontalFlexibility: Flexibility = .fullyFlexible
+
+    /// 复用视图的垂直尺寸弹性。
+    open var quickLayoutVerticalFlexibility: Flexibility = .fullyFlexible
+
     /// 用于解析复用视图布局方向的语义角色。
     open override var semanticContentAttribute: UISemanticContentAttribute {
         didSet {
@@ -671,6 +677,15 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         return attributes
     }
 
+    open override func quickLayoutFlexibility(for axis: Axis) -> Flexibility {
+        switch axis {
+        case .horizontal:
+            return quickLayoutHorizontalFlexibility
+        case .vertical:
+            return quickLayoutVerticalFlexibility
+        }
+    }
+
     open func setNeedsQuickLayout() {
         setNeedsLayout()
     }
@@ -706,9 +721,10 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
     private func quickLayoutSizeThatFits(_ size: CGSize) -> CGSize? {
         synchronizeLayoutDirectionFromCollectionViewIfNeeded()
         quickLayoutEnvironmentState.update(self)
+        let proposedSize = quickLayoutSizeLimit(proposed: size)
         return withQuickLayoutManagedViewState {
-            withQuickLayoutContainerSize(size) {
-                _QuickLayoutViewImplementation.sizeThatFits(self, size: size)
+            withQuickLayoutContainerSize(proposedSize) {
+                _QuickLayoutViewImplementation.sizeThatFits(self, size: proposedSize)
             }
         }
     }

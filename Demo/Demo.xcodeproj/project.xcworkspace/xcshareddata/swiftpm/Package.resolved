@@ -1,5 +1,5 @@
 {
-  "originHash" : "6d43d79197cc15185274b3b5d137ba8ef24e9ce0c463fed9fdd4fc263ffeadf4",
+  "originHash" : "2479c2ba789d6f199228eed25f43b5c3dd85f400287a28bf750232c23b6348fc",
   "pins" : [
     {
       "identity" : "applocalization",
@@ -16,7 +16,7 @@
       "location" : "https://github.com/astralchen/ListKit.git",
       "state" : {
         "branch" : "main",
-        "revision" : "5c5fd3630b30cfba9d4d1b03f0d11844ef7d2ec9"
+        "revision" : "55150a33d984b757802fb7b6eca44fcc059b3d4d"
       }
     },
     {

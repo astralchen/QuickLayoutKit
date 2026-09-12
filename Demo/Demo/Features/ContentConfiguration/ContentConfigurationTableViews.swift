@@ -1,5 +1,5 @@
 //
-//  MessageTableViews.swift
+//  ContentConfigurationTableViews.swift
 //  Demo
 //
 //  Created by Codex on 2026/8/15.
@@ -11,11 +11,11 @@ import ListKit
 import QuickLayout
 import QuickLayoutKit
 
-final class MessageTableListView: UIView {
+final class ContentConfigurationTableListView: UIView {
 
     let tableView = UITableView(frame: .zero, style: .insetGrouped)
 
-    private lazy var adapter = TableListAdapter<MessageListSection>(
+    private lazy var adapter = TableListAdapter<ContentConfigurationListSection>(
         tableView: tableView
     )
     // 防止较早一次语言刷新晚完成后，重新调整已经进入新语言的列表。
@@ -34,7 +34,7 @@ final class MessageTableListView: UIView {
     }
 
     func render(
-        items: [MessageListItem],
+        items: [ContentConfigurationListItem],
         headerTitle: String,
         headerDetail: String,
         footerTitle: String,
@@ -72,27 +72,37 @@ final class MessageTableListView: UIView {
                 completion?()
             }
         ) {
-            TableSection(.messages) {
+            TableSection(.content) {
                 TableForEach(items, id: \.id) { item in
                     TableRow(
                         model: item.model,
-                        cell: MessageTableCell.self
-                    ) { cell, message, _ in
-                        cell.configure(message)
+                        cell: UITableViewCell.self
+                    ) { cell, model, _ in
+                        cell.selectionStyle = .none
+                        cell.backgroundConfiguration = .clear()
+                        cell.contentConfiguration = ContentConfigurationView.Configuration(
+                            model: model
+                        )
+                    }
+                    .onSelect { context in
+                        context.tableView.deselectRow(
+                            at: context.indexPath,
+                            animated: true
+                        )
                     }
                     // 行 identity 不随语言变化，文案参与 refreshID 才能让
                     // 已显示的 self-sizing cell 重新配置并测量高度。
                     .refreshID([
                         item.model.title,
-                        item.model.message,
+                        item.model.detail,
                         item.model.imageName,
                     ])
                     .height(.automatic(estimated: 80))
                 }
             } header: {
                 TableHeader(
-                    MessageTableHeaderFooterView.self,
-                    id: "messages-header"
+                    ContentConfigurationTableHeaderFooterView.self,
+                    id: "content-configuration-header"
                 ) { header, _ in
                     header.configure(
                         title: headerTitle,
@@ -105,8 +115,8 @@ final class MessageTableListView: UIView {
                 .height(.automatic(estimated: 64))
             } footer: {
                 TableFooter(
-                    MessageTableHeaderFooterView.self,
-                    id: "messages-footer"
+                    ContentConfigurationTableHeaderFooterView.self,
+                    id: "content-configuration-footer"
                 ) { footer, _ in
                     footer.configure(
                         title: footerTitle,
@@ -226,148 +236,10 @@ final class MessageTableListView: UIView {
     }
 }
 
-enum MessageSectionContentRole {
-    case header
-    case footer
-}
-
-final class MessageSectionContentView: QuickLayoutView {
-
-    let titleLabel = UILabel()
-    let detailLabel = UILabel()
-
-    private var role: MessageSectionContentRole = .header
-
-    override var body: Layout {
-        VStack(alignment: .leading, spacing: 3) {
-            titleLabel
-            detailLabel
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.vertical, role == .header ? 10 : 8)
-    }
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-
-        titleLabel.adjustsFontForContentSizeCategory = true
-        titleLabel.numberOfLines = 0
-        detailLabel.adjustsFontForContentSizeCategory = true
-        detailLabel.numberOfLines = 0
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    func configure(
-        title: String,
-        detail: String?,
-        role: MessageSectionContentRole
-    ) {
-        self.role = role
-        titleLabel.text = title
-        detailLabel.text = detail
-
-        switch role {
-        case .header:
-            titleLabel.font = .preferredFont(forTextStyle: .headline)
-            titleLabel.textColor = .label
-            detailLabel.font = .preferredFont(forTextStyle: .footnote)
-            detailLabel.textColor = .secondaryLabel
-
-        case .footer:
-            titleLabel.font = .preferredFont(forTextStyle: .footnote)
-            titleLabel.textColor = .secondaryLabel
-            detailLabel.font = .preferredFont(forTextStyle: .caption1)
-            detailLabel.textColor = .tertiaryLabel
-        }
-
-        backgroundColor = .clear
-        setNeedsQuickLayout()
-    }
-
-    func reset() {
-        role = .header
-        titleLabel.text = nil
-        detailLabel.text = nil
-        backgroundColor = .clear
-        setNeedsQuickLayout()
-    }
-}
-
-final class MessageTableCell: QuickLayoutTableViewCell {
-
-    let messageContentView = MessageContentView(frame: .zero)
-
-    // Cell/contentView 由框架默认同步；把真正执行 QuickLayout 的内部 host
-    // 一并声明，确保复用后的 cell 不携带上一次语言方向。
-    override var quickLayoutDirectionViews: [UIView] {
-        super.quickLayoutDirectionViews + [messageContentView]
-    }
-
-    override var isHighlighted: Bool {
-        didSet {
-            guard isHighlighted != oldValue else { return }
-            updateVisualState()
-        }
-    }
-
-    override var isSelected: Bool {
-        didSet {
-            guard isSelected != oldValue else { return }
-            updateVisualState()
-        }
-    }
-
-    override var body: Layout {
-        ZStack {
-            messageContentView
-        }
-    }
-
-    override init(
-        style: UITableViewCell.CellStyle,
-        reuseIdentifier: String?
-    ) {
-        super.init(
-            style: style,
-            reuseIdentifier: reuseIdentifier
-        )
-        selectionStyle = .none
-        updateVisualState()
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    func configure(_ model: MessageModel) {
-        messageContentView.configure(model)
-        setNeedsQuickLayout()
-    }
-
-    override func prepareForReuse() {
-        super.prepareForReuse()
-        messageContentView.reset()
-        isHighlighted = false
-        isSelected = false
-        updateVisualState()
-    }
-
-    private func updateVisualState() {
-        contentView.backgroundColor = isSelected
-            ? .tertiarySystemGroupedBackground
-            : .secondarySystemGroupedBackground
-        messageContentView.alpha = isHighlighted || isSelected ? 0.72 : 1
-    }
-}
-
-final class MessageTableHeaderFooterView:
+final class ContentConfigurationTableHeaderFooterView:
     QuickLayoutTableViewHeaderFooterView {
 
-    let sectionContentView = MessageSectionContentView(frame: .zero)
+    let sectionContentView = ContentConfigurationSectionView(frame: .zero)
 
     // Header/footer 的 contentView、QuickLayout host 和文本叶子都可能来自
     // 复用池；显式列出后由 table 的最终 effective direction 一次同步。
@@ -400,7 +272,7 @@ final class MessageTableHeaderFooterView:
     func configure(
         title: String,
         detail: String?,
-        role: MessageSectionContentRole
+        role: ContentConfigurationSectionRole
     ) {
         sectionContentView.configure(
             title: title,

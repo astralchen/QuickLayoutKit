@@ -398,7 +398,7 @@ MainRoute.imessageChat
 ## 维护约束
 
 1. 模块保持 Demo 内部可见，不为 QuickLayoutKit 新增公开 API。
-2. 不与现有 `MessageModel`、`MessageListViewModel` 或两种消息列表 Demo 合并。
+2. 不与现有 `ContentConfigurationModel`、`ContentConfigurationListViewModel` 或两种内容配置列表 Demo 合并。
 3. 消息只存在于当前页面生命周期，不添加网络、上传或持久化抽象。
 4. 新增时间线内容必须提供稳定 ID，并补齐 ListKit 刷新身份。
 5. 录音、音频播放和实时语音输入必须继续由音频控制器单点拥有；音频和视频通过同一个页面级播放协调器互斥占用 `AVAudioSession`；消息文件转写由页面级串行队列拥有；附件文件由页面附件存储单点拥有，Cell 与输入栏不得直接创建媒体对象。

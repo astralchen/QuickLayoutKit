@@ -640,6 +640,41 @@ struct QuickLayoutKitTests {
     }
 
     @MainActor
+    @Test func collectionReusableViewSizingMatchesCellAxisFlexibility() {
+        let proposedSize = CGSize(width: 80, height: 20)
+        let reusableContent = ProposalClampingCollectionContentView()
+        let reusableView = QuickLayoutCollectionReusableView { reusableContent }
+        let cellContent = ProposalClampingCollectionContentView()
+        let cell = QuickLayoutCollectionViewCell { cellContent }
+        #expect(reusableView.sizeThatFits(proposedSize) == CGSize(width: 120, height: 80))
+
+        let cases: [(Flexibility, Flexibility, CGSize)] = [
+            (.fullyFlexible, .fullyFlexible, CGSize(width: 120, height: 80)),
+            (.fixedSize, .fullyFlexible, CGSize(width: 80, height: 80)),
+            (.fullyFlexible, .fixedSize, CGSize(width: 120, height: 20)),
+            (.fixedSize, .fixedSize, proposedSize),
+            (.partial, .partial, proposedSize),
+        ]
+
+        for (horizontal, vertical, expectedSize) in cases {
+            reusableView.quickLayoutHorizontalFlexibility = horizontal
+            reusableView.quickLayoutVerticalFlexibility = vertical
+            cell.quickLayoutHorizontalFlexibility = horizontal
+            cell.quickLayoutVerticalFlexibility = vertical
+
+            let attributes = UICollectionViewLayoutAttributes(
+                forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
+                with: IndexPath(item: 0, section: 0)
+            )
+            attributes.size = proposedSize
+
+            #expect(reusableView.sizeThatFits(proposedSize) == expectedSize)
+            #expect(reusableView.sizeThatFits(proposedSize) == cell.sizeThatFits(proposedSize))
+            #expect(reusableView.preferredLayoutAttributesFitting(attributes).size == expectedSize)
+        }
+    }
+
+    @MainActor
     @Test func collectionReusableViewDefaultsToBodyContent() {
         let bodyView = IntrinsicTestView(
             size: CGSize(width: 180, height: 37)
@@ -4722,6 +4757,12 @@ private final class QuickLayoutButtonBodyProbe: QuickLayoutButton {
         titleLabel
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
+    }
+}
+
+private final class ProposalClampingCollectionContentView: UIView {
+    override func sizeThatFits(_ size: CGSize) -> CGSize {
+        CGSize(width: min(size.width, 120), height: min(size.height, 80))
     }
 }
 

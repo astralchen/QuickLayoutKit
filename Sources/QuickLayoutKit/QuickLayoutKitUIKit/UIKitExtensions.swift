@@ -89,22 +89,22 @@ public func ForEach<T>(_ list: [T], map: (T) -> Element) -> FastExpression where
 }
 
 
-extension UICollectionViewCell {
+extension UICollectionReusableView {
 
-    /// 返回单元格在指定轴上的尺寸弹性。
+    /// 返回集合复用视图（包括单元格）在指定轴上的尺寸弹性。
     ///
-    /// 子类可以重写该方法，说明单元格的宽度或高度是由集合视图布局固定、受部分约束，
+    /// 子类可以重写该方法，说明视图的宽度或高度是由集合视图布局固定、受部分约束，
     /// 还是完全由内容决定。
     ///
     /// - Parameter axis: 要查询的轴。
-    /// - Returns: 单元格在指定轴上的尺寸弹性。
+    /// - Returns: 复用视图在指定轴上的尺寸弹性。
     @objc open func quickLayoutFlexibility(for axis: Axis) -> Flexibility {
         .fullyFlexible
     }
 
     /// 根据建议长度和尺寸弹性返回布局限制。
     ///
-    /// 测量由 QuickLayout 计算最终尺寸的集合视图单元格时使用该值。固定尺寸使用建议值；
+    /// 测量由 QuickLayout 计算最终尺寸的集合复用视图时使用该值。固定尺寸使用建议值；
     /// 部分弹性尺寸至少使用最小值；完全弹性尺寸使用无约束限制。
     ///
     /// - Parameters:
@@ -131,11 +131,11 @@ extension UICollectionViewCell {
     }
 }
 
-extension UICollectionViewCell {
+extension UICollectionReusableView {
 
     /// 返回指定建议尺寸对应的布局限制。
     ///
-    /// 返回值会分别应用单元格的水平和垂直尺寸弹性。
+    /// 返回值会分别应用复用视图的水平和垂直尺寸弹性。
     ///
     /// - Parameter size: 父布局建议的尺寸。
     /// - Returns: 布局测量时使用的尺寸限制。

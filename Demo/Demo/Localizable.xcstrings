@@ -1483,25 +1483,94 @@
         }
       }
     },
-    "demo.messages.title" : {
+    "demo.contentConfiguration.collection.header" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "الرسائل"
+            "value" : "محتوى ذاتي التحجيم"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Messages"
+            "value" : "Self-sizing Content"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "消息列表"
+            "value" : "自适应内容"
+          }
+        }
+      }
+    },
+    "demo.contentConfiguration.collection.header.detail" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تستخدم خلايا UIKit واجهة UIContentConfiguration لاستضافة محتوى QuickLayout."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "UIKit cells use UIContentConfiguration to host QuickLayout content."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "UIKit 单元格通过 UIContentConfiguration 承载 QuickLayout 内容。"
+          }
+        }
+      }
+    },
+    "demo.contentConfiguration.collection.footer" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يستخدم الرأس والتذييل عروض QuickLayout القابلة لإعادة الاستخدام."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The header and footer use reusable QuickLayout views."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "页眉和页脚使用可复用的 QuickLayout 视图。"
+          }
+        }
+      }
+    },
+    "demo.contentConfiguration.collection.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تكوين المحتوى · Collection"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Content Configuration · Collection"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内容配置 · Collection"
           }
         }
       }
@@ -1667,94 +1736,94 @@
         }
       }
     },
-    "demo.tableMessages.footer" : {
+    "demo.contentConfiguration.table.footer" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "يستخدم الرأس والتذييل أيضًا تخطيط UIKit التقليدي."
+            "value" : "يستخدم الرأس والتذييل عروض QuickLayout القابلة لإعادة الاستخدام."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The header and footer also use traditional UIKit layout."
+            "value" : "The header and footer use reusable QuickLayout views."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "页眉和页脚同样使用传统 UIKit 布局。"
+            "value" : "页眉和页脚使用可复用的 QuickLayout 视图。"
           }
         }
       }
     },
-    "demo.tableMessages.header" : {
+    "demo.contentConfiguration.table.header" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "رسائل ذاتية التحجيم"
+            "value" : "محتوى ذاتي التحجيم"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Self-sizing Messages"
+            "value" : "Self-sizing Content"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "自适应消息"
+            "value" : "自适应内容"
           }
         }
       }
     },
-    "demo.tableMessages.header.detail" : {
+    "demo.contentConfiguration.table.header.detail" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تستضيف الخلايا QuickLayout باستخدام تخطيط UIKit التقليدي."
+            "value" : "تستخدم خلايا UIKit واجهة UIContentConfiguration لاستضافة محتوى QuickLayout."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cells host QuickLayout using traditional UIKit layout."
+            "value" : "UIKit cells use UIContentConfiguration to host QuickLayout content."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "单元格通过传统 UIKit 布局承载 QuickLayout。"
+            "value" : "UIKit 单元格通过 UIContentConfiguration 承载 QuickLayout 内容。"
           }
         }
       }
     },
-    "demo.tableMessages.title" : {
+    "demo.contentConfiguration.table.title" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "رسائل الجدول"
+            "value" : "تكوين المحتوى · Table"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Table Messages"
+            "value" : "Content Configuration · Table"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "表格消息列表"
+            "value" : "内容配置 · Table"
           }
         }
       }
@@ -8015,7 +8084,7 @@
         }
       }
     },
-    "messages.body.1" : {
+    "contentConfiguration.sample.detail.1" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
@@ -8038,7 +8107,7 @@
         }
       }
     },
-    "messages.body.2" : {
+    "contentConfiguration.sample.detail.2" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
@@ -8061,7 +8130,7 @@
         }
       }
     },
-    "messages.body.3" : {
+    "contentConfiguration.sample.detail.3" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
@@ -8084,7 +8153,7 @@
         }
       }
     },
-    "messages.body.4" : {
+    "contentConfiguration.sample.detail.4" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
@@ -8107,7 +8176,7 @@
         }
       }
     },
-    "messages.title.1" : {
+    "contentConfiguration.sample.title.1" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
@@ -8130,7 +8199,7 @@
         }
       }
     },
-    "messages.title.2" : {
+    "contentConfiguration.sample.title.2" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
@@ -8153,7 +8222,7 @@
         }
       }
     },
-    "messages.title.3" : {
+    "contentConfiguration.sample.title.3" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
@@ -8176,7 +8245,7 @@
         }
       }
     },
-    "messages.title.4" : {
+    "contentConfiguration.sample.title.4" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {

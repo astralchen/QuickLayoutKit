@@ -4508,16 +4508,17 @@ struct DemoTests {
     }
 
     @Test func mediaExamplesPreserveTheirAspectRatios() throws {
-        let messageContentView = MessageContentView(frame: .zero)
-        messageContentView.configure(MessageModel.mockData[0])
-        let messageSize = messageContentView.sizeThatFits(
+        let configuredContentView = ContentConfigurationView(
+            configuration: .init(model: ContentConfigurationModel.mockData[0])
+        )
+        let configuredSize = configuredContentView.sizeThatFits(
             CGSize(
                 width: 320,
                 height: CGFloat.greatestFiniteMagnitude
             )
         )
-        messageContentView.frame = CGRect(origin: .zero, size: messageSize)
-        messageContentView.layoutIfNeeded()
+        configuredContentView.frame = CGRect(origin: .zero, size: configuredSize)
+        configuredContentView.layoutIfNeeded()
 
         let fitRow = ExampleRow2()
         fitRow.body.applyFrame(
@@ -4539,7 +4540,7 @@ struct DemoTests {
         let filledRatio = fillRow.imageView.bounds.width
             / fillRow.imageView.bounds.height
 
-        #expect(messageContentView.avatarView.bounds.size == CGSize(width: 40, height: 40))
+        #expect(configuredContentView.iconView.bounds.size == CGSize(width: 40, height: 40))
         #expect(fitRow.directionIconView.bounds.width <= 24)
         #expect(fitRow.directionIconView.bounds.height <= 24)
         #expect(abs(fittedRatio - iconRatio) < 0.01)
@@ -4548,29 +4549,32 @@ struct DemoTests {
         #expect(abs(filledRatio - fillImageRatio) < 0.01)
     }
 
-    @Test func messageContentViewUpdatesAndSelfSizes() {
-        let firstModel = MessageModel(
+    @Test func contentConfigurationViewUpdatesAndSelfSizes() throws {
+        let firstModel = ContentConfigurationModel(
             title: "First",
-            message: "Short message",
+            detail: "Short message",
             imageName: "sun.max.fill",
             themeColor: .systemOrange
         )
-        let contentView = MessageContentView(frame: .zero)
-        contentView.configure(firstModel)
+        let contentView = ContentConfigurationView(
+            configuration: .init(model: firstModel)
+        )
 
         #expect(contentView.titleLabel.text == firstModel.title)
-        #expect(contentView.messageLabel.text == firstModel.message)
+        #expect(contentView.detailLabel.text == firstModel.detail)
 
-        let secondModel = MessageModel(
+        let secondModel = ContentConfigurationModel(
             title: "Updated",
-            message: String(
+            detail: String(
                 repeating: "A longer message that should wrap. ",
                 count: 8
             ),
             imageName: "moon.stars.fill",
             themeColor: .systemIndigo
         )
-        contentView.configure(secondModel)
+        contentView.configuration = ContentConfigurationView.Configuration(
+            model: secondModel
+        )
 
         let wideSize = contentView.sizeThatFits(
             CGSize(
@@ -4586,41 +4590,70 @@ struct DemoTests {
         )
 
         #expect(contentView.titleLabel.text == secondModel.title)
-        #expect(contentView.messageLabel.text == secondModel.message)
+        #expect(contentView.detailLabel.text == secondModel.detail)
         #expect(narrowSize.height > wideSize.height)
 
-        let cell = MessageCell(frame: .zero)
-        cell.configure(firstModel)
-        let initialCellContentView = cell.messageContentView
+        let controller = ContentConfigurationCollectionViewController()
+        let window = try makeVisibleTestWindow(
+            rootViewController: controller,
+            size: CGSize(width: 204, height: 640)
+        )
+        defer { window.isHidden = true }
+        let collectionView = try #require(
+            controller.view.allSubviews(of: UICollectionView.self).first
+        )
+        collectionView.layoutIfNeeded()
+        let cell = try #require(
+            collectionView.cellForItem(at: IndexPath(item: 0, section: 0))
+                as? UICollectionViewListCell
+        )
+        cell.contentConfiguration = ContentConfigurationView.Configuration(
+            model: firstModel
+        )
+        cell.layoutIfNeeded()
+        let initialCellContentView = try #require(
+            cell.allSubviews(of: ContentConfigurationView.self).first
+        )
         #expect(initialCellContentView.titleLabel.text == firstModel.title)
         cell.isHighlighted = true
-        #expect(initialCellContentView.alpha < 1)
+        cell.setNeedsUpdateConfiguration()
+        cell.layoutIfNeeded()
+        #expect(initialCellContentView.titleLabel.alpha < 1)
+
+        cell.isHighlighted = false
+        cell.isSelected = true
+        cell.setNeedsUpdateConfiguration()
+        cell.layoutIfNeeded()
+        #expect(
+            initialCellContentView.backgroundColor
+                == .tertiarySystemGroupedBackground
+        )
+        #expect(initialCellContentView.titleLabel.alpha < 1)
 
         cell.prepareForReuse()
-        #expect(initialCellContentView.titleLabel.text == nil)
-        #expect(initialCellContentView.messageLabel.text == nil)
-        #expect(initialCellContentView.alpha == 1)
-
-        cell.configure(secondModel)
-        let reusedCellContentView = cell.messageContentView
+        cell.isSelected = false
+        cell.contentConfiguration = ContentConfigurationView.Configuration(
+            model: secondModel
+        )
+        cell.setNeedsUpdateConfiguration()
+        cell.layoutIfNeeded()
+        let reusedCellContentView = try #require(
+            cell.allSubviews(of: ContentConfigurationView.self).first
+        )
         #expect(reusedCellContentView === initialCellContentView)
         #expect(reusedCellContentView.titleLabel.text == secondModel.title)
-        #expect(reusedCellContentView.messageLabel.text == secondModel.message)
+        #expect(reusedCellContentView.detailLabel.text == secondModel.detail)
+        #expect(reusedCellContentView.titleLabel.alpha == 1)
 
-        let attributes = UICollectionViewLayoutAttributes(
-            forCellWith: IndexPath(item: 0, section: 0)
-        )
-        attributes.size = CGSize(width: 180, height: 80)
-        let fittedAttributes = cell.preferredLayoutAttributesFitting(
-            attributes
-        )
-
-        #expect(fittedAttributes.size == narrowSize)
+        collectionView.collectionViewLayout.invalidateLayout()
+        collectionView.layoutIfNeeded()
+        #expect(abs(cell.bounds.height - narrowSize.height) <= 1)
+        #expect(cell.bounds.width == 180)
     }
 
-    @Test func tableMessageControllerUsesSelfSizingViews() throws {
+    @Test func tableContentConfigurationControllerUsesSelfSizingViews() throws {
         let fittingTolerance: CGFloat = 1.01
-        let viewController = MessageTableViewController()
+        let viewController = ContentConfigurationTableViewController()
         viewController.loadViewIfNeeded()
         let tableView = try #require(viewController.tableView)
         tableView.estimatedRowHeight = 1
@@ -4648,9 +4681,10 @@ struct DemoTests {
 
         let cell = try #require(
             tableView.cellForRow(at: IndexPath(row: 0, section: 0))
-                as? MessageTableCell
         )
-        let cellContentView = cell.messageContentView
+        let cellContentView = try #require(
+            cell.allSubviews(of: ContentConfigurationView.self).first
+        )
         #expect(cellContentView.titleLabel.text?.isEmpty == false)
         let cellFittingSize = cell.systemLayoutSizeFitting(
             CGSize(width: cell.bounds.width, height: 0),
@@ -4664,7 +4698,7 @@ struct DemoTests {
 
         let header = try #require(
             tableView.headerView(forSection: 0)
-                as? MessageTableHeaderFooterView
+                as? ContentConfigurationTableHeaderFooterView
         )
         #expect(header.sectionContentView.titleLabel.text?.isEmpty == false)
         let headerFittingSize = header.systemLayoutSizeFitting(
@@ -4685,7 +4719,7 @@ struct DemoTests {
         tableView.layoutIfNeeded()
         let footer = try #require(
             tableView.footerView(forSection: 0)
-                as? MessageTableHeaderFooterView
+                as? ContentConfigurationTableHeaderFooterView
         )
         let footerFittingSize = footer.systemLayoutSizeFitting(
             CGSize(width: footer.bounds.width, height: 0),
@@ -4700,20 +4734,20 @@ struct DemoTests {
         )
     }
 
-    @Test func tableMessageSupplementariesStartRTLOnFirstAppearance() async throws {
+    @Test func tableContentConfigurationSupplementariesStartRTLOnFirstAppearance() async throws {
         let edgePadding: CGFloat = 16
         let tolerance: CGFloat = 1.01
-        let listView = MessageTableListView()
+        let listView = ContentConfigurationTableListView()
 
-        let model = MessageModel(
+        let model = ContentConfigurationModel(
             title: "رسالة",
-            message: "محتوى الرسالة",
+            detail: "محتوى الرسالة",
             imageName: "moon.stars.fill",
             themeColor: .systemIndigo
         )
         let items = [
-            MessageListItem(
-                id: MessageListItemID(group: 0, message: model.imageName),
+            ContentConfigurationListItem(
+                id: ContentConfigurationListItemID(group: 0, symbolName: model.imageName),
                 model: model
             )
         ]
@@ -4753,11 +4787,11 @@ struct DemoTests {
 
         let header = try #require(
             listView.tableView.headerView(forSection: 0)
-                as? MessageTableHeaderFooterView
+                as? ContentConfigurationTableHeaderFooterView
         )
         let footer = try #require(
             listView.tableView.footerView(forSection: 0)
-                as? MessageTableHeaderFooterView
+                as? ContentConfigurationTableHeaderFooterView
         )
         let headerContent = header.sectionContentView
         let footerContent = footer.sectionContentView
@@ -4883,10 +4917,10 @@ struct DemoTests {
         )
     }
 
-    @Test func tableMessageSupplementariesRelayoutImmediatelyAfterLocalizationAndDirectionChange() async throws {
+    @Test func tableContentConfigurationSupplementariesRelayoutImmediatelyAfterLocalizationAndDirectionChange() async throws {
         let edgePadding: CGFloat = 16
         let tolerance: CGFloat = 1.01
-        let listView = MessageTableListView()
+        let listView = ContentConfigurationTableListView()
         let viewController = UIViewController()
         viewController.view = listView
         let window = try makeVisibleTestWindow(
@@ -4895,15 +4929,15 @@ struct DemoTests {
         )
         defer { window.isHidden = true }
 
-        let model = MessageModel(
+        let model = ContentConfigurationModel(
             title: "Message",
-            message: "Body",
+            detail: "Body",
             imageName: "moon.stars.fill",
             themeColor: .systemIndigo
         )
         let items = [
-            MessageListItem(
-                id: MessageListItemID(group: 0, message: model.imageName),
+            ContentConfigurationListItem(
+                id: ContentConfigurationListItemID(group: 0, symbolName: model.imageName),
                 model: model
             )
         ]
@@ -4922,11 +4956,11 @@ struct DemoTests {
 
         let initialHeader = try #require(
             listView.tableView.headerView(forSection: 0)
-                as? MessageTableHeaderFooterView
+                as? ContentConfigurationTableHeaderFooterView
         )
         let initialFooter = try #require(
             listView.tableView.footerView(forSection: 0)
-                as? MessageTableHeaderFooterView
+                as? ContentConfigurationTableHeaderFooterView
         )
         let initialHeaderHeight = listView.tableView.rectForHeader(
             inSection: 0
@@ -4955,11 +4989,11 @@ struct DemoTests {
 
         let updatedHeader = try #require(
             listView.tableView.headerView(forSection: 0)
-                as? MessageTableHeaderFooterView
+                as? ContentConfigurationTableHeaderFooterView
         )
         let updatedFooter = try #require(
             listView.tableView.footerView(forSection: 0)
-                as? MessageTableHeaderFooterView
+                as? ContentConfigurationTableHeaderFooterView
         )
         let headerContent = updatedHeader.sectionContentView
         let footerContent = updatedFooter.sectionContentView
@@ -5065,8 +5099,8 @@ struct DemoTests {
         )
     }
 
-    @Test func collectionMessageControllerReusesItsCellRegistration() throws {
-        let viewController = MesssageViewController()
+    @Test func collectionContentConfigurationControllerReusesItsCellRegistration() throws {
+        let viewController = ContentConfigurationCollectionViewController()
         viewController.loadViewIfNeeded()
         viewController.view.frame = CGRect(
             x: 0,
@@ -5087,7 +5121,7 @@ struct DemoTests {
         #expect(
             collectionView.cellForItem(
                 at: IndexPath(item: 0, section: 0)
-            ) is MessageCell
+            ) is UICollectionViewListCell
         )
     }
 
@@ -6493,10 +6527,10 @@ struct DemoTests {
             "demo.localizationOverview.title",
             "demo.uikitLocalization.title",
             "demo.swiftUIBridge.title",
-            "demo.tableMessages.title",
-            "demo.tableMessages.header",
-            "demo.tableMessages.header.detail",
-            "demo.tableMessages.footer",
+            "demo.contentConfiguration.table.title",
+            "demo.contentConfiguration.table.header",
+            "demo.contentConfiguration.table.header.detail",
+            "demo.contentConfiguration.table.footer",
             "dynamic.item.title",
             "dynamic.item.deleteHint",
             "dynamic.item.deleteButton",
@@ -7798,11 +7832,11 @@ struct DemoTests {
         )
     }
 
-    @Test func collectionMessagesInheritDirectionForVisibleAndNewContent() async throws {
+    @Test func collectionContentConfigurationInheritsDirectionForVisibleAndNewContent() async throws {
         var prefix = "ltr."
         let localizer = Localizer { key, _ in prefix + key }
-        let viewController = MesssageViewController(
-            viewModel: MessageListViewModel(
+        let viewController = ContentConfigurationCollectionViewController(
+            viewModel: ContentConfigurationListViewModel(
                 configuration: .collection,
                 localizer: localizer
             )
@@ -7830,19 +7864,21 @@ struct DemoTests {
         let cell = try #require(
             collectionView.cellForItem(
                 at: IndexPath(item: 0, section: 0)
-            ) as? MessageCell
+            ) as? UICollectionViewListCell
         )
-        let contentView = cell.messageContentView
+        let contentView = try #require(
+            cell.allSubviews(of: ContentConfigurationView.self).first
+        )
         contentView.layoutIfNeeded()
-        let avatarView = contentView.avatarView
+        let iconView = contentView.iconView
         let titleLabel = contentView.titleLabel
-        let ltrAvatarFrame = avatarView.convert(avatarView.bounds, to: contentView)
+        let ltrIconFrame = iconView.convert(iconView.bounds, to: contentView)
         let ltrTitleFrame = titleLabel.convert(titleLabel.bounds, to: contentView)
         // Local QuickLayout frames can look correct while UICollectionView's
         // reusable-view coordinate mapping is still mirrored. Keep a physical
         // window-space baseline to catch that stale UIKit state.
-        let ltrAvatarWindowFrame = avatarView.convert(
-            avatarView.bounds,
+        let ltrIconWindowFrame = iconView.convert(
+            iconView.bounds,
             to: window
         )
         let ltrTitleWindowFrame = titleLabel.convert(
@@ -7850,7 +7886,7 @@ struct DemoTests {
             to: window
         )
 
-        #expect(titleLabel.text == "ltr.messages.title.1")
+        #expect(titleLabel.text == "ltr.contentConfiguration.sample.title.1")
         #expect(collectionView.semanticContentAttribute == .forceLeftToRight)
         #expect(
             collectionView.effectiveUserInterfaceLayoutDirection
@@ -7859,9 +7895,9 @@ struct DemoTests {
         #expect(cell.semanticContentAttribute == .forceLeftToRight)
         #expect(cell.contentView.semanticContentAttribute == .forceLeftToRight)
         #expect(contentView.semanticContentAttribute == .forceLeftToRight)
-        #expect(avatarView.semanticContentAttribute == .unspecified)
+        #expect(iconView.semanticContentAttribute == .unspecified)
         #expect(titleLabel.semanticContentAttribute == .unspecified)
-        #expect(contentView.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(contentView.detailLabel.semanticContentAttribute == .unspecified)
         #expect(
             cell.effectiveUserInterfaceLayoutDirection
                 == collectionView.effectiveUserInterfaceLayoutDirection
@@ -7870,7 +7906,7 @@ struct DemoTests {
             contentView.effectiveUserInterfaceLayoutDirection
                 == collectionView.effectiveUserInterfaceLayoutDirection
         )
-        #expect(ltrAvatarFrame.midX < ltrTitleFrame.midX)
+        #expect(ltrIconFrame.midX < ltrTitleFrame.midX)
 
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.layoutIfNeeded()
@@ -7879,20 +7915,22 @@ struct DemoTests {
         let rtlCell = try #require(
             collectionView.cellForItem(
                 at: IndexPath(item: 0, section: 0)
-            ) as? MessageCell
+            ) as? UICollectionViewListCell
         )
-        let rtlContentView = rtlCell.messageContentView
+        let rtlContentView = try #require(
+            rtlCell.allSubviews(of: ContentConfigurationView.self).first
+        )
         rtlContentView.layoutIfNeeded()
-        let rtlAvatarFrame = rtlContentView.avatarView.convert(
-            rtlContentView.avatarView.bounds,
+        let rtlIconFrame = rtlContentView.iconView.convert(
+            rtlContentView.iconView.bounds,
             to: rtlContentView
         )
         let rtlTitleFrame = rtlContentView.titleLabel.convert(
             rtlContentView.titleLabel.bounds,
             to: rtlContentView
         )
-        let rtlAvatarWindowFrame = rtlContentView.avatarView.convert(
-            rtlContentView.avatarView.bounds,
+        let rtlIconWindowFrame = rtlContentView.iconView.convert(
+            rtlContentView.iconView.bounds,
             to: window
         )
         let rtlTitleWindowFrame = rtlContentView.titleLabel.convert(
@@ -7911,9 +7949,9 @@ struct DemoTests {
                 == .forceRightToLeft
         )
         #expect(rtlContentView.semanticContentAttribute == .forceRightToLeft)
-        #expect(rtlContentView.avatarView.semanticContentAttribute == .unspecified)
+        #expect(rtlContentView.iconView.semanticContentAttribute == .unspecified)
         #expect(rtlContentView.titleLabel.semanticContentAttribute == .unspecified)
-        #expect(rtlContentView.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(rtlContentView.detailLabel.semanticContentAttribute == .unspecified)
         #expect(
             rtlCell.effectiveUserInterfaceLayoutDirection
                 == collectionView.effectiveUserInterfaceLayoutDirection
@@ -7922,12 +7960,12 @@ struct DemoTests {
             rtlContentView.effectiveUserInterfaceLayoutDirection
                 == collectionView.effectiveUserInterfaceLayoutDirection
         )
-        #expect(rtlAvatarFrame.midX > rtlTitleFrame.midX)
-        #expect(rtlAvatarWindowFrame.midX > rtlTitleWindowFrame.midX)
+        #expect(rtlIconFrame.midX > rtlTitleFrame.midX)
+        #expect(rtlIconWindowFrame.midX > rtlTitleWindowFrame.midX)
         #expect(
             isHorizontalMirror(
-                rtlAvatarFrame,
-                of: ltrAvatarFrame,
+                rtlIconFrame,
+                of: ltrIconFrame,
                 in: rtlContentView.bounds.width
             )
         )
@@ -7945,9 +7983,11 @@ struct DemoTests {
         let returnedCell = try #require(
             collectionView.cellForItem(
                 at: IndexPath(item: 0, section: 0)
-            ) as? MessageCell
+            ) as? UICollectionViewListCell
         )
-        let returnedContent = returnedCell.messageContentView
+        let returnedContent = try #require(
+            returnedCell.allSubviews(of: ContentConfigurationView.self).first
+        )
         returnedContent.layoutIfNeeded()
 
         #expect(collectionView.semanticContentAttribute == .forceLeftToRight)
@@ -7961,9 +8001,9 @@ struct DemoTests {
                 == .forceLeftToRight
         )
         #expect(returnedContent.semanticContentAttribute == .forceLeftToRight)
-        #expect(returnedContent.avatarView.semanticContentAttribute == .unspecified)
+        #expect(returnedContent.iconView.semanticContentAttribute == .unspecified)
         #expect(returnedContent.titleLabel.semanticContentAttribute == .unspecified)
-        #expect(returnedContent.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(returnedContent.detailLabel.semanticContentAttribute == .unspecified)
         #expect(
             returnedCell.effectiveUserInterfaceLayoutDirection
                 == collectionView.effectiveUserInterfaceLayoutDirection
@@ -7983,11 +8023,11 @@ struct DemoTests {
             CATransform3DIsIdentity(returnedContent.layer.sublayerTransform)
         )
         #expect(
-            returnedContent.avatarView.convert(
-                returnedContent.avatarView.bounds,
+            returnedContent.iconView.convert(
+                returnedContent.iconView.bounds,
                 to: returnedContent
             )
-                .approximatelyEquals(ltrAvatarFrame)
+                .approximatelyEquals(ltrIconFrame)
         )
         #expect(
             returnedContent.titleLabel.convert(
@@ -7997,11 +8037,11 @@ struct DemoTests {
                 .approximatelyEquals(ltrTitleFrame)
         )
         #expect(
-            returnedContent.avatarView.convert(
-                returnedContent.avatarView.bounds,
+            returnedContent.iconView.convert(
+                returnedContent.iconView.bounds,
                 to: window
             )
-                .approximatelyEquals(ltrAvatarWindowFrame)
+                .approximatelyEquals(ltrIconWindowFrame)
         )
         #expect(
             returnedContent.titleLabel.convert(
@@ -8018,12 +8058,12 @@ struct DemoTests {
             guard
                 let cell = collectionView.cellForItem(
                     at: IndexPath(item: 0, section: 0)
-                ) as? MessageCell
+                ) as? UICollectionViewListCell
             else {
                 return false
             }
-            return cell.messageContentView.titleLabel.text
-                == "rtl.messages.title.1"
+            return cell.allSubviews(of: ContentConfigurationView.self).first?.titleLabel.text
+                == "rtl.contentConfiguration.sample.title.1"
         }
         #expect(localizedContentDidApply)
         viewController.view.layoutIfNeeded()
@@ -8031,11 +8071,13 @@ struct DemoTests {
         let localizedCell = try #require(
             collectionView.cellForItem(
                 at: IndexPath(item: 0, section: 0)
-            ) as? MessageCell
+            ) as? UICollectionViewListCell
         )
-        let localizedContent = localizedCell.messageContentView
+        let localizedContent = try #require(
+            localizedCell.allSubviews(of: ContentConfigurationView.self).first
+        )
         localizedContent.layoutIfNeeded()
-        #expect(localizedContent.titleLabel.text == "rtl.messages.title.1")
+        #expect(localizedContent.titleLabel.text == "rtl.contentConfiguration.sample.title.1")
         #expect(collectionView.semanticContentAttribute == .forceRightToLeft)
         #expect(
             collectionView.effectiveUserInterfaceLayoutDirection
@@ -8047,9 +8089,9 @@ struct DemoTests {
                 == .forceRightToLeft
         )
         #expect(localizedContent.semanticContentAttribute == .forceRightToLeft)
-        #expect(localizedContent.avatarView.semanticContentAttribute == .unspecified)
+        #expect(localizedContent.iconView.semanticContentAttribute == .unspecified)
         #expect(localizedContent.titleLabel.semanticContentAttribute == .unspecified)
-        #expect(localizedContent.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(localizedContent.detailLabel.semanticContentAttribute == .unspecified)
         #expect(
             localizedCell.effectiveUserInterfaceLayoutDirection
                 == collectionView.effectiveUserInterfaceLayoutDirection
@@ -8069,13 +8111,15 @@ struct DemoTests {
         let newlyVisibleCell = try #require(
             collectionView.cellForItem(
                 at: IndexPath(item: 3, section: 0)
-            ) as? MessageCell
+            ) as? UICollectionViewListCell
         )
-        let newlyVisibleContent = newlyVisibleCell.messageContentView
+        let newlyVisibleContent = try #require(
+            newlyVisibleCell.allSubviews(of: ContentConfigurationView.self).first
+        )
         newlyVisibleCell.layoutIfNeeded()
         newlyVisibleContent.layoutIfNeeded()
-        let newAvatarFrame = newlyVisibleContent.avatarView.convert(
-            newlyVisibleContent.avatarView.bounds,
+        let newIconFrame = newlyVisibleContent.iconView.convert(
+            newlyVisibleContent.iconView.bounds,
             to: newlyVisibleContent
         )
         let newTitleFrame = newlyVisibleContent.titleLabel.convert(
@@ -8088,7 +8132,7 @@ struct DemoTests {
                 IndexPath(item: 3, section: 0)
             )
         )
-        #expect(newlyVisibleContent.titleLabel.text == "rtl.messages.title.4")
+        #expect(newlyVisibleContent.titleLabel.text == "rtl.contentConfiguration.sample.title.4")
         #expect(newlyVisibleCell.semanticContentAttribute == .forceRightToLeft)
         #expect(
             newlyVisibleCell.contentView.semanticContentAttribute
@@ -8098,9 +8142,9 @@ struct DemoTests {
             newlyVisibleContent.semanticContentAttribute
                 == .forceRightToLeft
         )
-        #expect(newlyVisibleContent.avatarView.semanticContentAttribute == .unspecified)
+        #expect(newlyVisibleContent.iconView.semanticContentAttribute == .unspecified)
         #expect(newlyVisibleContent.titleLabel.semanticContentAttribute == .unspecified)
-        #expect(newlyVisibleContent.messageLabel.semanticContentAttribute == .unspecified)
+        #expect(newlyVisibleContent.detailLabel.semanticContentAttribute == .unspecified)
         #expect(
             newlyVisibleCell.effectiveUserInterfaceLayoutDirection
                 == collectionView.effectiveUserInterfaceLayoutDirection
@@ -8109,7 +8153,7 @@ struct DemoTests {
             newlyVisibleContent.effectiveUserInterfaceLayoutDirection
                 == collectionView.effectiveUserInterfaceLayoutDirection
         )
-        #expect(newAvatarFrame.midX > newTitleFrame.midX)
+        #expect(newIconFrame.midX > newTitleFrame.midX)
 
         prefix = "returned."
         viewController.reloadLocalizedContent()
@@ -8123,12 +8167,12 @@ struct DemoTests {
             guard
                 let cell = collectionView.cellForItem(
                     at: IndexPath(item: 0, section: 0)
-                ) as? MessageCell
+                ) as? UICollectionViewListCell
             else {
                 return false
             }
-            return cell.messageContentView.titleLabel.text
-                == "returned.messages.title.1"
+            return cell.allSubviews(of: ContentConfigurationView.self).first?.titleLabel.text
+                == "returned.contentConfiguration.sample.title.1"
         }
         #expect(returnedLocalizedContentDidApply)
         viewController.view.layoutIfNeeded()
@@ -8137,13 +8181,15 @@ struct DemoTests {
         let returnedLocalizedCell = try #require(
             collectionView.cellForItem(
                 at: IndexPath(item: 0, section: 0)
-            ) as? MessageCell
+            ) as? UICollectionViewListCell
         )
-        let returnedLocalizedContent = returnedLocalizedCell.messageContentView
+        let returnedLocalizedContent = try #require(
+            returnedLocalizedCell.allSubviews(of: ContentConfigurationView.self).first
+        )
         returnedLocalizedContent.layoutIfNeeded()
-        let returnedLocalizedAvatarWindowFrame =
-            returnedLocalizedContent.avatarView.convert(
-                returnedLocalizedContent.avatarView.bounds,
+        let returnedLocalizedIconWindowFrame =
+            returnedLocalizedContent.iconView.convert(
+                returnedLocalizedContent.iconView.bounds,
                 to: window
             )
         let returnedLocalizedTitleWindowFrame =
@@ -8154,7 +8200,7 @@ struct DemoTests {
 
         #expect(
             returnedLocalizedContent.titleLabel.text
-                == "returned.messages.title.1"
+                == "returned.contentConfiguration.sample.title.1"
         )
         #expect(collectionView.semanticContentAttribute == .forceLeftToRight)
         #expect(
@@ -8165,8 +8211,8 @@ struct DemoTests {
         // 这能捕获局部 frame 正确但 window 坐标仍残留 RTL 镜像的回归。
         #expect(
             abs(
-                returnedLocalizedAvatarWindowFrame.minX
-                    - ltrAvatarWindowFrame.minX
+                returnedLocalizedIconWindowFrame.minX
+                    - ltrIconWindowFrame.minX
             ) < 0.5
         )
         #expect(
@@ -8176,19 +8222,19 @@ struct DemoTests {
             ) < 0.5
         )
         #expect(
-            returnedLocalizedAvatarWindowFrame.midX
+            returnedLocalizedIconWindowFrame.midX
                 < returnedLocalizedTitleWindowFrame.midX
         )
     }
 
-    @Test func tableMessagesInheritDirectionForVisibleAndNewContent() async throws {
+    @Test func tableContentConfigurationInheritsDirectionForVisibleAndNewContent() async throws {
         let sectionHorizontalPadding: CGFloat = 16
         let sectionEdgeTolerance: CGFloat = 1
         let sectionSizingTolerance: CGFloat = 1.01
         var prefix = "ltr."
         let localizer = Localizer { key, _ in prefix + key }
-        let viewController = MessageTableViewController(
-            viewModel: MessageListViewModel(
+        let viewController = ContentConfigurationTableViewController(
+            viewModel: ContentConfigurationListViewModel(
                 configuration: .table,
                 localizer: localizer
             )
@@ -8214,27 +8260,29 @@ struct DemoTests {
         let cell = try #require(
             tableView.cellForRow(
                 at: IndexPath(row: 0, section: 0)
-            ) as? MessageTableCell
+            )
         )
-        let contentView = cell.messageContentView
+        let contentView = try #require(
+            cell.allSubviews(of: ContentConfigurationView.self).first
+        )
         contentView.layoutIfNeeded()
-        let avatarView = contentView.avatarView
+        let iconView = contentView.iconView
         let titleLabel = contentView.titleLabel
-        let ltrAvatarFrame = avatarView.convert(avatarView.bounds, to: contentView)
+        let ltrIconFrame = iconView.convert(iconView.bounds, to: contentView)
         let ltrTitleFrame = titleLabel.convert(titleLabel.bounds, to: contentView)
 
         let header = try #require(
             tableView.headerView(forSection: 0)
-                as? MessageTableHeaderFooterView
+                as? ContentConfigurationTableHeaderFooterView
         )
         let headerContent = header.sectionContentView
         headerContent.layoutIfNeeded()
         let headerTitleLabel = headerContent.titleLabel
         let headerDetailLabel = headerContent.detailLabel
-        #expect(headerTitleLabel.text == "ltr.demo.tableMessages.header")
+        #expect(headerTitleLabel.text == "ltr.demo.contentConfiguration.table.header")
         #expect(
             headerDetailLabel.text
-                == "ltr.demo.tableMessages.header.detail"
+                == "ltr.demo.contentConfiguration.table.header.detail"
         )
         let ltrHeaderTitleFrame = headerTitleLabel.convert(
             headerTitleLabel.bounds,
@@ -8245,7 +8293,7 @@ struct DemoTests {
             to: headerContent
         )
 
-        #expect(titleLabel.text == "ltr.messages.title.1")
+        #expect(titleLabel.text == "ltr.contentConfiguration.sample.title.1")
         #expect(tableView.semanticContentAttribute == .forceLeftToRight)
         #expect(
             tableView.effectiveUserInterfaceLayoutDirection == .leftToRight
@@ -8263,7 +8311,7 @@ struct DemoTests {
             contentView.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
-        #expect(ltrAvatarFrame.midX < ltrTitleFrame.midX)
+        #expect(ltrIconFrame.midX < ltrTitleFrame.midX)
         #expect(headerContent.semanticContentAttribute == .forceLeftToRight)
         #expect(
             header.contentView.bounds.insetBy(dx: -1, dy: -1)
@@ -8310,13 +8358,13 @@ struct DemoTests {
         tableView.layoutIfNeeded()
         let footer = try #require(
             tableView.footerView(forSection: 0)
-                as? MessageTableHeaderFooterView
+                as? ContentConfigurationTableHeaderFooterView
         )
         let footerContent = footer.sectionContentView
         footerContent.layoutIfNeeded()
         let footerTitleLabel = footerContent.titleLabel
         let footerDetailLabel = footerContent.detailLabel
-        #expect(footerTitleLabel.text == "ltr.demo.tableMessages.footer")
+        #expect(footerTitleLabel.text == "ltr.demo.contentConfiguration.table.footer")
         #expect(footerDetailLabel.text == nil)
         let ltrFooterTitleFrame = footerTitleLabel.convert(
             footerTitleLabel.bounds,
@@ -8369,12 +8417,14 @@ struct DemoTests {
         let rtlCell = try #require(
             tableView.cellForRow(
                 at: IndexPath(row: 0, section: 0)
-            ) as? MessageTableCell
+            )
         )
-        let rtlContentView = rtlCell.messageContentView
+        let rtlContentView = try #require(
+            rtlCell.allSubviews(of: ContentConfigurationView.self).first
+        )
         rtlContentView.layoutIfNeeded()
-        let rtlAvatarFrame = rtlContentView.avatarView.convert(
-            rtlContentView.avatarView.bounds,
+        let rtlIconFrame = rtlContentView.iconView.convert(
+            rtlContentView.iconView.bounds,
             to: rtlContentView
         )
         let rtlTitleFrame = rtlContentView.titleLabel.convert(
@@ -8383,16 +8433,16 @@ struct DemoTests {
         )
         let rtlHeader = try #require(
             tableView.headerView(forSection: 0)
-                as? MessageTableHeaderFooterView
+                as? ContentConfigurationTableHeaderFooterView
         )
         let rtlHeaderContent = rtlHeader.sectionContentView
         rtlHeaderContent.layoutIfNeeded()
         let rtlHeaderTitleLabel = rtlHeaderContent.titleLabel
         let rtlHeaderDetailLabel = rtlHeaderContent.detailLabel
-        #expect(rtlHeaderTitleLabel.text == "ltr.demo.tableMessages.header")
+        #expect(rtlHeaderTitleLabel.text == "ltr.demo.contentConfiguration.table.header")
         #expect(
             rtlHeaderDetailLabel.text
-                == "ltr.demo.tableMessages.header.detail"
+                == "ltr.demo.contentConfiguration.table.header.detail"
         )
         let rtlHeaderTitleFrame = rtlHeaderTitleLabel.convert(
             rtlHeaderTitleLabel.bounds,
@@ -8420,11 +8470,11 @@ struct DemoTests {
             rtlContentView.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
-        #expect(rtlAvatarFrame.midX > rtlTitleFrame.midX)
+        #expect(rtlIconFrame.midX > rtlTitleFrame.midX)
         #expect(
             isHorizontalMirror(
-                rtlAvatarFrame,
-                of: ltrAvatarFrame,
+                rtlIconFrame,
+                of: ltrIconFrame,
                 in: rtlContentView.bounds.width
             )
         )
@@ -8493,13 +8543,15 @@ struct DemoTests {
         let returnedCell = try #require(
             tableView.cellForRow(
                 at: IndexPath(row: 0, section: 0)
-            ) as? MessageTableCell
+            )
         )
-        let returnedContent = returnedCell.messageContentView
+        let returnedContent = try #require(
+            returnedCell.allSubviews(of: ContentConfigurationView.self).first
+        )
         returnedContent.layoutIfNeeded()
         let returnedHeader = try #require(
             tableView.headerView(forSection: 0)
-                as? MessageTableHeaderFooterView
+                as? ContentConfigurationTableHeaderFooterView
         )
         let returnedHeaderContent = returnedHeader.sectionContentView
         returnedHeaderContent.layoutIfNeeded()
@@ -8507,11 +8559,11 @@ struct DemoTests {
         let returnedHeaderDetailLabel = returnedHeaderContent.detailLabel
         #expect(
             returnedHeaderTitleLabel.text
-                == "ltr.demo.tableMessages.header"
+                == "ltr.demo.contentConfiguration.table.header"
         )
         #expect(
             returnedHeaderDetailLabel.text
-                == "ltr.demo.tableMessages.header.detail"
+                == "ltr.demo.contentConfiguration.table.header.detail"
         )
         let returnedHeaderTitleFrame = returnedHeaderTitleLabel.convert(
             returnedHeaderTitleLabel.bounds,
@@ -8559,11 +8611,11 @@ struct DemoTests {
             ) <= sectionEdgeTolerance
         )
         #expect(
-            returnedContent.avatarView.convert(
-                returnedContent.avatarView.bounds,
+            returnedContent.iconView.convert(
+                returnedContent.iconView.bounds,
                 to: returnedContent
             )
-                .approximatelyEquals(ltrAvatarFrame)
+                .approximatelyEquals(ltrIconFrame)
         )
         #expect(
             returnedContent.titleLabel.convert(
@@ -8579,16 +8631,15 @@ struct DemoTests {
         let localizedContentDidApply = await waitForCondition {
             guard
                 let header = tableView.headerView(forSection: 0)
-                    as? MessageTableHeaderFooterView,
+                    as? ContentConfigurationTableHeaderFooterView,
                 let cell = tableView.cellForRow(at: IndexPath(row: 0, section: 0))
-                    as? MessageTableCell
             else {
                 return false
             }
             return header.sectionContentView.titleLabel.text
-                    == "rtl.demo.tableMessages.header"
-                && cell.messageContentView.titleLabel.text
-                    == "rtl.messages.title.1"
+                    == "rtl.demo.contentConfiguration.table.header"
+                && cell.allSubviews(of: ContentConfigurationView.self).first?.titleLabel.text
+                    == "rtl.contentConfiguration.sample.title.1"
         }
         #expect(localizedContentDidApply)
         viewController.view.layoutIfNeeded()
@@ -8596,13 +8647,15 @@ struct DemoTests {
         let localizedCell = try #require(
             tableView.cellForRow(
                 at: IndexPath(row: 0, section: 0)
-            ) as? MessageTableCell
+            )
         )
-        let localizedContent = localizedCell.messageContentView
+        let localizedContent = try #require(
+            localizedCell.allSubviews(of: ContentConfigurationView.self).first
+        )
         localizedContent.layoutIfNeeded()
         let localizedHeader = try #require(
             tableView.headerView(forSection: 0)
-                as? MessageTableHeaderFooterView
+                as? ContentConfigurationTableHeaderFooterView
         )
         let localizedHeaderContent = localizedHeader.sectionContentView
         localizedHeaderContent.layoutIfNeeded()
@@ -8610,11 +8663,11 @@ struct DemoTests {
         let localizedHeaderDetailLabel = localizedHeaderContent.detailLabel
         #expect(
             localizedHeaderTitleLabel.text
-                == "rtl.demo.tableMessages.header"
+                == "rtl.demo.contentConfiguration.table.header"
         )
         #expect(
             localizedHeaderDetailLabel.text
-                == "rtl.demo.tableMessages.header.detail"
+                == "rtl.demo.contentConfiguration.table.header.detail"
         )
         let localizedHeaderTitleFrame = localizedHeaderTitleLabel.convert(
             localizedHeaderTitleLabel.bounds,
@@ -8625,7 +8678,7 @@ struct DemoTests {
             to: localizedHeaderContent
         )
 
-        #expect(localizedContent.titleLabel.text == "rtl.messages.title.1")
+        #expect(localizedContent.titleLabel.text == "rtl.contentConfiguration.sample.title.1")
         #expect(tableView.semanticContentAttribute == .forceRightToLeft)
         #expect(
             tableView.effectiveUserInterfaceLayoutDirection == .rightToLeft
@@ -8682,13 +8735,15 @@ struct DemoTests {
         let newlyVisibleCell = try #require(
             tableView.cellForRow(
                 at: IndexPath(row: 11, section: 0)
-            ) as? MessageTableCell
+            )
         )
-        let newlyVisibleContent = newlyVisibleCell.messageContentView
+        let newlyVisibleContent = try #require(
+            newlyVisibleCell.allSubviews(of: ContentConfigurationView.self).first
+        )
         newlyVisibleCell.layoutIfNeeded()
         newlyVisibleContent.layoutIfNeeded()
-        let newAvatarFrame = newlyVisibleContent.avatarView.convert(
-            newlyVisibleContent.avatarView.bounds,
+        let newIconFrame = newlyVisibleContent.iconView.convert(
+            newlyVisibleContent.iconView.bounds,
             to: newlyVisibleContent
         )
         let newTitleFrame = newlyVisibleContent.titleLabel.convert(
@@ -8697,20 +8752,20 @@ struct DemoTests {
         )
         let rtlFooter = try #require(
             tableView.footerView(forSection: 0)
-                as? MessageTableHeaderFooterView
+                as? ContentConfigurationTableHeaderFooterView
         )
         let rtlFooterContent = rtlFooter.sectionContentView
         rtlFooterContent.layoutIfNeeded()
         let rtlFooterTitleLabel = rtlFooterContent.titleLabel
         let rtlFooterDetailLabel = rtlFooterContent.detailLabel
-        #expect(rtlFooterTitleLabel.text == "rtl.demo.tableMessages.footer")
+        #expect(rtlFooterTitleLabel.text == "rtl.demo.contentConfiguration.table.footer")
         #expect(rtlFooterDetailLabel.text == nil)
         let rtlFooterTitleFrame = rtlFooterTitleLabel.convert(
             rtlFooterTitleLabel.bounds,
             to: rtlFooterContent
         )
 
-        #expect(newlyVisibleContent.titleLabel.text == "rtl.messages.title.4")
+        #expect(newlyVisibleContent.titleLabel.text == "rtl.contentConfiguration.sample.title.4")
         #expect(newlyVisibleContent.semanticContentAttribute == .forceRightToLeft)
         #expect(
             newlyVisibleCell.effectiveUserInterfaceLayoutDirection
@@ -8724,7 +8779,7 @@ struct DemoTests {
             newlyVisibleContent.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
-        #expect(newAvatarFrame.midX > newTitleFrame.midX)
+        #expect(newIconFrame.midX > newTitleFrame.midX)
         #expect(rtlFooterContent.semanticContentAttribute == .forceRightToLeft)
         #expect(
             rtlFooter.contentView.bounds.insetBy(dx: -1, dy: -1)
@@ -8780,7 +8835,7 @@ struct DemoTests {
 
         let returnedRTLHeader = try #require(
             tableView.headerView(forSection: 0)
-                as? MessageTableHeaderFooterView
+                as? ContentConfigurationTableHeaderFooterView
         )
         let returnedRTLHeaderContent = returnedRTLHeader.sectionContentView
         returnedRTLHeaderContent.layoutIfNeeded()
@@ -8788,11 +8843,11 @@ struct DemoTests {
         let returnedRTLHeaderDetailLabel = returnedRTLHeaderContent.detailLabel
         #expect(
             returnedRTLHeaderTitleLabel.text
-                == "rtl.demo.tableMessages.header"
+                == "rtl.demo.contentConfiguration.table.header"
         )
         #expect(
             returnedRTLHeaderDetailLabel.text
-                == "rtl.demo.tableMessages.header.detail"
+                == "rtl.demo.contentConfiguration.table.header.detail"
         )
         let returnedRTLHeaderTitleFrame = returnedRTLHeaderTitleLabel.convert(
             returnedRTLHeaderTitleLabel.bounds,

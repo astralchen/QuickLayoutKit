@@ -18,8 +18,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
     case dashboard
     case liveRoom
     case imessageChat
-    case messages
-    case tableMessages
+    case collectionContentConfiguration
+    case tableContentConfiguration
     case keyboard
     case form
     case semanticContent
@@ -55,10 +55,10 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "demo.liveRoom.title"
         case .imessageChat:
             "demo.imessage.title"
-        case .messages:
-            "demo.messages.title"
-        case .tableMessages:
-            "demo.tableMessages.title"
+        case .collectionContentConfiguration:
+            "demo.contentConfiguration.collection.title"
+        case .tableContentConfiguration:
+            "demo.contentConfiguration.table.title"
         case .keyboard:
             "demo.keyboard.title"
         case .form:
@@ -108,9 +108,9 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "music.mic"
         case .imessageChat:
             "message.fill"
-        case .messages:
-            "bubble.left.and.bubble.right"
-        case .tableMessages:
+        case .collectionContentConfiguration:
+            "rectangle.grid.1x2"
+        case .tableContentConfiguration:
             "list.bullet.rectangle"
         case .keyboard:
             "keyboard"

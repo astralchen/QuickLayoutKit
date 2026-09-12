@@ -1,5 +1,5 @@
 //
-//  MessageListViewModel.swift
+//  ContentConfigurationListViewModel.swift
 //  Demo
 //
 //  Created by Codex on 2026/8/15.
@@ -8,7 +8,7 @@
 import Foundation
 
 @MainActor
-final class MessageListViewModel {
+final class ContentConfigurationListViewModel {
 
     struct Configuration: Equatable {
         let repetitionCount: Int
@@ -28,18 +28,23 @@ final class MessageListViewModel {
             self.footerTitleKey = footerTitleKey
         }
 
-        static let collection = Configuration(repetitionCount: 1)
+        static let collection = Configuration(
+            repetitionCount: 1,
+            headerTitleKey: "demo.contentConfiguration.collection.header",
+            headerDetailKey: "demo.contentConfiguration.collection.header.detail",
+            footerTitleKey: "demo.contentConfiguration.collection.footer"
+        )
 
         static let table = Configuration(
             repetitionCount: 3,
-            headerTitleKey: "demo.tableMessages.header",
-            headerDetailKey: "demo.tableMessages.header.detail",
-            footerTitleKey: "demo.tableMessages.footer"
+            headerTitleKey: "demo.contentConfiguration.table.header",
+            headerDetailKey: "demo.contentConfiguration.table.header.detail",
+            footerTitleKey: "demo.contentConfiguration.table.footer"
         )
     }
 
     struct State {
-        let items: [MessageListItem]
+        let items: [ContentConfigurationListItem]
         let headerTitle: String?
         let headerDetail: String?
         let footerTitle: String?
@@ -93,7 +98,7 @@ final class MessageListViewModel {
         localizer: Localizer
     ) -> State {
         State(
-            items: MessageListFactory.localizedItems(
+            items: ContentConfigurationListFactory.localizedItems(
                 repeating: configuration.repetitionCount,
                 localizer: localizer
             ),

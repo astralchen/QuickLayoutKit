@@ -558,6 +558,12 @@ button.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
 `QuickLayoutTableViewHeaderFooterView` 和 `QuickLayoutCollectionReusableView`。它们支持
 QuickLayout `body`、自适应尺寸、环境更新和从外层列表恢复布局方向。
 
+`QuickLayoutCollectionViewCell` 和 `QuickLayoutCollectionReusableView` 使用相同的
+`quickLayoutHorizontalFlexibility`、`quickLayoutVerticalFlexibility` 测量配置，默认均为
+`.fullyFlexible`。对于宽度由列表决定、高度随内容变化的单元格或分组标题，将水平弹性设为
+`.fixedSize`，垂直弹性保留 `.fullyFlexible`，即可由基类完成自适应测量，无需重写
+`preferredLayoutAttributesFitting(_:)`。
+
 ```swift
 final class MessageCell: QuickLayoutCollectionViewCell {
     private let titleLabel = UILabel()

@@ -30,8 +30,8 @@ struct MVVMViewModelTests {
         )
 
         #expect(replayedState == viewModel.state)
-        viewModel.select(.tableMessages)
-        #expect(selectedRoute == .tableMessages)
+        viewModel.select(.tableContentConfiguration)
+        #expect(selectedRoute == .tableContentConfiguration)
 
         strings.prefix = "second."
         viewModel.reloadLocalizedContent()
@@ -226,31 +226,37 @@ struct MVVMViewModelTests {
         #expect(viewModel.state.items.last?.title == "dynamic.item.title: 5")
     }
 
-    @Test func messageListViewModelSharesCollectionAndTablePresentation() {
+    @Test func contentConfigurationListViewModelSharesCollectionAndTablePresentation() {
         let strings = MutableStrings(prefix: "first.")
-        let collectionViewModel = MessageListViewModel(
+        let collectionViewModel = ContentConfigurationListViewModel(
             configuration: .collection,
             localizer: strings.localizer
         )
-        let tableViewModel = MessageListViewModel(
+        let tableViewModel = ContentConfigurationListViewModel(
             configuration: .table,
             localizer: strings.localizer
         )
 
         #expect(collectionViewModel.state.items.count == 4)
         #expect(Set(collectionViewModel.state.items.map(\.id)).count == 4)
-        #expect(collectionViewModel.state.headerTitle == nil)
+        #expect(collectionViewModel.state.headerTitle == "first.demo.contentConfiguration.collection.header")
+        #expect(collectionViewModel.state.headerDetail == "first.demo.contentConfiguration.collection.header.detail")
+        #expect(collectionViewModel.state.footerTitle == "first.demo.contentConfiguration.collection.footer")
         #expect(tableViewModel.state.items.count == 12)
         #expect(Set(tableViewModel.state.items.map(\.id)).count == 12)
-        #expect(tableViewModel.state.headerTitle == "first.demo.tableMessages.header")
-        #expect(tableViewModel.state.footerTitle == "first.demo.tableMessages.footer")
+        #expect(tableViewModel.state.headerTitle == "first.demo.contentConfiguration.table.header")
+        #expect(tableViewModel.state.footerTitle == "first.demo.contentConfiguration.table.footer")
 
         strings.prefix = "second."
         tableViewModel.refreshLocalizedContent()
-        #expect(tableViewModel.state.items[0].model.title == "second.messages.title.1")
-        #expect(tableViewModel.state.headerDetail == "second.demo.tableMessages.header.detail")
+        collectionViewModel.refreshLocalizedContent()
+        #expect(collectionViewModel.state.headerTitle == "second.demo.contentConfiguration.collection.header")
+        #expect(collectionViewModel.state.headerDetail == "second.demo.contentConfiguration.collection.header.detail")
+        #expect(collectionViewModel.state.footerTitle == "second.demo.contentConfiguration.collection.footer")
+        #expect(tableViewModel.state.items[0].model.title == "second.contentConfiguration.sample.title.1")
+        #expect(tableViewModel.state.headerDetail == "second.demo.contentConfiguration.table.header.detail")
 
-        let emptyViewModel = MessageListViewModel(
+        let emptyViewModel = ContentConfigurationListViewModel(
             configuration: .init(repetitionCount: -1),
             localizer: strings.localizer
         )

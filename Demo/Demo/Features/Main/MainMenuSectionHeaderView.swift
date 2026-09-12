@@ -4,25 +4,26 @@
 //
 
 import UIKit
+import QuickLayout
+import QuickLayoutKit
 
-/// ListKit 注册补充视图，文字样式、动态字体和尺寸测量使用 UIKit 列表内容。
-final class MainMenuSectionHeaderView: UICollectionReusableView {
+/// ListKit 注册补充视图，由 QuickLayoutKit 布局并保留 UIKit 列表文字样式和动态字体。
+final class MainMenuSectionHeaderView: QuickLayoutCollectionReusableView {
     let listContentView = UIListContentView(configuration: UIListContentConfiguration.header())
 
     override var semanticContentAttribute: UISemanticContentAttribute {
         didSet { listContentView.semanticContentAttribute = semanticContentAttribute }
     }
 
+    override var body: Layout {
+        listContentView
+            .resizable(axis: .horizontal)
+    }
+
     override init(frame: CGRect) {
         super.init(frame: frame)
-        listContentView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(listContentView)
-        NSLayoutConstraint.activate([
-            listContentView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            listContentView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            listContentView.topAnchor.constraint(equalTo: topAnchor),
-            listContentView.bottomAnchor.constraint(equalTo: bottomAnchor),
-        ])
+        quickLayoutHorizontalFlexibility = .fixedSize
+        quickLayoutVerticalFlexibility = .fullyFlexible
         isAccessibilityElement = true
         accessibilityTraits = .header
         listContentView.accessibilityElementsHidden = true
@@ -30,19 +31,6 @@ final class MainMenuSectionHeaderView: UICollectionReusableView {
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
-    }
-
-    override func preferredLayoutAttributesFitting(
-        _ layoutAttributes: UICollectionViewLayoutAttributes
-    ) -> UICollectionViewLayoutAttributes {
-        let attributes = super.preferredLayoutAttributesFitting(layoutAttributes)
-        // 预估高度不应限制多行标题的自然高度。
-        attributes.size.height = systemLayoutSizeFitting(
-            CGSize(width: layoutAttributes.size.width, height: UIView.layoutFittingCompressedSize.height),
-            withHorizontalFittingPriority: .required,
-            verticalFittingPriority: .fittingSizeLevel
-        ).height
-        return attributes
     }
 
     func configure(title: String, identifier: String) {
@@ -53,6 +41,7 @@ final class MainMenuSectionHeaderView: UICollectionReusableView {
         listContentView.semanticContentAttribute = semanticContentAttribute
         accessibilityLabel = title
         accessibilityIdentifier = identifier
+        setNeedsQuickLayout()
     }
 
     override func prepareForReuse() {
@@ -60,8 +49,51 @@ final class MainMenuSectionHeaderView: UICollectionReusableView {
         listContentView.configuration = UIListContentConfiguration.header()
         accessibilityLabel = nil
         accessibilityIdentifier = nil
+        setNeedsQuickLayout()
     }
 }
+
+#if DEBUG
+@MainActor
+private func makeMainMenuSectionHeaderPreview(
+    title: String = "QuickLayout 示例",
+    contentSizeCategory: UIContentSizeCategory = .large,
+    semanticContentAttribute: UISemanticContentAttribute = .forceLeftToRight
+) -> UIViewController {
+    let header = MainMenuSectionHeaderView(frame: .zero)
+    header.semanticContentAttribute = semanticContentAttribute
+    header.configure(title: title, identifier: "main.section.preview")
+    let controller = QuickLayoutHostingController {
+        header
+            .resizable(axis: .horizontal)
+            .fixedSize(axis: .vertical)
+            .padding(.horizontal, 20)
+    }
+    controller.loadViewIfNeeded()
+    controller.view.backgroundColor = .systemGroupedBackground
+    controller.view.semanticContentAttribute = semanticContentAttribute
+    controller.traitOverrides.preferredContentSizeCategory = contentSizeCategory
+    return controller
+}
+
+#Preview("分组标题") {
+    makeMainMenuSectionHeaderPreview()
+}
+
+#Preview("多行 · 辅助功能大字体") {
+    makeMainMenuSectionHeaderPreview(
+        title: "QuickLayout 布局与交互示例",
+        contentSizeCategory: .accessibilityExtraExtraExtraLarge
+    )
+}
+
+#Preview("阿拉伯语 · RTL") {
+    makeMainMenuSectionHeaderPreview(
+        title: "أمثلة QuickLayout",
+        semanticContentAttribute: .forceRightToLeft
+    )
+}
+#endif
 
 extension MainRoute {
     var menuIconColor: UIColor {
@@ -75,7 +107,7 @@ extension MainRoute {
             .systemOrange
         case .liveRoom:
             .systemPink
-        case .imessageChat, .messages, .tableMessages:
+        case .imessageChat, .collectionContentConfiguration, .tableContentConfiguration:
             .systemGreen
         case .representable, .swiftUIBridge:
             .systemOrange

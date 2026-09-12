@@ -1,5 +1,5 @@
 //
-//  MessageTableViewController.swift
+//  ContentConfigurationTableViewController.swift
 //  Demo
 //
 //  Created by Codex on 2026/8/15.
@@ -8,30 +8,30 @@
 import UIKit
 import AppLocalization
 
-final class MessageTableViewController: LocalizedViewController {
+final class ContentConfigurationTableViewController: LocalizedViewController {
 
     override var localizedTitleKey: String? {
-        "demo.tableMessages.title"
+        "demo.contentConfiguration.table.title"
     }
 
-    private let contentView = MessageTableListView()
-    private let viewModel: MessageListViewModel
+    private let contentView = ContentConfigurationTableListView()
+    private let viewModel: ContentConfigurationListViewModel
 
     var tableView: UITableView? {
         isViewLoaded ? contentView.tableView : nil
     }
 
     convenience init() {
-        self.init(viewModel: MessageListViewModel(configuration: .table))
+        self.init(viewModel: ContentConfigurationListViewModel(configuration: .table))
     }
 
-    init(viewModel: MessageListViewModel) {
+    init(viewModel: ContentConfigurationListViewModel) {
         self.viewModel = viewModel
         super.init(nibName: nil, bundle: nil)
     }
 
     required init?(coder: NSCoder) {
-        viewModel = MessageListViewModel(configuration: .table)
+        viewModel = ContentConfigurationListViewModel(configuration: .table)
         super.init(coder: coder)
     }
 
@@ -55,13 +55,13 @@ final class MessageTableViewController: LocalizedViewController {
         }
     }
 
-    private func render(_ state: MessageListViewModel.State) {
+    private func render(_ state: ContentConfigurationListViewModel.State) {
         guard
             let headerTitle = state.headerTitle,
             let headerDetail = state.headerDetail,
             let footerTitle = state.footerTitle
         else {
-            assertionFailure("The table message list requires header and footer content")
+            assertionFailure("The table content configuration example requires header and footer content")
             return
         }
 
@@ -78,12 +78,12 @@ final class MessageTableViewController: LocalizedViewController {
     ) {
         super.reloadLayoutDirection(direction)
         // Controller 只负责建立容器方向边界；已物化和复用视图的同步、
-        // 自动高度刷新与可见行锚点由 MessageTableListView 统一处理。
+        // 自动高度刷新与可见行锚点由 ContentConfigurationTableListView 统一处理。
         contentView.applyLayoutDirection(direction)
     }
 
 }
 
 #Preview {
-    UINavigationController(rootViewController: MessageTableViewController())
+    UINavigationController(rootViewController: ContentConfigurationTableViewController())
 }

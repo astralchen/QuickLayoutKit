@@ -62,10 +62,10 @@ final class MainRouter: MainRouting {
             LiveRoomViewController()
         case .imessageChat:
             IMessageChatViewController()
-        case .messages:
-            MesssageViewController()
-        case .tableMessages:
-            MessageTableViewController()
+        case .collectionContentConfiguration:
+            ContentConfigurationCollectionViewController()
+        case .tableContentConfiguration:
+            ContentConfigurationTableViewController()
         case .keyboard:
             KeyboardHandlingViewController()
         case .form:

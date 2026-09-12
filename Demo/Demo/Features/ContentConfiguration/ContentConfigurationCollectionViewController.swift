@@ -1,6 +1,6 @@
 //
-//  ViewController.swift
-//  MessageCell
+//  ContentConfigurationCollectionViewController.swift
+//  Demo
 //
 //  Created by Sondra on 2025/12/17.
 //
@@ -9,13 +9,13 @@ import UIKit
 import AppLocalization
 import ListKit
 
-final class MesssageViewController: LocalizedViewController {
+final class ContentConfigurationCollectionViewController: LocalizedViewController {
 
-    override var localizedTitleKey: String? { "demo.messages.title" }
+    override var localizedTitleKey: String? { "demo.contentConfiguration.collection.title" }
 
     private var collectionView: UICollectionView!
-    private let viewModel: MessageListViewModel
-    private lazy var adapter = CollectionListAdapter<MessageListSection>(
+    private let viewModel: ContentConfigurationListViewModel
+    private lazy var adapter = CollectionListAdapter<ContentConfigurationListSection>(
         collectionView: collectionView
     )
     // ListKit 的 apply completion 可能晚于下一次语言切换返回。
@@ -24,17 +24,17 @@ final class MesssageViewController: LocalizedViewController {
 
     convenience init() {
         self.init(
-            viewModel: MessageListViewModel(configuration: .collection)
+            viewModel: ContentConfigurationListViewModel(configuration: .collection)
         )
     }
 
-    init(viewModel: MessageListViewModel) {
+    init(viewModel: ContentConfigurationListViewModel) {
         self.viewModel = viewModel
         super.init(nibName: nil, bundle: nil)
     }
 
     required init?(coder: NSCoder) {
-        viewModel = MessageListViewModel(configuration: .collection)
+        viewModel = ContentConfigurationListViewModel(configuration: .collection)
         super.init(coder: coder)
     }
 
@@ -79,7 +79,7 @@ final class MesssageViewController: LocalizedViewController {
         }
     }
 
-    private func render(_ state: MessageListViewModel.State) {
+    private func render(_ state: ContentConfigurationListViewModel.State) {
         renderGeneration &+= 1
         let generation = renderGeneration
         let expectedRevision = Localization.localizationController
@@ -97,19 +97,55 @@ final class MesssageViewController: LocalizedViewController {
                 self.refreshMaterializedContentLayoutDirection()
             }
         ) {
-            ListSection(.messages) {
+            ListSection(.content) {
                 ForEach(state.items, id: \.id) { item in
-                    Row(model: item.model, cell: MessageCell.self) {
-                        cell, message, _ in
-                        cell.configure(message)
+                    Row(model: item.model, cell: UICollectionViewListCell.self) {
+                        cell, model, _ in
+                        cell.backgroundConfiguration = .clear()
+                        cell.contentConfiguration = ContentConfigurationView.Configuration(
+                            model: model,
+                            cornerRadius: 8
+                        )
+                    }
+                    .onSelect { context in
+                        context.collectionView.deselectItem(
+                            at: context.indexPath,
+                            animated: true
+                        )
                     }
                     // Item identity 在切换语言时保持稳定；把影响内容和
                     // self-sizing 高度的值放进 refreshID，驱动可见 cell 重配。
                     .refreshID([
                         item.model.title,
-                        item.model.message,
+                        item.model.detail,
                         item.model.imageName,
                     ])
+                }
+            } header: {
+                if let title = state.headerTitle {
+                    Header(
+                        ContentConfigurationCollectionHeaderFooterView.self,
+                        id: "content-configuration-header"
+                    ) { header, _ in
+                        header.configure(
+                            title: title,
+                            detail: state.headerDetail,
+                            role: .header
+                        )
+                    }
+                    .refreshID([title, state.headerDetail])
+                    .layout(height: .estimated(64), extendsBoundary: true)
+                }
+            } footer: {
+                if let title = state.footerTitle {
+                    Footer(
+                        ContentConfigurationCollectionHeaderFooterView.self,
+                        id: "content-configuration-footer"
+                    ) { footer, _ in
+                        footer.configure(title: title, detail: nil, role: .footer)
+                    }
+                    .refreshID(title)
+                    .layout(height: .estimated(48), extendsBoundary: true)
                 }
             }
             .selectionMode(.single)
@@ -147,7 +183,7 @@ final class MesssageViewController: LocalizedViewController {
         guard let collectionView else { return }
         collectionView.applyLocalization(
             Localization.layoutDirectionUpdate(direction),
-            preservingVisibleItem: false,
+            preservingVisibleItem: true,
             rebuildingLayoutWith: { [unowned self] in
                 adapter.makeCompositionalLayout()
             }
@@ -157,5 +193,5 @@ final class MesssageViewController: LocalizedViewController {
 
 
 #Preview {
-    UINavigationController(rootViewController: MesssageViewController())
+    UINavigationController(rootViewController: ContentConfigurationCollectionViewController())
 }
