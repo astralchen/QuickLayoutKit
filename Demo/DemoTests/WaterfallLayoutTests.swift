@@ -3,6 +3,7 @@ import Testing
 import QuickLayout
 import QuickLayoutKit
 @testable import Demo
+@testable import QuickLayoutKitUIKit
 
 @MainActor
 func waterfallBoundary(_ kind: String, length: CGFloat, direction: UICollectionView.ScrollDirection = .vertical, pinned: Bool = false) -> NSCollectionLayoutBoundarySupplementaryItem {
@@ -20,14 +21,14 @@ final class WaterfallLayoutTestSource: NSObject, UICollectionViewDataSource, UIC
     var counts: [Int]
     var identifiers: [[Int]]
     var revision = 0
-    var section = ContentConfigurationWaterfallLayout.Section() { didSet { layout?.invalidateSectionConfigurations(reason: "test-section") } }
+    var section = UICollectionViewWaterfallLayout.Section() { didSet { layout?.invalidateSectionConfigurations(reason: "test-section") } }
     var customized = false { didSet { layout?.invalidateSectionConfigurations(reason: "test-section") } }
     var sectionInsetsOverride: NSDirectionalEdgeInsets?
     var headerLength: CGFloat = 0 { didSet { layout?.invalidateSectionConfigurations(reason: "test-header") } }
     var footerLength: CGFloat = 0 { didSet { layout?.invalidateSectionConfigurations(reason: "test-footer") } }
     var pinsHeaders = false { didSet { layout?.invalidateSectionConfigurations(reason: "test-header-pin") } }
     var pinsFooters = false { didSet { layout?.invalidateSectionConfigurations(reason: "test-footer-pin") } }
-    private weak var layout: ContentConfigurationWaterfallLayout?
+    private weak var layout: UICollectionViewWaterfallLayout?
     init(counts: [Int]) {
         self.counts = counts
         identifiers = counts.enumerated().map { section, count in (0..<count).map { section * 1000 + $0 } }
@@ -42,18 +43,18 @@ final class WaterfallLayoutTestSource: NSObject, UICollectionViewDataSource, UIC
         collectionView.register(UICollectionReusableView.self, forSupplementaryViewOfKind: kind, withReuseIdentifier: kind)
         return collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: kind, for: indexPath)
     }
-    func bind(_ layout: ContentConfigurationWaterfallLayout) {
+    func bind(_ layout: UICollectionViewWaterfallLayout) {
         self.layout = layout
         layout.itemMetadataProvider = { [weak self] path in
             guard let self else { return .init(identifier: path) }
             return .init(identifier: self.identifiers[path.section][path.item], contentVersion: self.revision)
         }
     }
-    func makeLayout() -> ContentConfigurationWaterfallLayout {
-        let result = ContentConfigurationWaterfallLayout(sectionProvider: { [weak self] index, _ in
+    func makeLayout() -> UICollectionViewWaterfallLayout {
+        let result = UICollectionViewWaterfallLayout(sectionProvider: { [weak self] index, _ in
             guard let self else { return nil }
             var value = self.section
-            value.laneCount = self.customized ? index + 1 : value.laneCount
+            if self.customized { value.lanes = Array(repeating: .flexible(), count: index + 1) }
             value.contentInsets = self.sectionInsetsOverride ?? value.contentInsets
             if self.customized { value.itemLengthDimensionProvider = { item, _ in .absolute(CGFloat(60 + item * 20)) } }
             let direction = self.layout?.configuration.scrollDirection ?? .vertical
@@ -93,7 +94,7 @@ extension ContentConfigurationCollectionTests {
         #expect(layout.sizingForItem(at: path).verticalFlexibility == .fullyFlexible)
         let stale = try #require(layout.layoutAttributesForItem(at: path))
         layout.configuration.scrollDirection = .horizontal
-        source.section.laneCount = 3
+        source.section.lanes = Array(repeating: .flexible(), count: 3)
         layout.prepare()
         let horizontal = layout.sizingForItem(at: path)
         #expect(horizontal.constraint == CGSize(width: CGFloat.infinity, height: 580 / 3))
@@ -115,7 +116,7 @@ extension ContentConfigurationCollectionTests {
         #expect(layout.sizingForItem(at: path).constraint.width == 50)
         layout.configuration.scrollDirection = .vertical
         layout.prepare()
-        #expect(source.section.laneCount == 3)
+        #expect(layout.resolvedLaneCount(in: 0) == 3)
         #expect(layout.sizingForItem(at: path).constraint == CGSize(width: CGFloat(340) / 3, height: 50))
         withExtendedLifetime(source) {}
     }
@@ -277,14 +278,14 @@ extension ContentConfigurationCollectionTests {
 extension ContentConfigurationCollectionTests {
     @Test func waterfallSectionProviderUsesNativeEnvironmentAndIndependentSizing() throws {
         var environments: [CGSize] = []
-        var first = ContentConfigurationWaterfallLayout.Section()
-        first.laneCount = 1
+        var first = UICollectionViewWaterfallLayout.Section()
+        first.lanes = Array(repeating: .flexible(), count: 1)
         first.itemLengthDimension = .estimated(120)
         first.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 10, bottom: 6, trailing: 20)
-        var second = ContentConfigurationWaterfallLayout.Section()
-        second.laneCount = 3
+        var second = UICollectionViewWaterfallLayout.Section()
+        second.lanes = Array(repeating: .flexible(), count: 3)
         second.itemLengthDimension = .absolute(75)
-        let layout = ContentConfigurationWaterfallLayout(sectionProvider: { index, environment in
+        let layout = UICollectionViewWaterfallLayout(sectionProvider: { index, environment in
             environments.append(environment.container.effectiveContentSize)
             #expect(environment.container.contentSize == CGSize(width: 360, height: 600))
             #expect(environment.container.effectiveContentInsets.leading == 8)
@@ -322,12 +323,12 @@ extension ContentConfigurationCollectionTests {
     @Test func waterfallDecorationSnapshotsTrackFitsAndPreserveMeasurements() throws {
         let background = NSCollectionLayoutDecorationItem.background(elementKind: "background")
         background.contentInsets = NSDirectionalEdgeInsets(top: 2, leading: 3, bottom: 5, trailing: 7)
-        var section = ContentConfigurationWaterfallLayout.Section()
-        section.laneCount = 1
+        var section = UICollectionViewWaterfallLayout.Section()
+        section.lanes = Array(repeating: .flexible(), count: 1)
         section.itemLengthDimension = .estimated(100)
         section.boundarySupplementaryItems = [waterfallBoundary(UICollectionView.elementKindSectionHeader, length: 20, pinned: true), waterfallBoundary(UICollectionView.elementKindSectionFooter, length: 10)]
         section.decorationItems = [background]
-        let layout = ContentConfigurationWaterfallLayout(sectionProvider: { _, _ in section })
+        let layout = UICollectionViewWaterfallLayout(sectionProvider: { _, _ in section })
         layout.configuration.interSectionSpacing = 12
         layout.register(UICollectionReusableView.self, forDecorationViewOfKind: "background")
         layout.register(UICollectionReusableView.self, forDecorationViewOfKind: "overlay")
@@ -375,13 +376,13 @@ extension ContentConfigurationCollectionTests {
 
     @Test func waterfallDecorationMirrorsAndEmptySectionsHaveNaturalBounds() throws {
         for direction in [UICollectionView.ScrollDirection.vertical, .horizontal] {
-            var empty = ContentConfigurationWaterfallLayout.Section()
+            var empty = UICollectionViewWaterfallLayout.Section()
             let background = NSCollectionLayoutDecorationItem.background(elementKind: "background")
             background.contentInsets = NSDirectionalEdgeInsets(top: 2, leading: 3, bottom: 5, trailing: 7)
             empty.decorationItems = [background]
             var content = empty
             content.boundarySupplementaryItems = [waterfallBoundary(UICollectionView.elementKindSectionHeader, length: 20, direction: direction), waterfallBoundary(UICollectionView.elementKindSectionFooter, length: 10, direction: direction)]
-            let layout = ContentConfigurationWaterfallLayout(sectionProvider: { index, _ in index == 0 ? empty : content }, configuration: .init(scrollDirection: direction, interSectionSpacing: 12))
+            let layout = UICollectionViewWaterfallLayout(sectionProvider: { index, _ in index == 0 ? empty : content }, configuration: .init(scrollDirection: direction, interSectionSpacing: 12))
             layout.register(UICollectionReusableView.self, forDecorationViewOfKind: "background")
             let source = WaterfallLayoutTestSource(counts: [0, 0, 2])
             let collection = UICollectionView(frame: CGRect(x: 0, y: 0, width: 300, height: 300), collectionViewLayout: layout)
@@ -411,10 +412,10 @@ extension ContentConfigurationCollectionTests {
         let window = UIWindow(windowScene: scene)
         let host = UIViewController()
         window.rootViewController = host
-        var section = ContentConfigurationWaterfallLayout.Section()
+        var section = UICollectionViewWaterfallLayout.Section()
         section.itemLengthDimension = .absolute(90)
         section.decorationItems = [.background(elementKind: ContentConfigurationWaterfallBackground.elementKind)]
-        let layout = ContentConfigurationWaterfallLayout(section: section, configuration: .init(interSectionSpacing: 12))
+        let layout = UICollectionViewWaterfallLayout(section: section, configuration: .init(interSectionSpacing: 12))
         layout.register(ContentConfigurationWaterfallBackground.self, forDecorationViewOfKind: ContentConfigurationWaterfallBackground.elementKind)
         let source = WaterfallLayoutTestSource(counts: [8, 8, 8])
         let collection = UICollectionView(frame: CGRect(x: 0, y: 0, width: 320, height: 300), collectionViewLayout: layout)
@@ -469,7 +470,7 @@ extension ContentConfigurationCollectionTests {
 @MainActor
 extension ContentConfigurationCollectionTests {
     @Test func waterfallCompositionalSurfaceResolvesDimensionsAndCustomBoundaryKinds() throws {
-        var section = ContentConfigurationWaterfallLayout.Section()
+        var section = UICollectionViewWaterfallLayout.Section()
         section.itemLengthDimension = .fractionalHeight(0.25)
         var calls = 0
         section.itemLengthDimensionProvider = { index, environment in
@@ -483,7 +484,7 @@ extension ContentConfigurationCollectionTests {
         header.pinToVisibleBounds = true
         header.zIndex = 2048
         section.boundarySupplementaryItems = [header]
-        let layout = ContentConfigurationWaterfallLayout(section: section, configuration: .init(contentInsetsReference: .layoutMargins))
+        let layout = UICollectionViewWaterfallLayout(section: section, configuration: .init(contentInsetsReference: .layoutMargins))
         let source = WaterfallLayoutTestSource(counts: [4])
         let collection = UICollectionView(frame: CGRect(x: 0, y: 0, width: 300, height: 400), collectionViewLayout: layout)
         collection.contentInsetAdjustmentBehavior = .never

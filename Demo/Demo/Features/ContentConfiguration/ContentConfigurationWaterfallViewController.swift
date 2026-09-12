@@ -7,11 +7,11 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
     override var localizedTitleKey: String? { "demo.contentConfiguration.waterfall.title" }
 
     private(set) var collectionView: UICollectionView!
-    private(set) lazy var waterfallLayout = ContentConfigurationWaterfallLayout(sectionProvider: { [weak self] _, environment in
+    private(set) lazy var waterfallLayout = UICollectionViewWaterfallLayout(sectionProvider: { [weak self] _, environment in
         self?.makeSection(environment: environment)
     })
     private(set) var items: [ContentConfigurationWaterfallItem] = []
-    var laneCount: Int { waterfallLayout.section(at: 0).laneCount }
+    var laneCount: Int { waterfallLayout.resolvedLaneCount(in: 0) ?? 0 }
     private let directionControl = UISegmentedControl(items: ["", ""])
     private let laneCountLabel = UILabel()
     private let controlsBackground = UIView()
@@ -19,20 +19,20 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
     private let localizer: Localizer
     private var currentDirection: UIUserInterfaceLayoutDirection = .leftToRight
     private var renderGeneration = 0
+    private(set) var snapshotApplicationCount = 0
     private var isApplyingSnapshot = false
     private var pendingRenderReason: String?
     var itemLengthDimension: NSCollectionLayoutDimension = .estimated(240) {
         didSet { waterfallLayout.invalidateSectionConfigurations(reason: "item-length") }
     }
-    private var configuredSizing: [Int: ContentConfigurationWaterfallLayout.ItemSizing] = [:]
+    private var itemsByID: [Int: ContentConfigurationWaterfallItem] = [:]
+    private var itemIndices: [Int: Int] = [:]
+    private var configuredSizing: [Int: UICollectionViewWaterfallLayout.ItemSizing] = [:]
 
     private lazy var cellRegistration = UICollectionView.CellRegistration<UICollectionViewListCell, Int> {
         [weak self] cell, indexPath, id in
-        guard let self, let item = self.items.first(where: { $0.id == id }) else { return }
-        cell.backgroundConfiguration = .clear()
-        cell.contentConfiguration = ContentConfigurationWaterfallCard.Configuration(
-            item: item, sizing: self.waterfallLayout.sizingForItem(at: indexPath)
-        )
+        guard let self, let item = self.itemsByID[id] else { return }
+        self.configure(cell, item: item, at: indexPath)
         cell.accessibilityIdentifier = "waterfall.cell.\(id)"
         cell.accessibilityHint = self.localizer.text("demo.contentConfiguration.waterfall.toggle")
     }
@@ -96,7 +96,7 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
         waterfallLayout.sizingInvalidationHandler = { [weak self] in self?.viewIfLoaded?.setNeedsLayout() }
         waterfallLayout.itemMetadataProvider = { [weak self] path in
             guard let self, let id = self.dataSource.itemIdentifier(for: path),
-                  let item = self.items.first(where: { $0.id == id }) else {
+                  let item = self.itemsByID[id] else {
                 return .init(identifier: AnyHashable(path))
             }
             return .init(identifier: id, contentVersion: item.revision)
@@ -171,6 +171,7 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
             }
         }
         reconfigureSizingIfNeeded(reason: "container-size")
+        restorePendingScrollAnchor()
     }
 
     func setScrollDirection(_ direction: UICollectionView.ScrollDirection) {
@@ -181,24 +182,20 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
         }).flatMap { dataSource.itemIdentifier(for: $0) }
         waterfallLayout.configuration.scrollDirection = direction
         updateControls()
-        render(reason: "scroll-direction")
+        configuredSizing.removeAll()
         view.setNeedsLayout()
     }
 
     /// provider 只读取原生容器环境；测量策略与几何布局共用返回的 section 快照。
-    private func makeSection(environment: NSCollectionLayoutEnvironment) -> ContentConfigurationWaterfallLayout.Section {
-        var section = ContentConfigurationWaterfallLayout.Section()
+    private func makeSection(environment: NSCollectionLayoutEnvironment) -> UICollectionViewWaterfallLayout.Section {
+        var section = UICollectionViewWaterfallLayout.Section()
         section.interItemSpacing = 12
         section.interLaneSpacing = 12
         section.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
         section.itemLengthDimension = itemLengthDimension
         let horizontal = waterfallLayout.configuration.scrollDirection == .horizontal
-        let size = environment.container.effectiveContentSize
-        let extent = horizontal ? size.height - section.contentInsets.top - section.contentInsets.bottom
-            : size.width - section.contentInsets.leading - section.contentInsets.trailing
         let minimum = UIFontMetrics(forTextStyle: .body).scaledValue(for: horizontal ? 200 : 160, compatibleWith: environment.traitCollection)
-        let spacing = section.interLaneSpacing
-        section.laneCount = max(1, Int(floor((max(0, extent) + spacing) / (minimum + spacing))))
+        section.lanes = [.adaptive(minimum: minimum)]
         let font = UIFont.preferredFont(forTextStyle: .headline, compatibleWith: environment.traitCollection)
         // 横向标题在固定宽度内换行，避免大字号挤占首屏内容。
         let headerLength: CGFloat = horizontal ? 100 : max(44, font.lineHeight + 24)
@@ -237,6 +234,7 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
 
     private func restorePendingScrollAnchor() {
         guard let id = pendingScrollAnchorID, let path = dataSource.indexPath(for: id) else { return }
+        guard waterfallLayout.sizingForItem(at: path).constraint != .zero else { return }
         pendingScrollAnchorID = nil
         guard let attributes = waterfallLayout.layoutAttributesForItem(at: path) else { return }
         let horizontal = waterfallLayout.configuration.scrollDirection == .horizontal
@@ -261,7 +259,7 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
     }
 
     func toggleItem(id: Int) {
-        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = itemIndices[id] else { return }
         items[index].isExpanded.toggle()
         items[index].revision += 1
         render(reason: "expand/collapse", reconfigureIDs: [id])
@@ -278,31 +276,41 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
         reconfigureSizingIfNeeded(reason: "adjusted-insets")
     }
 
-    private func reconfigureSizingIfNeeded(reason: String) {
-        guard isViewLoaded, !items.isEmpty else { return }
-        updateControls()
-        let changed = currentItemSizings().filter { configuredSizing[$0.key] != $0.value }.map(\.key)
-        guard !changed.isEmpty else { return }
-        render(reason: reason, reconfigureIDs: changed)
+    private func configure(_ cell: UICollectionViewListCell, item: ContentConfigurationWaterfallItem, at path: IndexPath) {
+        let sizing = waterfallLayout.sizingForItem(at: path)
+        cell.backgroundConfiguration = .clear()
+        guard sizing.constraint.width > 0, sizing.constraint.height > 0 else {
+            // Geometry preparation schedules a coalesced sizing notification.
+            cell.contentConfiguration = nil
+            configuredSizing.removeValue(forKey: item.id)
+            return
+        }
+        cell.contentConfiguration = ContentConfigurationWaterfallCard.Configuration(
+            item: item, sizing: sizing, isHighlighted: cell.isHighlighted)
+        configuredSizing[item.id] = sizing
     }
 
-    private func currentItemSizings() -> [Int: ContentConfigurationWaterfallLayout.ItemSizing] {
-        var result: [Int: ContentConfigurationWaterfallLayout.ItemSizing] = [:]
-        for section in 0..<4 {
-            for (index, item) in items.filter({ $0.id / 10 == section }).enumerated() {
-                let sizing = waterfallLayout.sizingForItem(at: IndexPath(item: index, section: section))
-                if sizing.constraint.width > 0, sizing.constraint.height > 0 { result[item.id] = sizing }
+    private func reconfigureSizingIfNeeded(reason: String) {
+        guard isViewLoaded, !items.isEmpty, !isApplyingSnapshot else { return }
+        updateControls()
+        // A lane change only affects visible configurations, not the diffable data snapshot.
+        for path in collectionView.indexPathsForVisibleItems {
+            guard let id = dataSource.itemIdentifier(for: path), let item = itemsByID[id],
+                  let cell = collectionView.cellForItem(at: path) as? UICollectionViewListCell else { continue }
+            let sizing = waterfallLayout.sizingForItem(at: path)
+            guard sizing.constraint.width > 0, sizing.constraint.height > 0 else { continue }
+            if configuredSizing[id] != sizing || cell.contentConfiguration == nil {
+                configure(cell, item: item, at: path)
             }
         }
-        return result
     }
 
     @objc private func directionChanged() { setScrollDirection(directionControl.selectedSegmentIndex == 0 ? .vertical : .horizontal) }
 
     private func invalidateContent(reason: String) {
         waterfallLayout.invalidateSectionConfigurations(reason: reason)
-        for index in items.indices { items[index].revision += 1 }
-        render(reason: reason)
+        configuredSizing.removeAll()
+        viewIfLoaded?.setNeedsLayout()
     }
 
     private func render(reason: String, reconfigureIDs: [Int]? = nil) {
@@ -317,14 +325,15 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
         #endif
         renderGeneration += 1
         let generation = renderGeneration
-        let nextSizing = currentItemSizings()
-        let changedSizingIDs = nextSizing.filter { configuredSizing[$0.key] != $0.value }.map(\.key)
-        configuredSizing = nextSizing
+        itemsByID = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
+        itemIndices = Dictionary(uniqueKeysWithValues: items.enumerated().map { ($0.element.id, $0.offset) })
+        configuredSizing = configuredSizing.filter { itemsByID[$0.key] != nil }
         let existingIDs = Set(dataSource.snapshot().itemIdentifiers)
         var snapshot = NSDiffableDataSourceSnapshot<Int, Int>()
         snapshot.appendSections(Array(0..<4))
         for section in 0..<4 { snapshot.appendItems(items.filter { $0.id / 10 == section }.map(\.id), toSection: section) }
-        snapshot.reconfigureItems(Array(Set((reconfigureIDs ?? items.map(\.id)) + changedSizingIDs)).filter { existingIDs.contains($0) })
+        snapshot.reconfigureItems(Array(Set(reconfigureIDs ?? items.map(\.id))).filter { existingIDs.contains($0) })
+        snapshotApplicationCount += 1
         dataSource.apply(snapshot, animatingDifferences: false) { [weak self] in
             // UIKit 的 completion 仍可能位于 apply 调用栈内；下一轮主队列再提交尺寸更新。
             DispatchQueue.main.async { [weak self] in
@@ -335,6 +344,7 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
                     self.render(reason: reason)
                 } else {
                     self.collectionView.layoutIfNeeded()
+                    self.reconfigureSizingIfNeeded(reason: "snapshot-completed")
                     for path in self.collectionView.indexPathsForVisibleSupplementaryElements(ofKind: UICollectionView.elementKindSectionHeader) {
                         guard let header = self.collectionView.supplementaryView(forElementKind: UICollectionView.elementKindSectionHeader, at: path) as? ContentConfigurationWaterfallHeader else { continue }
                         let id = self.dataSource.snapshot().sectionIdentifiers[path.section]

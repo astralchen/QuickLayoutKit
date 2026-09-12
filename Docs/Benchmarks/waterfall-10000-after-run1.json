@@ -1,0 +1,452 @@
+{
+  "device": "iPhone",
+  "os": "26.5",
+  "records": [
+    {
+      "items": 1000,
+      "median_ms": 3.759564999199938,
+      "metadata_calls": 1000,
+      "mode": "vertical",
+      "p95_ms": 3.759564999199938,
+      "samples": 1,
+      "scenario": "cold_prepare",
+      "total_ms": 3.759564999199938
+    },
+    {
+      "items": 1000,
+      "median_ms": 0.0017140009731519967,
+      "metadata_calls": 0,
+      "mode": "vertical",
+      "p95_ms": 0.003831999492831528,
+      "samples": 20,
+      "scenario": "cached_prepare",
+      "total_ms": 0.07175800055847503
+    },
+    {
+      "items": 1000,
+      "median_ms": 0.04957500277669169,
+      "metadata_calls": 0,
+      "mode": "vertical",
+      "p95_ms": 0.06884100002935156,
+      "samples": 120,
+      "scenario": "rect_query",
+      "total_ms": 6.282026010012487
+    },
+    {
+      "items": 1000,
+      "median_ms": 0.5105290001665708,
+      "metadata_calls": 10,
+      "mode": "vertical",
+      "p95_ms": 0.7271190006576944,
+      "samples": 5,
+      "scenario": "fit_callback_and_invalidate",
+      "total_ms": 2.732764998654602
+    },
+    {
+      "items": 1000,
+      "median_ms": 0.007829003152437508,
+      "metadata_calls": 0,
+      "mode": "vertical",
+      "p95_ms": 0.009991999831981957,
+      "samples": 5,
+      "scenario": "fit_prepare",
+      "total_ms": 0.03627499972935766
+    },
+    {
+      "items": 1000,
+      "median_ms": 6.783185999665875,
+      "metadata_calls": 16,
+      "mode": "vertical",
+      "p95_ms": 6.783185999665875,
+      "samples": 1,
+      "scenario": "eight_fits_one_prepare",
+      "total_ms": 6.783185999665875
+    },
+    {
+      "items": 1000,
+      "median_ms": 1.4921399997547269,
+      "metadata_calls": 100,
+      "mode": "vertical",
+      "p95_ms": 1.4921399997547269,
+      "samples": 1,
+      "scenario": "delete_90_percent",
+      "total_ms": 1.4921399997547269
+    },
+    {
+      "items": 1000,
+      "median_ms": 4.503414998907829,
+      "metadata_calls": 1000,
+      "mode": "horizontal",
+      "p95_ms": 4.503414998907829,
+      "samples": 1,
+      "scenario": "cold_prepare",
+      "total_ms": 4.503414998907829
+    },
+    {
+      "items": 1000,
+      "median_ms": 0.0026980014808941633,
+      "metadata_calls": 0,
+      "mode": "horizontal",
+      "p95_ms": 0.002973996743094176,
+      "samples": 20,
+      "scenario": "cached_prepare",
+      "total_ms": 0.07502098742406815
+    },
+    {
+      "items": 1000,
+      "median_ms": 0.01634799991734326,
+      "metadata_calls": 0,
+      "mode": "horizontal",
+      "p95_ms": 0.02804800169542432,
+      "samples": 120,
+      "scenario": "rect_query",
+      "total_ms": 2.0962769885954913
+    },
+    {
+      "items": 1000,
+      "median_ms": 0.5807680026919115,
+      "metadata_calls": 10,
+      "mode": "horizontal",
+      "p95_ms": 0.6903389985382091,
+      "samples": 5,
+      "scenario": "fit_callback_and_invalidate",
+      "total_ms": 2.748509999946691
+    },
+    {
+      "items": 1000,
+      "median_ms": 0.00581399945076555,
+      "metadata_calls": 0,
+      "mode": "horizontal",
+      "p95_ms": 0.006512000254588202,
+      "samples": 5,
+      "scenario": "fit_prepare",
+      "total_ms": 0.028004000341752544
+    },
+    {
+      "items": 1000,
+      "median_ms": 4.78887300050701,
+      "metadata_calls": 16,
+      "mode": "horizontal",
+      "p95_ms": 4.78887300050701,
+      "samples": 1,
+      "scenario": "eight_fits_one_prepare",
+      "total_ms": 4.78887300050701
+    },
+    {
+      "items": 1000,
+      "median_ms": 2.349982998566702,
+      "metadata_calls": 1000,
+      "mode": "horizontal-rtl",
+      "p95_ms": 2.349982998566702,
+      "samples": 1,
+      "scenario": "cold_prepare",
+      "total_ms": 2.349982998566702
+    },
+    {
+      "items": 1000,
+      "median_ms": 0.00191100116353482,
+      "metadata_calls": 0,
+      "mode": "horizontal-rtl",
+      "p95_ms": 0.002701999619603157,
+      "samples": 20,
+      "scenario": "cached_prepare",
+      "total_ms": 0.05502201020135544
+    },
+    {
+      "items": 1000,
+      "median_ms": 0.015574998542433605,
+      "metadata_calls": 0,
+      "mode": "horizontal-rtl",
+      "p95_ms": 0.016958998457994312,
+      "samples": 120,
+      "scenario": "rect_query",
+      "total_ms": 1.8893579799623694
+    },
+    {
+      "items": 1000,
+      "median_ms": 0.5344940000213683,
+      "metadata_calls": 10,
+      "mode": "horizontal-rtl",
+      "p95_ms": 0.6369779985107016,
+      "samples": 5,
+      "scenario": "fit_callback_and_invalidate",
+      "total_ms": 2.603096996608656
+    },
+    {
+      "items": 1000,
+      "median_ms": 0.005614001565845683,
+      "metadata_calls": 0,
+      "mode": "horizontal-rtl",
+      "p95_ms": 0.0060729980759788305,
+      "samples": 5,
+      "scenario": "fit_prepare",
+      "total_ms": 0.026804998924490064
+    },
+    {
+      "items": 1000,
+      "median_ms": 7.7948649995960295,
+      "metadata_calls": 16,
+      "mode": "horizontal-rtl",
+      "p95_ms": 7.7948649995960295,
+      "samples": 1,
+      "scenario": "eight_fits_one_prepare",
+      "total_ms": 7.7948649995960295
+    },
+    {
+      "items": 1000,
+      "median_ms": 2.789616999507416,
+      "metadata_calls": 1000,
+      "mode": "vertical",
+      "p95_ms": 2.789616999507416,
+      "samples": 1,
+      "scenario": "cold_prepare_linear_metadata",
+      "total_ms": 2.789616999507416
+    },
+    {
+      "items": 1000,
+      "median_ms": 0.31572000079904683,
+      "metadata_calls": 5000,
+      "mode": "vertical",
+      "p95_ms": 0.3791960007220041,
+      "samples": 5,
+      "scenario": "metadata_linear_lookup_pass",
+      "total_ms": 1.6314740023517516
+    },
+    {
+      "items": 1000,
+      "median_ms": 0.06685999687761068,
+      "metadata_calls": 5000,
+      "mode": "vertical",
+      "p95_ms": 0.0690199995005969,
+      "samples": 5,
+      "scenario": "metadata_indexed_lookup_pass",
+      "total_ms": 0.32990299951052293
+    },
+    {
+      "items": 10000,
+      "median_ms": 25.011093999637524,
+      "metadata_calls": 10000,
+      "mode": "vertical",
+      "p95_ms": 25.011093999637524,
+      "samples": 1,
+      "scenario": "cold_prepare",
+      "total_ms": 25.011093999637524
+    },
+    {
+      "items": 10000,
+      "median_ms": 0.0017999991541728377,
+      "metadata_calls": 0,
+      "mode": "vertical",
+      "p95_ms": 0.002845001290552318,
+      "samples": 20,
+      "scenario": "cached_prepare",
+      "total_ms": 0.06081199535401538
+    },
+    {
+      "items": 10000,
+      "median_ms": 0.03381500209798105,
+      "metadata_calls": 0,
+      "mode": "vertical",
+      "p95_ms": 0.04212899875710718,
+      "samples": 120,
+      "scenario": "rect_query",
+      "total_ms": 4.106260035769083
+    },
+    {
+      "items": 10000,
+      "median_ms": 2.2093780025898013,
+      "metadata_calls": 10,
+      "mode": "vertical",
+      "p95_ms": 2.704083002754487,
+      "samples": 5,
+      "scenario": "fit_callback_and_invalidate",
+      "total_ms": 11.143835010443581
+    },
+    {
+      "items": 10000,
+      "median_ms": 0.005982998118270189,
+      "metadata_calls": 0,
+      "mode": "vertical",
+      "p95_ms": 0.006898000719957054,
+      "samples": 5,
+      "scenario": "fit_prepare",
+      "total_ms": 0.029446004191413522
+    },
+    {
+      "items": 10000,
+      "median_ms": 28.022195998346433,
+      "metadata_calls": 16,
+      "mode": "vertical",
+      "p95_ms": 28.022195998346433,
+      "samples": 1,
+      "scenario": "eight_fits_one_prepare",
+      "total_ms": 28.022195998346433
+    },
+    {
+      "items": 10000,
+      "median_ms": 7.466661001672037,
+      "metadata_calls": 1000,
+      "mode": "vertical",
+      "p95_ms": 7.466661001672037,
+      "samples": 1,
+      "scenario": "delete_90_percent",
+      "total_ms": 7.466661001672037
+    },
+    {
+      "items": 10000,
+      "median_ms": 21.71178000207874,
+      "metadata_calls": 10000,
+      "mode": "horizontal",
+      "p95_ms": 21.71178000207874,
+      "samples": 1,
+      "scenario": "cold_prepare",
+      "total_ms": 21.71178000207874
+    },
+    {
+      "items": 10000,
+      "median_ms": 0.0015030018403194845,
+      "metadata_calls": 0,
+      "mode": "horizontal",
+      "p95_ms": 0.0026269990485161543,
+      "samples": 20,
+      "scenario": "cached_prepare",
+      "total_ms": 0.052918003348167986
+    },
+    {
+      "items": 10000,
+      "median_ms": 0.018165999790653586,
+      "metadata_calls": 0,
+      "mode": "horizontal",
+      "p95_ms": 0.031188003049464896,
+      "samples": 120,
+      "scenario": "rect_query",
+      "total_ms": 2.399541986960685
+    },
+    {
+      "items": 10000,
+      "median_ms": 2.561135002906667,
+      "metadata_calls": 10,
+      "mode": "horizontal",
+      "p95_ms": 3.124506001768168,
+      "samples": 5,
+      "scenario": "fit_callback_and_invalidate",
+      "total_ms": 12.601963004271965
+    },
+    {
+      "items": 10000,
+      "median_ms": 0.007439000910380855,
+      "metadata_calls": 0,
+      "mode": "horizontal",
+      "p95_ms": 0.012385000445647165,
+      "samples": 5,
+      "scenario": "fit_prepare",
+      "total_ms": 0.037052002880955115
+    },
+    {
+      "items": 10000,
+      "median_ms": 24.54919800220523,
+      "metadata_calls": 16,
+      "mode": "horizontal",
+      "p95_ms": 24.54919800220523,
+      "samples": 1,
+      "scenario": "eight_fits_one_prepare",
+      "total_ms": 24.54919800220523
+    },
+    {
+      "items": 10000,
+      "median_ms": 22.419339999032672,
+      "metadata_calls": 10000,
+      "mode": "horizontal-rtl",
+      "p95_ms": 22.419339999032672,
+      "samples": 1,
+      "scenario": "cold_prepare",
+      "total_ms": 22.419339999032672
+    },
+    {
+      "items": 10000,
+      "median_ms": 0.0016030026017688215,
+      "metadata_calls": 0,
+      "mode": "horizontal-rtl",
+      "p95_ms": 0.002396998752374202,
+      "samples": 20,
+      "scenario": "cached_prepare",
+      "total_ms": 0.052037019486306235
+    },
+    {
+      "items": 10000,
+      "median_ms": 0.02058400059468113,
+      "metadata_calls": 0,
+      "mode": "horizontal-rtl",
+      "p95_ms": 0.05907800004933961,
+      "samples": 120,
+      "scenario": "rect_query",
+      "total_ms": 2.941666021797573
+    },
+    {
+      "items": 10000,
+      "median_ms": 2.4171059994841926,
+      "metadata_calls": 10,
+      "mode": "horizontal-rtl",
+      "p95_ms": 2.8785489994334057,
+      "samples": 5,
+      "scenario": "fit_callback_and_invalidate",
+      "total_ms": 11.809391995484475
+    },
+    {
+      "items": 10000,
+      "median_ms": 0.005488000169862062,
+      "metadata_calls": 0,
+      "mode": "horizontal-rtl",
+      "p95_ms": 0.006758997187716886,
+      "samples": 5,
+      "scenario": "fit_prepare",
+      "total_ms": 0.02788899655570276
+    },
+    {
+      "items": 10000,
+      "median_ms": 25.558414999977686,
+      "metadata_calls": 16,
+      "mode": "horizontal-rtl",
+      "p95_ms": 25.558414999977686,
+      "samples": 1,
+      "scenario": "eight_fits_one_prepare",
+      "total_ms": 25.558414999977686
+    },
+    {
+      "items": 10000,
+      "median_ms": 64.30587900104001,
+      "metadata_calls": 10000,
+      "mode": "vertical",
+      "p95_ms": 64.30587900104001,
+      "samples": 1,
+      "scenario": "cold_prepare_linear_metadata",
+      "total_ms": 64.30587900104001
+    },
+    {
+      "items": 10000,
+      "median_ms": 32.027998000558,
+      "metadata_calls": 50000,
+      "mode": "vertical",
+      "p95_ms": 34.144056000513956,
+      "samples": 5,
+      "scenario": "metadata_linear_lookup_pass",
+      "total_ms": 162.19884500605986
+    },
+    {
+      "items": 10000,
+      "median_ms": 0.4630389994417783,
+      "metadata_calls": 50000,
+      "mode": "vertical",
+      "p95_ms": 0.7289349996426608,
+      "samples": 5,
+      "scenario": "metadata_indexed_lookup_pass",
+      "total_ms": 2.4338119983440265
+    }
+  ],
+  "run_id": "20260913-005151-48465",
+  "scope": "Real layout in UIKit simulator; manual fitting callbacks; no mounted content cells or rendering",
+  "layout_sha256": "34f6d4ca1a997c2f33d5bae61cab5b8fafaf2187cbbc054cfb68775acd371ccf",
+  "git_head": "b526648ed311584511b13fa259e43343abaf46de",
+  "captured_utc": "2026-09-12T16:52:09.692845+00:00",
+  "configuration": "Release (-O) original layout and tests; isolated UIKit host; prebuilt QuickLayout dependencies"
+}

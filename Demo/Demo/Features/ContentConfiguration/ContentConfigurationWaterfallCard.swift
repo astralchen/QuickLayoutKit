@@ -22,7 +22,7 @@ struct ContentConfigurationWaterfallItem {
 final class ContentConfigurationWaterfallCard: QuickLayoutContentView {
     struct Configuration: UIContentConfiguration {
         var item: ContentConfigurationWaterfallItem
-        let sizing: ContentConfigurationWaterfallLayout.ItemSizing
+        let sizing: UICollectionViewWaterfallLayout.ItemSizing
         var isHighlighted = false
 
         func makeContentView() -> UIView & UIContentView {
@@ -40,7 +40,7 @@ final class ContentConfigurationWaterfallCard: QuickLayoutContentView {
     let titleLabel = UILabel()
     let detailLabel = UILabel()
     private var imageAspectRatio: CGFloat = 1
-    private var sizing = ContentConfigurationWaterfallLayout.ItemSizing(
+    private var sizing = UICollectionViewWaterfallLayout.ItemSizing(
         constraint: CGSize(width: 1, height: CGFloat.infinity),
         horizontalFlexibility: .fixedSize, verticalFlexibility: .fullyFlexible
     )

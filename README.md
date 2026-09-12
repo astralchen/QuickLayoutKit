@@ -602,26 +602,32 @@ Demo 主菜单的「内容配置瀑布流」使用原生 `UICollectionViewListCe
 页面根据容器自动计算行列数并显示当前数量：纵向最小列宽约 160pt、横向最小行高约 200pt，
 最小尺寸随 Dynamic Type 缩放。方向控件保留在顶部，背景及内容 inset 避免滚动内容遮挡控件。
 页面将 40 条内容分成四个带标题和圆角背景的 section，每组 10 条。
-`ContentConfigurationWaterfallLayout` 的构造方式参考 `UICollectionViewCompositionalLayout`：
+`UICollectionViewWaterfallLayout` 位于框架的 `QuickLayoutKitUIKit` 模块，`import QuickLayoutKit` 即可使用。
+该类型支持继承，UIKit 布局查询和失效覆写点为 `open`。
+其构造方式参考 `UICollectionViewCompositionalLayout`：
 `init(section:configuration:)` 对所有分组使用同一配置，
 `init(sectionProvider:configuration:)` 按 section 返回配置。provider 接收原生
 `NSCollectionLayoutEnvironment`，通过 `container.effectiveContentSize` 和 `traitCollection`
-计算自动行列数。全局 `Configuration` 包含 `scrollDirection`、`interSectionSpacing` 和 `contentInsetsReference`。
+设置经 UIFontMetrics 缩放的 `.adaptive(minimum:)`；列数由布局统一解析。全局 `Configuration` 包含 `scrollDirection`、`interSectionSpacing` 和 `contentInsetsReference`。
 
-`Section` 包含 `laneCount`、`contentInsets`、`interItemSpacing`、`interLaneSpacing`、
+`Section` 包含 `lanes`、`contentInsets`、`interItemSpacing`、`interLaneSpacing`、
 `itemLengthDimension`、`boundarySupplementaryItems` 和 `decorationItems`。
-`laneCount` 在纵向表示列数、横向表示行数；长度在纵向表示高度、横向表示宽度。
+`lanes` 支持混合 `.fixed`、`.flexible`、`.adaptive`，默认两条 `.flexible()`；通过 `resolvedLaneCount(in:)` 查询实际列／行数。
+`LaneSize` 遵循 `Sendable`，UIKit 布局、Section 和 provider 保持主 actor 隔离。长度在纵向表示高度、横向表示宽度。
 `itemLengthDimension` 使用原生 `NSCollectionLayoutDimension`：`.absolute(50)` 固定长度，
 `.estimated(240)` 启用自适应，也支持容器宽高比例；`itemLengthDimensionProvider` 可按条目覆盖。
 provider 返回完整配置，返回 nil 时使用 `Section()` 默认值。没有无参初始化或布局级 section 指标。
 页面使用 12pt 间距和边距、240pt 估算长度。
+布局日志使用系统 `Logger`（`QuickLayoutKit` / `WaterfallLayout`）；DEBUG 下开启 `QuickLayoutDiagnostics.isEnabled` 可查看常规失效日志，非法配置保留警告。
+实现、迁移和 1,000／10,000 条性能记录见 [瀑布流布局说明](Docs/WaterfallLayout.md)。
 
 ```swift
 let background = NSCollectionLayoutDecorationItem.background(elementKind: "section.background")
-var section = ContentConfigurationWaterfallLayout.Section()
+var section = UICollectionViewWaterfallLayout.Section()
+section.lanes = [.adaptive(minimum: 160)]
 section.itemLengthDimension = .estimated(240)
 section.decorationItems = [background]
-let layout = ContentConfigurationWaterfallLayout(
+let layout = UICollectionViewWaterfallLayout(
     section: section,
     configuration: .init(scrollDirection: .vertical, interSectionSpacing: 12)
 )

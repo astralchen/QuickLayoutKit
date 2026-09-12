@@ -4,6 +4,7 @@ import QuickLayoutKit
 import QuickLayout
 import AppLocalization
 @testable import Demo
+@testable import QuickLayoutKitUIKit
 
 @MainActor
 extension ContentConfigurationCollectionTests {
@@ -445,5 +446,104 @@ private final class WaterfallFixture {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name + ".png")
         try data.write(to: url)
         print("[WaterfallSnapshot] \(url.path)")
+    }
+}
+
+@MainActor
+extension ContentConfigurationCollectionTests {
+    @Test func waterfallSizingChangesDoNotApplyDataSnapshots() async throws {
+        let fixture = try WaterfallFixture()
+        defer { fixture.window.isHidden = true }
+        await fixture.settle()
+        let snapshots = fixture.controller.snapshotApplicationCount
+        fixture.resize(width: 600)
+        await fixture.settle()
+        fixture.controller.setScrollDirection(.horizontal)
+        await fixture.settle()
+        fixture.parent.setOverrideTraitCollection(UITraitCollection(preferredContentSizeCategory: .extraExtraLarge), forChild: fixture.controller)
+        await fixture.settle()
+        #expect(fixture.controller.snapshotApplicationCount == snapshots)
+        #expect(fixture.controller.waterfallLayout.acceptedMeasurementCount > 0)
+    }
+
+    @Test func waterfallMixedWidthNativeCellsConverge() async throws {
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 390, height: 900)
+        let host = UIViewController()
+        window.rootViewController = host
+        let source = MixedWaterfallSource()
+        let collection = source.collection
+        host.view.addSubview(collection)
+        collection.frame = CGRect(x: 0, y: 0, width: 390, height: 800)
+        window.isHidden = false
+        defer { window.isHidden = true }
+        collection.reloadData()
+        func settle() async {
+            for _ in 0..<50 {
+                collection.layoutIfNeeded()
+                source.refreshVisible()
+                try? await Task.sleep(for: .milliseconds(10))
+            }
+        }
+        await settle()
+        #expect(source.layout.acceptedMeasurementCount > 0)
+        for width: CGFloat in [390, 520, 390] {
+            collection.frame.size.width = width
+            await settle()
+            #expect(!collection.visibleCells.isEmpty)
+            for path in collection.indexPathsForVisibleItems {
+                let cell = try #require(collection.cellForItem(at: path))
+                let card = try #require(WaterfallFixture.card(in: cell))
+                let frame = try #require(source.layout.layoutAttributesForItem(at: path)).frame
+                #expect(abs(cell.bounds.width - frame.width) <= 1)
+                #expect(abs(card.sizeThatFits(CGSize(width: frame.width, height: .infinity)).height - frame.height) <= 1)
+                #expect(source.layout.cachedMeasurementCount(for: path.item) <= 4)
+            }
+            let accepted = source.layout.acceptedMeasurementCount
+            await settle()
+            #expect(source.layout.acceptedMeasurementCount == accepted)
+        }
+        withExtendedLifetime(source) {}
+    }
+}
+
+@MainActor
+private final class MixedWaterfallSource: NSObject, UICollectionViewDataSource {
+    let layout: UICollectionViewWaterfallLayout
+    let collection: UICollectionView
+    let items = ContentConfigurationWaterfallItem.samples(localizer: Localizer { key, _ in
+        key.contains("detail") ? String(repeating: "Mixed lane widths must measure their own wrapping text. ", count: 3) : "A measured card"
+    })
+    override init() {
+        var section = UICollectionViewWaterfallLayout.Section()
+        section.lanes = [.fixed(130), .flexible()]
+        section.itemLengthDimension = .estimated(240)
+        layout = UICollectionViewWaterfallLayout(section: section)
+        collection = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        super.init()
+        collection.contentInsetAdjustmentBehavior = .never
+        collection.register(UICollectionViewListCell.self, forCellWithReuseIdentifier: "mixed")
+        collection.dataSource = self
+        layout.itemMetadataProvider = { .init(identifier: $0.item) }
+        layout.sizingInvalidationHandler = { [weak self] in self?.refreshVisible() }
+    }
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int { items.count }
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt path: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "mixed", for: path)
+        configure(cell, path: path)
+        return cell
+    }
+    func configure(_ cell: UICollectionViewCell, path: IndexPath) {
+        let sizing = layout.sizingForItem(at: path)
+        guard sizing.constraint.width > 0 else { return }
+        if (cell.contentConfiguration as? ContentConfigurationWaterfallCard.Configuration)?.sizing != sizing {
+            cell.contentConfiguration = ContentConfigurationWaterfallCard.Configuration(item: items[path.item], sizing: sizing)
+        }
+    }
+    func refreshVisible() {
+        for path in collection.indexPathsForVisibleItems {
+            if let cell = collection.cellForItem(at: path) { configure(cell, path: path) }
+        }
     }
 }

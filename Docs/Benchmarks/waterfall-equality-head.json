@@ -1,0 +1,52 @@
+{
+  "rows": [
+    {
+      "items": 1000,
+      "metadata_calls": 2,
+      "milliseconds": 0.9981449984479696,
+      "round": 1,
+      "scenario": "head_fit"
+    },
+    {
+      "items": 10000,
+      "metadata_calls": 2,
+      "milliseconds": 7.316476003325079,
+      "round": 1,
+      "scenario": "head_fit"
+    },
+    {
+      "items": 1000,
+      "metadata_calls": 2,
+      "milliseconds": 0.955841998802498,
+      "round": 2,
+      "scenario": "head_fit"
+    },
+    {
+      "items": 10000,
+      "metadata_calls": 2,
+      "milliseconds": 7.951991996378638,
+      "round": 2,
+      "scenario": "head_fit"
+    },
+    {
+      "items": 1000,
+      "metadata_calls": 2,
+      "milliseconds": 0.7207669987110421,
+      "round": 3,
+      "scenario": "head_fit"
+    },
+    {
+      "items": 10000,
+      "metadata_calls": 2,
+      "milliseconds": 9.987149998778477,
+      "round": 3,
+      "scenario": "head_fit"
+    }
+  ],
+  "run_id": "20260913-071544-58648",
+  "layout_sha256": "02627f290149b2080855a411f80467ea05eb85aa238be36838b369623d61a610",
+  "git_head": "b526648ed311584511b13fa259e43343abaf46de",
+  "captured_utc": "2026-09-12T23:16:05.352137+00:00",
+  "configuration": "Release (-O) original layout and tests; isolated UIKit host; prebuilt QuickLayout dependencies",
+  "baseline_revision": null
+}
