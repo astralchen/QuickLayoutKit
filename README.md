@@ -78,6 +78,7 @@ QuickLayoutKit 使用部分与 SwiftUI 相同的 API 名称和重载形式，目
 | API 或取值 | 当前契约 |
 | --- | --- |
 | `VStack`、`HStack`、网格和 `Spacer` | 保持 QuickLayout 的测量、间距和弹性语义 |
+| 直接对 `StackElement` 调用 `fixedSize(axis:)` | 固定交叉轴时内部启用 `idealLayout`，协调可伸展子元素的理想尺寸；只固定主轴时保留原有行为 |
 | `aspectRatio(nil, contentMode:)` | 从元素的理想尺寸推导宽高比 |
 | 弹性 `frame` 的最小、理想、最大尺寸为 `nil` | 不为对应项目提供约束；理想尺寸只在父级没有有限建议时作为备用值 |
 | `ProposedSize` 的维度为 `nil` | 该轴未指定；转换为 QuickLayout 提案时使用无穷大，不表示数值零 |
@@ -265,6 +266,33 @@ override var body: Layout {
 - 横向内容使用自然高度；需要等高卡片时，可以先执行理想尺寸布局，再固定交叉轴尺寸。
 
 ## 宿主视图与按钮
+
+### 栈的 `fixedSize`
+
+导入 `QuickLayoutKit` 后，直接对 `HStack` 调用 `.fixedSize(axis: .vertical)`
+会命中 `StackElement` 专用重载。内部复用官方 `idealLayout(true)`，先测量卡片的自然
+高度，再向可伸展卡片提出最高卡片的高度建议。`VStack` 固定水平轴时对称地实现等宽。
+固定尺寸子元素仍保持自身尺寸，只有接受有限尺寸建议的子元素才会伸展。
+
+```swift
+HStack(alignment: .top, spacing: 16) {
+    ForEach(cards) { card in
+        card.resizable(axis: .vertical)
+            .frame(width: 260)
+            .frame(maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+.fixedSize(axis: .vertical)
+.padding(20)
+```
+
+修饰符顺序和静态类型决定重载选择：先调用 `.padding(...)`，或先擦除为 `Element` /
+`Layout`，再调用 `fixedSize`，仍使用上游通用实现，不额外协调等高。仅固定主轴或传入
+空轴集合也保持原有策略；已有 `.idealLayout()` 与专用重载组合不会嵌套额外的理想栈。
+这是一项栈专用兼容扩展，不表示整个布局系统与 SwiftUI 完全等价。
+
+Demo 首页的 **FixedSize 实验室** 使用自然高度、撑满容器、内容等高三个状态展示差异。
+示例参考 [SwiftDifferently 的 fixedSize 用例](https://www.swiftdifferently.com/blog/swiftui/fixedsize-usecase)。
 
 ### `QuickLayoutView`
 

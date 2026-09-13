@@ -50,6 +50,8 @@ final class MainRouter: MainRouting {
             PositionAndZIndexDemoViewController()
         case .viewThatFits:
             ViewThatFitsDemoViewController()
+        case .fixedSize:
+            FixedSizeDemoViewController()
         case .profile:
             ProfileViewController()
         case .counter:

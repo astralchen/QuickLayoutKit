@@ -1,6 +1,489 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "demo.fixedSize.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FixedSize Lab"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FixedSize 实验室"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مختبر FixedSize"
+          }
+        }
+      }
+    },
+    "fixedSize.headline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One row.\nA perfect fit."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不同内容，\n刚好等高。"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "محتوى مختلف،\nارتفاع متناسق."
+          }
+        }
+      }
+    },
+    "fixedSize.intro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explore how a single modifier changes the way a row finds its height. Swipe to discover all four cards."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切换布局方式，观察整行如何决定高度。横向滑动，查看全部四张卡片。"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "بدّل نمط التخطيط وشاهد كيف يحدد الصف ارتفاعه. مرّر أفقياً لرؤية البطاقات الأربع."
+          }
+        }
+      }
+    },
+    "fixedSize.mode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Layout mode"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "布局方式"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نمط التخطيط"
+          }
+        }
+      }
+    },
+    "fixedSize.stage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LIVE CANVAS"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实时布局"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "التخطيط المباشر"
+          }
+        }
+      }
+    },
+    "fixedSize.natural" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Natural"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自然高度"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "طبيعي"
+          }
+        }
+      }
+    },
+    "fixedSize.fill" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fill"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撑满容器"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ملء"
+          }
+        }
+      }
+    },
+    "fixedSize.equal" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Equal"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内容等高"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "متساوٍ"
+          }
+        }
+      }
+    },
+    "fixedSize.natural.explanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each card chooses its own height. Shorter stories leave a shorter card."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每张卡片由自身内容决定高度，短内容对应较矮的卡片。"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تحدد كل بطاقة ارتفاعها حسب محتواها، فتكون البطاقة ذات النص القصير أقصر."
+          }
+        }
+      }
+    },
+    "fixedSize.fill.explanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every card fills a 420 pt container. Equal heights, with more space than the content needs."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所有卡片撑满 420 pt 的容器。虽然等高，却留下了内容并不需要的空间。"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تملأ البطاقات حاوية بارتفاع 420 نقطة. تتساوى الارتفاعات، لكن المحتوى لا يحتاج كل هذه المساحة."
+          }
+        }
+      }
+    },
+    "fixedSize.equal.explanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The tallest story sets the height. Every flexible card stretches to meet it."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高的卡片决定整行高度，其余可伸展卡片随之对齐。"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تحدد أطول بطاقة ارتفاع الصف، وتتمدد البطاقات المرنة لتطابقه."
+          }
+        }
+      }
+    },
+    "fixedSize.compatibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuickLayoutKit adds a stack-specific fixedSize overload. It uses idealLayout internally. Apply fixedSize directly to HStack, before padding or type erasure."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuickLayoutKit 提供栈专用 fixedSize 重载，内部复用 idealLayout。请直接对 HStack 调用，再添加 padding；类型擦除后仍使用上游行为。"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يوفر QuickLayoutKit نسخة من fixedSize خاصة بالمكدس، تستخدم idealLayout داخلياً. طبّقها مباشرة على HStack قبل padding أو محو النوع."
+          }
+        }
+      }
+    },
+    "fixedSize.source" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read the original article"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "阅读原文"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اقرأ المقال الأصلي"
+          }
+        }
+      }
+    },
+    "fixedSize.card.0.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A little idea"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一个小灵感"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فكرة صغيرة"
+          }
+        }
+      }
+    },
+    "fixedSize.card.0.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leave room for something simple."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "给简单的想法，留一点空间。"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اترك مساحة لفكرة بسيطة."
+          }
+        }
+      }
+    },
+    "fixedSize.card.1.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Room to read"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "让文字呼吸"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مساحة للقراءة"
+          }
+        }
+      }
+    },
+    "fixedSize.card.1.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some ideas need a few more lines. Let the words wrap naturally, without cutting the story short."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有些想法需要多写几行。让文字自然换行，把故事说完整，不必为了整齐而截断内容。"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تحتاج بعض الأفكار إلى أسطر إضافية. دع الكلمات تنتقل بين الأسطر بشكل طبيعي، دون اختصار القصة."
+          }
+        }
+      }
+    },
+    "fixedSize.card.2.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stay in rhythm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保持节奏"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إيقاع متناسق"
+          }
+        }
+      }
+    },
+    "fixedSize.card.2.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A shared edge brings the row together. The content stays at the top, while each card keeps its own voice."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "共同的底边，让整行更有秩序。内容始终从顶部开始，每张卡片依然保留自己的表达。"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تجمع الحافة المشتركة البطاقات في صف متناسق. يبقى المحتوى في الأعلى، وتحتفظ كل بطاقة بطابعها."
+          }
+        }
+      }
+    },
+    "fixedSize.card.3.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The whole story"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把故事讲完整"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "القصة كاملة"
+          }
+        }
+      }
+    },
+    "fixedSize.card.3.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is the longest card, even when it starts outside the screen. Its full story decides the height of the entire row. The shorter cards stretch to match it, so every word remains visible and the layout uses only the space it needs. Try a larger text size and watch the row grow with the content."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "即使这张最长的卡片最初位于屏幕之外，它的完整内容也会决定整行的高度。较短的卡片随之伸展，让每一个字都能被看见，同时只占用真正需要的空间。试着调大系统字号，观察整行如何随着内容一起长高。"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "هذه أطول بطاقة، حتى عندما تبدأ خارج الشاشة. تحدد قصتها الكاملة ارتفاع الصف كله، وتتمدد البطاقات الأقصر لتطابقها. تبقى كل كلمة ظاهرة ويستخدم التخطيط المساحة التي يحتاجها فقط. جرّب تكبير حجم النص وشاهد كيف ينمو الصف مع المحتوى."
+          }
+        }
+      }
+    },
     "demo.contentConfiguration.waterfall.section" : {
       "extractionState" : "manual",
       "localizations" : {

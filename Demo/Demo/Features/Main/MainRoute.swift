@@ -12,6 +12,7 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
     case contentMargins
     case positionAndZIndex
     case viewThatFits
+    case fixedSize
     case profile
     case counter
     case dynamicScroll
@@ -50,6 +51,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "demo.positionAndZIndex.title"
         case .viewThatFits:
             "demo.viewThatFits.title"
+        case .fixedSize:
+            "demo.fixedSize.title"
         case .profile:
             "demo.profile.title"
         case .counter:
@@ -105,6 +108,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "square.3.layers.3d"
         case .viewThatFits:
             "chevron.up.chevron.down"
+        case .fixedSize:
+            "arrow.up.and.down.square"
         case .profile:
             "person.crop.circle"
         case .counter:
