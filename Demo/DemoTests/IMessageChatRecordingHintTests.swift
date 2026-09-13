@@ -3,10 +3,11 @@ import UIKit
 @testable import Demo
 
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .enabled(if: IMessageChatTestAvailability.isSupported))
 struct IMessageChatRecordingHintTests {
     @Test(arguments: [false, true])
     func linkAttachmentHintCollapsesAndRestoresDraft(rtl: Bool) async throws {
+        guard #available(iOS 26.0, *) else { return }
         let sleeper = HintSleeper()
         let composer = makeComposer(sleeper: sleeper)
         if rtl {
@@ -53,6 +54,7 @@ struct IMessageChatRecordingHintTests {
     }
 
     @Test func previewHintSurvivesInitialOffscreenMount() {
+        guard #available(iOS 26.0, *) else { return }
         let composer = makeComposer()
         composer.textView.text = "preview draft"
         #expect(!composer.validateAudioRecordingRequest())
@@ -63,6 +65,7 @@ struct IMessageChatRecordingHintTests {
     }
 
     @Test func emptyDraftAllowsRecordingAndWhitespaceDoesNot() {
+        guard #available(iOS 26.0, *) else { return }
         let composer = makeComposer()
         #expect(composer.validateAudioRecordingRequest())
         #expect(!composer.isShowingRecordingUnavailableHint)
@@ -77,6 +80,7 @@ struct IMessageChatRecordingHintTests {
     }
 
     @Test func hintFreezesEditingAndRestoresMultilineDraftAfterTwoSeconds() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let sleeper = HintSleeper()
         let composer = makeComposer(sleeper: sleeper)
         let draft = "one\ntwo\nthree\nfour\nfive\nsix\nseven"
@@ -126,6 +130,7 @@ struct IMessageChatRecordingHintTests {
     }
 
     @Test func mediaImportCanFinishWhileHintIsVisible() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let sleeper = HintSleeper()
         let composer = makeComposer(sleeper: sleeper)
         let groupID = UUID()
@@ -184,6 +189,7 @@ struct IMessageChatRecordingHintTests {
     }
 
     @Test func hintFitsBothDirectionsAtAccessibilityTextSize() {
+        guard #available(iOS 26.0, *) else { return }
         let composer = makeComposer()
         composer.traitOverrides.preferredContentSizeCategory = .accessibilityExtraExtraExtraLarge
         composer.textView.text = "多行\n草稿"
@@ -209,6 +215,7 @@ struct IMessageChatRecordingHintTests {
     }
 
     @Test func staleCompletionCannotDismissNewHintOrReplaceAudioState() async {
+        guard #available(iOS 26.0, *) else { return }
         let sleeper = HintSleeper()
         let composer = makeComposer(sleeper: sleeper)
         composer.textView.text = "draft"
@@ -229,6 +236,7 @@ struct IMessageChatRecordingHintTests {
     }
 
     @Test func hintPreservesFocusAndWindowRemovalCancelsIt() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previousKeyWindow = scene.windows.first(where: \.isKeyWindow)
         let controller = UIViewController()
@@ -268,6 +276,7 @@ struct IMessageChatRecordingHintTests {
         sleeper.resume()
     }
 
+    @available(iOS 26.0, *)
     private func makeComposer(sleeper: HintSleeper? = nil) -> IMessageChatComposerView {
         let composer = IMessageChatComposerView(frame: CGRect(x: 0, y: 100, width: 402, height: 60))
         composer.configure(strings: IMessageChatPreviewData.composerStrings)
@@ -277,11 +286,13 @@ struct IMessageChatRecordingHintTests {
         return composer
     }
 
+    @available(iOS 26.0, *)
     private func layout(_ composer: IMessageChatComposerView) {
         composer.frame.size.height = composer.intrinsicContentSize.height
         composer.layoutIfNeeded()
     }
 
+    @available(iOS 26.0, *)
     private func waitUntil(_ condition: () -> Bool) async {
         for _ in 0..<1_000 {
             if condition() { return }
@@ -292,6 +303,7 @@ struct IMessageChatRecordingHintTests {
 }
 
 /// 故意允许已取消任务稍后完成，用于验证过期回调不会覆盖新状态。
+@available(iOS 26.0, *)
 @MainActor
 private final class HintSleeper {
     private(set) var durations: [Duration] = []

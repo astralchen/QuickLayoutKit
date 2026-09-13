@@ -4,9 +4,10 @@ import UIKit
 @testable import Demo
 
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .enabled(if: IMessageChatTestAvailability.isSupported))
 struct IMessageChatMessageStatusTests {
     @Test func deliveryReadAndTypingAreSeparateEvents() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let sender = StatusSender(), delay = StatusDelay()
         let model = makeModel(sender, delay)
         defer { model.cancelPendingReply() }
@@ -31,6 +32,7 @@ struct IMessageChatMessageStatusTests {
     }
 
     @Test func failedMessagesRemainVisibleAndRetryKeepsIdentityAndRejectsDoubleTap() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let sender = StatusSender(), delay = StatusDelay()
         let model = makeModel(sender, delay)
         defer { model.cancelPendingReply() }
@@ -66,6 +68,7 @@ struct IMessageChatMessageStatusTests {
     }
 
     @Test func receiptsAreMonotonicAndNeverReadFailedOrInFlightMessages() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let sender = StatusSender(), delay = StatusDelay()
         let model = makeModel(sender, delay)
         defer { model.cancelPendingReply() }
@@ -91,6 +94,7 @@ struct IMessageChatMessageStatusTests {
     }
 
     @Test func repliesDoNotImplyReadWhenReceiptsAreDisabled() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let sender = StatusSender(), delay = StatusDelay()
         let model = makeModel(sender, delay, receipts: false)
         defer { model.cancelPendingReply() }
@@ -109,6 +113,7 @@ struct IMessageChatMessageStatusTests {
     }
 
     @Test func failedDelayReleasesTypingAndAllowsFollowingMessages() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let sender = StatusSender(), delay = StatusDelay()
         let model = makeModel(sender, delay)
         defer { model.cancelPendingReply() }
@@ -130,6 +135,7 @@ struct IMessageChatMessageStatusTests {
     }
 
     @Test func cancelAndRetryIgnoreLateSendCompletionFromEarlierAttempt() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let sender = StatusSender(), delay = StatusDelay()
         let model = makeModel(sender, delay)
         defer { model.cancelPendingReply() }
@@ -148,6 +154,7 @@ struct IMessageChatMessageStatusTests {
     }
 
     @Test func statusViewSupportsRetryReuseRTLAndLargeText() {
+        guard #available(iOS 26.0, *) else { return }
         let view = IMessageChatDeliveryStatusView()
         var ids: [Int] = []
         view.retryRequested = { ids.append($0) }
@@ -179,6 +186,7 @@ struct IMessageChatMessageStatusTests {
     }
 
     @Test func rapidStatusRendersRefreshVisibleCellsAndRemovePreviousReceipt() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: \.isKeyWindow)
         let window = UIWindow(windowScene: scene)
@@ -219,14 +227,17 @@ struct IMessageChatMessageStatusTests {
         })
     }
 
+    @available(iOS 26.0, *)
     private func makeModel(_ sender: StatusSender, _ delay: StatusDelay, receipts: Bool = true) -> IMessageChatViewModel {
         IMessageChatViewModel(localizer: Localizer { key, _ in key }, clock: Date.init,
                              messageSender: sender, readReceiptsEnabled: receipts, sleeper: { try await delay.sleep($0) })
     }
+    @available(iOS 26.0, *)
     private func message(_ model: IMessageChatViewModel, _ id: Int) -> IMessageChatMessagePresentation? {
         model.state.timeline.compactMap { if case .message(let message) = $0.content { message } else { nil } }
             .first { $0.id == id }
     }
+    @available(iOS 26.0, *)
     private func eventually(_ condition: () -> Bool) async -> Bool {
         for _ in 0..<200 {
             if condition() { return true }
@@ -236,6 +247,7 @@ struct IMessageChatMessageStatusTests {
     }
 }
 
+@available(iOS 26.0, *)
 @MainActor
 private final class StatusSender: IMessageChatMessageSending {
     var calls: [IMessageChatMessage] = []
@@ -253,6 +265,7 @@ private final class StatusSender: IMessageChatMessageSending {
     }
 }
 
+@available(iOS 26.0, *)
 @MainActor
 private final class StatusDelay {
     var calls: [Duration] = []

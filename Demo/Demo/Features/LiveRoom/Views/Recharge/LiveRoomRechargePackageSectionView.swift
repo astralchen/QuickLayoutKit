@@ -80,7 +80,10 @@ final class LiveRoomRechargePackageSectionView: QuickLayoutView {
                                 .frame(height: Metrics.packageHeight)
                         }
                         for _ in row.count..<columnsPerRow {
+                            // Grid 中的空位与按钮使用相同的横向弹性和优先级，保留完整列宽。
                             Spacer()
+                                .frame(maxWidth: .infinity)
+                                .layoutPriority(0)
                                 .frame(height: Metrics.packageHeight)
                         }
                     }
@@ -195,6 +198,7 @@ private func makeLiveRoomRechargePackageSectionPreview() -> UIViewController {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("充值档位区域") {
     makeLiveRoomRechargePackageSectionPreview()
 }

@@ -3,6 +3,7 @@ import Foundation
 import Speech
 
 /// 读取已提交的音频文件。实现不得启动麦克风或更改播放音频会话。
+@available(iOS 26.0, *)
 @MainActor
 protocol IMessageChatAudioFileTranscribing: AnyObject {
     /// 识别指定本地音频文件的完整文本。
@@ -16,6 +17,7 @@ protocol IMessageChatAudioFileTranscribing: AnyObject {
 }
 
 /// 页面内的串行识别队列。结果与消息、附件双重身份绑定，失败也记为已尝试。
+@available(iOS 26.0, *)
 @MainActor
 final class IMessageChatAudioTranscriptionCoordinator {
     /// 以消息和附件双重身份区分一次文件转写请求的键。
@@ -108,6 +110,7 @@ final class IMessageChatAudioTranscriptionCoordinator {
 }
 
 /// 文件识别使用独立的系统请求，与输入栏的实时转写互不取消。
+@available(iOS 26.0, *)
 @MainActor
 final class IMessageChatAudioFileTranscriber: IMessageChatAudioFileTranscribing {
     /// 显式指定的识别后端；为 `nil` 时使用系统能力选择与启动回退策略。
@@ -129,28 +132,21 @@ final class IMessageChatAudioFileTranscriber: IMessageChatAudioFileTranscribing 
     /// 只有自动选中的现代后端准备失败时回退；运行错误和取消不会重新启动其他后端。
     func transcribe(fileURL: URL, locale: Locale) async throws -> String? {
         try Task.checkCancellation()
-        let backend = requestedBackend ?? IMessageChatSpeechConfiguration.preferredBackend(
-            supportsSpeechAnalyzer: ProcessInfo.processInfo.isOperatingSystemAtLeast(
-                OperatingSystemVersion(majorVersion: 26, minorVersion: 0, patchVersion: 0)
-            )
-        )
+        let backend = requestedBackend ?? .speechAnalyzer
         if backend == .speechAnalyzer {
-            if #available(iOS 26.0, *) {
-                let prepared: (SpeechAnalyzer, SpeechTranscriber, AVAudioFile)
-                do {
-                    prepared = try await prepareModern(fileURL: fileURL, locale: locale)
-                } catch {
-                    try Task.checkCancellation()
-                    if error is CancellationError { throw error }
-                    guard IMessageChatSpeechConfiguration.fallbackBackend(
-                        afterFailureOf: backend, wasExplicitlyRequested: requestedBackend != nil
-                    ) != nil else { throw error }
-                    return try await transcribeLegacy(fileURL: fileURL, locale: locale)
-                }
-                // 成功准备后发生的运行错误不重启另一个后端。
-                return try await runModern(prepared, locale: locale)
+            let prepared: (SpeechAnalyzer, SpeechTranscriber, AVAudioFile)
+            do {
+                prepared = try await prepareModern(fileURL: fileURL, locale: locale)
+            } catch {
+                try Task.checkCancellation()
+                if error is CancellationError { throw error }
+                guard IMessageChatSpeechConfiguration.fallbackBackend(
+                    afterFailureOf: backend, wasExplicitlyRequested: requestedBackend != nil
+                ) != nil else { throw error }
+                return try await transcribeLegacy(fileURL: fileURL, locale: locale)
             }
-            throw CocoaError(.featureUnsupported)
+            // 成功准备后发生的运行错误不重启另一个后端。
+            return try await runModern(prepared, locale: locale)
         }
         return try await transcribeLegacy(fileURL: fileURL, locale: locale)
     }
@@ -237,6 +233,7 @@ final class IMessageChatAudioFileTranscriber: IMessageChatAudioFileTranscribing 
 }
 
 /// 单个请求拥有自己的 continuation；取消和迟到的回调都只能完成一次。
+@available(iOS 26.0, *)
 @MainActor
 private final class LegacyFileRequest {
     /// 当前文件识别的系统任务。

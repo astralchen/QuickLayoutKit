@@ -8,6 +8,7 @@ import Foundation
 import UIKit
 
 /// 供组件预览使用的固定消息、草稿与本地化示例值。
+@available(iOS 26.0, *)
 @MainActor
 enum IMessageChatPreviewData {
 

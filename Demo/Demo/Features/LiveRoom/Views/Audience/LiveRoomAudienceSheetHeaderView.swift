@@ -104,6 +104,7 @@ private func makeLiveRoomAudienceSheetHeaderPreview() -> UIViewController {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("在线用户 Sheet 头部") {
     makeLiveRoomAudienceSheetHeaderPreview()
 }

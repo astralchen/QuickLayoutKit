@@ -317,22 +317,27 @@ private func makeLiveRoomGiftSelectAllPreview(
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("收礼人 · 未选择") {
     makeLiveRoomGiftRecipientPreview(selected: false)
 }
 
+@available(iOS 17.0, *)
 #Preview("收礼人 · 已选择") {
     makeLiveRoomGiftRecipientPreview(selected: true)
 }
 
+@available(iOS 17.0, *)
 #Preview("全选 · 未选择") {
     makeLiveRoomGiftSelectAllPreview(selected: false)
 }
 
+@available(iOS 17.0, *)
 #Preview("全选 · 已选择") {
     makeLiveRoomGiftSelectAllPreview(selected: true)
 }
 
+@available(iOS 17.0, *)
 #Preview("收礼人雾化") {
     QuickLayoutHostingController {
         ZStack {

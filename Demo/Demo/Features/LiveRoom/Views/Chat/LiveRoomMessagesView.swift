@@ -331,6 +331,7 @@ private func makeLiveRoomMessagesViewPreview(
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("公屏消息 · 已关注") {
     makeLiveRoomMessagesViewPreview(
         title: "已关注",
@@ -339,6 +340,7 @@ private func makeLiveRoomMessagesViewPreview(
     )
 }
 
+@available(iOS 17.0, *)
 #Preview("公屏消息 · 关注请求中") {
     makeLiveRoomMessagesViewPreview(
         title: "关注中…",

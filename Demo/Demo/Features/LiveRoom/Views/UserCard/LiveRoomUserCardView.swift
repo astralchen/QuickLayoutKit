@@ -199,6 +199,7 @@ private func makeLiveRoomUserCardViewPreview() -> UIViewController {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("用户卡片内容") {
     makeLiveRoomUserCardViewPreview()
 }

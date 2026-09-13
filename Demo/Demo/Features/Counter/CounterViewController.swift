@@ -594,6 +594,7 @@ private final class CounterStatusView: CounterCardView {
 
 }
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(rootViewController: CounterViewController())
 }

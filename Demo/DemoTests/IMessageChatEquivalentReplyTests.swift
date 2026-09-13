@@ -3,9 +3,10 @@ import Testing
 @testable import Demo
 
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .enabled(if: IMessageChatTestAvailability.isSupported))
 struct IMessageChatEquivalentReplyTests {
     @Test func mixedBatchAndConsecutiveSendsReplyInOrderWithIndependentIdentities() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try ReplyFiles()
         defer { fixture.remove() }
         let group = fixture.group
@@ -59,6 +60,7 @@ struct IMessageChatEquivalentReplyTests {
 
     @Test(arguments: [false, true])
     func singlePhotoAndVideoPreserveTheirKind(video: Bool) async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try ReplyFiles()
         defer { fixture.remove() }
         let source = IMessageChatMediaGroupAttachment(items: [fixture.group.items[video ? 1 : 0]])
@@ -73,6 +75,7 @@ struct IMessageChatEquivalentReplyTests {
     }
 
     @Test func waveformAudioWithoutSynthesizerRemainsAudio() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try ReplyFiles()
         defer { fixture.remove() }
         let source = IMessageChatAudioAttachment(fileURL: fixture.url("m4a"), duration: 2, waveform: [0.2, 0.8])
@@ -87,6 +90,7 @@ struct IMessageChatEquivalentReplyTests {
     }
 
     @Test func cancellationClearsQueueAndIgnoresLateReplyThenAllowsNewSend() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let gate = ReplyGate()
         let model = makeModel(sleeper: { _ in await gate.wait() })
         defer { model.cancelPendingReply() }
@@ -106,6 +110,7 @@ struct IMessageChatEquivalentReplyTests {
     }
 
     @Test func invalidBatchDoesNotQueuePartialReplies() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try ReplyFiles()
         defer { fixture.remove() }
         let invalid = IMessageChatFileAttachment(id: UUID(), fileURL: fixture.directory.appendingPathComponent("missing"),
@@ -117,14 +122,17 @@ struct IMessageChatEquivalentReplyTests {
         #expect(messages(model).count == 3)
     }
 
+    @available(iOS 26.0, *)
     private func makeModel(sleeper: @escaping IMessageChatViewModel.Sleeper = { _ in }) -> IMessageChatViewModel {
         IMessageChatViewModel(localizer: Localizer { key, _ in key }, clock: Date.init, sleeper: sleeper)
     }
 
+    @available(iOS 26.0, *)
     private func messages(_ model: IMessageChatViewModel) -> [IMessageChatMessagePresentation] {
         model.state.timeline.compactMap { if case .message(let message) = $0.content { message } else { nil } }
     }
 
+    @available(iOS 26.0, *)
     private func eventually(_ condition: () async -> Bool) async -> Bool {
         for _ in 0..<200 {
             if await condition() { return true }
@@ -144,6 +152,7 @@ private actor ReplyGate {
     func releaseFirst() { continuations.removeFirst().resume() }
 }
 
+@available(iOS 26.0, *)
 @MainActor
 private struct ReplyFiles {
     let directory: URL
@@ -169,6 +178,7 @@ private struct ReplyFiles {
     func remove() { try? FileManager.default.removeItem(at: directory) }
 }
 
+@available(iOS 26.0, *)
 private extension IMessageChatMessagePresentation {
     var attachment: IMessageChatAttachment? {
         if case .attachment(let attachment) = content { attachment } else { nil }

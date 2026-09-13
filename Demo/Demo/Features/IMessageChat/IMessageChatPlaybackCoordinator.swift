@@ -1,6 +1,7 @@
 import Foundation
 
 /// 页面内音频和视频共用的播放所有权。先同步停止旧对象，再交给新对象。
+@available(iOS 26.0, *)
 @MainActor
 final class IMessageChatPlaybackCoordinator {
     /// 当前持有页面播放所有权的令牌；没有所有者时为 `nil`。

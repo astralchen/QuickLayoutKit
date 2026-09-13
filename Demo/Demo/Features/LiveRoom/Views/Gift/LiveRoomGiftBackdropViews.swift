@@ -74,6 +74,7 @@ enum LiveRoomGiftSheetMotionMetrics {
 }
 
 #if DEBUG
+@available(iOS 17.0, *)
 #Preview("送礼氛围背景") {
     QuickLayoutHostingController {
         LiveRoomGiftAmbientView()

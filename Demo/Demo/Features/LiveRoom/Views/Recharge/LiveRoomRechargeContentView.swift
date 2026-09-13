@@ -74,6 +74,7 @@ private func makeLiveRoomRechargeContentPreview() -> UIViewController {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("充值滚动内容") {
     makeLiveRoomRechargeContentPreview()
 }

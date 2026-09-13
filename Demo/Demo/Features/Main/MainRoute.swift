@@ -32,6 +32,12 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
     case swiftUIBridge
     case localizationBoundary
 
+    var isAvailable: Bool {
+        guard self == .imessageChat else { return true }
+        if #available(iOS 26.0, *) { return true }
+        return false
+    }
+
     var titleKey: String {
         switch self {
         case .horizontalScroll:

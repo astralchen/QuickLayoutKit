@@ -424,6 +424,7 @@ private func makeLiveRoomGiftSheetControllerPreview() -> UIViewController {
     )
 }
 
+@available(iOS 17.0, *)
 #Preview("送礼面板") {
     makeLiveRoomGiftSheetControllerPreview()
 }

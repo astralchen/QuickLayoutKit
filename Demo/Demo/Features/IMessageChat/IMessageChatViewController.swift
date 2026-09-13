@@ -742,6 +742,7 @@ final class IMessageChatViewController: LocalizedQuickLayoutHostingController {
 
 #if DEBUG
 /// 创建使用固定时钟与示例依赖的完整聊天页面预览。
+@available(iOS 26.0, *)
 @MainActor
 private func makeIMessageChatViewControllerPreview() -> UIViewController {
     let viewModel = IMessageChatViewModel(
@@ -756,6 +757,7 @@ private func makeIMessageChatViewControllerPreview() -> UIViewController {
     )
 }
 
+@available(iOS 26.0, *)
 #Preview("iMessage 聊天页面") {
     makeIMessageChatViewControllerPreview()
 }

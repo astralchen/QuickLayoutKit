@@ -154,6 +154,8 @@ final class LiveRoomGiftSheetView:
         }
         super.layoutSubviews()
         updateGiftGridMetrics()
+        // 分类内容的方向和尺寸先完成布局，再用新的内容坐标计算居中位置。
+        categoryCarouselScrollView.layoutIfNeeded()
         centerPendingGiftCategoryIfNeeded()
     }
 
@@ -423,6 +425,7 @@ private func makeLiveRoomGiftSheetViewPreview() -> UIViewController {
     return viewController
 }
 
+@available(iOS 17.0, *)
 #Preview("送礼面板内容") {
     makeLiveRoomGiftSheetViewPreview()
 }

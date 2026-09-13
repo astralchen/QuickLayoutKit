@@ -2,6 +2,7 @@ import Photos
 import UIKit
 
 /// 保存状态属于当前聊天页面；同一附件出现在不同消息中时分别记录。
+@available(iOS 26.0, *)
 nonisolated struct IMessageChatAttachmentSaveKey: Hashable, Sendable {
     /// 保存操作所属消息的稳定标识符。
     let messageID: Int
@@ -10,24 +11,28 @@ nonisolated struct IMessageChatAttachmentSaveKey: Hashable, Sendable {
 }
 
 /// 附件保存按钮在当前页面中的显示与交互状态。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatAttachmentSaveState: String, Sendable {
     /// 依次表示可以保存、正在保存、短暂显示完成反馈以及隐藏入口。
     case available, saving, completed, hidden
 }
 
 /// 系统保存流程正常结束时返回的结果。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatAttachmentSaveOutcome: Sendable {
     /// 依次表示已保存副本以及用户取消保存。
     case saved, cancelled
 }
 
 /// 附件保存前的权限、资源或展示条件不满足时产生的错误。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatAttachmentSaveError: Error, Equatable {
     /// 依次表示照片写入权限不足、附件不可导出以及无法展示系统选择器。
     case photoPermissionDenied, invalidAttachment, presentationUnavailable
 }
 
 /// 仅媒体组与文件卡片支持保存；语音气泡不属于文件导出入口。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatAttachmentSavePolicy {
     /// 返回指定附件是否包含可保存的媒体原件或文件。
     ///
@@ -52,6 +57,7 @@ nonisolated enum IMessageChatAttachmentSavePolicy {
 }
 
 /// 将页面附件保存到系统照片图库或用户选择的位置的接口。
+@available(iOS 26.0, *)
 @MainActor
 protocol IMessageChatAttachmentSaving {
     /// 保存指定附件，并等待系统流程结束。
@@ -65,6 +71,7 @@ protocol IMessageChatAttachmentSaving {
 }
 
 /// 在进入任何异步系统操作前复制原件，独立于页面附件目录持有导出资源。
+@available(iOS 26.0, *)
 @MainActor
 final class IMessageChatAttachmentSaveSnapshot {
     /// 用于持有导出副本的独立临时目录。
@@ -118,6 +125,7 @@ final class IMessageChatAttachmentSaveSnapshot {
 }
 
 /// 使用 Photos 和系统文件选择器保存附件的对象。
+@available(iOS 26.0, *)
 @MainActor
 final class IMessageChatSystemAttachmentSaver: IMessageChatAttachmentSaving {
     /// 将有序媒体项目及对应文件副本写入照片图库的异步操作。
@@ -167,6 +175,7 @@ final class IMessageChatSystemAttachmentSaver: IMessageChatAttachmentSaving {
 }
 
 /// 系统导出控制器只复制附件；取消选择器不属于错误。
+@available(iOS 26.0, *)
 @MainActor
 final class IMessageChatDocumentExportSession: NSObject, UIDocumentPickerDelegate, UIAdaptivePresentationControllerDelegate {
     /// 展示文件导出选择器的闭包；默认使用动画展示。
@@ -206,12 +215,16 @@ final class IMessageChatDocumentExportSession: NSObject, UIDocumentPickerDelegat
     /// 校验文件集合并创建以复制方式导出的系统选择器。
     ///
     /// 文件集合为空或任一文件不可读时抛出附件错误。
-    static func makePicker(_ files: [URL]) throws -> UIDocumentPickerViewController {
+    static func makePicker(
+        _ files: [URL],
+        createPicker: @MainActor ([URL], Bool) -> UIDocumentPickerViewController = {
+            UIDocumentPickerViewController(forExporting: $0, asCopy: $1)
+        }
+    ) throws -> UIDocumentPickerViewController {
         guard !files.isEmpty, files.allSatisfy({ FileManager.default.isReadableFile(atPath: $0.path) }) else {
             throw IMessageChatAttachmentSaveError.invalidAttachment
         }
-        let picker = UIDocumentPickerViewController(forExporting: files, asCopy: true)
-        return picker
+        return createPicker(files, true)
     }
 
     /// 在系统返回导出位置后完成会话；空结果按取消处理。
@@ -235,6 +248,7 @@ final class IMessageChatDocumentExportSession: NSObject, UIDocumentPickerDelegat
 }
 
 /// 管理防重入、完成截止时间和页面退出；系统已接收的保存操作不会被页面退出取消。
+@available(iOS 26.0, *)
 @MainActor
 final class IMessageChatAttachmentSaveCoordinator {
     /// 负责执行系统保存操作的对象。

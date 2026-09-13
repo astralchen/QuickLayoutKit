@@ -480,6 +480,7 @@ class ExampleRow5: UIView {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(rootViewController: SemanticContentDemoViewController())
 }

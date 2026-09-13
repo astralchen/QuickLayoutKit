@@ -193,6 +193,7 @@ final class ContentConfigurationCollectionViewController: LocalizedViewControlle
 }
 
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(rootViewController: ContentConfigurationCollectionViewController())
 }

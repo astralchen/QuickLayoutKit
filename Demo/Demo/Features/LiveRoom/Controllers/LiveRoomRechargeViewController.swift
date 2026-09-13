@@ -156,6 +156,7 @@ private func makeLiveRoomRechargeControllerPreview() -> UIViewController {
     return UINavigationController(rootViewController: viewController)
 }
 
+@available(iOS 17.0, *)
 #Preview("充值中心") {
     makeLiveRoomRechargeControllerPreview()
 }

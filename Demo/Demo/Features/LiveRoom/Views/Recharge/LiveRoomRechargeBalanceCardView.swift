@@ -108,6 +108,7 @@ private func makeLiveRoomRechargeBalanceCardPreview() -> UIViewController {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("充值余额卡片") {
     makeLiveRoomRechargeBalanceCardPreview()
 }

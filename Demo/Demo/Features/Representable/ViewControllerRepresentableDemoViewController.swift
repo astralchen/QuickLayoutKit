@@ -495,6 +495,7 @@ private final class LoggingChildViewController: UIViewController, UIKitLocalizat
 }
 
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(rootViewController: ViewControllerRepresentableDemoViewController())
 }

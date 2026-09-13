@@ -242,6 +242,7 @@ private func makeLiveRoomSeatCollectionCellPreview(
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("麦位 Cell · 已上麦") {
     makeLiveRoomSeatCollectionCellPreview(
         seat: LiveRoomPreviewData.seats[2],
@@ -249,6 +250,7 @@ private func makeLiveRoomSeatCollectionCellPreview(
     )
 }
 
+@available(iOS 17.0, *)
 #Preview("麦位 Cell · 空麦") {
     makeLiveRoomSeatCollectionCellPreview(
         seat: LiveRoomPreviewData.seats[5],

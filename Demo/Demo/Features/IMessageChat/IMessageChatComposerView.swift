@@ -148,6 +148,7 @@ final class IMessageChatDraftRemoveButton: UIButton {
 }
 
 /// ``IMessageChatComposerView`` 使用的本地化字符串。
+@available(iOS 26.0, *)
 nonisolated struct IMessageChatComposerStrings: Equatable, Sendable {
     /// 空文本草稿显示的占位文字。
     let placeholder: String
@@ -182,6 +183,7 @@ nonisolated struct IMessageChatComposerStrings: Equatable, Sendable {
 /// 菜单只能展示已经接入完整选择、预览、发送和清理流程的类型，并由
 /// ViewController 选择对应协调器；Composer 不直接呈现
 /// `PHPickerViewController`、播放器或相机界面。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatAttachmentKind: Equatable, Sendable {
     /// 从照片图库选择图片或视频。
     case photo
@@ -194,6 +196,7 @@ nonisolated enum IMessageChatAttachmentKind: Equatable, Sendable {
 }
 
 /// 按 TextKit 文档位置排列的发送片段，不携带文件所有权。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatDraftSegment: Equatable, Sendable {
     /// 编辑器中保留原始空格与换行的文字段。
     case text(String)
@@ -202,6 +205,7 @@ nonisolated enum IMessageChatDraftSegment: Equatable, Sendable {
 }
 
 /// 一次编辑事务中的正文和附件占位，顺序与用户插入内容一致。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatEditorInsertion {
     /// 在当前选区插入的纯文本内容。
     case text(String)
@@ -214,6 +218,7 @@ nonisolated enum IMessageChatEditorInsertion {
 /// 单一动作入口防止每增加一种附件就继续增加多组可选闭包。返回值只表示动作是否
 /// 被业务层接受；文本仅在 `.sendText` 返回 `true` 后清空，附件草稿也只在发送
 /// 成功后由其所有者提交。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatComposerAction: Equatable, Sendable {
     /// 按编辑器顺序发送文字段与文档附件引用。
     case sendDocuments([IMessageChatDraftSegment])
@@ -251,6 +256,7 @@ nonisolated enum IMessageChatComposerAction: Equatable, Sendable {
 ///
 /// 状态只包含 View 所需的值类型数据，不持有录音器、播放器或语音识别任务。
 /// 媒体预览只传递值类型草稿，不把资源选择器或播放器对象放入输入栏状态。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatComposerState: Equatable, Sendable {
     /// 没有活动录音或听写的常规文本编辑状态。
     case idle
@@ -1826,6 +1832,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
 
 #if DEBUG
 /// 创建指定草稿、媒体状态和布局方向的输入栏预览，可选择显示录音不可用提示。
+@available(iOS 26.0, *)
 @MainActor
 private func makeIMessageChatComposerPreview(
     text: String,
@@ -1859,6 +1866,7 @@ private func makeIMessageChatComposerPreview(
     }
 }
 
+@available(iOS 26.0, *)
 #Preview("消息输入栏 · 空白") {
     makeIMessageChatComposerPreview(
         text: "",
@@ -1867,6 +1875,7 @@ private func makeIMessageChatComposerPreview(
     )
 }
 
+@available(iOS 26.0, *)
 #Preview("消息输入栏 · 多行") {
     makeIMessageChatComposerPreview(
         text: IMessageChatPreviewData.composerMultilineText,
@@ -1875,6 +1884,7 @@ private func makeIMessageChatComposerPreview(
     )
 }
 
+@available(iOS 26.0, *)
 #Preview("消息输入栏 · 录音") {
     makeIMessageChatComposerPreview(
         text: "",
@@ -1886,6 +1896,7 @@ private func makeIMessageChatComposerPreview(
     )
 }
 
+@available(iOS 26.0, *)
 #Preview("消息输入栏 · 音频预览") {
     makeIMessageChatComposerPreview(
         text: "",
@@ -1898,6 +1909,7 @@ private func makeIMessageChatComposerPreview(
     )
 }
 
+@available(iOS 26.0, *)
 #Preview("消息输入栏 · RTL") {
     makeIMessageChatComposerPreview(
         text: IMessageChatPreviewData.composerRTLText,
@@ -1906,6 +1918,7 @@ private func makeIMessageChatComposerPreview(
     )
 }
 
+@available(iOS 26.0, *)
 #Preview("消息输入栏 · 录音前清空提示") {
     makeIMessageChatComposerPreview(
         text: IMessageChatPreviewData.composerMultilineText,
@@ -1915,6 +1928,7 @@ private func makeIMessageChatComposerPreview(
     )
 }
 
+@available(iOS 26.0, *)
 #Preview("消息输入栏 · 录音前清空提示 RTL") {
     makeIMessageChatComposerPreview(
         text: IMessageChatPreviewData.composerRTLText,

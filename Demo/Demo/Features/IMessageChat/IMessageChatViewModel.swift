@@ -9,6 +9,7 @@ import Foundation
 /// 管理本地聊天消息、发送尝试、模拟回复及时间线展示状态的对象。
 ///
 /// 所有消息状态更新在主 Actor 上串行执行，异步结果通过操作身份校验后应用。
+@available(iOS 26.0, *)
 @MainActor
 final class IMessageChatViewModel {
 

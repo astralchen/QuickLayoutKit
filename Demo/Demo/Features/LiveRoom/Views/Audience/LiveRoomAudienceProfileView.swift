@@ -292,6 +292,7 @@ private func makeLiveRoomAudienceProfileViewPreview() -> UIViewController {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("在线用户主页") {
     makeLiveRoomAudienceProfileViewPreview()
 }

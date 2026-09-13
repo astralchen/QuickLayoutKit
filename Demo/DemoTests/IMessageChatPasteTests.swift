@@ -8,9 +8,10 @@ import UniformTypeIdentifiers
 @testable import Demo
 
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .enabled(if: IMessageChatTestAvailability.isSupported))
 struct IMessageChatPasteTests {
     @Test func realWindowPureURLPasteReplacesSelectionAndKeepsFocus() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: \.isKeyWindow)
         let store = IMessageChatPageAttachmentStore()
@@ -48,6 +49,7 @@ struct IMessageChatPasteTests {
     }
 
     @Test func realWindowPasteCombinesMediaTokensInUIKitOrderAndKeepsMixedText() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previousWindow = scene.windows.first(where: \.isKeyWindow)
         let files = PasteFiles()
@@ -150,6 +152,7 @@ struct IMessageChatPasteTests {
     }
 
     @Test func deleteButtonHasIndependentTouchAreaAndVoiceOverActionInBothDirections() throws {
+        guard #available(iOS 26.0, *) else { return }
         let files = PasteFiles()
         defer { files.remove() }
         let image = try files.image()
@@ -184,11 +187,13 @@ struct IMessageChatPasteTests {
         #expect(!descendants(card).contains { $0.accessibilityIdentifier == "imessage.attachment.remove" && !$0.isHidden })
     }
 
+    @available(iOS 26.0, *)
     private func descendants(_ view: UIView) -> [UIView] {
         view.subviews.flatMap { [$0] + descendants($0) }
     }
 
     @Test func webURLRequiresAnEntireHTTPOrHTTPSValue() {
+        guard #available(iOS 26.0, *) else { return }
         for value in ["https://example.invalid/path?q=1#part", "http://example.invalid", " \nhttps://example.invalid/a\t"] {
             #expect(IMessageChatPasteSource.webURL(in: value)?.absoluteString == value.trimmingCharacters(in: .whitespacesAndNewlines))
         }
@@ -200,6 +205,7 @@ struct IMessageChatPasteTests {
     }
 
     @Test func realWindowBatchInsertionReplacesMarkedSelectionWithoutDuplicatingComposition() throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previousWindow = scene.windows.first(where: \.isKeyWindow)
         let root = UIViewController()
@@ -236,6 +242,7 @@ struct IMessageChatPasteTests {
     }
 
     @Test func fileTypeDistinguishesMediaDocumentsAndOrdinaryText() {
+        guard #available(iOS 26.0, *) else { return }
         for type in [UTType.png, .quickTimeMovie, .wav, .pdf, .json] {
             #expect(IMessageChatPasteSource.fileType(in: dataProvider(type)) == type.identifier)
         }
@@ -255,6 +262,7 @@ struct IMessageChatPasteTests {
     }
 
     @Test func installedPasteDelegateTurnsOnlyPureURLsIntoCards() async throws {
+        guard #available(iOS 26.0, *) else { return }
         for (value, isLink) in [(" \nhttps://example.invalid/path\t", true),
                                 ("前文 https://example.invalid/path 后文", false),
                                 ("第一行\nhttps://example.invalid/path\n末行", false)] {
@@ -282,6 +290,7 @@ struct IMessageChatPasteTests {
     }
 
     @Test func delegatePreservesProviderIdentityTypeAndFileURL() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixtures = PasteFiles()
         defer { fixtures.remove() }
         let file = try fixtures.document("local")
@@ -310,6 +319,7 @@ struct IMessageChatPasteTests {
     }
 
     @Test func mixedProviderBatchPreservesInterleavedSourcesForOneReplacement() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let composer = makeComposer(text: "左选中右")
         composer.textView.selectedRange = NSRange(location: 1, length: 2)
         var batches: [[IMessageChatPasteSource]] = []
@@ -331,6 +341,7 @@ struct IMessageChatPasteTests {
     }
 
     @Test func batchReplacementKeepsClipboardOrderAndUTF16CaretDespiteReverseCompletion() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let files = PasteFiles()
         let store = IMessageChatPageAttachmentStore()
         let controller = IMessageChatDocumentController(store: store)
@@ -392,6 +403,7 @@ struct IMessageChatPasteTests {
     }
 
     @Test func imageAndVideoImportAsSeparateMediaGroupsThenSendInPasteOrder() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let files = PasteFiles()
         let store = IMessageChatPageAttachmentStore()
         let model = IMessageChatViewModel()
@@ -460,6 +472,7 @@ struct IMessageChatPasteTests {
     }
 
     @Test func deletingBeforeImportTaskStartsDoesNotRequestProviderData() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let files = PasteFiles()
         let store = IMessageChatPageAttachmentStore()
         let controller = IMessageChatDocumentController(store: store)
@@ -475,6 +488,7 @@ struct IMessageChatPasteTests {
     }
 
     @Test func deletingPendingCardCancelsProviderAndCannotResurrectOnLateCompletion() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let files = PasteFiles()
         let store = IMessageChatPageAttachmentStore()
         let model = IMessageChatViewModel()
@@ -518,6 +532,7 @@ struct IMessageChatPasteTests {
     }
 
     @Test func corruptImageFailsWithoutLosingBodyAndRemovingItAllowsRemainingFileToSend() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let files = PasteFiles()
         let store = IMessageChatPageAttachmentStore()
         let model = IMessageChatViewModel()
@@ -549,6 +564,7 @@ struct IMessageChatPasteTests {
     }
 
     @Test func invalidatedTokensAndSuspendedInputDoNotInsertAttachments() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let composer = makeComposer(text: "原文")
         var calls = 0
         composer.pasteAttachments = { _ in calls += 1 }
@@ -572,6 +588,7 @@ struct IMessageChatPasteTests {
     }
 
     @Test func consecutivePastesInsertAtCaretAndReplacingOldCardCreatesNewIdentity() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let store = IMessageChatPageAttachmentStore()
         let page = IMessageChatViewController(viewModel: IMessageChatViewModel(), audioController: IMessageChatAudioController(attachmentStore: store))
         page.loadViewIfNeeded()
@@ -599,6 +616,7 @@ struct IMessageChatPasteTests {
         #expect(Set(page.documentController.drafts.keys) == Set([replacement, second]))
     }
 
+    @available(iOS 26.0, *)
     private func makeComposer(text: String) -> IMessageChatComposerView {
         let composer = IMessageChatComposerView(frame: CGRect(x: 0, y: 0, width: 390, height: 80))
         composer.configure(strings: IMessageChatPreviewData.composerStrings)
@@ -608,6 +626,7 @@ struct IMessageChatPasteTests {
     }
 
     /// 只模拟 UIKit 的 item 容器和默认无分隔拼接；分类与 token 生成全部由实际 delegate 执行。
+    @available(iOS 26.0, *)
     private func paste(_ providers: [NSItemProvider], into composer: IMessageChatComposerView) async throws {
         let textView = composer.textView
         let delegate = try #require(textView.pasteDelegate)
@@ -631,12 +650,14 @@ struct IMessageChatPasteTests {
         }
     }
 
+    @available(iOS 26.0, *)
     private func dataProvider(_ type: UTType, data: Data = Data([1, 2, 3])) -> NSItemProvider {
         let provider = NSItemProvider()
         registerData(on: provider, type: type, data: data)
         return provider
     }
 
+    @available(iOS 26.0, *)
     private func registerData(on provider: NSItemProvider, type: UTType, data: Data = Data([1, 2, 3])) {
         provider.registerDataRepresentation(forTypeIdentifier: type.identifier, visibility: .all) { completion in
             completion(data, nil)
@@ -644,6 +665,7 @@ struct IMessageChatPasteTests {
         }
     }
 
+    @available(iOS 26.0, *)
     private func messages(_ model: IMessageChatViewModel) -> [IMessageChatMessagePresentation] {
         model.state.timeline.compactMap { item in
             guard case .message(let message) = item.content else { return nil }
@@ -653,6 +675,7 @@ struct IMessageChatPasteTests {
 }
 
 /// 不实现分类、导入或生产 token；仅记录 UIKit UITextPasteItem 协议的实际返回结果。
+@available(iOS 26.0, *)
 @MainActor
 private final class PasteItemProbe: NSObject, UITextPasteItem {
     let itemProvider: NSItemProvider
@@ -668,10 +691,12 @@ private final class PasteItemProbe: NSObject, UITextPasteItem {
     func setResult(attachment: NSTextAttachment) { finish(NSAttributedString(attachment: attachment)) }
     func setNoResult() { finish(NSAttributedString(string: "")) }
     func setDefaultResult() { usedDefault = true; finish(NSAttributedString(string: "")) }
+    @available(iOS 26.0, *)
     private func finish(_ value: NSAttributedString) { completionCount += 1; result = value }
 }
 
 /// 使用真实 NSItemProvider 注册机制，只控制供应方何时完成，避免用 sleep 猜导入起点。
+@available(iOS 26.0, *)
 private final class PasteFileGate: @unchecked Sendable {
     private let lock = NSLock()
     private let url: URL
@@ -702,6 +727,7 @@ private final class PasteFileGate: @unchecked Sendable {
 
     func succeed() { finish(error: nil) }
     func failIfPending() { finish(error: CocoaError(.userCancelled)) }
+    @available(iOS 26.0, *)
     private func finish(error: Error?) {
         let callback = lock.withLock { let value = completion; completion = nil; return value }
         guard let callback else { return }
@@ -710,6 +736,7 @@ private final class PasteFileGate: @unchecked Sendable {
     }
 }
 
+@available(iOS 26.0, *)
 @MainActor
 private final class PasteFiles {
     private let store = IMessageChatPageAttachmentStore()
@@ -790,6 +817,7 @@ private final class PasteFiles {
     }
 }
 
+@available(iOS 26.0, *)
 @MainActor
 private func waitUntil(_ condition: () -> Bool, sourceLocation: SourceLocation = #_sourceLocation) async throws {
     let deadline = ContinuousClock.now.advanced(by: .seconds(10))

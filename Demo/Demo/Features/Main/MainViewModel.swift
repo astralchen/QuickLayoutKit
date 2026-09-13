@@ -143,7 +143,7 @@ final class MainViewModel {
                 let section = State.Section(
                     id: definition.titleKey,
                     title: localizer.text(definition.titleKey),
-                    routes: definition.routes.map { route in
+                    routes: definition.routes.filter(\.isAvailable).map { route in
                         State.Route(
                             id: route.titleKey,
                             route: route,

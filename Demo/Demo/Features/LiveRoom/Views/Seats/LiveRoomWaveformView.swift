@@ -165,6 +165,7 @@ private func makeLiveRoomWaveformPreview(
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("声音波纹 · 常规麦位") {
     makeLiveRoomWaveformPreview(
         microphoneDiameter: 22,
@@ -172,6 +173,7 @@ private func makeLiveRoomWaveformPreview(
     )
 }
 
+@available(iOS 17.0, *)
 #Preview("声音波纹 · 放大麦位") {
     makeLiveRoomWaveformPreview(
         microphoneDiameter: 28,

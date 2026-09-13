@@ -5,6 +5,7 @@
 //  Created by Codex on 2026/8/15.
 //
 
+import Foundation
 import Testing
 @testable import Demo
 
@@ -18,8 +19,8 @@ struct MVVMViewModelTests {
         let routes = viewModel.state.sections.flatMap(\.routes).map(\.route)
 
         #expect(viewModel.state.sections.count == 3)
-        #expect(routes.count == MainRoute.allCases.count)
-        #expect(Set(routes) == Set(MainRoute.allCases))
+        #expect(routes.count == MainRoute.allCases.filter(\.isAvailable).count)
+        #expect(Set(routes) == Set(MainRoute.allCases.filter(\.isAvailable)))
         #expect(viewModel.state.sections[0].title == "first.main.section.quicklayout")
 
         var replayedState: MainViewModel.State?
@@ -42,7 +43,7 @@ struct MVVMViewModelTests {
     @Test func mainSearchFiltersRoutesAndCategoriesAndRestoresTheCatalog() {
         let localizer = Localizer { key, _ in
             switch key {
-            case "demo.imessage.title": "iMessage 聊天"
+            case "demo.counter.title": "Counter 计数"
             case "main.section.localization": "Languages"
             default: key
             }
@@ -52,14 +53,14 @@ struct MVVMViewModelTests {
         var selectedRoutes: [MainRoute] = []
         viewModel.bind(stateDidChange: { _ in }, routeDidSelect: { selectedRoutes.append($0) })
 
-        viewModel.updateSearchQuery("  IMESSAGE \n")
-        #expect(viewModel.state.sections.flatMap(\.routes).map(\.route) == [.imessageChat])
-        viewModel.select(.imessageChat)
+        viewModel.updateSearchQuery("  COUNTER \n")
+        #expect(viewModel.state.sections.flatMap(\.routes).map(\.route) == [.counter])
         viewModel.select(.counter)
-        #expect(selectedRoutes == [.imessageChat])
+        viewModel.select(.profile)
+        #expect(selectedRoutes == [.counter])
 
-        viewModel.updateSearchQuery("聊天")
-        #expect(viewModel.state.sections.flatMap(\.routes).map(\.route) == [.imessageChat])
+        viewModel.updateSearchQuery("计数")
+        #expect(viewModel.state.sections.flatMap(\.routes).map(\.route) == [.counter])
         viewModel.updateSearchQuery("languages")
         #expect(viewModel.state.sections == [original.sections[2]])
         viewModel.updateSearchQuery("does-not-exist")
@@ -79,7 +80,7 @@ struct MVVMViewModelTests {
         #expect(viewModel.searchQuery == "first.demo.counter")
         #expect(viewModel.state.sections.isEmpty)
         viewModel.updateSearchQuery("")
-        #expect(viewModel.state.sections.flatMap(\.routes).count == MainRoute.allCases.count)
+        #expect(viewModel.state.sections.flatMap(\.routes).count == MainRoute.allCases.filter(\.isAvailable).count)
         #expect(viewModel.state.sections[0].routes[0].title.hasPrefix("second."))
     }
 

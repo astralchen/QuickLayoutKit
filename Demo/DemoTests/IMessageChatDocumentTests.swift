@@ -5,9 +5,10 @@ import QuickLayoutKit
 @testable import Demo
 
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .enabled(if: IMessageChatTestAvailability.isSupported))
 struct IMessageChatDocumentTests {
     @Test func photoAndAudioDraftUseFullEditorWidthWithoutOverlappingSend() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: \.isKeyWindow)
         let root = UIViewController()
@@ -84,6 +85,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func audioFileCardsHugContentAndReserveRemovalSpaceOnlyForDrafts() throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: \.isKeyWindow)
         let root = UIViewController()
@@ -150,6 +152,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func richAndIconLinksSizeIndependentlyInDraftsAndSentMessages() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: \.isKeyWindow)
         previous?.endEditing(true)
@@ -271,6 +274,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func attachmentThumbnailRoundsTheVisibleImageAfterAspectFitAndReuse() throws {
+        guard #available(iOS 26.0, *) else { return }
         let thumbnail = IMessageChatAttachmentThumbnailView(frame: .init(x: 0, y: 0, width: 48, height: 56))
         // 此项只测图片圆角透明度，排除外层阴影在圆角外产生的半透明像素。
         thumbnail.layer.shadowOpacity = 0
@@ -302,6 +306,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func attachmentRemoveButtonsRespectRoundedCornersAndKeepTheirHitArea() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: \.isKeyWindow)
         let root = UIViewController()
@@ -404,6 +409,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func typingAfterLoadedLinksPreservesPreviewViews() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: \.isKeyWindow)
         let root = UIViewController()
@@ -500,6 +506,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func batchPublishesPhotosFilesLinksThenTextAndRejectsInvalidFileAtomically() throws {
+        guard #available(iOS 26.0, *) else { return }
         let store = IMessageChatPageAttachmentStore()
         defer { store.removeAll() }
         let file = try makeFile(in: store)
@@ -530,6 +537,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func multipleInlineAttachmentsPreserveOrderSelectionAndOnlyRemoveDeletedIdentity() {
+        guard #available(iOS 26.0, *) else { return }
         let composer = IMessageChatComposerView(frame: CGRect(x: 0, y: 0, width: 390, height: 80))
         composer.textView.text = "正文"
         composer.textViewDidChange(composer.textView)
@@ -561,6 +569,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func documentImportCopiesSourceAndCommitRetainsFile() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let sourceStore = IMessageChatPageAttachmentStore()
         let store = IMessageChatPageAttachmentStore()
         let controller = IMessageChatDocumentController(store: store)
@@ -585,6 +594,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func failedImportKeepsExistingAudioAndDeletionCancelsLateCopy() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let store = IMessageChatPageAttachmentStore()
         let controller = IMessageChatDocumentController(store: store)
         defer { controller.discardAll(); store.removeAll() }
@@ -608,6 +618,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func linkValidationAndMetadataCancellationKeepNoDeletedDraft() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let store = IMessageChatPageAttachmentStore()
         let controller = IMessageChatDocumentController(store: store)
         defer { controller.discardAll(); store.removeAll() }
@@ -622,6 +633,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func failedControllerSendRetainsFileAndBodyThenRetrySendsBoth() throws {
+        guard #available(iOS 26.0, *) else { return }
         let store = IMessageChatPageAttachmentStore()
         let audio = IMessageChatAudioController(attachmentStore: store)
         let page = IMessageChatViewController(viewModel: IMessageChatViewModel(), audioController: audio)
@@ -647,6 +659,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func multiTypeCardsInRealWindowFitViewportAndRenderBothDirections() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: \.isKeyWindow)
         let root = UIViewController()
@@ -690,6 +703,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func inlineSegmentsPreserveWhitespaceAndSplitAtEveryAttachment() {
+        guard #available(iOS 26.0, *) else { return }
         let first = linkDraft("https://first.invalid")
         let second = linkDraft("https://second.invalid")
         for prefix in ["", "  A\n", "\n "] {
@@ -710,6 +724,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func insertionAtStartMiddleEndAndSelectedAttachmentKeepsOnlyLiveIdentities() {
+        guard #available(iOS 26.0, *) else { return }
         for position in [0, 2, 4] {
             let composer = IMessageChatComposerView()
             composer.textView.text = "ABCD"
@@ -739,6 +754,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func orderedTransactionPreservesTextAndRejectsLateInvalidPayloadAtomically() throws {
+        guard #available(iOS 26.0, *) else { return }
         let store = IMessageChatPageAttachmentStore()
         defer { store.removeAll() }
         let file = try makeFile(in: store)
@@ -762,6 +778,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func controllerSendsFivePositionedSegmentsAndConvertsURLInPlace() {
+        guard #available(iOS 26.0, *) else { return }
         let store = IMessageChatPageAttachmentStore()
         let page = IMessageChatViewController(viewModel: IMessageChatViewModel(), audioController: IMessageChatAudioController(attachmentStore: store))
         page.loadViewIfNeeded()
@@ -790,6 +807,7 @@ struct IMessageChatDocumentTests {
     }
 
     @Test func documentMenuRestoresOriginalSelectionBeforeStartingImports() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let sourceStore = IMessageChatPageAttachmentStore()
         let store = IMessageChatPageAttachmentStore()
         let page = IMessageChatViewController(viewModel: IMessageChatViewModel(), audioController: IMessageChatAudioController(attachmentStore: store))
@@ -811,15 +829,18 @@ struct IMessageChatDocumentTests {
         #expect(editor.textView.selectedRange == NSRange(location: editor.textView.textStorage.length - 1, length: 0))
     }
 
+    @available(iOS 26.0, *)
     private func makeFile(in store: IMessageChatPageAttachmentStore) throws -> IMessageChatFileAttachment {
         let url = store.makeFileURL(prefix: "fixture", pathExtension: "json")
         let data = Data("{\"message\":\"hello\"}".utf8)
         try data.write(to: url)
         return .init(id: UUID(), fileURL: url, displayName: "Example.json", typeIdentifier: "public.json", byteCount: Int64(data.count))
     }
+    @available(iOS 26.0, *)
     private func linkDraft(_ value: String) -> IMessageChatDocumentDraft {
         .init(attachment: .link(.init(url: URL(string: value)!)))
     }
+    @available(iOS 26.0, *)
     private func waitUntil(_ condition: () -> Bool) async throws {
         for _ in 0..<100 {
             if condition() { return }

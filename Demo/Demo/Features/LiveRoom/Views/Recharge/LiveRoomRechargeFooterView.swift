@@ -98,6 +98,7 @@ private func makeLiveRoomRechargeFooterPreview() -> UIViewController {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("充值状态与确认区域") {
     makeLiveRoomRechargeFooterPreview()
 }

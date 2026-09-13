@@ -7,6 +7,9 @@ import XCTest
 @MainActor
 final class IMessageChatAudioRecognitionIntegrationTests: XCTestCase {
     func testChineseFileAndSilenceWithInstalledSystemModel() async throws {
+        guard #available(iOS 26.0, *) else {
+            throw XCTSkip("IMessageChat requires iOS 26 or later")
+        }
         let locale = Locale(identifier: "zh-CN")
         guard let supported = await SpeechTranscriber.supportedLocale(equivalentTo: locale) else {
             throw XCTSkip("当前模拟器/设备不支持 SpeechTranscriber 中文文件识别")

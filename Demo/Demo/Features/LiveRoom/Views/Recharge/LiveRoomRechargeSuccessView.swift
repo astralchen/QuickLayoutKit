@@ -278,6 +278,7 @@ private func makeLiveRoomRechargeSuccessViewPreview() -> UIViewController {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("充值成功") {
     makeLiveRoomRechargeSuccessViewPreview()
 }

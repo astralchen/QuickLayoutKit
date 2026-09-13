@@ -356,7 +356,7 @@ private final class LocalizationModalViewController: LocalizedViewController {
             label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
             label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24)
         ])
-        navigationItem.leftBarButtonItem = UIBarButtonItem(title: Localization.text("common.close"), style: .prominent, target: self, action: #selector(close))
+        navigationItem.leftBarButtonItem = UIBarButtonItem(title: Localization.text("common.close"), style: .done, target: self, action: #selector(close))
         reloadLocalizedContent()
     }
 
@@ -652,6 +652,7 @@ final class LocalizationBoundaryDemoViewController: LocalizedViewController {
 }
 
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(rootViewController: LocalizationOverviewViewController())
 }

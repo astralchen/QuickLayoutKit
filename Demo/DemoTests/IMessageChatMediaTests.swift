@@ -14,9 +14,10 @@ import QuickLayoutKit
 @testable import Demo
 
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .enabled(if: IMessageChatTestAvailability.isSupported))
 struct IMessageChatMediaTests {
     @Test func mediaGroupAndFollowupTextPublishAtomically() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 5, videoIndices: [2])
         defer { fixture.remove() }
         let viewModel = makeViewModel()
@@ -44,6 +45,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func mediaGroupWithoutTextOwnsDeliveryStatus() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 1)
         defer { fixture.remove() }
         let viewModel = makeViewModel()
@@ -66,6 +68,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func twentyMediaItemsRemainOneOrderedMessage() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 20, videoIndices: [3, 19])
         defer { fixture.remove() }
         let viewModel = makeViewModel()
@@ -81,6 +84,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func mediaValidationRejectsInvalidGroupsWithoutPartialMessages() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 1)
         defer { fixture.remove() }
         let viewModel = makeViewModel()
@@ -127,6 +131,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func mediaDraftRequiresEveryOrderedImportToFinish() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 2, videoIndices: [1])
         defer { fixture.remove() }
         let ready = fixture.group.items.map {
@@ -159,6 +164,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func mediaDraftItemWidthFollowsAttachmentAspectRatioWithinLimits() {
+        guard #available(iOS 26.0, *) else { return }
         #expect(
             IMessageChatMediaDraftLayoutPolicy.itemSize(
                 for: CGSize(width: 900, height: 1600)
@@ -181,6 +187,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func composerRendersScaledDraftItemsAnimatedBadgeAndHairline() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(
             itemCount: 3,
             pixelSizes: [
@@ -251,6 +258,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func fiveItemRenderOrderRotatesWithoutMutatingModelOrder() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 5)
         defer { fixture.remove() }
         let originalIDs = fixture.group.items.map(\.id)
@@ -263,6 +271,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func fiveItemStackDistributesCardsAcrossTheCurrentCover() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 5)
         defer { fixture.remove() }
         let view = IMessageChatMediaMessageView()
@@ -336,6 +345,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func twentyItemStackCapsVisibleLayersAtFiveAndReusesStableCards() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 20)
         defer { fixture.remove() }
         let view = IMessageChatMediaMessageView()
@@ -383,6 +393,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func stackGesturePolicyUsesPhysicalDirectionsThresholdsAndBoundaries() {
+        guard #available(iOS 26.0, *) else { return }
         #expect(IMessageChatMediaStackPolicy.isHorizontalPan(velocity: CGPoint(x: 121, y: 100)))
         #expect(!IMessageChatMediaStackPolicy.isHorizontalPan(velocity: CGPoint(x: 120, y: 100)))
         #expect(IMessageChatMediaStackPolicy.targetIndex(frontIndex: 2, itemCount: 5, translationX: -50, velocityX: 0) == 3)
@@ -397,6 +408,7 @@ struct IMessageChatMediaTests {
 
     /// 换层后略微回拖越过同一临界值即恢复，越过起点后重新计算另一侧候选。
     @Test func stackPreviewReordersReversiblyWithoutChangingItsStartIndex() {
+        guard #available(iOS 26.0, *) else { return }
         var state = IMessageChatMediaStackPolicy.Interaction(startIndex: 2, itemCount: 5, cardWidth: 200)
         for (distance, reordered) in [(-119.0, false), (-120, true), (-119.9, false),
                                        (-120, true), (-119.9, false), (-112, false),
@@ -419,6 +431,7 @@ struct IMessageChatMediaTests {
 
     /// 左右两个方向均在同一距离恢复真实卡片层级，且松手取消不发布索引。
     @Test func stackRestoresLayerImmediatelyBelowTheReorderThreshold() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 5)
         defer { fixture.remove() }
         for sign in [CGFloat(-1), CGFloat(1)] {
@@ -445,6 +458,7 @@ struct IMessageChatMediaTests {
 
     /// 阈值取自实际宽度，速度仅用于松手判定，边界不会被快速甩动穿透。
     @Test func stackReleaseUsesActualWidthVelocityAndCollectionBoundaries() {
+        guard #available(iOS 26.0, *) else { return }
         for width in [120.0, 216.0] {
             var state = IMessageChatMediaStackPolicy.Interaction(startIndex: 0, itemCount: 2, cardWidth: width)
             state.update(translationX: -width * 0.61)
@@ -470,6 +484,7 @@ struct IMessageChatMediaTests {
 
     /// 一次手势可多次换层，普通重新配置和布局不能提前提交或清除预览。
     @Test func stackDraggingPreservesIdentityAndCommitsOnlyAtRelease() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 5, videoIndices: [0])
         defer { fixture.remove() }
         let view = makeStackView(fixture.group)
@@ -508,6 +523,7 @@ struct IMessageChatMediaTests {
 
     /// 未过阈值、越界后回拖和系统取消均完整恢复所有卡片，而非只恢复原封面。
     @Test func stackCancellationRestoresEveryCard() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 5)
         defer { fixture.remove() }
         for terminal in [UIGestureRecognizer.State.ended, .cancelled, .failed] {
@@ -534,6 +550,7 @@ struct IMessageChatMediaTests {
 
     /// 大组窗口只在提交后移动；拖动中的方向、窄屏和边界复用共享同一逻辑。
     @Test func stackWindowAndGeometryChangesKeepConfirmedState() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 20)
         defer { fixture.remove() }
         for direction in [IMessageChatDirection.incoming, .outgoing] {
@@ -582,6 +599,7 @@ struct IMessageChatMediaTests {
 
     /// 收尾阻止重入；复用和同 ID 媒体内容替换后旧完成回调不得写入新绑定。
     @Test func stackAnimationPublishesOnceAndRejectsStaleCompletion() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 5)
         defer { fixture.remove() }
         let view = makeStackView(fixture.group)
@@ -616,6 +634,7 @@ struct IMessageChatMediaTests {
 
     /// 旋转卡片外接矩形的空角不应误选媒体，交互阶段不解析预览目标。
     @Test func stackTapUsesTransformedCardCoordinates() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 5)
         defer { fixture.remove() }
         let view = makeStackView(fixture.group)
@@ -635,6 +654,7 @@ struct IMessageChatMediaTests {
 
     /// 提交回调可以同步复用视图；旧路径不得覆盖新组或继续旧动画。
     @Test func stackCommitCanSynchronouslyReconfigureTheView() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 5)
         defer { fixture.remove() }
         let view = makeStackView(fixture.group)
@@ -654,6 +674,7 @@ struct IMessageChatMediaTests {
 
     /// 在真实窗口捕获五个交互阶段，检查整张视频卡片和下一条消息的稳定位置。
     @Test func stackInteractionRendersReferenceStagesInRealWindow() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 5, videoIndices: [0])
         defer { fixture.remove() }
         let colors: [UIColor] = [.systemOrange, .systemBlue, .systemGreen, .systemPurple, .systemPink]
@@ -716,6 +737,7 @@ struct IMessageChatMediaTests {
     }
 
     /// 创建使用真实布局宽度的媒体堆叠，供交互回归复用。
+    @available(iOS 26.0, *)
     private func makeStackView(
         _ group: IMessageChatMediaGroupAttachment,
         frontIndex: Int = 0,
@@ -729,6 +751,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func stackStateSurvivesReuseAndPrunesDeletedMessages() {
+        guard #available(iOS 26.0, *) else { return }
         let store = IMessageChatMediaStackStateStore()
         #expect(store.index(for: 10, itemCount: 5) == 0)
         store.setIndex(3, for: 10, itemCount: 5)
@@ -740,6 +763,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func mediaDraftFilesCommitOrDiscardAsOneAttachment() throws {
+        guard #available(iOS 26.0, *) else { return }
         let parent = FileManager.default.temporaryDirectory
             .appendingPathComponent("IMessageChatMediaStoreTests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
@@ -755,6 +779,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func outgoingMediaGroupFitsInsideIPhone16ProMessageRow() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 3)
         defer { fixture.remove() }
         let cell = IMessageChatMediaBubbleCell(frame: .zero)
@@ -790,6 +815,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func bottomObstructionExcludesTheContainerSafeArea() {
+        guard #available(iOS 26.0, *) else { return }
         #expect(
             IMessageChatBottomObstructionCoordinator.contentObstruction(
                 containerMaxY: 874,
@@ -807,6 +833,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func photoSheetFollowsBothDirectionsAndStopsAtLatestKeyboardHeight() {
+        guard #available(iOS 26.0, *) else { return }
         for (pickerHeight, limit, expected): (CGFloat, CGFloat, CGFloat) in [
             (0, 300, 0), (120, 300, 120), (300, 300, 300),
             (760, 300, 300), (180, 300, 180), (0, 300, 0),
@@ -823,6 +850,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func photoSheetGeometryTracksItsContainerAndIgnoresKeyboardHide() throws {
+        guard #available(iOS 26.0, *) else { return }
         let window = try makeObstructionTestWindow()
         let hostView = UIView(frame: window.bounds)
         let sheetContainer = UIView(frame: window.bounds)
@@ -850,6 +878,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func latestFullKeyboardFrameUpdatesPhotoCapWithoutCachingDismissal() throws {
+        guard #available(iOS 26.0, *) else { return }
         let window = try makeObstructionTestWindow()
         let hostView = UIView(frame: window.bounds)
         window.addSubview(hostView)
@@ -896,6 +925,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func keyboardToPhotoPresentationHoldsHeightThenTracksCalibratedGeometry() throws {
+        guard #available(iOS 26.0, *) else { return }
         let window = try makeObstructionTestWindow()
         let host = UIView(frame: window.bounds)
         window.addSubview(host)
@@ -946,6 +976,7 @@ struct IMessageChatMediaTests {
     }
 
     /// 复用测试宿主的场景创建隐藏窗口，独立验证几何且不抢占页面焦点。
+    @available(iOS 26.0, *)
     private func makeObstructionTestWindow() throws -> UIWindow {
         let scene = try #require(
             UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
@@ -956,6 +987,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func photoSheetOwnsComposerUntilKeyboardHandoffBegins() {
+        guard #available(iOS 26.0, *) else { return }
         #expect(
             !IMessageChatBottomObstructionCoordinator.shouldApplyKeyboardLayout(
                 isPickerPresented: true,
@@ -1005,6 +1037,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func keyboardAndPhotoHandoffsKeepOneStableObstructionHeight() {
+        guard #available(iOS 26.0, *) else { return }
         #expect(
             IMessageChatBottomObstructionCoordinator.resolvedObstruction(
                 keyboardHeight: 96,
@@ -1049,6 +1082,7 @@ struct IMessageChatMediaTests {
     }
 
     @Test func mediaGroupTitleMirrorsWithSemanticOuterEdge() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 3)
         defer { fixture.remove() }
         let view = IMessageChatMediaMessageView()
@@ -1069,6 +1103,7 @@ struct IMessageChatMediaTests {
         #expect(abs(view.itemCountLabel.frame.minX - 22) < 1)
     }
 
+    @available(iOS 26.0, *)
     private func makeViewModel() -> IMessageChatViewModel {
         IMessageChatViewModel(
             localizer: Localizer { key, _ in "localized.\(key)" },
@@ -1077,6 +1112,7 @@ struct IMessageChatMediaTests {
         )
     }
 
+    @available(iOS 26.0, *)
     private func messagePresentations(
         in state: IMessageChatViewModel.State
     ) -> [IMessageChatMessagePresentation] {
@@ -1086,6 +1122,7 @@ struct IMessageChatMediaTests {
         }
     }
 
+    @available(iOS 26.0, *)
     private var mediaStrings: IMessageChatMediaStrings {
         IMessageChatMediaStrings(
             photo: "Photos",
@@ -1106,6 +1143,7 @@ struct IMessageChatMediaTests {
     }
 }
 
+@available(iOS 26.0, *)
 private final class MediaFixture {
     let directory: URL
     let group: IMessageChatMediaGroupAttachment
@@ -1148,6 +1186,7 @@ private final class MediaFixture {
     }
 }
 
+@available(iOS 26.0, *)
 private extension Array {
     subscript(safe index: Index) -> Element? {
         indices.contains(index) ? self[index] : nil

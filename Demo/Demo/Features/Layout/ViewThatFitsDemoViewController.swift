@@ -571,6 +571,7 @@ final class ViewThatFitsPreviewView: QuickLayoutView {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(
         rootViewController: ViewThatFitsDemoViewController()

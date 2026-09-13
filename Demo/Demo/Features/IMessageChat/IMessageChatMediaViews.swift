@@ -12,6 +12,7 @@ import QuickLayoutKit
 import UIKit
 
 /// 照片草稿、媒体消息与全屏预览共用的本地化文字。
+@available(iOS 26.0, *)
 nonisolated struct IMessageChatMediaStrings: Equatable, Sendable {
     /// 照片选择入口的标题。
     let photo: String
@@ -47,6 +48,7 @@ nonisolated struct IMessageChatMediaStrings: Equatable, Sendable {
 ///
 /// 设计图固定预览高度，并让宽度跟随附件像素比例。极窄或极宽资源会被限制在
 /// 合理范围，避免删除按钮相互覆盖或单个横图占满整条输入栏。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatMediaDraftLayoutPolicy {
     /// 媒体草稿预览项的固定高度，单位为点。
     static let itemHeight: CGFloat = 120
@@ -73,6 +75,7 @@ nonisolated enum IMessageChatMediaDraftLayoutPolicy {
 }
 
 /// 按消息身份保存媒体堆叠封面位置，使状态跨单元格复用保留的对象。
+@available(iOS 26.0, *)
 @MainActor
 final class IMessageChatMediaStackStateStore {
     /// 消息标识符到当前封面索引的映射。
@@ -100,6 +103,7 @@ final class IMessageChatMediaStackStateStore {
 }
 
 /// 层叠媒体的纯展示算法。所有结果都只基于索引计算，不改变附件数组。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatMediaStackPolicy {
     /// 媒体堆叠同时保留的最大卡片数量。
     static let maximumVisibleCardCount = 5

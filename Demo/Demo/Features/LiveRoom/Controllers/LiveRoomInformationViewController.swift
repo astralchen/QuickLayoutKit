@@ -121,6 +121,7 @@ private func makeLiveRoomInformationControllerPreview() -> UIViewController {
     return navigationController
 }
 
+@available(iOS 17.0, *)
 #Preview("直播间信息页面") {
     makeLiveRoomInformationControllerPreview()
 }

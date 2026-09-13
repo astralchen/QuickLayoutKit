@@ -170,6 +170,7 @@ private func makeLiveRoomHeaderViewPreview() -> UIViewController {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("直播间头部") {
     makeLiveRoomHeaderViewPreview()
 }

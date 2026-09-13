@@ -4,9 +4,10 @@ import QuickLayoutKit
 @testable import Demo
 
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .enabled(if: IMessageChatTestAvailability.isSupported))
 struct IMessageChatComposerFocusTests {
     @Test func singleLineCaretAndPlaceholderStayVerticallyCentered() throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(
             UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         )
@@ -50,6 +51,7 @@ struct IMessageChatComposerFocusTests {
     }
 
     @Test func audioStatesPreserveUserSelectedTextFocus() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(
             UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         )

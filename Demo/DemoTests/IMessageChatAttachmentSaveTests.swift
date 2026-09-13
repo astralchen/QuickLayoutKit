@@ -5,8 +5,9 @@ import QuickLayoutKit
 @testable import Demo
 
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .enabled(if: IMessageChatTestAvailability.isSupported))
 struct IMessageChatAttachmentSaveTests {
+    @available(iOS 26.0, *)
     private final class Saver: IMessageChatAttachmentSaving {
         var received: [IMessageChatAttachment] = []
         var pending: CheckedContinuation<IMessageChatAttachmentSaveOutcome, Error>?
@@ -21,17 +22,21 @@ struct IMessageChatAttachmentSaveTests {
         }
     }
 
+    @available(iOS 26.0, *)
     private func file(_ url: URL = URL(fileURLWithPath: "/tmp/audio.m4a")) -> IMessageChatAttachment {
         .file(.init(id: UUID(), fileURL: url, displayName: "Audio Message.m4a", typeIdentifier: "public.mpeg-4-audio", byteCount: 3))
     }
 
+    @available(iOS 26.0, *)
     private func message(_ attachment: IMessageChatAttachment, id: Int = 1, direction: IMessageChatDirection = .incoming) -> IMessageChatMessagePresentation {
         .init(id: id, direction: direction, attachment: attachment, deliveryText: nil)
     }
 
+    @available(iOS 26.0, *)
     private func drain() async { try? await Task.sleep(for: .milliseconds(40)) }
 
     @Test func onlyIncomingMediaAndFilesAreSaveable() {
+        guard #available(iOS 26.0, *) else { return }
         let audio = IMessageChatPreviewData.audioAttachment
         let media = IMessageChatPreviewData.pastedMediaDrafts[0].attachment
         let cases: [(IMessageChatAttachment, Bool)] = [
@@ -46,6 +51,7 @@ struct IMessageChatAttachmentSaveTests {
     }
 
     @Test func successIsDeduplicatedAndDeadlineSurvivesReconfiguration() async {
+        guard #available(iOS 26.0, *) else { return }
         let saver = Saver()
         var now = Date(timeIntervalSince1970: 100)
         let coordinator = IMessageChatAttachmentSaveCoordinator(saver: saver, clock: { now }, sleep: { _ in
@@ -70,6 +76,7 @@ struct IMessageChatAttachmentSaveTests {
     }
 
     @Test func cancelledAndFailedOperationsCanRetryWithoutFalseSuccess() async {
+        guard #available(iOS 26.0, *) else { return }
         let saver = Saver()
         let coordinator = IMessageChatAttachmentSaveCoordinator(saver: saver)
         defer { coordinator.invalidate() }
@@ -93,6 +100,7 @@ struct IMessageChatAttachmentSaveTests {
     }
 
     @Test func leavingPageSuppressesLateSuccessAndError() async {
+        guard #available(iOS 26.0, *) else { return }
         for result: Result<IMessageChatAttachmentSaveOutcome, Error> in [.success(.saved), .failure(IMessageChatAttachmentSaveError.invalidAttachment)] {
             let saver = Saver()
             let coordinator = IMessageChatAttachmentSaveCoordinator(saver: saver)
@@ -111,6 +119,7 @@ struct IMessageChatAttachmentSaveTests {
     }
 
     @Test func mediaGroupIsOneSaveAndMessageIdentityIsIndependent() async {
+        guard #available(iOS 26.0, *) else { return }
         let saver = Saver()
         let coordinator = IMessageChatAttachmentSaveCoordinator(saver: saver)
         defer { coordinator.invalidate() }
@@ -125,6 +134,7 @@ struct IMessageChatAttachmentSaveTests {
     }
 
     @Test func snapshotPreservesOriginalsAndSurvivesSourceCleanup() throws {
+        guard #available(iOS 26.0, *) else { return }
         let parent = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: parent) }
@@ -142,6 +152,7 @@ struct IMessageChatAttachmentSaveTests {
     }
 
     @Test func mediaSnapshotUsesAllOriginalFilesAndCleansPartialFailure() throws {
+        guard #available(iOS 26.0, *) else { return }
         let parent = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: parent) }
@@ -164,17 +175,24 @@ struct IMessageChatAttachmentSaveTests {
     }
 
     @Test func documentPickerCopiesRatherThanMoves() throws {
+        guard #available(iOS 26.0, *) else { return }
         let source = FileManager.default.temporaryDirectory.appendingPathComponent("export-\(UUID().uuidString).pdf")
         try Data([1, 2, 3]).write(to: source)
         defer { try? FileManager.default.removeItem(at: source) }
-        let picker = try IMessageChatDocumentExportSession.makePicker([source])
-        #expect(picker.documentPickerMode == .exportToService)
+        let picker = UIDocumentPickerViewController(forExporting: [source], asCopy: true)
+        let result = try IMessageChatDocumentExportSession.makePicker([source]) { files, asCopy in
+            #expect(files == [source])
+            #expect(asCopy)
+            return picker
+        }
+        #expect(result === picker)
         #expect(throws: IMessageChatAttachmentSaveError.invalidAttachment) {
             try IMessageChatDocumentExportSession.makePicker([source.appendingPathExtension("missing")])
         }
     }
 
     @Test func incomingFileButtonFitsAndHiddenStatePreservesLayout() {
+        guard #available(iOS 26.0, *) else { return }
         let attachment = file()
         let cell = IMessageChatDocumentBubbleCell(frame: .zero)
         for width: CGFloat in [280, 320, 402] {
@@ -207,6 +225,7 @@ struct IMessageChatAttachmentSaveTests {
 
 @MainActor
 extension IMessageChatAttachmentSaveTests {
+    @available(iOS 26.0, *)
     private var mediaStrings: IMessageChatMediaStrings {
         .init(photo: "Photos", itemsFormat: "%d items", image: "Image", animatedImage: "GIF",
               video: "Video", videoDurationFormat: "%@", importing: "Importing", remove: "Remove",
@@ -214,6 +233,7 @@ extension IMessageChatAttachmentSaveTests {
     }
 
     @Test func completionTimerHidesWithoutAnotherRender() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let saver = Saver()
         let coordinator = IMessageChatAttachmentSaveCoordinator(saver: saver)
         defer { coordinator.invalidate() }
@@ -230,6 +250,7 @@ extension IMessageChatAttachmentSaveTests {
     }
 
     @Test func mediaLayoutExcludesHeaderAndKeepsFrontIndexAcrossSaveStates() throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixtures = IMessageChatPreviewData.pastedMediaDrafts.flatMap { $0.attachment.mediaGroup?.items ?? [] }
         for count in [1, 2, 5] {
             let items = (0..<count).map { index in
@@ -268,6 +289,7 @@ extension IMessageChatAttachmentSaveTests {
     }
 
     @Test func saveButtonsRenderInRealWindowAtReferenceSize() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: \.isKeyWindow)
         let root = UIViewController()
@@ -318,6 +340,7 @@ extension IMessageChatAttachmentSaveTests {
 @MainActor
 extension IMessageChatAttachmentSaveTests {
     @Test func systemSaverWritesWholeGroupOnceAndKeepsCopiesDuringAuthorization() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let parent = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: parent) }
@@ -351,6 +374,7 @@ extension IMessageChatAttachmentSaveTests {
     }
 
     @Test func deniedPhotoAccessDoesNotSubmitTransaction() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let attachment = IMessageChatPreviewData.pastedMediaDrafts[0].attachment
         for status in [PHAuthorizationStatus.denied, .restricted] {
             var writes = 0
@@ -366,6 +390,7 @@ extension IMessageChatAttachmentSaveTests {
     }
 
     @Test func failedPhotoTransactionCleansCopiesAndPropagatesFailure() async throws {
+        guard #available(iOS 26.0, *) else { return }
         var copies: [URL] = []
         let saver = IMessageChatSystemAttachmentSaver(authorizePhotos: { .authorized }, writePhotos: { _, urls in
             copies = urls
@@ -385,6 +410,7 @@ extension IMessageChatAttachmentSaveTests {
 @MainActor
 extension IMessageChatAttachmentSaveTests {
     @Test func exportDismissalWaitsForSystemSuccessCallback() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: \.isKeyWindow)
         let root = UIViewController()

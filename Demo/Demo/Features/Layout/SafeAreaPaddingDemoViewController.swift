@@ -487,6 +487,7 @@ private final class SafeAreaPaddingSampleView: QuickLayoutView {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(
         rootViewController: SafeAreaPaddingDemoViewController()

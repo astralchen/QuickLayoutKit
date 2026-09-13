@@ -329,6 +329,7 @@ final class HorizontalScrollViewViewController:
     }
 }
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(
         rootViewController: HorizontalScrollViewViewController()

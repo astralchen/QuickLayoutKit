@@ -125,6 +125,7 @@ private func makeLiveRoomAudienceProfileControllerPreview()
     return navigationController
 }
 
+@available(iOS 17.0, *)
 #Preview("在线用户主页页面") {
     makeLiveRoomAudienceProfileControllerPreview()
 }

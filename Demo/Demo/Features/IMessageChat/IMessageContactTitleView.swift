@@ -8,6 +8,7 @@ import QuickLayoutKit
 import UIKit
 
 /// 在导航栏中呈现联系人头像、名称与副标题的自适应视图。
+@available(iOS 26.0, *)
 final class IMessageContactTitleView: QuickLayoutView {
 
     /// 导航标题允许占用的最大宽度，单位为点。
@@ -112,6 +113,7 @@ final class IMessageContactTitleView: QuickLayoutView {
 
 #if DEBUG
 /// 创建指定布局方向的联系人导航标题预览。
+@available(iOS 26.0, *)
 @MainActor
 private func makeIMessageContactTitlePreview(
     direction: UIUserInterfaceLayoutDirection
@@ -133,10 +135,12 @@ private func makeIMessageContactTitlePreview(
     }
 }
 
+@available(iOS 26.0, *)
 #Preview("联系人导航标题") {
     makeIMessageContactTitlePreview(direction: .leftToRight)
 }
 
+@available(iOS 26.0, *)
 #Preview("联系人导航标题 · RTL") {
     makeIMessageContactTitlePreview(direction: .rightToLeft)
 }

@@ -13,6 +13,7 @@ import UIKit
 ///
 /// 图片、视频和音频操作均由 ViewController 路由到对应协调器；Conversation View
 /// 和 Cell 不直接创建页面级播放器。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatMessageAction: Equatable, Sendable {
     /// 请求重试指定身份的失败消息。
     case retryMessage(messageID: Int)
@@ -34,6 +35,7 @@ nonisolated enum IMessageChatMessageAction: Equatable, Sendable {
 }
 
 /// 将时间线状态映射为可复用消息单元格，并管理滚动与局部交互的视图。
+@available(iOS 26.0, *)
 final class IMessageConversationView: UIView {
 
     /// 会话集合视图使用的稳定分区身份。
@@ -447,6 +449,7 @@ final class IMessageConversationView: UIView {
 
 #if DEBUG
 /// 创建指定布局方向、使用固定时间线数据的会话列表预览。
+@available(iOS 26.0, *)
 @MainActor
 private func makeIMessageConversationPreview(
     direction: UIUserInterfaceLayoutDirection
@@ -459,10 +462,12 @@ private func makeIMessageConversationPreview(
     }
 }
 
+@available(iOS 26.0, *)
 #Preview("消息会话列表") {
     makeIMessageConversationPreview(direction: .leftToRight)
 }
 
+@available(iOS 26.0, *)
 #Preview("消息会话列表 · RTL") {
     makeIMessageConversationPreview(direction: .rightToLeft)
 }

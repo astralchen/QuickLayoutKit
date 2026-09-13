@@ -104,6 +104,7 @@ private struct SwiftUILocalizationBridgeView: View {
 }
 
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(rootViewController: SwiftUILocalizationBridgeDemoViewController())
 }

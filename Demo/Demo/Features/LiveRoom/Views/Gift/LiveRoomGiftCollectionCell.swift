@@ -159,10 +159,12 @@ private func makeLiveRoomGiftCollectionCellPreview(
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("礼物 Item · 未选择") {
     makeLiveRoomGiftCollectionCellPreview(selected: false)
 }
 
+@available(iOS 17.0, *)
 #Preview("礼物 Item · 已选择") {
     makeLiveRoomGiftCollectionCellPreview(selected: true)
 }

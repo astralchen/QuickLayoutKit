@@ -6,9 +6,10 @@ import UIKit
 @testable import Demo
 
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .enabled(if: IMessageChatTestAvailability.isSupported))
 struct IMessageChatAudioTranscriptionTests {
     @Test func sendsFirstThenUpdatesSameMessageAndPreservesDeliveryAndMetadata() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let audio = try makeAudio()
         defer { try? FileManager.default.removeItem(at: audio.fileURL) }
         let model = makeModel()
@@ -46,6 +47,7 @@ struct IMessageChatAudioTranscriptionTests {
     }
 
     @Test func batchAndNewMessagesQueueOnceAndFreezeTheirLanguage() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let first = try makeAudio(), second = try makeAudio(), third = try makeAudio()
         defer { for audio in [first, second, third] { try? FileManager.default.removeItem(at: audio.fileURL) } }
         let model = makeModel()
@@ -74,6 +76,7 @@ struct IMessageChatAudioTranscriptionTests {
     }
 
     @Test func failuresAndBlankResultsStayAudioOnlyAndDoNotRetry() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let first = try makeAudio(), second = try makeAudio()
         defer { for audio in [first, second] { try? FileManager.default.removeItem(at: audio.fileURL) } }
         let model = makeModel()
@@ -94,6 +97,7 @@ struct IMessageChatAudioTranscriptionTests {
     }
 
     @Test func deniedSpeechPermissionDoesNotRequestMicrophoneOrProduceText() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let permissions = DeniedFilePermissions()
         let service = IMessageChatAudioFileTranscriber(backend: .speechRecognizer, permissionProvider: permissions)
         let text = try await service.transcribe(fileURL: fixtureAudio().fileURL, locale: Locale(identifier: "zh-CN"))
@@ -103,6 +107,7 @@ struct IMessageChatAudioTranscriptionTests {
     }
 
     @Test func cancellationIgnoresLateResultAndDropsQueuedFiles() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let first = try makeAudio(), second = try makeAudio()
         defer { for audio in [first, second] { try? FileManager.default.removeItem(at: audio.fileURL) } }
         let model = makeModel()
@@ -121,6 +126,7 @@ struct IMessageChatAudioTranscriptionTests {
     }
 
     @Test func receivedAudioIsInsertedBeforeItsFileIsTranscribed() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let outgoing = try makeAudio(), incoming = try makeAudio()
         defer { for audio in [outgoing, incoming] { try? FileManager.default.removeItem(at: audio.fileURL) } }
         let model = IMessageChatViewModel(
@@ -153,6 +159,7 @@ struct IMessageChatAudioTranscriptionTests {
     }
 
     @Test func transcriptResizesBubbleAndSurvivesPlaybackWhileReuseClearsIt() {
+        guard #available(iOS 26.0, *) else { return }
         for direction in [IMessageChatDirection.incoming, .outgoing] {
             for rtl in [false, true] {
                 let cell = IMessageAudioBubbleCell(frame: .zero)
@@ -186,6 +193,7 @@ struct IMessageChatAudioTranscriptionTests {
     }
 
     @Test func messageAndPreviewTimeCountUpPauseAndReplayTogether() {
+        guard #available(iOS 26.0, *) else { return }
         let audio = IMessageChatAudioAttachment(
             fileURL: URL(fileURLWithPath: "/tmp/countdown.caf"), duration: 10,
             waveform: fixtureAudio().waveform, transcript: "保留转写文本"
@@ -219,6 +227,7 @@ struct IMessageChatAudioTranscriptionTests {
     }
 
     @Test func switchingMessagesStopsPreviousBeforeStartingNext() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let store = IMessageChatPageAttachmentStore()
         let url = store.makeFileURL(prefix: "exclusive-playback", pathExtension: "caf")
         let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1))
@@ -253,6 +262,7 @@ struct IMessageChatAudioTranscriptionTests {
     }
 
     @Test func audioGeometryMatchesNativeMessageReferenceAtDefaultTextSize() {
+        guard #available(iOS 26.0, *) else { return }
         let cell = IMessageAudioBubbleCell(frame: .zero)
         cell.bubbleView.traitOverrides.preferredContentSizeCategory = .large
         var audio = fixtureAudio()
@@ -282,6 +292,7 @@ struct IMessageChatAudioTranscriptionTests {
     }
 
     @Test func controllerPreservesKeyboardDraftAndActivePlaybackWhenTextArrives() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: \.isKeyWindow)
         let store = IMessageChatPageAttachmentStore()
@@ -339,6 +350,7 @@ struct IMessageChatAudioTranscriptionTests {
     }
 
     @Test func listResizesInPlacePreservesHistoryAnchorAndFollowsBottom() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: \.isKeyWindow)
         let root = UIViewController()
@@ -388,6 +400,7 @@ struct IMessageChatAudioTranscriptionTests {
     }
 
     @Test func referenceBubbleSnapshotsAndLargeTextHaveNoClipping() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: \.isKeyWindow)
         let root = UIViewController()
@@ -440,17 +453,20 @@ struct IMessageChatAudioTranscriptionTests {
         #expect(text.height >= expected.height - 1)
     }
 
+    @available(iOS 26.0, *)
     private func makeModel() -> IMessageChatViewModel {
         IMessageChatViewModel(localizer: Localizer { key, _ in key }, clock: Date.init,
                              sleeper: { _ in try await Task.sleep(for: .seconds(3600)) })
     }
 
+    @available(iOS 26.0, *)
     private func makeCoordinator(_ model: IMessageChatViewModel, _ transcriber: ControlledFileTranscriber) -> IMessageChatAudioTranscriptionCoordinator {
         IMessageChatAudioTranscriptionCoordinator(transcriber: transcriber) { [weak model] id, attachmentID, text in
             model?.updateAudioTranscript(text, messageID: id, attachmentID: attachmentID)
         }
     }
 
+    @available(iOS 26.0, *)
     private func audioMessages(_ state: IMessageChatViewModel.State) -> [IMessageChatMessagePresentation] {
         state.timeline.compactMap {
             guard case .message(let message) = $0.content, message.audio != nil else { return nil }
@@ -458,22 +474,26 @@ struct IMessageChatAudioTranscriptionTests {
         }
     }
 
+    @available(iOS 26.0, *)
     private func makeAudio() throws -> IMessageChatAudioAttachment {
         let audio = fixtureAudio()
         try Data([0]).write(to: audio.fileURL)
         return audio
     }
 
+    @available(iOS 26.0, *)
     private func fixtureAudio() -> IMessageChatAudioAttachment {
         .init(fileURL: FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID()).m4a"),
               duration: 2, waveform: (0..<48).map { Float(($0 * 7) % 13 + 1) / 14 })
     }
 
+    @available(iOS 26.0, *)
     private func configure(_ cell: IMessageAudioBubbleCell, audio: IMessageChatAudioAttachment, direction: IMessageChatDirection) {
         cell.configure(.init(id: 7, direction: direction, attachment: .audio(audio), deliveryText: direction == .outgoing ? "已读" : nil),
                        playback: .idle, playAccessibilityLabel: "播放", pauseAccessibilityLabel: "暂停")
     }
 
+    @available(iOS 26.0, *)
     private func layout(_ cell: IMessageAudioBubbleCell, width: CGFloat) {
         let attributes = UICollectionViewLayoutAttributes(forCellWith: IndexPath(item: 0, section: 0))
         attributes.size = CGSize(width: width, height: 52)
@@ -482,6 +502,7 @@ struct IMessageChatAudioTranscriptionTests {
         cell.layoutIfNeeded()
     }
 
+    @available(iOS 26.0, *)
     private func eventually(_ condition: () -> Bool) async -> Bool {
         for _ in 0..<100 {
             if condition() { return true }
@@ -491,6 +512,7 @@ struct IMessageChatAudioTranscriptionTests {
     }
 }
 
+@available(iOS 26.0, *)
 @MainActor
 private final class ControlledFileTranscriber: IMessageChatAudioFileTranscribing {
     struct Call { let url: URL; let locale: Locale }
@@ -507,6 +529,7 @@ private final class ControlledFileTranscriber: IMessageChatAudioFileTranscribing
     }
 }
 
+@available(iOS 26.0, *)
 @MainActor
 private final class ReplySynthesizer: IMessageChatReplyAudioSynthesizing {
     let audio: IMessageChatAudioAttachment
@@ -514,6 +537,7 @@ private final class ReplySynthesizer: IMessageChatReplyAudioSynthesizing {
     func synthesizeReplyAudio(text: String, locale: Locale) async throws -> IMessageChatAudioAttachment { audio }
 }
 
+@available(iOS 26.0, *)
 @MainActor
 private final class DeniedFilePermissions: IMessageChatMediaPermissionProviding {
     var speechRequests = 0

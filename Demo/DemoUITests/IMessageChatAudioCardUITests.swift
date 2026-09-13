@@ -2,6 +2,13 @@ import XCTest
 import UIKit
 
 final class IMessageChatAudioCardUITests: XCTestCase {
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        guard #available(iOS 26.0, *) else {
+            throw XCTSkip("IMessageChat requires iOS 26 or later")
+        }
+    }
+
     @MainActor
     func testTypingAfterTwoLoadedLinkPreviews() throws {
         continueAfterFailure = false

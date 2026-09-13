@@ -120,9 +120,7 @@ extension ContentConfigurationCollectionTests {
 
         let first = IndexPath(item: 0, section: 0)
         let beforeType = try #require(controller.collectionView.cellForItem(at: first)).bounds.height
-        fixture.parent.setOverrideTraitCollection(
-            UITraitCollection(preferredContentSizeCategory: .extraExtraExtraLarge), forChild: controller
-        )
+        fixture.setPreferredContentSizeCategory(.extraExtraExtraLarge)
         await fixture.settle()
         #expect(try #require(controller.collectionView.cellForItem(at: first)).bounds.height > beforeType)
         try fixture.verifyVisibleGeometry()
@@ -196,13 +194,11 @@ extension ContentConfigurationCollectionTests {
         await fixture.settle()
         try fixture.saveSnapshot(name: "waterfall-review-after-dark")
         controller.overrideUserInterfaceStyle = .light
-        fixture.parent.setOverrideTraitCollection(
-            UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraLarge), forChild: controller
-        )
+        fixture.setPreferredContentSizeCategory(.accessibilityExtraExtraLarge)
         await fixture.settle()
         #expect(controller.laneCount == 1)
         try fixture.saveSnapshot(name: "waterfall-review-after-large-type")
-        fixture.parent.setOverrideTraitCollection(UITraitCollection(preferredContentSizeCategory: .large), forChild: controller)
+        fixture.setPreferredContentSizeCategory(.large)
         Localization.setLocale(identifier: "ar")
         controller.reloadLayoutDirection(.rightToLeft)
         controller.reloadLocalizedContent()
@@ -269,12 +265,10 @@ extension ContentConfigurationCollectionTests {
         try verifyHorizontal()
         fixture.controller.view.frame.size.height = 750
         fixture.controller.view.setNeedsLayout()
-        fixture.parent.setOverrideTraitCollection(
-            UITraitCollection(preferredContentSizeCategory: .extraExtraExtraLarge), forChild: controller
-        )
+        fixture.setPreferredContentSizeCategory(.extraExtraExtraLarge)
         await fixture.settle()
         try verifyHorizontal()
-        fixture.parent.setOverrideTraitCollection(UITraitCollection(preferredContentSizeCategory: .large), forChild: controller)
+        fixture.setPreferredContentSizeCategory(.large)
         controller.reloadLayoutDirection(.rightToLeft)
         await fixture.settle()
         try verifyHorizontal()
@@ -368,13 +362,21 @@ private final class WaterfallFixture {
         })
         window.rootViewController = parent
         parent.addChild(controller)
-        parent.setOverrideTraitCollection(UITraitCollection(preferredContentSizeCategory: .large), forChild: controller)
+        setPreferredContentSizeCategory(.large)
         parent.view.addSubview(controller.view)
         controller.view.frame = parent.view.bounds
         controller.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         controller.didMove(toParent: parent)
         window.isHidden = false
         controller.reloadLayoutDirection(.leftToRight)
+    }
+
+    func setPreferredContentSizeCategory(_ category: UIContentSizeCategory) {
+        if #available(iOS 17.0, *) {
+            controller.traitOverrides.preferredContentSizeCategory = category
+        } else {
+            parent.setOverrideTraitCollection(UITraitCollection(preferredContentSizeCategory: category), forChild: controller)
+        }
     }
 
     static func card(in view: UIView) -> ContentConfigurationWaterfallCard? {
@@ -460,7 +462,7 @@ extension ContentConfigurationCollectionTests {
         await fixture.settle()
         fixture.controller.setScrollDirection(.horizontal)
         await fixture.settle()
-        fixture.parent.setOverrideTraitCollection(UITraitCollection(preferredContentSizeCategory: .extraExtraLarge), forChild: fixture.controller)
+        fixture.setPreferredContentSizeCategory(.extraExtraLarge)
         await fixture.settle()
         #expect(fixture.controller.snapshotApplicationCount == snapshots)
         #expect(fixture.controller.waterfallLayout.acceptedMeasurementCount > 0)
@@ -483,7 +485,7 @@ extension ContentConfigurationCollectionTests {
             for _ in 0..<50 {
                 collection.layoutIfNeeded()
                 source.refreshVisible()
-                try? await Task.sleep(for: .milliseconds(10))
+                try? await Task.sleep(nanoseconds: 10_000_000)
             }
         }
         await settle()

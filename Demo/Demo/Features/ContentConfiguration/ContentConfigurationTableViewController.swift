@@ -84,6 +84,7 @@ final class ContentConfigurationTableViewController: LocalizedViewController {
 
 }
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(rootViewController: ContentConfigurationTableViewController())
 }

@@ -517,6 +517,7 @@ private func makeLiveRoomSeatViewPreview(
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("主持麦位") {
     makeLiveRoomSeatViewPreview(
         seat: LiveRoomPreviewData.seats[0],
@@ -525,6 +526,7 @@ private func makeLiveRoomSeatViewPreview(
     )
 }
 
+@available(iOS 17.0, *)
 #Preview("普通麦位 · 未上麦") {
     makeLiveRoomSeatViewPreview(
         seat: LiveRoomPreviewData.seats[5],

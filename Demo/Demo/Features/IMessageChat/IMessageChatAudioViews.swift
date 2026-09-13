@@ -10,6 +10,7 @@ import UIKit
 /// 用紧凑柱形区分已播放和未播放采样的波形视图。
 ///
 /// 此视图仅用于装饰。所属的播放控件为对应音频附件提供 VoiceOver 标签和值。
+@available(iOS 26.0, *)
 final class IMessageWaveformView: UIView {
 
     /// 波形柱的首选宽度。
@@ -199,6 +200,7 @@ final class IMessageWaveformView: UIView {
 }
 
 /// 显示播放、波形和时长控件的消息气泡。
+@available(iOS 26.0, *)
 final class IMessageAudioBubbleView: QuickLayoutView {
 
     /// 参考截图的音频蓝色，不受系统版本默认 tintColor 变化影响。
@@ -456,6 +458,7 @@ final class IMessageAudioBubbleView: QuickLayoutView {
 }
 
 /// 承载音频消息气泡的可复用时间线 Cell。
+@available(iOS 26.0, *)
 final class IMessageAudioBubbleCell: QuickLayoutCollectionViewCell {
 
     /// 显示音频波形、时长和转写文本的气泡视图。
@@ -617,6 +620,7 @@ final class IMessageAudioBubbleCell: QuickLayoutCollectionViewCell {
 
 #if DEBUG
 /// 创建指定收发方向及可选转写文本的音频气泡预览控制器。
+@available(iOS 26.0, *)
 @MainActor
 private func makeIMessageAudioBubblePreview(
     direction: IMessageChatDirection, transcript: String? = nil
@@ -639,22 +643,28 @@ private func makeIMessageAudioBubblePreview(
     }
 }
 
+@available(iOS 26.0, *)
 #Preview("音频消息 · 收到") {
     makeIMessageAudioBubblePreview(direction: .incoming)
 }
 
+@available(iOS 26.0, *)
 #Preview("音频消息 · 发出") {
     makeIMessageAudioBubblePreview(direction: .outgoing)
 }
+@available(iOS 26.0, *)
 #Preview("音频文本 · 收到") {
     makeIMessageAudioBubblePreview(direction: .incoming, transcript: "你好，你吃饭了吗？")
 }
+@available(iOS 26.0, *)
 #Preview("音频文本 · 发出") {
     makeIMessageAudioBubblePreview(direction: .outgoing, transcript: "你好，你吃饭了吗？")
 }
+@available(iOS 26.0, *)
 #Preview("音频长文本 · 收到") {
     makeIMessageAudioBubblePreview(direction: .incoming, transcript: "你好，你吃饭了吗？今天下午我们一起去散步吧，到了以后再给我发消息。")
 }
+@available(iOS 26.0, *)
 #Preview("音频长文本 · 发出") {
     makeIMessageAudioBubblePreview(direction: .outgoing, transcript: "你好，你吃饭了吗？今天下午我们一起去散步吧，到了以后再给我发消息。")
 }

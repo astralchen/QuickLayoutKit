@@ -111,6 +111,7 @@ final class ProfileViewController: LocalizedQuickLayoutHostingController {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(rootViewController: ProfileViewController())
 }

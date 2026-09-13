@@ -85,11 +85,21 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
         configureCollectionView()
         super.viewDidLoad()
         configureNavigation()
-        registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) {
-            (controller: MainViewController, _: UITraitCollection) in
-            controller.collectionView.collectionViewLayout.invalidateLayout()
+        if #available(iOS 17.0, *) {
+            registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) {
+                (controller: MainViewController, _: UITraitCollection) in
+                controller.collectionView.collectionViewLayout.invalidateLayout()
+            }
         }
         bindViewModel()
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        if #unavailable(iOS 17.0),
+           previousTraitCollection?.preferredContentSizeCategory != traitCollection.preferredContentSizeCategory {
+            collectionView.collectionViewLayout.invalidateLayout()
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -130,7 +140,9 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
         searchController.searchBar.autocorrectionType = .no
         navigationItem.searchController = searchController
         navigationItem.hidesSearchBarWhenScrolling = false
-        navigationItem.preferredSearchBarPlacement = .stacked
+        if #available(iOS 16.0, *) {
+            navigationItem.preferredSearchBarPlacement = .stacked
+        }
         definesPresentationContext = true
     }
 
@@ -230,13 +242,26 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
         latestState = state
         guard !isApplyingLocalization else { return }
         completedRenderGeneration = nil
-        if state.sections.isEmpty {
-            var empty = UIContentUnavailableConfiguration.search()
+        if #available(iOS 17.0, *) {
+            if state.sections.isEmpty {
+                var empty = UIContentUnavailableConfiguration.search()
+                empty.text = Localization.text("main.search.empty.title")
+                empty.secondaryText = Localization.text("main.search.empty.description")
+                contentUnavailableConfiguration = empty
+            } else {
+                contentUnavailableConfiguration = nil
+            }
+        } else if state.sections.isEmpty {
+            var empty = UIListContentConfiguration.subtitleCell()
             empty.text = Localization.text("main.search.empty.title")
             empty.secondaryText = Localization.text("main.search.empty.description")
-            contentUnavailableConfiguration = empty
+            empty.textProperties.alignment = .center
+            empty.textProperties.numberOfLines = 0
+            empty.secondaryTextProperties.alignment = .center
+            empty.secondaryTextProperties.numberOfLines = 0
+            collectionView.backgroundView = UIListContentView(configuration: empty)
         } else {
-            contentUnavailableConfiguration = nil
+            collectionView.backgroundView = nil
         }
         renderGeneration += 1
         let generation = renderGeneration
@@ -406,7 +431,11 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
         cell.accessibilityLabel = routeState.title
         cell.accessibilityTraits = .button
 
-        cell.backgroundConfiguration = .listCell()
+        if #available(iOS 18.0, *) {
+            cell.backgroundConfiguration = .listCell()
+        } else {
+            cell.backgroundConfiguration = .listGroupedCell()
+        }
     }
 
     private func makeCollectionViewLayout()
@@ -442,6 +471,7 @@ extension MainViewController: UISearchResultsUpdating {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(rootViewController: MainViewController())
 }

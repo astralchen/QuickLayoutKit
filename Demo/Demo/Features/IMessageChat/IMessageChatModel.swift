@@ -12,6 +12,7 @@ import CoreGraphics
 ///
 /// 固定槽位可以保证录音开始、采样增长和滚动期间的柱宽不变，避免波形内容变化
 /// 被误认为 Composer 胶囊的内边距发生变化。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatRecordingWaveform {
     /// 录音面板固定显示的细柱槽位数量。
     ///
@@ -35,6 +36,7 @@ nonisolated enum IMessageChatRecordingWaveform {
 }
 
 /// 定义音频消息录制所使用的时长边界。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatRecordingPolicy {
     /// 允许保留和发送录音的最短时长，单位为秒。
     static let minimumDuration: TimeInterval = 1
@@ -61,6 +63,7 @@ nonisolated enum IMessageChatRecordingPolicy {
 }
 
 /// 消息相对于当前用户的语义收发方向。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatDirection: String, Equatable, Hashable, Sendable {
     /// 由对方发出、当前用户收到的消息。
     case incoming
@@ -69,6 +72,7 @@ nonisolated enum IMessageChatDirection: String, Equatable, Hashable, Sendable {
 }
 
 /// 发出消息在本地演示发送流程中的状态。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatDeliveryState: String, Equatable, Hashable, Sendable {
     /// 正在等待发送结果。
     case sending
@@ -84,6 +88,7 @@ nonisolated enum IMessageChatDeliveryState: String, Equatable, Hashable, Sendabl
 ///
 /// 本地化文本保留其资源键，以便应用内语言变化后重新生成时间线。用户文本和
 /// 附件不会在本地化过程中被改写。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatMessageContent: Equatable, Hashable, Sendable {
     /// 通过资源键延迟解析的本地化文本。
     case localized(key: String)
@@ -98,6 +103,7 @@ nonisolated enum IMessageChatMessageContent: Equatable, Hashable, Sendable {
 /// 附件不持有播放器或其他 UIKit 对象。附件文件由页面级附件存储管理，且仅在
 /// 聊天页面生命周期内有效。用户录音使用 AAC `.m4a`，模拟语音回复使用本地
 /// `.caf` 文件；两种格式使用相同的播放和展示模型。
+@available(iOS 26.0, *)
 nonisolated struct IMessageChatAudioAttachment: Equatable, Hashable, Sendable {
     /// 用于播放和 ListKit 刷新身份的稳定标识符。
     let id: UUID
@@ -139,6 +145,7 @@ nonisolated struct IMessageChatAudioAttachment: Equatable, Hashable, Sendable {
 }
 
 /// 照片消息中单个媒体项目的类型专属元数据。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatMediaKind: Equatable, Hashable, Sendable {
     /// 静态或以静态缩略图呈现的图像媒体。
     case image
@@ -159,6 +166,7 @@ nonisolated enum IMessageChatMediaKind: Equatable, Hashable, Sendable {
 }
 
 /// 已导入页面附件目录、可以进入照片消息的单个媒体项目。
+@available(iOS 26.0, *)
 nonisolated struct IMessageChatMediaItem: Equatable, Hashable, Sendable,
     Identifiable {
     /// 媒体项目的稳定标识符，与照片库资源身份分离。
@@ -209,6 +217,7 @@ nonisolated struct IMessageChatMediaItem: Equatable, Hashable, Sendable,
 }
 
 /// 一次选择并发送的有序照片和视频集合。
+@available(iOS 26.0, *)
 nonisolated struct IMessageChatMediaGroupAttachment:
     Equatable,
     Hashable,
@@ -234,6 +243,7 @@ nonisolated struct IMessageChatMediaGroupAttachment:
 }
 
 /// 照片选择器中仍在导入或已经就绪的单项展示状态。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatMediaDraftItemContent: Equatable, Sendable {
     /// 原始文件或媒体元数据仍在导入。
     case importing
@@ -242,6 +252,7 @@ nonisolated enum IMessageChatMediaDraftItemContent: Equatable, Sendable {
 }
 
 /// 单个媒体草稿的稳定身份、照片资源引用与展示内容。
+@available(iOS 26.0, *)
 nonisolated struct IMessageChatMediaDraftItemPresentation:
     Equatable,
     Sendable,
@@ -261,6 +272,7 @@ nonisolated struct IMessageChatMediaDraftItemPresentation:
 }
 
 /// Composer 渲染的有序媒体草稿，不持有系统选择器或媒体框架对象。
+@available(iOS 26.0, *)
 nonisolated struct IMessageChatMediaDraftPresentation: Equatable, Sendable {
     /// 当前有序媒体草稿所属的附件组标识符。
     let groupID: UUID
@@ -283,6 +295,7 @@ nonisolated struct IMessageChatMediaDraftPresentation: Equatable, Sendable {
 }
 
 /// 文件草稿与消息共享值模型；录音转换后不再携带录音会话或波形状态。
+@available(iOS 26.0, *)
 nonisolated struct IMessageChatFileAttachment: Equatable, Hashable, Sendable {
     /// 文件附件的稳定标识符。
     let id: UUID
@@ -299,6 +312,7 @@ nonisolated struct IMessageChatFileAttachment: Equatable, Hashable, Sendable {
 }
 
 /// 网页元数据失败时仍可按原始 URL 发送，不伪造应用协作身份。
+@available(iOS 26.0, *)
 nonisolated struct IMessageChatLinkAttachment: Equatable, Hashable, Sendable {
     /// 链接附件的稳定标识符，默认生成新身份。
     var id = UUID()
@@ -323,6 +337,7 @@ nonisolated struct IMessageChatLinkAttachment: Equatable, Hashable, Sendable {
 /// 附件枚举是消息层与具体媒体实现之间的值类型边界。音频、媒体组、文件与链接
 /// 由各自的值模型描述，时间线渲染层按类型选择单元格。模型仅保存身份、元数据和
 /// 本地 URL，不持有图像视图、资源选择器结果或播放器。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatAttachment: Equatable, Hashable, Sendable {
     /// 包含本地录音或文本合成语音的音频附件。
     case audio(IMessageChatAudioAttachment)
@@ -375,6 +390,7 @@ nonisolated enum IMessageChatAttachment: Equatable, Hashable, Sendable {
 }
 
 /// 聊天时间线保存的原始消息值，包含身份、载荷、时间和发送状态。
+@available(iOS 26.0, *)
 nonisolated struct IMessageChatMessage: Equatable, Hashable, Sendable {
     /// 消息在当前会话中的稳定整数标识符。
     let id: Int
@@ -389,6 +405,7 @@ nonisolated struct IMessageChatMessage: Equatable, Hashable, Sendable {
 }
 
 /// 完成本地化解析、供时间线单元格直接渲染的消息值。
+@available(iOS 26.0, *)
 nonisolated struct IMessageChatMessagePresentation: Equatable, Sendable {
     /// 对应原始消息的稳定标识符。
     let id: Int
@@ -485,6 +502,7 @@ nonisolated struct IMessageChatMessagePresentation: Equatable, Sendable {
 }
 
 /// 消息 Cell 渲染的载荷。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatMessagePresentationContent: Equatable, Sendable {
     /// 已经解析完成、可直接显示的文本。
     case text(String)
@@ -496,6 +514,7 @@ nonisolated enum IMessageChatMessagePresentationContent: Equatable, Sendable {
 ///
 /// 类型专属元数据由附件值本身提供；附件内容、发送状态或展示文字变化时，列表
 /// 可据此重新配置已有单元格，无须手工拼接文件与尺寸等字符串。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatMessageRefreshIdentity:
     Equatable,
     Hashable,
@@ -517,6 +536,7 @@ nonisolated enum IMessageChatMessageRefreshIdentity:
 }
 
 /// 时间线分隔项使用的来源消息身份与本地化时间文字。
+@available(iOS 26.0, *)
 nonisolated struct IMessageChatTimestampPresentation: Equatable, Sendable {
     /// 触发当前时间分隔项的消息标识符。
     let sourceMessageID: Int
@@ -525,6 +545,7 @@ nonisolated struct IMessageChatTimestampPresentation: Equatable, Sendable {
 }
 
 /// 区分时间分隔、消息和输入状态项的稳定时间线身份。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatTimelineItemID: Hashable, Sendable {
     /// 由来源消息身份确定的时间分隔项。
     case timestamp(sourceMessageID: Int)
@@ -535,6 +556,7 @@ nonisolated enum IMessageChatTimelineItemID: Hashable, Sendable {
 }
 
 /// 时间线单项可呈现的内容类型。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatTimelineContent: Equatable, Sendable {
     /// 显示本地化时间分隔信息。
     case timestamp(IMessageChatTimestampPresentation)
@@ -545,6 +567,7 @@ nonisolated enum IMessageChatTimelineContent: Equatable, Sendable {
 }
 
 /// 将稳定列表身份与展示内容组合的时间线项目。
+@available(iOS 26.0, *)
 nonisolated struct IMessageChatTimelineItem: Equatable, Sendable {
     /// 供列表差异更新使用的稳定项目身份。
     let id: IMessageChatTimelineItemID
@@ -553,6 +576,7 @@ nonisolated struct IMessageChatTimelineItem: Equatable, Sendable {
 }
 
 /// 提供基于已提交附件生成同类型模拟回复的值转换。
+@available(iOS 26.0, *)
 extension IMessageChatAttachment {
     /// 模拟回复使用独立消息/附件/媒体项目身份，共享页面已提交的只读资源。
     /// 已提交资源统一保留到页面退出，因此无须复制视频，也不会被 Composer 草稿清理。

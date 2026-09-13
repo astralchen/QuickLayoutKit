@@ -6,9 +6,10 @@ import UIKit
 @testable import Demo
 
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .enabled(if: IMessageChatTestAvailability.isSupported))
 struct IMessageChatAudioAttachmentTests {
     @Test func cardReplacesSelectionAndSurvivesPhotoRemovalAndPlaybackUpdates() {
+        guard #available(iOS 26.0, *) else { return }
         let composer = makeComposer(text: "你好\ncaption")
         composer.textView.selectedRange = NSRange(location: 1, length: 1)
         composer.insertDocument(fileDraft)
@@ -28,6 +29,7 @@ struct IMessageChatAudioAttachmentTests {
     }
 
     @Test func mixedDraftSendsOrderedIDsAndPreservesDraftOnRejection() {
+        guard #available(iOS 26.0, *) else { return }
         for text in ["", " ", "\n", "caption"] {
             let composer = makeComposer(text: text)
             composer.textView.selectedRange = NSRange(location: 0, length: 0)
@@ -45,6 +47,7 @@ struct IMessageChatAudioAttachmentTests {
     }
 
     @Test func deletionRemovesOnlyAudioAndUndoCannotResurrectIt() {
+        guard #available(iOS 26.0, *) else { return }
         let composer = makeComposer(text: "caption")
         composer.textView.selectedRange = NSRange(location: 0, length: 0)
         composer.insertDocument(fileDraft)
@@ -70,6 +73,7 @@ struct IMessageChatAudioAttachmentTests {
     }
 
     @Test func realEditorDeletionAndMarkedTextPreserveFocusAndLayout() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: \.isKeyWindow)
         let root = UIViewController()
@@ -132,6 +136,7 @@ struct IMessageChatAudioAttachmentTests {
     }
 
     @Test func selectingMediaDuringRealRecordingCancelsFileAndTimer() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = AudioFixture()
         defer { fixture.cleanUp() }
         let page = fixture.page
@@ -151,6 +156,7 @@ struct IMessageChatAudioAttachmentTests {
     }
 
     @Test func previewTransfersOwnershipAndSendsAsFileBeforeText() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = AudioFixture()
         defer { fixture.cleanUp() }
         let page = fixture.page
@@ -191,6 +197,7 @@ struct IMessageChatAudioAttachmentTests {
     }
 
     @Test func previewTransferPrecedesPastedContentAtSelectedPosition() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = AudioFixture()
         defer { fixture.cleanUp() }
         let page = fixture.page
@@ -212,6 +219,7 @@ struct IMessageChatAudioAttachmentTests {
     }
 
     @Test func deletingConvertedPreviewDiscardsItsFileAndPreservesPhotos() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = AudioFixture()
         defer { fixture.cleanUp() }
         fixture.page.loadViewIfNeeded()
@@ -230,15 +238,18 @@ struct IMessageChatAudioAttachmentTests {
         #expect(composer.textAttachments.isEmpty)
     }
 
+    @available(iOS 26.0, *)
     private var audio: IMessageChatAudioAttachment {
         .init(id: UUID(uuidString: "20602665-44B0-4C0E-9955-37AC10E951DD")!, fileURL: URL(fileURLWithPath: "/tmp/card.m4a"), duration: 2, waveform: [0.2, 0.4])
     }
 
+    @available(iOS 26.0, *)
     private var fileDraft: IMessageChatDocumentDraft {
         .init(attachment: .file(.init(id: audio.id, fileURL: audio.fileURL,
             displayName: "Audio Message.m4a", typeIdentifier: "public.mpeg-4-audio", byteCount: 2048)))
     }
 
+    @available(iOS 26.0, *)
     private func makeComposer(text: String) -> IMessageChatComposerView {
         let composer = IMessageChatComposerView(frame: CGRect(x: 0, y: 0, width: 390, height: 80))
         composer.configure(strings: IMessageChatPreviewData.composerStrings)
@@ -247,10 +258,12 @@ struct IMessageChatAudioAttachmentTests {
         return composer
     }
 
+    @available(iOS 26.0, *)
     private func importingDraft() -> IMessageChatMediaDraftPresentation {
         .init(groupID: UUID(), items: [.init(id: UUID(), assetIdentifier: "test-photo", content: .importing)])
     }
 
+    @available(iOS 26.0, *)
     private func layout(_ composer: IMessageChatComposerView) {
         composer.frame.size.height = composer.intrinsicContentSize.height
         composer.setNeedsQuickLayout()
@@ -259,10 +272,12 @@ struct IMessageChatAudioAttachmentTests {
         composer.layoutIfNeeded()
     }
 
+    @available(iOS 26.0, *)
     private func descendants(_ view: UIView) -> [UIView] {
         view.subviews.flatMap { [$0] + descendants($0) }
     }
 
+    @available(iOS 26.0, *)
     private func waitForRecording(_ audio: IMessageChatAudioController) async throws {
         for _ in 0..<100 {
             if case .recording = audio.state { return }
@@ -273,6 +288,7 @@ struct IMessageChatAudioAttachmentTests {
     }
 }
 
+@available(iOS 26.0, *)
 @MainActor
 private final class AudioFixture {
     let store = IMessageChatPageAttachmentStore()
@@ -288,12 +304,14 @@ private final class AudioFixture {
     func cleanUp() { page.documentController.discardAll(); audio.cancelRecordingOrPreview(); page.viewModel.cancelPendingReply(); store.removeAll() }
 }
 
+@available(iOS 26.0, *)
 @MainActor
 private final class GrantedPermissions: IMessageChatMediaPermissionProviding {
     func requestMicrophonePermission() async -> Bool { true }
     func requestSpeechPermission() async -> Bool { true }
 }
 
+@available(iOS 26.0, *)
 @MainActor
 private final class SilentTranscriber: IMessageChatSpeechTranscribing {
     func start(locale: Locale, result: @escaping @MainActor (String, Bool) -> Void, failure: @escaping @MainActor () -> Void) async throws {}

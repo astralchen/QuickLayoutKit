@@ -29,7 +29,7 @@ final class MainRouter: MainRouting {
         to route: MainRoute,
         from sourceViewController: UIViewController
     ) {
-        let destination = makeViewController(for: route)
+        guard let destination = makeViewController(for: route) else { return }
         destination.navigationItem.title = localizer.text(route.titleKey)
         destination.navigationItem.largeTitleDisplayMode = .never
         sourceViewController.navigationController?.pushViewController(
@@ -38,7 +38,7 @@ final class MainRouter: MainRouting {
         )
     }
 
-    private func makeViewController(for route: MainRoute) -> UIViewController {
+    private func makeViewController(for route: MainRoute) -> UIViewController? {
         switch route {
         case .horizontalScroll:
             HorizontalScrollViewViewController()
@@ -61,7 +61,11 @@ final class MainRouter: MainRouting {
         case .liveRoom:
             LiveRoomViewController()
         case .imessageChat:
-            IMessageChatViewController()
+            if #available(iOS 26.0, *) {
+                IMessageChatViewController()
+            } else {
+                nil
+            }
         case .collectionContentConfiguration:
             ContentConfigurationCollectionViewController()
         case .waterfallContentConfiguration:

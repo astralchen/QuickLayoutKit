@@ -472,6 +472,7 @@ private func makeLiveRoomSeatStagePreview(
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("派对九麦舞台") {
     makeLiveRoomSeatStagePreview(
         mode: .party,
@@ -479,6 +480,7 @@ private func makeLiveRoomSeatStagePreview(
     )
 }
 
+@available(iOS 17.0, *)
 #Preview("个播收起舞台") {
     makeLiveRoomSeatStagePreview(
         mode: .individual,
@@ -486,6 +488,7 @@ private func makeLiveRoomSeatStagePreview(
     )
 }
 
+@available(iOS 17.0, *)
 #Preview("个播五麦舞台") {
     makeLiveRoomSeatStagePreview(
         mode: .individual,

@@ -178,6 +178,7 @@ private func makeLiveRoomRechargeViewPreview() -> UIViewController {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("充值根视图") {
     makeLiveRoomRechargeViewPreview()
 }

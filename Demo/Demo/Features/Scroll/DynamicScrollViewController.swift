@@ -459,6 +459,7 @@ private extension DynamicScrollViewModel.ColorToken {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(rootViewController: DynamicScrollViewController())
 }

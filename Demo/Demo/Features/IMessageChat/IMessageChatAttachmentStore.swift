@@ -10,6 +10,7 @@ import Foundation
 /// 附件先以草稿身份注册；只有消息成功进入 ViewModel 后才提交。取消草稿会立即
 /// 删除其全部文件，已提交的音频、图片和视频附件则保留到页面销毁；资源选择器
 /// 返回的临时 URL 永远不会直接保存到消息模型。
+@available(iOS 26.0, *)
 @MainActor
 protocol IMessageChatAttachmentStoring: AnyObject {
     /// 页面附件目录的位置。
@@ -64,6 +65,7 @@ protocol IMessageChatAttachmentStoring: AnyObject {
 }
 
 /// 使用独立临时目录实现的页面附件存储。
+@available(iOS 26.0, *)
 @MainActor
 final class IMessageChatPageAttachmentStore: IMessageChatAttachmentStoring {
 

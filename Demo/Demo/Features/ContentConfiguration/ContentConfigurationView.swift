@@ -96,10 +96,12 @@ final class ContentConfigurationView: QuickLayoutContentView {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("简短") {
     previewContent(ContentConfigurationModel.mockData[0])
 }
 
+@available(iOS 17.0, *)
 #Preview("节选") {
     previewContent(ContentConfigurationModel.mockData[1])
 }

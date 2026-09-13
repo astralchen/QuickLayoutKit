@@ -103,6 +103,7 @@ class LiveRoomCardView: QuickLayoutView {
 }
 
 #if DEBUG
+@available(iOS 17.0, *)
 #Preview("直播间背景") {
     QuickLayoutHostingController {
         LiveRoomBackdropView()
@@ -110,6 +111,7 @@ class LiveRoomCardView: QuickLayoutView {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("直播间通用卡片") {
     QuickLayoutHostingController {
         ZStack {

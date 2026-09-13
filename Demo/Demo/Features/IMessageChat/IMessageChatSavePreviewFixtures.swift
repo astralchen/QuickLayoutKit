@@ -3,6 +3,7 @@ import AVFoundation
 import UIKit
 
 /// UI 回归通过启动参数使用真实本地附件；正常启动不改变会话内容。
+@available(iOS 26.0, *)
 @MainActor
 enum IMessageChatSavePreviewFixtures {
     /// 根据调试启动参数创建真实本地保存样例，并登记为已提交附件。

@@ -1,6 +1,7 @@
 import UIKit
 
 /// 所有消息类型共用的状态栏。失败状态整体可重试，点击区至少 44 × 44 pt。
+@available(iOS 26.0, *)
 final class IMessageChatDeliveryStatusView: UIControl {
     /// 显示本地化送达或已读文本的标签。
     let label = UILabel()

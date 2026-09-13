@@ -171,6 +171,7 @@ class AnimatedKeyboardResponsiveView: UIView {
 
 
 
+@available(iOS 17.0, *)
 #Preview {
     AnimatedKeyboardResponsiveView()
 }

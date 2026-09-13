@@ -9,7 +9,14 @@ import QuickLayoutKit
 
 /// ListKit 注册补充视图，由 QuickLayoutKit 布局并保留 UIKit 列表文字样式和动态字体。
 final class MainMenuSectionHeaderView: QuickLayoutCollectionReusableView {
-    let listContentView = UIListContentView(configuration: UIListContentConfiguration.header())
+    let listContentView = UIListContentView(configuration: MainMenuSectionHeaderView.makeContentConfiguration())
+
+    private static func makeContentConfiguration() -> UIListContentConfiguration {
+        if #available(iOS 18.0, *) {
+            return .header()
+        }
+        return .groupedHeader()
+    }
 
     override var semanticContentAttribute: UISemanticContentAttribute {
         didSet { listContentView.semanticContentAttribute = semanticContentAttribute }
@@ -34,7 +41,7 @@ final class MainMenuSectionHeaderView: QuickLayoutCollectionReusableView {
     }
 
     func configure(title: String, identifier: String) {
-        var content = UIListContentConfiguration.header()
+        var content = Self.makeContentConfiguration()
         content.text = title
         content.textProperties.numberOfLines = 0
         listContentView.configuration = content
@@ -46,7 +53,7 @@ final class MainMenuSectionHeaderView: QuickLayoutCollectionReusableView {
 
     override func prepareForReuse() {
         super.prepareForReuse()
-        listContentView.configuration = UIListContentConfiguration.header()
+        listContentView.configuration = Self.makeContentConfiguration()
         accessibilityLabel = nil
         accessibilityIdentifier = nil
         setNeedsQuickLayout()
@@ -54,6 +61,7 @@ final class MainMenuSectionHeaderView: QuickLayoutCollectionReusableView {
 }
 
 #if DEBUG
+@available(iOS 17.0, *)
 @MainActor
 private func makeMainMenuSectionHeaderPreview(
     title: String = "QuickLayout 示例",
@@ -76,10 +84,12 @@ private func makeMainMenuSectionHeaderPreview(
     return controller
 }
 
+@available(iOS 17.0, *)
 #Preview("分组标题") {
     makeMainMenuSectionHeaderPreview()
 }
 
+@available(iOS 17.0, *)
 #Preview("多行 · 辅助功能大字体") {
     makeMainMenuSectionHeaderPreview(
         title: "QuickLayout 布局与交互示例",
@@ -87,6 +97,7 @@ private func makeMainMenuSectionHeaderPreview(
     )
 }
 
+@available(iOS 17.0, *)
 #Preview("阿拉伯语 · RTL") {
     makeMainMenuSectionHeaderPreview(
         title: "أمثلة QuickLayout",

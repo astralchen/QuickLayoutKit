@@ -182,6 +182,7 @@ private extension LiveRoomAudienceMember.Presence {
 }
 
 #if DEBUG
+@available(iOS 17.0, *)
 #Preview("在线用户 Sheet") {
     LiveRoomAudienceSheetViewController(
         viewModel: LiveRoomAudienceViewModel(

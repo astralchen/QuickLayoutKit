@@ -1,6 +1,13 @@
 import XCTest
 
 final class IMessageChatKeyboardUITests: XCTestCase {
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        guard #available(iOS 26.0, *) else {
+            throw XCTSkip("IMessageChat requires iOS 26 or later")
+        }
+    }
+
     @MainActor
     func testLinkAttachmentRecordingHintRestoresCardAndKeyboard() throws {
         try verifyRecordingHint(language: "zh-Hans", audioTitle: "音频", draft: "", linkTitle: "链接")

@@ -154,7 +154,7 @@ struct WaterfallLayoutEngineTests {
         fixture.layout.prepare()
         #expect(fixture.layout.cachedMeasurementCount(for: 6) == 4)
         await Task.yield()
-        try await Task.sleep(for: .milliseconds(20))
+        try await Task.sleep(nanoseconds: 20_000_000)
         #expect(notifications == 1)
     }
 

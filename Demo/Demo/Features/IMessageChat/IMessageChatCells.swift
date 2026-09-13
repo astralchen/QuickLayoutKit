@@ -8,6 +8,7 @@ import QuickLayoutKit
 import UIKit
 
 /// 根据消息方向显示文本与圆角气泡轮廓的视图。
+@available(iOS 26.0, *)
 final class IMessageBubbleView: QuickLayoutView {
 
     /// 显示消息正文并支持动态字体的标签。
@@ -158,6 +159,7 @@ final class IMessageBubbleView: QuickLayoutView {
 }
 
 /// 在时间线中显示文本气泡和发送状态的自适应单元格。
+@available(iOS 26.0, *)
 final class IMessageBubbleCell: QuickLayoutCollectionViewCell {
 
     /// 呈现消息正文与收发方向外观的文本气泡视图。
@@ -268,6 +270,7 @@ final class IMessageBubbleCell: QuickLayoutCollectionViewCell {
 }
 
 /// 在时间线中显示本地化时间分隔文本的单元格。
+@available(iOS 26.0, *)
 final class IMessageTimestampCell: QuickLayoutCollectionViewCell {
 
     /// 显示消息组时间的居中标签。
@@ -319,6 +322,7 @@ final class IMessageTimestampCell: QuickLayoutCollectionViewCell {
 }
 
 /// 以三个圆点动画表示对方正在输入的气泡视图。
+@available(iOS 26.0, *)
 final class IMessageTypingBubbleView: QuickLayoutView {
 
     /// 按显示顺序排列的三个输入状态圆点。
@@ -398,6 +402,7 @@ final class IMessageTypingBubbleView: QuickLayoutView {
 }
 
 /// 在时间线语义起始侧显示输入状态气泡的单元格。
+@available(iOS 26.0, *)
 final class IMessageTypingCell: QuickLayoutCollectionViewCell {
 
     /// 显示三个圆点及辅助功能输入状态的气泡视图。
@@ -444,6 +449,7 @@ final class IMessageTypingCell: QuickLayoutCollectionViewCell {
 
 #if DEBUG
 /// 创建承载指定消息文本气泡的独立预览控制器。
+@available(iOS 26.0, *)
 @MainActor
 private func makeIMessageBubbleViewPreview(
     _ message: IMessageChatMessagePresentation
@@ -462,6 +468,7 @@ private func makeIMessageBubbleViewPreview(
 }
 
 /// 创建承载指定文本消息单元格的独立预览控制器。
+@available(iOS 26.0, *)
 @MainActor
 private func makeIMessageBubbleCellPreview(
     _ message: IMessageChatMessagePresentation
@@ -479,6 +486,7 @@ private func makeIMessageBubbleCellPreview(
 }
 
 /// 创建使用固定示例时间的时间分隔单元格预览。
+@available(iOS 26.0, *)
 @MainActor
 private func makeIMessageTimestampCellPreview() -> UIViewController {
     let cell = IMessageTimestampCell(frame: .zero)
@@ -489,6 +497,7 @@ private func makeIMessageTimestampCellPreview() -> UIViewController {
 }
 
 /// 创建用于检查输入圆点动画及外观的气泡视图预览。
+@available(iOS 26.0, *)
 @MainActor
 private func makeIMessageTypingBubbleViewPreview() -> UIViewController {
     let backgroundView = UIView()
@@ -508,6 +517,7 @@ private func makeIMessageTypingBubbleViewPreview() -> UIViewController {
 }
 
 /// 创建用于检查时间线输入状态布局的单元格预览。
+@available(iOS 26.0, *)
 @MainActor
 private func makeIMessageTypingCellPreview() -> UIViewController {
     let cell = IMessageTypingCell(frame: .zero)
@@ -520,30 +530,37 @@ private func makeIMessageTypingCellPreview() -> UIViewController {
     }
 }
 
+@available(iOS 26.0, *)
 #Preview("消息气泡 View · 收到") {
     makeIMessageBubbleViewPreview(IMessageChatPreviewData.incomingMessage)
 }
 
+@available(iOS 26.0, *)
 #Preview("消息气泡 View · 发出") {
     makeIMessageBubbleViewPreview(IMessageChatPreviewData.outgoingMessage)
 }
 
+@available(iOS 26.0, *)
 #Preview("消息气泡 Cell · 收到") {
     makeIMessageBubbleCellPreview(IMessageChatPreviewData.incomingMessage)
 }
 
+@available(iOS 26.0, *)
 #Preview("消息气泡 Cell · 发出") {
     makeIMessageBubbleCellPreview(IMessageChatPreviewData.outgoingMessage)
 }
 
+@available(iOS 26.0, *)
 #Preview("消息时间 Cell") {
     makeIMessageTimestampCellPreview()
 }
 
+@available(iOS 26.0, *)
 #Preview("输入中气泡 View") {
     makeIMessageTypingBubbleViewPreview()
 }
 
+@available(iOS 26.0, *)
 #Preview("输入中 Cell") {
     makeIMessageTypingCellPreview()
 }

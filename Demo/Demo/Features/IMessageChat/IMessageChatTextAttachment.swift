@@ -741,6 +741,7 @@ import QuickLayoutKit
 import UIKit
 
 /// 创建文档输入栏预览，支持布局方向、大字体、媒体粘贴及文字附件交错场景。
+@available(iOS 26.0, *)
 @MainActor
 private func documentCardPreview(
     text: String, direction: UIUserInterfaceLayoutDirection, photos: Bool, largeText: Bool = false,
@@ -773,31 +774,38 @@ private func documentCardPreview(
     }
 }
 
+@available(iOS 26.0, *)
 #Preview("多类型附件 · 光标处插入") {
     documentCardPreview(text: "在", direction: .leftToRight, photos: true)
 }
 
+@available(iOS 26.0, *)
 #Preview("多类型附件 · 删除全部照片后") {
     documentCardPreview(text: "", direction: .leftToRight, photos: false)
 }
 
+@available(iOS 26.0, *)
 #Preview("多类型附件 · RTL 大字体") {
     documentCardPreview(text: "مرحبا", direction: .rightToLeft, photos: true, largeText: true)
 }
 
+@available(iOS 26.0, *)
 #Preview("粘贴图片视频 · 右上角删除") {
     documentCardPreview(text: "图片和视频分别发送", direction: .leftToRight, photos: false, pastedMedia: true)
 }
 
+@available(iOS 26.0, *)
 #Preview("粘贴图片视频 · RTL 大字体") {
     documentCardPreview(text: "صور وفيديو", direction: .rightToLeft, photos: false, largeText: true, pastedMedia: true)
 }
 #endif
 
+@available(iOS 26.0, *)
 #Preview("按位置分段 · 文字与多个附件") {
     documentCardPreview(text: " 一段正文\n", direction: .leftToRight, photos: false, interleaved: true)
 }
 
+@available(iOS 26.0, *)
 #Preview("按位置分段 · RTL 大字体") {
     documentCardPreview(text: " نص الرسالة\n", direction: .rightToLeft, photos: false, largeText: true, interleaved: true)
 }

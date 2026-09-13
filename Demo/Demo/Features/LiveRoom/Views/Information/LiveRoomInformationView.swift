@@ -425,6 +425,7 @@ private func makeLiveRoomInformationViewPreview() -> UIViewController {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("直播间信息") {
     makeLiveRoomInformationViewPreview()
 }

@@ -73,6 +73,7 @@ final class LiveRoomUserCardViewController:
 }
 
 #if DEBUG
+@available(iOS 17.0, *)
 #Preview("用户卡片") {
     LiveRoomUserCardViewController(seat: LiveRoomPreviewData.seats[2])
 }

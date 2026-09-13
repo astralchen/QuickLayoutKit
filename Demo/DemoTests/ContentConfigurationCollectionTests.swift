@@ -171,7 +171,7 @@ struct ContentConfigurationCollectionTests {
     private func eventually(_ condition: () -> Bool) async -> Bool {
         for _ in 0..<100 {
             if condition() { return true }
-            try? await Task.sleep(for: .milliseconds(20))
+            try? await Task.sleep(nanoseconds: 20_000_000)
         }
         return condition()
     }

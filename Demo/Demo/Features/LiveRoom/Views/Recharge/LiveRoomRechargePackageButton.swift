@@ -119,6 +119,7 @@ private func makeLiveRoomRechargePackageButtonPreview() -> UIViewController {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("充值档位按钮") {
     makeLiveRoomRechargePackageButtonPreview()
 }

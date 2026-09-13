@@ -554,6 +554,7 @@ extension ScrollViewWithKeyboardViewController: UITextViewDelegate {
 
 // MARK: - 预览
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(rootViewController: ScrollViewWithKeyboardViewController())
 }

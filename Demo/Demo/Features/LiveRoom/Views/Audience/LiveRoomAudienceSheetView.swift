@@ -87,6 +87,7 @@ final class LiveRoomAudienceSheetView: QuickLayoutView {
 }
 
 #if DEBUG
+@available(iOS 17.0, *)
 #Preview("在线用户 Sheet 内容") {
     LiveRoomAudienceSheetViewController(
         viewModel: LiveRoomAudienceViewModel(

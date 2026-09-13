@@ -300,6 +300,7 @@ final class ZIndexDemoCanvas: UIView {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(
         rootViewController: PositionAndZIndexDemoViewController()

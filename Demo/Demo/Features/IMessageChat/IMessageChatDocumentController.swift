@@ -6,6 +6,7 @@ import UIKit
 import UniformTypeIdentifiers
 
 /// 内联文档卡片的附件值与异步导入状态。
+@available(iOS 26.0, *)
 nonisolated struct IMessageChatDocumentDraft: Equatable, Sendable {
     /// 文档草稿从占位到可发送或失败的处理状态。
     enum Status: Equatable, Sendable {

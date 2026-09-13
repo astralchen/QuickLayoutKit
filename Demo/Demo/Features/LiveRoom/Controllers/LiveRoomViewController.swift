@@ -412,6 +412,7 @@ private func makeLiveRoomControllerPreview(
     )
 }
 
+@available(iOS 17.0, *)
 #Preview("直播间 · 九麦") {
     makeLiveRoomControllerPreview(
         businessMode: .party,
@@ -419,6 +420,7 @@ private func makeLiveRoomControllerPreview(
     )
 }
 
+@available(iOS 17.0, *)
 #Preview("直播间 · 五麦") {
     makeLiveRoomControllerPreview(
         businessMode: .individual,

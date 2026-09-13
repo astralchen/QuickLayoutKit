@@ -4,7 +4,7 @@
 
 该模块仅用于本地界面和交互演示，不接入上传、持久化或真实消息服务；添加网页链接时通过系统 Link Presentation 获取公开网页元数据。每次进入页面都会创建新的 `IMessageChatViewModel`、页面附件存储与音频控制器，恢复与联系人 Alex 的固定示例会话；录制及从回复文本合成的音频只在本次页面生命周期内有效。
 
-当前 Demo deployment target 为 iOS 26.2，页面使用 iOS 26 原生玻璃 API。媒体层保留 iOS 17–25 的语音识别后端，但这只是未来降低整个 Demo deployment target 时可复用的兼容实现，不表示当前页面已在旧系统运行或验收通过。
+Demo 应用、单元测试和 UI 测试目标的 deployment target 均为 iOS 15.0。`IMessageChat` 功能声明为 iOS 26.0 及以上可用，页面使用 iOS 26 原生玻璃 API。主菜单在旧系统隐藏聊天入口，路由也检查系统版本。媒体层保留旧版语音识别后端，用于现代识别服务不可用时回退；聊天页面不在 iOS 15–25 运行。聊天单元测试通过 Swift Testing 条件跳过，聊天 UI 测试和真实语音集成测试通过 `XCTSkip` 跳过旧系统。
 
 ## 文件职责
 
@@ -107,7 +107,7 @@ iOS 26 优先使用 `SpeechAnalyzer` 的文件输入，先通过 `AssetInventory
 再准备对应模型；语言/模型准备不可用时自动回退至
 `SFSpeechURLRecognitionRequest`。旧后端需要系统 Speech 授权，本机识别可用时优先使用，
 本机请求失败后允许 Apple 在线识别。显式指定后端和取消操作不触发后端回退；现代后端
-准备完成后的运行错误也不重启识别。保留 iOS 17–25 兼容接口，当前 Demo 仍以 iOS 26.2 为最低版本。
+准备完成后的运行错误也不重启识别。保留旧版识别接口作为回退，聊天功能仍要求 iOS 26.0。
 
 音频气泡参考 iPhone 16 Pro：圆形播放控件、弹性波形、`mm:ss` 时长及下方自然换行文本，
 收发方向有对应的底部尾巴。在 402pt 宽、默认字体下，气泡约宽 281pt，纯音频总高 82pt
@@ -246,7 +246,7 @@ Apple 公开 API 依据：[TextKit 附件视图](https://developer.apple.com/doc
 系统后端由媒体服务选择，ViewController 不判断系统版本：
 
 - iOS 26+ 优先使用 `SpeechAnalyzer`、`SpeechTranscriber` 和 `AssetInventory`。识别前通过等价 locale 解析支持语言，并在需要时安装本地语音资产；如果 Analyzer 在当前设备、模拟器、语言或资产状态下无法启动，则清理未完成状态并回退到 `SFSpeechRecognizer`。只有两个后端都无法启动时才显示“语音识别不可用”；部分 Simulator Runtime 不提供任一后端，降级不能伪造识别结果。
-- iOS 17–25 兼容实现使用 `SFSpeechRecognizer` 与 `AVAudioEngine`。支持设备端识别时设置 `requiresOnDeviceRecognition`；不支持时允许系统在线识别。
+- 兼容回退后端使用 `SFSpeechRecognizer` 与 `AVAudioEngine`。支持设备端识别时设置 `requiresOnDeviceRecognition`；不支持时允许系统在线识别。
 - App 的英语、简体中文和阿拉伯语分别映射为 `en-US`、`zh-CN` 和 `ar-SA` 识别 locale。
 
 ## 音频录制、预览与发送
@@ -371,7 +371,7 @@ MainRoute.imessageChat
 
 ## 测试重点
 
-相关测试位于 `Demo/DemoTests/DemoTests.swift` 与 `Demo/DemoTests/IMessageChatMediaTests.swift`；录音前提示和焦点分别由 `IMessageChatRecordingHintTests.swift` 与 `IMessageChatComposerFocusTests.swift` 验证。测试必须使用协议注入的假服务、固定 Clock、受控 Sleeper 与确定性附件，不能读取真实麦克风、依赖在线识别、调用真实系统声线或用真实休眠等待结果。
+聊天流程、音频与视图测试分别位于 `Demo/DemoTests/DemoTests+IMessageChatFlow.swift`、`DemoTests+IMessageChatAudio.swift` 和 `DemoTests+IMessageChatViews.swift`，媒体测试位于 `Demo/DemoTests/IMessageChatMediaTests.swift`；录音前提示和焦点分别由 `IMessageChatRecordingHintTests.swift` 与 `IMessageChatComposerFocusTests.swift` 验证。测试必须使用协议注入的假服务、固定 Clock、受控 Sleeper 与确定性附件，不能读取真实麦克风、依赖在线识别、调用真实系统声线或用真实休眠等待结果。
 
 当前回归重点包括：
 
@@ -406,7 +406,7 @@ MainRoute.imessageChat
 7. 修改输入栏时必须验证键盘展开、照片 Sheet 小/大档与交互拖动、两种遮挡源交接、1–5 行、录音态、媒体预览态、原草稿恢复和最后一条消息遮挡。
 8. iOS 26 原生玻璃 API 只用于导航或输入控制层，消息内容层保持系统纯色背景。
 9. Composer 预览项固定为 120 点高，按附件像素比例计算 80～160 点宽度；多帧图片和 Live Photo 显示动态图片标志。当前范围不包含相机拍摄、图片编辑、视频剪辑、GIF 动画播放、Live Photo 播放、协作附件、上传、持久化、Tapback、内联回复或真实已读回执；GIF 与 Live Photo 仍按静态缩略图发送和预览。
-10. iOS 17–25 只属于语音识别服务的兼容预留；旧系统页面运行需要未来降低整个 Demo deployment target 并提供非 iOS 26 UI。
+10. Demo 应用支持 iOS 15，但聊天入口和类型限定为 iOS 26；旧版语音识别后端只用于回退，不代表聊天页面支持旧系统。
 11. 新增独立 View 或 ViewController 时，必须在同一源文件补充基于 `IMessageChatPreviewData` 的 `#Preview`。
 12. 新增内部类型、状态、回调和用户动作方法使用 UIKit SDK 风格的 `///` 文档注释：先给出简洁摘要，再按需要补充讨论、参数和返回值；不要用逐行翻译代码的噪声注释。
 

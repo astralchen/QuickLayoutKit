@@ -58,7 +58,11 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
         return source
     }()
 
-    init(localizer: Localizer = .live) {
+    convenience init() {
+        self.init(localizer: .live)
+    }
+
+    init(localizer: Localizer) {
         self.localizer = localizer
         super.init(nibName: nil, bundle: nil)
         collectionView = UICollectionView(frame: .zero, collectionViewLayout: waterfallLayout)
@@ -125,6 +129,20 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
         // 先配置控件，再由宿主应用初始语言和方向并附加 body。
         super.viewDidLoad()
         view.backgroundColor = .systemGroupedBackground
+        if #available(iOS 17.0, *) {
+            registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) {
+                (controller: ContentConfigurationWaterfallViewController, _: UITraitCollection) in
+                controller.invalidateContent(reason: "dynamic-type")
+            }
+        }
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        if #unavailable(iOS 17.0), collectionView != nil,
+           previousTraitCollection?.preferredContentSizeCategory != traitCollection.preferredContentSizeCategory {
+            invalidateContent(reason: "dynamic-type")
+        }
     }
 
     override func reloadLocalizedContent() {
@@ -147,13 +165,6 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
         guard let collectionView else { return }
         collectionView.semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight
         invalidateContent(reason: "direction")
-    }
-
-    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-        super.traitCollectionDidChange(previousTraitCollection)
-        guard collectionView != nil,
-              previousTraitCollection?.preferredContentSizeCategory != traitCollection.preferredContentSizeCategory else { return }
-        invalidateContent(reason: "dynamic-type")
     }
 
     override func viewDidLayoutSubviews() {
@@ -357,6 +368,7 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
     }
 }
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(rootViewController: ContentConfigurationWaterfallViewController())
 }

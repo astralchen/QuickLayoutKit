@@ -1,6 +1,7 @@
 import Foundation
 
 /// 本地 Demo 的送达边界。返回成功仅代表模拟收件端确认，不等于真实网络或 Apple 回执。
+@available(iOS 26.0, *)
 @MainActor
 protocol IMessageChatMessageSending: AnyObject {
     /// 异步发送一条消息，并在模拟收件端确认后返回。
@@ -10,6 +11,7 @@ protocol IMessageChatMessageSending: AnyObject {
 }
 
 /// 提供延时确认、附件可读性检查和可选单次故障的本地消息发送器。
+@available(iOS 26.0, *)
 @MainActor
 final class IMessageChatSimulatedMessageSender: IMessageChatMessageSending {
     /// 指示下一次发送是否应模拟失败的布尔值；请求挂起前消耗此标记。

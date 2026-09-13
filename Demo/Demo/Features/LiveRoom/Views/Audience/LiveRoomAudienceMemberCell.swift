@@ -142,6 +142,7 @@ private func makeLiveRoomAudienceMemberCellPreview() -> UIViewController {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("在线用户 Item") {
     makeLiveRoomAudienceMemberCellPreview()
 }

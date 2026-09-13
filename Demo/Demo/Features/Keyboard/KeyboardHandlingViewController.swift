@@ -38,6 +38,7 @@ class KeyboardHandlingViewController: LocalizedQuickLayoutHostingController {
 
 
 
+@available(iOS 17.0, *)
 #Preview {
     UINavigationController(rootViewController: KeyboardHandlingViewController())
 }

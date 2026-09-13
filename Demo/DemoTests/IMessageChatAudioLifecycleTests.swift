@@ -5,9 +5,10 @@ import UIKit
 @testable import Demo
 
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .enabled(if: IMessageChatTestAvailability.isSupported))
 struct IMessageChatAudioLifecycleTests {
     @Test func coveringChatStopsPlaybackButOnlyPoppingChatDeletesAttachments() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try Fixture()
         let chat = fixture.makeChat()
         let navigation = UINavigationController(rootViewController: UIViewController())
@@ -44,6 +45,7 @@ struct IMessageChatAudioLifecycleTests {
     }
 
     @Test func changingTabsStopsPlaybackWithoutDiscardingChat() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try Fixture()
         let chat = fixture.makeChat()
         let tabs = UITabBarController()
@@ -64,6 +66,7 @@ struct IMessageChatAudioLifecycleTests {
     }
 
     @Test func dismissingParentContainerCleansUpChat() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try Fixture()
         let root = UIViewController()
         let host = try WindowHost(root: root)
@@ -83,6 +86,7 @@ struct IMessageChatAudioLifecycleTests {
     }
 
     @Test func backgroundResetsPlaybackWithoutDeletingFileOrAutoResuming() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try Fixture()
         defer { fixture.clean() }
         fixture.play()
@@ -98,6 +102,7 @@ struct IMessageChatAudioLifecycleTests {
     }
 
     @Test func interruptionsAndDisconnectedOutputPauseWithoutAutoResuming() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try Fixture()
         defer { fixture.clean() }
         fixture.play()
@@ -124,6 +129,7 @@ struct IMessageChatAudioLifecycleTests {
     }
 
     @Test func startingCaptureResetsPlaybackEvenWhenPermissionIsDenied() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try Fixture()
         defer { fixture.clean() }
         fixture.play()
@@ -139,6 +145,7 @@ struct IMessageChatAudioLifecycleTests {
     }
 
     @Test func losingPlaybackFileStopsAndReportsFailureOnce() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try Fixture()
         defer { fixture.clean() }
         var failureCount = 0
@@ -151,6 +158,7 @@ struct IMessageChatAudioLifecycleTests {
     }
 
     @Test func idleAudioControllerDoesNotDeactivateAnotherMediaSession() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let session = CountingSession()
         let fixture = try Fixture(audioSession: session)
         defer { fixture.clean() }
@@ -169,6 +177,7 @@ struct IMessageChatAudioLifecycleTests {
     }
 
     @Test func videoAndAudioAreMutuallyExclusiveAcrossNativePlaybackAndBackground() async throws {
+        guard #available(iOS 26.0, *) else { return }
         let fixture = try Fixture()
         let url = try await makeVideo(in: fixture.store)
         let item = IMessageChatMediaItem(assetIdentifier: nil, originalFileURL: url,
@@ -225,6 +234,7 @@ struct IMessageChatAudioLifecycleTests {
         #expect(fixture.media.playbackState == .idle)
     }
 
+    @available(iOS 26.0, *)
     private func makeVideo(in store: IMessageChatPageAttachmentStore) async throws -> URL {
         let url = store.makeFileURL(prefix: "lifecycle-video", pathExtension: "mov")
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
@@ -243,7 +253,7 @@ struct IMessageChatAudioLifecycleTests {
         try #require(CVPixelBufferCreate(kCFAllocatorDefault, 64, 48, kCVPixelFormatType_32BGRA, nil, &buffer) == kCVReturnSuccess)
         let pixels = try #require(buffer)
         CVPixelBufferLockBaseAddress(pixels, [])
-        memset(try #require(CVPixelBufferGetBaseAddress(pixels)), 0x7f, CVPixelBufferGetBytesPerRow(pixels) * 48)
+        memset(CVPixelBufferGetBaseAddress(pixels), 0x7f, CVPixelBufferGetBytesPerRow(pixels) * 48)
         CVPixelBufferUnlockBaseAddress(pixels, [])
         for frame in 0..<2 {
             let deadline = ContinuousClock.now.advanced(by: .seconds(10))
@@ -260,6 +270,7 @@ struct IMessageChatAudioLifecycleTests {
         return url
     }
 
+    @available(iOS 26.0, *)
     private func eventually(_ predicate: () -> Bool) async -> Bool {
         for _ in 0..<150 {
             if predicate() { return true }
@@ -269,6 +280,7 @@ struct IMessageChatAudioLifecycleTests {
     }
 }
 
+@available(iOS 26.0, *)
 @MainActor
 private final class Fixture {
     let store = IMessageChatPageAttachmentStore()
@@ -300,6 +312,7 @@ private final class Fixture {
     func clean() { media.stopAll(); model.cancelPendingReply(); store.removeAll() }
 }
 
+@available(iOS 26.0, *)
 @MainActor
 private final class CountingSession: IMessageChatAudioSessionControlling {
     let notificationObject: AnyObject = NSObject()
@@ -310,6 +323,7 @@ private final class CountingSession: IMessageChatAudioSessionControlling {
     func deactivate() throws { deactivationCount += 1 }
 }
 
+@available(iOS 26.0, *)
 @MainActor
 private struct WindowHost {
     let window: UIWindow
@@ -325,12 +339,14 @@ private struct WindowHost {
     func close() { window.isHidden = true; previous?.makeKey() }
 }
 
+@available(iOS 26.0, *)
 @MainActor
 private final class DeniedPermissions: IMessageChatMediaPermissionProviding {
     func requestMicrophonePermission() async -> Bool { false }
     func requestSpeechPermission() async -> Bool { false }
 }
 
+@available(iOS 26.0, *)
 @MainActor
 private final class NoSpeech: IMessageChatSpeechTranscribing {
     func start(locale: Locale, result: @escaping @MainActor (String, Bool) -> Void,

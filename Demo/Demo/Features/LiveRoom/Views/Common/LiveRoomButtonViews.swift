@@ -317,6 +317,7 @@ private func makeLiveRoomButtonViewsPreview() -> UIViewController {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("QuickLayoutButton 样式") {
     makeLiveRoomButtonViewsPreview()
 }

@@ -426,14 +426,17 @@ private func makeLiveRoomActionBarPreview() -> UIViewController {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview("公屏文本框") {
     makeLiveRoomMessageTextFieldPreview()
 }
 
+@available(iOS 17.0, *)
 #Preview("公屏输入容器") {
     makeLiveRoomMessageInputViewPreview()
 }
 
+@available(iOS 17.0, *)
 #Preview("直播操作栏") {
     makeLiveRoomActionBarPreview()
 }

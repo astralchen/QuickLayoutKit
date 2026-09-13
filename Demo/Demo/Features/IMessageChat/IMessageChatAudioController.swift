@@ -11,6 +11,7 @@ import Speech
 import UIKit
 
 /// 媒体控制器向用户呈现的错误。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatMediaFailure: Equatable, Sendable {
     /// 用户未授予麦克风访问权限。
     case microphonePermissionDenied
@@ -33,6 +34,7 @@ nonisolated enum IMessageChatMediaFailure: Equatable, Sendable {
 }
 
 /// 媒体层支持的语音识别实现。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatSpeechBackend: Equatable, Sendable {
     /// 使用 iOS 26 的 Speech Analyzer 进行语音分析。
     case speechAnalyzer
@@ -41,6 +43,7 @@ nonisolated enum IMessageChatSpeechBackend: Equatable, Sendable {
 }
 
 /// 解析语音识别能力，而不向视图控制器暴露可用性检查。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatSpeechConfiguration {
 
     /// 返回指定能力对应的首选语音识别后端。
@@ -117,6 +120,7 @@ nonisolated enum IMessageChatSpeechConfiguration {
 }
 
 /// 所有可见及可复用音频消息 Cell 共享的播放状态。
+@available(iOS 26.0, *)
 nonisolated struct IMessageChatPlaybackState: Equatable, Sendable {
     /// 当前与播放器关联的消息；没有关联消息时为 `nil`。
     let messageID: Int?
@@ -140,6 +144,7 @@ nonisolated struct IMessageChatPlaybackState: Equatable, Sendable {
 }
 
 /// 将实时麦克风输入转换为文本草稿的对象。
+@available(iOS 26.0, *)
 @MainActor
 protocol IMessageChatSpeechTranscribing: AnyObject {
     /// 开始按照指定区域设置转写麦克风输入。
@@ -162,6 +167,7 @@ protocol IMessageChatSpeechTranscribing: AnyObject {
 ///
 /// 实现负责文件创建、波形提取和取消清理。调用方只接收值类型附件，不持有
 /// `AVSpeechSynthesizer` 或 `AVAudioFile`。
+@available(iOS 26.0, *)
 @MainActor
 protocol IMessageChatReplyAudioSynthesizing: AnyObject {
     /// 使用指定语言合成一条模拟回复音频。
@@ -177,6 +183,7 @@ protocol IMessageChatReplyAudioSynthesizing: AnyObject {
 }
 
 /// 文本转音频回复在生成本地附件时可能产生的错误。
+@available(iOS 26.0, *)
 nonisolated enum IMessageChatReplyAudioSynthesisError: Error, Equatable {
     /// 输入文本移除首尾空白后为空。
     case emptyText
@@ -192,6 +199,7 @@ nonisolated enum IMessageChatReplyAudioSynthesisError: Error, Equatable {
 }
 
 /// 请求媒体操作所需权限的对象。
+@available(iOS 26.0, *)
 @MainActor
 protocol IMessageChatMediaPermissionProviding: AnyObject {
     /// 请求访问音频输入。
@@ -202,6 +210,7 @@ protocol IMessageChatMediaPermissionProviding: AnyObject {
 }
 
 /// 配置并激活页面音频会话的对象。
+@available(iOS 26.0, *)
 @MainActor
 protocol IMessageChatAudioSessionControlling: AnyObject {
     /// 用于限定音频会话通知范围的对象。
@@ -218,6 +227,7 @@ protocol IMessageChatAudioSessionControlling: AnyObject {
 }
 
 /// 由 AVFAudio 和 Speech 支持的真实权限提供者。
+@available(iOS 26.0, *)
 @MainActor
 final class IMessageChatSystemPermissionProvider:
     IMessageChatMediaPermissionProviding {
@@ -260,6 +270,7 @@ final class IMessageChatSystemPermissionProvider:
 }
 
 /// 聊天页面使用的真实音频会话控制器。
+@available(iOS 26.0, *)
 @MainActor
 final class IMessageChatSystemAudioSessionController:
     IMessageChatAudioSessionControlling {
@@ -310,6 +321,7 @@ final class IMessageChatSystemAudioSessionController:
 ///
 /// `AVSpeechSynthesizer` 的回调队列不属于页面状态机；包装对象只负责跨越任务
 /// 边界，缓冲区仍只会在主 Actor 上读取。
+@available(iOS 26.0, *)
 private final class IMessageChatReplyAudioBufferBox: @unchecked Sendable {
     /// 从语音合成回调转交给主 Actor 读取的缓冲区。
     let buffer: AVAudioBuffer
@@ -321,6 +333,7 @@ private final class IMessageChatReplyAudioBufferBox: @unchecked Sendable {
 }
 
 /// 保存单次文本转音频操作的文件写入状态。
+@available(iOS 26.0, *)
 nonisolated private final class IMessageChatReplyAudioSynthesisContext {
     /// 标识单次合成操作的令牌，用于拒绝过期缓冲区回调。
     let generation: UUID
@@ -362,6 +375,7 @@ nonisolated private final class IMessageChatReplyAudioSynthesisContext {
 /// 此控制器串行执行音频操作，确保录音与语音转写不会同时使用麦克风。页面附件
 /// 文件由独立的 ``IMessageChatAttachmentStoring`` 管理，图片和视频功能不应加入
 /// 此控制器。
+@available(iOS 26.0, *)
 @MainActor
 final class IMessageChatAudioController: NSObject {
 
@@ -1128,6 +1142,7 @@ final class IMessageChatAudioController: NSObject {
 }
 
 /// 提供将模拟回复文本合成为本地音频附件的实现。
+@available(iOS 26.0, *)
 extension IMessageChatAudioController: IMessageChatReplyAudioSynthesizing {
 
     /// 使用系统声线把本地化回复文本写入页面临时音频文件。
@@ -1366,6 +1381,7 @@ extension IMessageChatAudioController: IMessageChatReplyAudioSynthesizing {
 }
 
 /// 处理录音编码失败，并将系统回调转交主 Actor。
+@available(iOS 26.0, *)
 extension IMessageChatAudioController: AVAudioRecorderDelegate {
     /// 在录音编码失败时停止当前操作并发布录音失败状态。
     nonisolated func audioRecorderEncodeErrorDidOccur(
@@ -1381,6 +1397,7 @@ extension IMessageChatAudioController: AVAudioRecorderDelegate {
 }
 
 /// 处理音频解码错误与播放结束的系统代理回调。
+@available(iOS 26.0, *)
 extension IMessageChatAudioController: AVAudioPlayerDelegate {
     /// 在音频解码失败时转回主 Actor 清理播放，并报告错误。
     nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: (any Error)?) {
@@ -1418,6 +1435,7 @@ extension IMessageChatAudioController: AVAudioPlayerDelegate {
 /// `SpeechTranscriber` 所需资源。Analyzer 启动阶段不可用时会降级到
 /// `SFSpeechRecognizer`；两个后端均不可用时才把启动错误返回给调用方。旧版实现
 /// 同时为未来降低 Demo 部署目标而保留，并在支持时优先采用设备端识别。
+@available(iOS 26.0, *)
 @MainActor
 final class IMessageChatSpeechRecognitionService: IMessageChatSpeechTranscribing {
 
@@ -1459,43 +1477,33 @@ final class IMessageChatSpeechRecognitionService: IMessageChatSpeechTranscribing
         failure: @escaping @MainActor () -> Void
     ) async throws {
         stop()
-        let backend: IMessageChatSpeechBackend
-        if let requestedBackend {
-            backend = requestedBackend
-        } else if #available(iOS 26.0, *) {
-            backend = .speechAnalyzer
-        } else {
-            backend = .speechRecognizer
-        }
+        let backend = requestedBackend ?? .speechAnalyzer
 
         if backend == .speechAnalyzer {
-            if #available(iOS 26.0, *) {
-                do {
-                    try await startModern(
-                        locale: locale,
-                        result: result,
-                        failure: failure
-                    )
-                    return
-                } catch is CancellationError {
-                    throw CancellationError()
-                } catch {
-                    guard IMessageChatSpeechConfiguration.fallbackBackend(
-                        afterFailureOf: backend,
-                        wasExplicitlyRequested: requestedBackend != nil
-                    ) == .speechRecognizer else {
-                        throw error
-                    }
-                    stop()
-                    try startLegacy(
-                        locale: locale,
-                        result: result,
-                        failure: failure
-                    )
-                    return
+            do {
+                try await startModern(
+                    locale: locale,
+                    result: result,
+                    failure: failure
+                )
+                return
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                guard IMessageChatSpeechConfiguration.fallbackBackend(
+                    afterFailureOf: backend,
+                    wasExplicitlyRequested: requestedBackend != nil
+                ) == .speechRecognizer else {
+                    throw error
                 }
+                stop()
+                try startLegacy(
+                    locale: locale,
+                    result: result,
+                    failure: failure
+                )
+                return
             }
-            throw CocoaError(.featureUnsupported)
         }
         try startLegacy(
             locale: locale,
