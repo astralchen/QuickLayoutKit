@@ -150,6 +150,23 @@ final class IMessageChatPhotoPickerController: NSObject,
         super.init()
     }
 
+    #if DEBUG
+    /// 使用真实本地样例覆盖导入步骤，以确定性验证照片草稿入口。
+    func applyPreviewFixture(_ group: IMessageChatMediaGroupAttachment) {
+        discardDraft()
+        groupID = group.id
+        entries = group.items.map { item in
+            let entry = DraftEntry(id: item.id, assetIdentifier: item.assetIdentifier)
+            entry.content = .ready(item)
+            entry.originalURL = item.originalFileURL
+            entry.thumbnailURL = item.thumbnailFileURL
+            return entry
+        }
+        registerReadyDraftIfPossible()
+        publishDraft()
+    }
+    #endif
+
     /// 当前媒体草稿的有序展示快照；没有条目时为 `nil`。
     var draft: IMessageChatMediaDraftPresentation? {
         guard !entries.isEmpty else { return nil }
@@ -278,7 +295,7 @@ final class IMessageChatPhotoPickerController: NSObject,
         publishDraft()
     }
 
-    /// 将全部就绪的媒体草稿转为已提交附件，并开始新的草稿版本。
+    /// 将全部就绪的媒体草稿转为已提交附件，清除系统勾选并保留面板当前档位。
     ///
     /// - Returns: 有可发送媒体组且完成提交时为 `true`；否则为 `false`。
     @discardableResult
@@ -287,9 +304,14 @@ final class IMessageChatPhotoPickerController: NSObject,
         if !attachmentStore.commitDraft(id: attachment.id) {
             attachmentStore.registerCommitted(.mediaGroup(attachment))
         }
+        let selectedIdentifiers = entries.compactMap(\.assetIdentifier)
         entries.removeAll()
         groupID = UUID()
         generation &+= 1
+        // 先清空草稿并推进版本，再同步系统选择，避免同步回调复用已提交的条目。
+        if !selectedIdentifiers.isEmpty {
+            picker?.deselectAssets(withIdentifiers: selectedIdentifiers)
+        }
         publishDraft()
         return true
     }

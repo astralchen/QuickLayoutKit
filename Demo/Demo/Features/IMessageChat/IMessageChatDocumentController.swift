@@ -1,6 +1,5 @@
 import Foundation
 import LinkPresentation
-import QuickLook
 import QuickLookThumbnailing
 import UIKit
 import UniformTypeIdentifiers
@@ -23,7 +22,7 @@ nonisolated struct IMessageChatDocumentDraft: Equatable, Sendable {
 
 /// 文件和网页的独立草稿所有者。删除、提交或退出后，迟到的导入结果只做清理。
 @available(iOS 26.0, *)
-final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, QLPreviewControllerDataSource {
+final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate {
     /// 与页面其他附件控制器共享的本地文件存储。
     let store: any IMessageChatAttachmentStoring
     /// 按稳定标识符登记的当前文档草稿集合。
@@ -44,12 +43,8 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
     private var providers: [UUID: LPMetadataProvider] = [:]
     /// 按附件身份保存的系统项目加载进度，支持取消导入。
     private var imports: [UUID: Progress] = [:]
-    /// Quick Look 当前持有的本地预览文件 URL。
-    private var previewFile: NSURL?
-    /// 当前预览文件所属的附件标识符。
-    private var previewID: UUID?
-    /// 当前展示的 Quick Look 控制器；弱引用避免延长展示生命周期。
-    private weak var previewController: QLPreviewController?
+    /// 草稿删除前通知页面关闭仍在使用该文件的预览。
+    var willRemoveDraft: ((UUID) -> Void)?
 
     /// 创建使用指定页面附件存储的文档控制器。
     init(store: any IMessageChatAttachmentStoring) { self.store = store }
@@ -385,7 +380,7 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
     /// 取消指定草稿的异步工作，关闭其预览并删除未提交文件。
     func remove(_ id: UUID) {
         cancelWork(id)
-        if previewID == id { previewController?.dismiss(animated: true); previewFile = nil; previewID = nil }
+        willRemoveDraft?(id)
         drafts[id] = nil
         store.discardDraft(id: id)
     }
@@ -412,36 +407,4 @@ final class IMessageChatDocumentController: NSObject, UIDocumentPickerDelegate, 
         providers.removeValue(forKey: id)?.cancel()
     }
 
-    /// 按附件类型打开本地 Quick Look 预览或系统网页链接。
-    ///
-    /// 媒体组使用首个原件预览；音频气泡不在此入口处理。
-    func open(_ attachment: IMessageChatAttachment, from controller: UIViewController) {
-        switch attachment {
-        case .file(let file):
-            guard FileManager.default.isReadableFile(atPath: file.fileURL.path) else { return }
-            previewFile = file.fileURL as NSURL
-            previewID = file.id
-            let preview = QLPreviewController()
-            preview.dataSource = self
-            previewController = preview
-            controller.present(preview, animated: true)
-        case .link(let link): UIApplication.shared.open(link.url)
-        case .mediaGroup(let group):
-            guard let file = group.items.first?.originalFileURL else { return }
-            previewFile = file as NSURL
-            previewID = group.id
-            let preview = QLPreviewController()
-            preview.dataSource = self
-            previewController = preview
-            controller.present(preview, animated: true)
-        case .audio: break
-        }
-    }
-
-    /// 返回当前可供 Quick Look 预览的文件数量，值为零或一。
-    func numberOfPreviewItems(in controller: QLPreviewController) -> Int { previewFile == nil ? 0 : 1 }
-    /// 向 Quick Look 提供当前预览文件；没有文件时返回空 URL 对象。
-    func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> any QLPreviewItem {
-        previewFile ?? NSURL()
-    }
 }

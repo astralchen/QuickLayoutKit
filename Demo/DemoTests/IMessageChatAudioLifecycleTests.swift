@@ -176,61 +176,52 @@ struct IMessageChatAudioLifecycleTests {
         #expect(session.deactivationCount == 1)
     }
 
-    @Test func videoAndAudioAreMutuallyExclusiveAcrossNativePlaybackAndBackground() async throws {
+    @Test func videoAndAudioAreMutuallyExclusiveAcrossInlinePlaybackAndBackground() async throws {
         guard #available(iOS 26.0, *) else { return }
         let fixture = try Fixture()
         let url = try await makeVideo(in: fixture.store)
         let item = IMessageChatMediaItem(assetIdentifier: nil, originalFileURL: url,
                                         thumbnailFileURL: url, pixelSize: CGSize(width: 64, height: 48),
                                         kind: .video(duration: 10))
-        let preview = IMessageChatMediaPreviewController(group: .init(items: [item]), initialIndex: 0,
-            strings: .init(photo: "Photos", itemsFormat: "%d items", image: "Image", animatedImage: "Animated image",
-                           video: "Video", videoDurationFormat: "%@", importing: "Importing", remove: "Remove",
-                           play: "Play", openPreview: "Preview", close: "Close", firstItem: "First", lastItem: "Last",
-                           positionFormat: "%d of %d"), playbackCoordinator: fixture.media.playbackCoordinator)
+        let preview = IMessageChatAttachmentPreviewController(
+            items: IMessageChatAttachmentPreviewItem.prepare(.mediaGroup(.init(items: [item]))),
+            initialIndex: 0, playbackCoordinator: fixture.media.playbackCoordinator)
         let host = try WindowHost(root: preview)
         defer { fixture.clean(); host.close() }
-        let collection = try #require(preview.view.subviews.compactMap { $0 as? UICollectionView }.first)
-        #expect(await eventually { !collection.visibleCells.isEmpty })
-        func firstButton(in view: UIView) -> UIButton? {
-            if let button = view as? UIButton { return button }
-            return view.subviews.lazy.compactMap { firstButton(in: $0) }.first
-        }
-        let cell = try #require(collection.visibleCells.first)
-        let button = try #require(firstButton(in: cell))
+        #expect(preview.playback.player?.rate == 0)
         fixture.play()
         #expect(await eventually { fixture.media.playbackState.progress > 0 })
-        button.sendActions(for: .touchUpInside)
-        #expect(await eventually { (preview.presentedViewController as? AVPlayerViewController)?.player?.rate == 1 })
+        preview.playButton.sendActions(for: .touchUpInside)
+        #expect(await eventually { preview.playback.player?.rate == 1 })
         #expect(fixture.media.playbackState == .idle)
-        let controller = try #require(preview.presentedViewController as? AVPlayerViewController)
-        let player = try #require(controller.player)
-        #expect(!controller.allowsPictureInPicturePlayback)
+        let player = try #require(preview.playback.player)
+        #expect(await eventually { preview.playback.duration > 0 })
+        preview.playback.beginSeeking()
+        preview.playback.beginSeeking() // Duplicate touch-down must not replace the original playback intent.
+        preview.playback.seek(fraction: 0.3, finished: true)
+        preview.playback.seek(fraction: 0.5, finished: true)
+        preview.playback.seek(fraction: 0.5, finished: false) // iOS 26 slider settling may deliver valueChanged after touch-up.
+        #expect(await eventually { preview.playback.isPlaying && preview.playback.time >= 4.9 })
+        #expect(preview.presentedViewController == nil)
         #expect(AVAudioSession.sharedInstance().category == .playback)
         NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
         #expect(player.rate == 0)
         NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
         #expect(player.rate == 0)
-        // 原生控件暂停后重播仍归视频所有；切换到音频必须同步停止旧视频。
-        player.play()
-        #expect(player.rate == 1)
+        preview.playButton.sendActions(for: .touchUpInside)
+        #expect(await eventually { player.rate == 1 })
         fixture.play()
         #expect(fixture.media.playbackState.isPlaying)
         #expect(player.rate == 0)
-        #expect(controller.player == nil)
-        #expect(await eventually { preview.presentedViewController == nil })
+        #expect(preview.playback.player == nil)
         #expect(fixture.fileExists)
-        // 再切回视频，覆盖连续双向切换和旧对象迟到清理不能释放新所有者。
-        button.sendActions(for: .touchUpInside)
-        #expect(await eventually { (preview.presentedViewController as? AVPlayerViewController)?.player?.rate == 1 })
+        preview.playButton.sendActions(for: .touchUpInside)
+        #expect(await eventually { preview.playback.player?.rate == 1 })
         #expect(fixture.media.playbackState == .idle)
-        let nextController = try #require(preview.presentedViewController as? AVPlayerViewController)
-        let nextPlayer = try #require(nextController.player)
-        await withCheckedContinuation { continuation in
-            nextController.dismiss(animated: false) { continuation.resume() }
-        }
+        let nextPlayer = try #require(preview.playback.player)
+        preview.completeDismissal()
         #expect(nextPlayer.rate == 0)
-        #expect(nextController.player == nil)
+        #expect(preview.playback.player == nil)
         #expect(fixture.media.playbackState == .idle)
     }
 

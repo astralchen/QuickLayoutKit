@@ -163,6 +163,55 @@ struct IMessageChatMediaTests {
         #expect(complete.attachment?.items.map(\.id) == fixture.group.items.map(\.id))
     }
 
+    /// 导入中与追加媒体时保持发送入口，只有全部就绪才可发送，清空后恢复听写。
+    @Test func composerKeepsSendButtonThroughoutMediaImport() throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 2)
+        defer { fixture.remove() }
+        let host = UIViewController()
+        let window = try makeVisibleTestWindow(rootViewController: host)
+        defer { window.isHidden = true }
+        let composer = IMessageChatComposerView(frame: CGRect(x: 0, y: 100, width: 402, height: 60))
+        host.view.addSubview(composer)
+        var actions: [IMessageChatComposerAction] = []
+        composer.actionRequested = { actions.append($0); return false }
+        let ready = fixture.group.items.map {
+            IMessageChatMediaDraftItemPresentation(id: $0.id, assetIdentifier: $0.assetIdentifier, content: .ready($0))
+        }
+        let importing = ready.map {
+            IMessageChatMediaDraftItemPresentation(id: $0.id, assetIdentifier: $0.assetIdentifier, content: .importing)
+        }
+        func visible(_ view: UIView) -> Bool {
+            guard view.window != nil else { return false }
+            var ancestor: UIView? = view
+            while let current = ancestor {
+                if current.isHidden || current.alpha == 0 { return false }
+                ancestor = current.superview
+            }
+            return true
+        }
+        func check(_ items: [IMessageChatMediaDraftItemPresentation], canSend: Bool) {
+            composer.applyMediaDraft(items.isEmpty ? nil : .init(groupID: fixture.group.id, items: items))
+            composer.frame.size.height = composer.intrinsicContentSize.height
+            composer.layoutIfNeeded()
+            #expect(visible(composer.sendButton) == !items.isEmpty)
+            #expect(visible(composer.dictationButton) == items.isEmpty)
+            #expect(composer.sendButton.isEnabled == canSend)
+            #expect(!composer.textView.isFirstResponder)
+        }
+        check([], canSend: false)
+        check([importing[0]], canSend: false)
+        composer.sendButton.sendActions(for: .touchUpInside)
+        #expect(actions.isEmpty)
+        check([ready[0]], canSend: true)
+        check([ready[0], importing[1]], canSend: false)
+        composer.sendButton.sendActions(for: .touchUpInside)
+        #expect(actions.isEmpty)
+        check(ready, canSend: true)
+        check([ready[0]], canSend: true)
+        check([], canSend: false)
+    }
+
     @Test func mediaDraftItemWidthFollowsAttachmentAspectRatioWithinLimits() {
         guard #available(iOS 26.0, *) else { return }
         #expect(
@@ -778,6 +827,37 @@ struct IMessageChatMediaTests {
         #expect(fixture.group.localFileURLs.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
     }
 
+    /// 提交消费草稿并保留面板实例与档位，后续丢弃空草稿不能删除已发送原件。
+    @Test func committingPhotoDraftKeepsPresentedSheetAndCommittedFiles() async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 2, hasAssetIdentifiers: false)
+        defer { fixture.remove() }
+        let store = IMessageChatPageAttachmentStore()
+        defer { store.removeAll() }
+        let controller = IMessageChatPhotoPickerController(attachmentStore: store)
+        controller.applyPreviewFixture(fixture.group)
+        let presenter = UIViewController()
+        let window = try makeVisibleTestWindow(rootViewController: presenter)
+        defer { window.isHidden = true }
+        var dismissCount = 0
+        controller.pickerDidDismiss = { dismissCount += 1 }
+        controller.present(from: presenter, keyboardHeight: 300)
+        try await Task.sleep(for: .milliseconds(600))
+        let host = try #require(presenter.presentedViewController)
+        let sheet = try #require(host.sheetPresentationController)
+        sheet.selectedDetentIdentifier = .large
+        #expect(controller.commitDraft())
+        #expect(controller.draft == nil)
+        #expect(controller.isPresented)
+        #expect(presenter.presentedViewController === host)
+        #expect(sheet.selectedDetentIdentifier == .large)
+        #expect(dismissCount == 0)
+        #expect(!controller.commitDraft())
+        controller.discardDraft()
+        #expect(fixture.group.localFileURLs.allSatisfy { FileManager.default.fileExists(atPath: $0.path) })
+        controller.dismissPicker(animated: false)
+    }
+
     @Test func outgoingMediaGroupFitsInsideIPhone16ProMessageRow() throws {
         guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 3)
@@ -812,6 +892,37 @@ struct IMessageChatMediaTests {
         #expect(fitted.size.height >= frame.height + 20)
         #expect(fitted.size.height <= frame.height + 40)
         #expect(frame.maxY < fitted.size.height)
+    }
+
+    @Test func adjacentMediaRowsReserveTheirFullHeightInLiveConversation() async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 6)
+        defer { fixture.remove() }
+        let host = UIViewController()
+        let conversation = IMessageConversationView(frame: CGRect(x: 0, y: 0, width: 402, height: 874))
+        host.view = conversation
+        let window = try makeVisibleTestWindow(rootViewController: host)
+        defer { window.isHidden = true; window.rootViewController = nil }
+        let rows: [IMessageChatTimelineItem] = [
+            .init(id: .message(1), content: .message(.init(id: 1, direction: .incoming, text: "Before attachments", deliveryText: nil))),
+            .init(id: .message(2), content: .message(.init(id: 2, direction: .outgoing, attachment: .mediaGroup(fixture.group), deliveryText: "Read"))),
+            .init(id: .message(3), content: .message(.init(id: 3, direction: .incoming, attachment: .mediaGroup(fixture.group), deliveryText: nil))),
+        ]
+        conversation.render(.init(timeline: rows, isTyping: false), reason: .initial)
+        // Allow diffable data source and compositional self-sizing to complete in a real window.
+        try await Task.sleep(for: .milliseconds(500))
+        let collection = conversation.collectionView
+        collection.layoutIfNeeded()
+        let first = try #require(collection.layoutAttributesForItem(at: IndexPath(item: 1, section: 0)))
+        let second = try #require(collection.layoutAttributesForItem(at: IndexPath(item: 2, section: 0)))
+        #expect(first.frame.height >= 350)
+        #expect(second.frame.height >= 340)
+        #expect(first.frame.maxY <= second.frame.minY)
+        for cell in collection.visibleCells.compactMap({ $0 as? IMessageChatMediaBubbleCell }) {
+            let media = cell.mediaView.convert(cell.mediaView.bounds, to: cell)
+            #expect(media.minY >= 0)
+            #expect(media.maxY <= cell.bounds.height)
+        }
     }
 
     @Test func bottomObstructionExcludesTheContainerSafeArea() {
@@ -1153,6 +1264,7 @@ private final class MediaFixture {
         videoIndices: Set<Int> = [],
         pixelSizes: [CGSize]? = nil,
         animatedIndices: Set<Int> = [],
+        hasAssetIdentifiers: Bool = true,
         parentDirectory: URL? = nil
     ) throws {
         directory = parentDirectory ?? FileManager.default.temporaryDirectory
@@ -1166,7 +1278,7 @@ private final class MediaFixture {
             try Data([UInt8((index + 1) % 255)]).write(to: thumbnail)
             items.append(
                 IMessageChatMediaItem(
-                    assetIdentifier: "asset-\(index)",
+                    assetIdentifier: hasAssetIdentifiers ? "asset-\(index)" : nil,
                     originalFileURL: original,
                     thumbnailFileURL: thumbnail,
                     pixelSize: pixelSizes?[safe: index]

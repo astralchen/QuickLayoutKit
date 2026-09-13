@@ -15,6 +15,7 @@
             <SelectedTests>
                <Test Identifier="IMessageChatKeyboardUITests" />
                <Test Identifier="IMessageChatAudioCardUITests" />
+               <Test Identifier="IMessageChatAttachmentPreviewUITests" />
             </SelectedTests>
          </TestableReference>
       </Testables>

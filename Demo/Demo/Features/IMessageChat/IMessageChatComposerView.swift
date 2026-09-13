@@ -234,6 +234,8 @@ nonisolated enum IMessageChatComposerAction: Equatable, Sendable {
     case sendMediaDraft(String)
     /// 从媒体草稿中删除指定项目。
     case removeMediaDraftItem(UUID)
+    /// 请求预览已就绪的照片草稿。
+    case openMediaDraftItem(UUID)
     /// 请求显示指定种类的附件输入入口。
     case requestAttachment(kind: IMessageChatAttachmentKind)
     /// 停止当前录音并保留有效音频供预览。
@@ -663,7 +665,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
             .padding(.vertical, 4)
     }
 
-    /// 根据可发送内容与听写状态选择发送或听写按钮的布局。
+    /// 根据草稿是否存在与听写状态选择按钮；导入中保留发送入口，仅禁用发送。
     @LayoutBuilder
     private var textActionLayout: Layout {
         switch composerState {
@@ -676,7 +678,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                 )
                 .padding(.bottom, Metrics.textDictationBottomPadding)
         case .idle, .recording, .audioPreview:
-            if isShowingRecordingUnavailableHint || !textAttachments.isEmpty || hasSendableContent {
+            if isShowingRecordingUnavailableHint || mediaDraft != nil || !textAttachments.isEmpty || hasSendableContent {
                 sendButton
                     .resizable()
                     .frame(
@@ -1524,6 +1526,7 @@ final class IMessageChatComposerView: QuickLayoutView, UITextViewDelegate {
                 height: Metrics.mediaControlHitSize
             )
         }
+        mediaDraftStripView.previewRequested = { [weak self] id in _ = self?.actionRequested?(.openMediaDraftItem(id)) }
         mediaDraftStripView.removeRequested = { [weak self] id in
             guard let self, !isShowingRecordingUnavailableHint else { return }
             _ = actionRequested?(.removeMediaDraftItem(id))

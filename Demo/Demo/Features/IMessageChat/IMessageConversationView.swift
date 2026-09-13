@@ -18,7 +18,7 @@ nonisolated enum IMessageChatMessageAction: Equatable, Sendable {
     /// 请求重试指定身份的失败消息。
     case retryMessage(messageID: Int)
     /// 请求打开文件或链接附件。
-    case openDocument(IMessageChatAttachment)
+    case openDocument(messageID: Int, attachment: IMessageChatAttachment)
     /// 请求保存指定消息中的附件。
     case saveAttachment(messageID: Int, attachment: IMessageChatAttachment)
     /// 请求切换指定消息音频的播放状态。
@@ -119,6 +119,25 @@ final class IMessageConversationView: UIView {
 
     /// 消息 Cell 请求页面级操作时调用。
     var actionRequested: ((IMessageChatMessageAction) -> Void)?
+
+    /// 重新查询可见 Cell；收回媒体组前同步封面而不移动列表。
+    func previewSource(messageID: Int, attachmentID: UUID, index: Int, synchronize: Bool) -> UIView? {
+        guard let message = lastState?.timeline.compactMap({ item -> IMessageChatMessagePresentation? in
+            guard case .message(let message) = item.content else { return nil }; return message
+        }).first(where: { $0.id == messageID }), case .attachment(let attachment) = message.content,
+              attachment.id == attachmentID else { return nil }
+        if case .mediaGroup(let group) = attachment {
+            if synchronize { mediaStackStateStore.setIndex(index, for: messageID, itemCount: group.items.count) }
+            guard let cell = collectionView.visibleCells.compactMap({ $0 as? IMessageChatMediaBubbleCell }).first(where: { $0.previewMessageID == messageID }) else { return nil }
+            if synchronize {
+                cell.mediaView.configure(messageID: messageID, direction: message.direction, group: group, frontIndex: index, strings: mediaStrings)
+                cell.layoutIfNeeded()
+                cell.mediaView.layoutIfNeeded()
+            }
+            return cell.mediaView.previewSourceView
+        }
+        return collectionView.visibleCells.compactMap { $0 as? IMessageChatDocumentBubbleCell }.first { $0.previewMessageID == messageID }?.card
+    }
 
     /// 使用指定初始边框创建 `IMessageConversationView`，并配置其子视图和默认外观。
     ///
@@ -227,7 +246,7 @@ final class IMessageConversationView: UIView {
                             case .file, .link:
                                 Row(model: message, cell: IMessageChatDocumentBubbleCell.self) { [weak self] cell, message, _ in
                                     cell.deliveryStatusView.retryRequested = { [weak self] in self?.actionRequested?(.retryMessage(messageID: $0)) }
-                                    cell.open = { [weak self] in self?.actionRequested?(.openDocument($0)) }
+                                    cell.open = { [weak self] in self?.actionRequested?(.openDocument(messageID: message.id, attachment: $0)) }
                                     cell.saveRequested = { [weak self] in
                                         self?.actionRequested?(.saveAttachment(messageID: message.id, attachment: attachment))
                                     }

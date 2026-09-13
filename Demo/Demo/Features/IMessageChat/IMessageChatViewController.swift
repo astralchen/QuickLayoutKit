@@ -8,10 +8,17 @@ import AppLocalization
 import QuickLayout
 import QuickLayoutKit
 import UIKit
+import QuickLook
 
 /// 支持文本、录制音频和语音转写草稿的一对一聊天 Demo。
 @available(iOS 26.0, *)
 final class IMessageChatViewController: LocalizedQuickLayoutHostingController {
+
+    /// 异步文件分类任务及当前预览来源，拒绝过期展示请求。
+    private var attachmentPreviewTask: Task<Void, Never>?
+    private var attachmentPreviewGeneration = 0
+    private weak var attachmentPreviewController: UIViewController?
+    private var attachmentPreviewSource: IMessageChatAttachmentPreviewRequest.Source?
 
     /// 聊天演示页面标题使用的本地化资源键。
     override var localizedTitleKey: String? { "demo.imessage.title" }
@@ -175,7 +182,16 @@ final class IMessageChatViewController: LocalizedQuickLayoutHostingController {
         configureInteractions()
         #if DEBUG
         if let fixture = try? IMessageChatSavePreviewFixtures.attachment(store: attachmentStore) {
-            viewModel.appendSavePreviewAttachment(fixture)
+            if ProcessInfo.processInfo.arguments.contains("-imessage-preview-draft") {
+                if case .mediaGroup(let group) = fixture { photoController.applyPreviewFixture(group) }
+                else if case .file(let file) = fixture { documentController.importDocument(file.fileURL) }
+            } else { viewModel.appendSavePreviewAttachment(fixture) }
+        }
+        if ProcessInfo.processInfo.arguments.contains("preview-video") {
+            Task { [weak self] in
+                guard let self, let fixture = try? await IMessageChatSavePreviewFixtures.videoAttachment(store: attachmentStore), !hasCleanedUpChat else { return }
+                viewModel.appendSavePreviewAttachment(fixture)
+            }
         }
         #endif
         bindViewModel()
@@ -226,6 +242,10 @@ final class IMessageChatViewController: LocalizedQuickLayoutHostingController {
         guard isLeavingChat, transitionCoordinator?.isCancelled != true,
               !hasCleanedUpChat else { return }
         hasCleanedUpChat = true
+        attachmentPreviewTask?.cancel()
+        attachmentPreviewGeneration += 1
+        (attachmentPreviewController as? IMessageChatAttachmentPreviewController)?.playback.stop()
+        attachmentPreviewController?.dismiss(animated: false)
         attachmentSaveCoordinator.invalidate()
         composerView.dismissRecordingUnavailableHint()
         composerView.pasteCoordinator.invalidate()
@@ -312,6 +332,13 @@ final class IMessageChatViewController: LocalizedQuickLayoutHostingController {
         audioController.failureDidOccur = { [weak self] failure in
             self?.presentMediaFailure(failure)
         }
+        documentController.willRemoveDraft = { [weak self] id in
+            guard let self, attachmentPreviewSource == .documentDraft(id) else { return }
+            attachmentPreviewTask?.cancel()
+            attachmentPreviewGeneration += 1
+            (attachmentPreviewController as? IMessageChatAttachmentPreviewController)?.playback.stop()
+            attachmentPreviewController?.dismiss(animated: false)
+        }
         documentController.willInsert = { [weak self] in
             guard let self else { return }
             if let selection = documentMenuSelection {
@@ -390,11 +417,19 @@ final class IMessageChatViewController: LocalizedQuickLayoutHostingController {
         case .openDocument(let id):
             guard let draft = documentController.drafts[id], draft.status == .ready else { return false }
             audioController.stopPlayback()
-            documentController.open(draft.attachment, from: presentedViewController ?? self)
+            openAttachmentPreview(.init(attachment: draft.attachment, source: .documentDraft(id)))
             return true
         case .insertLink(let url):
             return documentController.insertLink(url)
 
+        case .openMediaDraftItem(let id):
+            guard let draft = photoController.draft else { return false }
+            let ready = draft.items.compactMap { item -> IMessageChatMediaItem? in
+                guard case .ready(let media) = item.content else { return nil }; return media
+            }
+            guard let index = ready.firstIndex(where: { $0.id == id }) else { return false }
+            openAttachmentPreview(.init(attachment: .mediaGroup(.init(id: draft.groupID, items: ready)), initialIndex: index, source: .photoDraft(draft.groupID)))
+            return true
         case .removeMediaDraftItem(let id):
             photoController.removeItem(id: id)
             return true
@@ -509,7 +544,7 @@ final class IMessageChatViewController: LocalizedQuickLayoutHostingController {
         }
         documentController.commit(ids)
         if photoController.draft != nil { _ = photoController.commitDraft() }
-        photoController.dismissPicker(animated: true)
+        // 发送只消费草稿；照片面板继续保留当前档位，便于连续选择并发送。
         return true
     }
 
@@ -555,6 +590,73 @@ final class IMessageChatViewController: LocalizedQuickLayoutHostingController {
         present(alert, animated: true)
     }
 
+    /// 分类文件后统一展示；保留编辑器内容、选区和底层照片面板。
+    private func openAttachmentPreview(_ request: IMessageChatAttachmentPreviewRequest) {
+        guard attachmentPreviewController == nil else { return }
+        audioController.stopPlayback()
+        if case .link(let link) = request.attachment { UIApplication.shared.open(link.url); return }
+        attachmentPreviewTask?.cancel()
+        attachmentPreviewGeneration += 1
+        let generation = attachmentPreviewGeneration
+        attachmentPreviewSource = request.source
+        let hadFocus = composerView.textView.isFirstResponder
+        let selection = composerView.textView.selectedRange
+        let document = NSAttributedString(attributedString: composerView.textView.attributedText)
+        let work = Task.detached(priority: .userInitiated) { IMessageChatAttachmentPreviewItem.prepare(request.attachment) }
+        attachmentPreviewTask = Task { [weak self] in
+            var items = await withTaskCancellationHandler(operation: { await work.value }, onCancel: { work.cancel() })
+            guard !Task.isCancelled, let self, generation == attachmentPreviewGeneration, !hasCleanedUpChat, !items.isEmpty else { return }
+            switch request.source {
+            case .documentDraft(let id): guard documentController.drafts[id]?.status == .ready else { return }
+            case .photoDraft(let id): guard photoController.draft?.groupID == id else { return }
+            case .message: break
+            }
+            let restore: () -> Void = { [weak self] in
+                guard let self else { return }
+                attachmentPreviewController = nil
+                attachmentPreviewSource = nil
+                guard !hasCleanedUpChat else { return }
+                if composerView.textView.attributedText.isEqual(to: document), NSMaxRange(selection) <= composerView.textView.textStorage.length {
+                    composerView.textView.selectedRange = selection
+                }
+                if hadFocus { composerView.textView.becomeFirstResponder() }
+            }
+            let controller: UIViewController
+            if items.count == 1, items[0].kind == .quickLook, QLPreviewController.canPreview(items[0].url as NSURL) {
+                let quickLook = IMessageChatQuickLookPreviewController(url: items[0].url)
+                quickLook.didClose = restore
+                controller = quickLook
+            } else {
+                if items.count == 1, items[0].kind == .quickLook {
+                    let item = items[0]
+                    items[0] = .init(id: item.id, url: item.url, thumbnailURL: item.thumbnailURL, title: item.title, kind: .unavailable)
+                }
+                let preview = IMessageChatAttachmentPreviewController(items: items, initialIndex: request.initialIndex, playbackCoordinator: audioController.playbackCoordinator)
+                preview.didClose = restore
+                preview.sourceResolver = { [weak self] index, synchronize in
+                    guard let self else { return nil }
+                    switch request.source {
+                    case .message(let id):
+                        return conversationView.previewSource(messageID: id, attachmentID: request.attachment.id, index: index, synchronize: synchronize)
+                    case .documentDraft(let id):
+                        return composerView.textAttachments[id]?.previewSourceView
+                    case .photoDraft(let id):
+                        guard photoController.draft?.groupID == id, items.indices.contains(index) else { return nil }
+                        return composerView.mediaDraftStripView.previewSource(id: items[index].id)
+                    }
+                }
+                controller = preview
+            }
+            controller.view.semanticContentAttribute = composerView.semanticContentAttribute
+            attachmentPreviewController = controller
+            var presenter: UIViewController = self
+            while let presented = presenter.presentedViewController { presenter = presented }
+            guard !presenter.isBeingDismissed else { restore(); return }
+            if hadFocus { composerView.textView.resignFirstResponder() }
+            presenter.present(controller, animated: true)
+        }
+    }
+
     /// 把时间线消息操作路由到类型专属的页面协调器。
     ///
     /// - Parameter action: Cell 发出的值类型操作。
@@ -568,23 +670,15 @@ final class IMessageChatViewController: LocalizedQuickLayoutHostingController {
                 return message
             }).first(where: { $0.id == messageID && $0.content == .attachment(attachment) }) else { return }
             attachmentSaveCoordinator.save(message: message, from: self)
-        case .openDocument(let attachment):
-            audioController.stopPlayback()
-            documentController.open(attachment, from: presentedViewController ?? self)
+        case .openDocument(let messageID, let attachment):
+            openAttachmentPreview(.init(attachment: attachment, source: .message(messageID)))
         case .toggleAudioPlayback(let messageID, let attachment):
             audioController.toggleMessagePlayback(
                 messageID: messageID,
                 attachment: attachment
             )
-        case .openMediaGroup(_, let attachment, let index):
-            audioController.stopPlayback()
-            let preview = IMessageChatMediaPreviewController(
-                group: attachment,
-                initialIndex: index,
-                strings: makeMediaStrings(),
-                playbackCoordinator: audioController.playbackCoordinator
-            )
-            present(preview, animated: true)
+        case .openMediaGroup(let messageID, let attachment, let index):
+            openAttachmentPreview(.init(attachment: .mediaGroup(attachment), initialIndex: index, source: .message(messageID)))
         }
     }
 

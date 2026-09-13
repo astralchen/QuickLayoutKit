@@ -238,6 +238,11 @@ final class IMessageChatMediaDraftStripView: UIView {
 
     /// 用户请求删除草稿项目时调用的闭包，参数为项目身份。
     var removeRequested: ((UUID) -> Void)?
+    /// 请求打开已完成导入的照片草稿。
+    var previewRequested: ((UUID) -> Void)?
+    /// 按草稿稳定身份返回当前缩略图来源。
+    func previewSource(id: UUID) -> UIView? { itemViews[id] }
+
 
     /// 测试和页面级调试用于确认当前有序预览项的实际 frame。
     var renderedItemFrames: [CGRect] {
@@ -312,6 +317,7 @@ final class IMessageChatMediaDraftStripView: UIView {
                 contentView.addSubview(itemView)
                 itemViews[item.id] = itemView
             }
+            itemView.previewRequested = { [weak self] in self?.previewRequested?(item.id) }
             itemView.order = order
             itemView.configure(
                 item,
@@ -349,6 +355,10 @@ final class IMessageChatMediaDraftStripView: UIView {
         var itemSize = IMessageChatMediaDraftLayoutPolicy.itemSize(for: nil)
         /// 用户点击本项目删除按钮时调用的闭包。
         var removeRequested: (() -> Void)?
+        /// 已就绪项目的打开动作；导入期间不触发。
+        var previewRequested: (() -> Void)?
+        private var isReady = false
+
 
         /// 使用指定初始边框创建 `DraftItemView`，并配置其子视图和默认外观。
         ///
@@ -362,6 +372,8 @@ final class IMessageChatMediaDraftStripView: UIView {
 
             imageView.contentMode = .scaleAspectFill
             imageView.clipsToBounds = true
+            imageView.isUserInteractionEnabled = true
+            imageView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(previewTapped)))
             addSubview(imageView)
 
             activityIndicator.hidesWhenStopped = true
@@ -432,11 +444,17 @@ final class IMessageChatMediaDraftStripView: UIView {
             durationLabel.isHidden = true
             animatedBadgeView.isHidden = true
             itemSize = IMessageChatMediaDraftLayoutPolicy.itemSize(for: nil)
+            isReady = false
             switch item.content {
             case .importing:
                 activityIndicator.startAnimating()
                 accessibilityLabel = strings.importing
             case .ready(let media):
+                isReady = true
+                imageView.isAccessibilityElement = true
+                imageView.accessibilityTraits = .button
+                imageView.accessibilityIdentifier = "imessage.composer.media.preview.\(item.id.uuidString)"
+                imageView.accessibilityLabel = strings.openPreview
                 activityIndicator.stopAnimating()
                 imageView.image = UIImage(contentsOfFile: media.thumbnailFileURL.path)
                 itemSize = IMessageChatMediaDraftLayoutPolicy.itemSize(
@@ -471,6 +489,8 @@ final class IMessageChatMediaDraftStripView: UIView {
         }
 
         /// 将删除按钮事件转发给项目删除回调。
+        /// 打开当前媒体，保留独立删除按钮的命中区域。
+        @objc private func previewTapped() { if isReady { previewRequested?() } }
         @objc private func removeTapped() {
             removeRequested?()
         }
@@ -675,6 +695,12 @@ final class IMessageChatMediaMessageView: UIView, UIGestureRecognizerDelegate {
     var frontIndexDidChange: ((Int, Int) -> Void)?
     /// 用户请求预览媒体时调用的闭包，参数为消息身份、媒体组与起始索引。
     var previewRequested: ((Int, IMessageChatMediaGroupAttachment, Int) -> Void)?
+
+    /// 从当前封面生成匹配转场，不包含背后的堆叠卡片。
+    var previewSourceView: UIView? {
+        guard let group, group.items.indices.contains(frontMediaIndex) else { return nil }
+        return cards.first { $0.represents(messageID: messageID, groupID: group.id, itemID: group.items[frontMediaIndex].id) }
+    }
 
     /// 使用指定初始边框创建 `IMessageChatMediaMessageView`，并配置其子视图和默认外观。
     ///
@@ -1259,6 +1285,8 @@ final class IMessageChatMediaBubbleCell: QuickLayoutCollectionViewCell {
     private var showsSaveButton = false
     /// 媒体组标题区域预留的高度，单位为点。
     private var mediaHeaderHeight: CGFloat = 0
+    /// 当前 Cell 绑定的消息身份，用于拒绝复用后的转场目标。
+    var previewMessageID: Int? { message?.id }
     /// 当前布局允许的媒体内容最大宽度，单位为点。
     private var maximumMediaWidth: CGFloat = 252
     /// 当前绑定的消息展示模型；未配置或复用清理后为 `nil`。
@@ -1364,7 +1392,12 @@ final class IMessageChatMediaBubbleCell: QuickLayoutCollectionViewCell {
         maximumMediaWidth = max(1, attributes.size.width - 24 - (showsSaveButton ? 52 : 0))
         resolveMediaSize()
         setNeedsQuickLayout()
-        return super.preferredLayoutAttributesFitting(attributes)
+        // UIKit 在真实 compositional 列表中通过 Auto Layout 测量 contentView，
+        // 无约束的 QuickLayout 内容会保留 52pt 估值。显式交付布局测量结果，
+        // 避免卡片按完整尺寸绘制、消息行却仍按估值排布。
+        let fitted = attributes.copy() as! UICollectionViewLayoutAttributes
+        fitted.size = sizeThatFits(attributes.size)
+        return fitted
     }
 
     /// 根据当前媒体固有尺寸与单元格宽度限制计算媒体布局大小。
@@ -1389,355 +1422,5 @@ final class IMessageChatMediaBubbleCell: QuickLayoutCollectionViewCell {
         mediaView.reset()
         mediaSize = CGSize(width: 252, height: 252)
         setNeedsQuickLayout()
-    }
-}
-
-/// 分页预览媒体组，并通过系统播放器播放视频的全屏控制器。
-@available(iOS 26.0, *)
-final class IMessageChatMediaPreviewController:
-    UIViewController,
-    UICollectionViewDataSource,
-    UICollectionViewDelegate,
-    UICollectionViewDelegateFlowLayout {
-
-    /// 支持图片缩放和视频播放入口的媒体预览单元格。
-    private final class PreviewCell: UICollectionViewCell, UIScrollViewDelegate {
-        /// 注册和出队媒体预览单元格时使用的复用标识符。
-        static let reuseIdentifier = "IMessageChatMediaPreviewCell"
-        /// 支持一至四倍图像缩放的滚动容器。
-        let scrollView = UIScrollView()
-        /// 显示当前媒体图像的图像视图。
-        let imageView = UIImageView()
-        /// 用于触发播放操作的按钮。
-        let playButton = UIButton(type: .system)
-        /// 用户点击视频播放入口时调用的闭包。
-        var playRequested: (() -> Void)?
-        /// 当前显示的媒体项目身份，用于拒绝复用前的图像加载结果。
-        private var representedItemID: UUID?
-        /// 异步降采样原始图像的可取消任务。
-        private var imageTask: Task<Void, Never>?
-
-        /// 使用指定初始边框创建 `PreviewCell`，并配置其子视图和默认外观。
-        ///
-        /// - Parameter frame: 在父视图坐标系中指定的初始边框。
-        override init(frame: CGRect) {
-            super.init(frame: frame)
-            scrollView.minimumZoomScale = 1
-            scrollView.maximumZoomScale = 4
-            scrollView.delegate = self
-            contentView.addSubview(scrollView)
-            imageView.contentMode = .scaleAspectFit
-            scrollView.addSubview(imageView)
-            var configuration = UIButton.Configuration.filled()
-            configuration.image = UIImage(systemName: "play.fill")
-            configuration.cornerStyle = .capsule
-            configuration.baseForegroundColor = .white
-            configuration.baseBackgroundColor = UIColor.black.withAlphaComponent(0.55)
-            playButton.configuration = configuration
-            playButton.addTarget(self, action: #selector(playTapped), for: .touchUpInside)
-            contentView.addSubview(playButton)
-            let doubleTap = UITapGestureRecognizer(target: self, action: #selector(doubleTapped(_:)))
-            doubleTap.numberOfTapsRequired = 2
-            contentView.addGestureRecognizer(doubleTap)
-        }
-
-        /// 不支持从归档创建 `PreviewCell`。
-        ///
-        /// 请使用代码初始化方法创建此对象。
-        required init?(coder: NSCoder) {
-            fatalError("init(coder:) has not been implemented")
-        }
-
-        /// 根据当前边界更新 `PreviewCell` 的子视图布局与图层几何。
-        override func layoutSubviews() {
-            super.layoutSubviews()
-            scrollView.frame = contentView.bounds
-            imageView.frame = scrollView.bounds
-            playButton.frame = CGRect(
-                x: contentView.bounds.midX - 28,
-                y: contentView.bounds.midY - 28,
-                width: 56,
-                height: 56
-            )
-        }
-
-        /// 为复用清理 `PreviewCell` 的内容与临时状态。
-        override func prepareForReuse() {
-            super.prepareForReuse()
-            imageView.image = nil
-            playButton.isHidden = true
-            playRequested = nil
-            representedItemID = nil
-            imageTask?.cancel()
-            imageTask = nil
-            scrollView.zoomScale = 1
-        }
-
-        /// 先显示媒体缩略图，再为图片异步加载降采样原件；视频显示播放入口。
-        ///
-        /// 结果返回时检查项目身份和取消状态，避免复用后显示旧图片。
-        func configure(_ item: IMessageChatMediaItem, play: @escaping () -> Void) {
-            representedItemID = item.id
-            imageTask?.cancel()
-            imageView.image = UIImage(contentsOfFile: item.thumbnailFileURL.path)
-            playButton.isHidden = !item.kind.isVideo
-            playRequested = play
-            guard !item.kind.isVideo else { return }
-            let itemID = item.id
-            let url = item.originalFileURL
-            imageTask = Task { [weak self] in
-                let image = await Task.detached(priority: .userInitiated) {
-                    Self.downsampledCGImage(at: url, maximumPixelSize: 2048)
-                }.value
-                guard !Task.isCancelled,
-                      let self,
-                      representedItemID == itemID,
-                      let image else { return }
-                imageView.image = UIImage(cgImage: image)
-            }
-        }
-
-        /// 返回由滚动视图执行缩放的图像视图。
-        func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
-
-        /// 将视频播放按钮事件转发给页面回调。
-        @objc private func playTapped() { playRequested?() }
-
-        /// 响应双击，在原始比例与两倍缩放之间切换。
-        @objc private func doubleTapped(_ gesture: UITapGestureRecognizer) {
-            scrollView.setZoomScale(scrollView.zoomScale > 1 ? 1 : 2, animated: true)
-        }
-
-        /// 从原始文件创建应用方向变换的降采样图像。
-        ///
-        /// - Parameters:
-        ///   - url: 本地图片文件 URL。
-        ///   - maximumPixelSize: 输出缩略图最长边的像素上限。
-        /// - Returns: 解码后的图像；无法读取或解码时为 `nil`。
-        nonisolated private static func downsampledCGImage(
-            at url: URL,
-            maximumPixelSize: Int
-        ) -> CGImage? {
-            guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
-                return nil
-            }
-            let options: [CFString: Any] = [
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceCreateThumbnailWithTransform: true,
-                kCGImageSourceShouldCacheImmediately: true,
-                kCGImageSourceThumbnailMaxPixelSize: maximumPixelSize,
-            ]
-            return CGImageSourceCreateThumbnailAtIndex(
-                source,
-                0,
-                options as CFDictionary
-            )
-        }
-    }
-
-    /// 当前预览的有序媒体组。
-    private let group: IMessageChatMediaGroupAttachment
-    /// 首次布局时应显示的媒体索引，初始化时限制在有效范围内。
-    private let initialIndex: Int
-    /// 预览按钮与辅助功能使用的本地化文字。
-    private let strings: IMessageChatMediaStrings
-    /// 按水平方向整页滚动的媒体集合视图。
-    private let collectionView: UICollectionView
-    /// 当前展示的系统视频播放器控制器；弱引用由展示层级管理其生命周期。
-    private weak var activePlayerController: AVPlayerViewController?
-    /// 与音频控制器共享的页面播放互斥协调器。
-    private let playbackCoordinator: IMessageChatPlaybackCoordinator
-    /// 当前视频预览获取和释放播放所有权的稳定令牌。
-    private let playbackOwner = UUID()
-
-    /// 创建媒体组的全屏预览控制器。
-    ///
-    /// - Parameters:
-    ///   - group: 保持原始选择顺序的媒体组。
-    ///   - initialIndex: 起始媒体索引，超出范围时会修正。
-    ///   - strings: 预览界面使用的本地化文字。
-    ///   - playbackCoordinator: 页面共享的播放协调器；省略时创建独立实例。
-    init(
-        group: IMessageChatMediaGroupAttachment,
-        initialIndex: Int,
-        strings: IMessageChatMediaStrings,
-        playbackCoordinator: IMessageChatPlaybackCoordinator? = nil
-    ) {
-        self.group = group
-        self.playbackCoordinator = playbackCoordinator ?? IMessageChatPlaybackCoordinator()
-        self.initialIndex = min(max(0, initialIndex), max(0, group.items.count - 1))
-        self.strings = strings
-        let layout = UICollectionViewFlowLayout()
-        layout.scrollDirection = .horizontal
-        layout.minimumLineSpacing = 0
-        collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        super.init(nibName: nil, bundle: nil)
-        modalPresentationStyle = .fullScreen
-    }
-
-    /// 不支持从归档创建 `IMessageChatMediaPreviewController`。
-    ///
-    /// 请使用代码初始化方法创建此对象。
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    /// 配置黑色背景、分页集合视图与关闭按钮。
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        view.backgroundColor = .black
-        collectionView.backgroundColor = .black
-        collectionView.isPagingEnabled = true
-        collectionView.showsHorizontalScrollIndicator = false
-        collectionView.dataSource = self
-        collectionView.delegate = self
-        collectionView.register(
-            PreviewCell.self,
-            forCellWithReuseIdentifier: PreviewCell.reuseIdentifier
-        )
-        collectionView.frame = view.bounds
-        collectionView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        view.addSubview(collectionView)
-
-        let closeButton = UIButton(type: .system)
-        var configuration = UIButton.Configuration.filled()
-        configuration.image = UIImage(systemName: "xmark")
-        configuration.cornerStyle = .capsule
-        configuration.baseForegroundColor = .white
-        configuration.baseBackgroundColor = UIColor.black.withAlphaComponent(0.5)
-        closeButton.configuration = configuration
-        closeButton.accessibilityLabel = strings.close
-        closeButton.accessibilityIdentifier = "imessage.media.preview.close"
-        closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
-        closeButton.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(closeButton)
-        NSLayoutConstraint.activate([
-            closeButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
-            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
-            closeButton.widthAnchor.constraint(equalToConstant: 44),
-            closeButton.heightAnchor.constraint(equalToConstant: 44),
-        ])
-    }
-
-    /// 在集合视图获得有效宽度后应用指定起始媒体位置。
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        guard collectionView.bounds.width > 0 else { return }
-        let expectedOffset = CGFloat(initialIndex) * collectionView.bounds.width
-        if collectionView.contentOffset == .zero, initialIndex > 0 {
-            collectionView.setContentOffset(CGPoint(x: expectedOffset, y: 0), animated: false)
-        }
-    }
-
-    /// 在预览页面真正关闭后停止并解除当前视频播放器。
-    override func viewDidDisappear(_ animated: Bool) {
-        super.viewDidDisappear(animated)
-        guard isBeingDismissed || navigationController?.isBeingDismissed == true else {
-            return
-        }
-        stopActivePlayer()
-    }
-
-    /// 返回当前媒体组中的项目数量。
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        group.items.count
-    }
-
-    /// 出队并配置对应媒体项目的预览单元格，绑定视频播放请求。
-    func collectionView(
-        _ collectionView: UICollectionView,
-        cellForItemAt indexPath: IndexPath
-    ) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(
-            withReuseIdentifier: PreviewCell.reuseIdentifier,
-            for: indexPath
-        ) as! PreviewCell
-        let item = group.items[indexPath.item]
-        cell.configure(item) { [weak self] in self?.playVideo(at: indexPath.item) }
-        return cell
-    }
-
-    /// 返回与集合视图可见区域等大的分页单元格尺寸。
-    func collectionView(
-        _ collectionView: UICollectionView,
-        layout collectionViewLayout: UICollectionViewLayout,
-        sizeForItemAt indexPath: IndexPath
-    ) -> CGSize {
-        collectionView.bounds.size
-    }
-
-    /// 取得页面播放所有权后展示指定视频的系统播放器。
-    ///
-    /// 展示完成回调会校验播放器身份及应用前台状态，再开始播放。
-    private func playVideo(at index: Int) {
-        guard group.items.indices.contains(index), group.items[index].kind.isVideo,
-              presentedViewController == nil else { return }
-        stopActivePlayer()
-        playbackCoordinator.acquire(owner: playbackOwner) { [weak self] in
-            self?.stopActivePlayer(dismiss: true)
-        }
-        // 先由同一个协调器停止音频，再配置视频会话。
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
-        } catch {
-            playbackCoordinator.release(owner: playbackOwner)
-            return
-        }
-        let playerController = AVPlayerViewController()
-        playerController.allowsPictureInPicturePlayback = false
-        playerController.player = AVPlayer(url: group.items[index].originalFileURL)
-        activePlayerController = playerController
-        present(playerController, animated: true) { [weak self, weak playerController] in
-            guard let self, let playerController,
-                  self.activePlayerController === playerController,
-                  UIApplication.shared.applicationState != .background else { return }
-            playerController.presentationController?.delegate = self
-            playerController.player?.play()
-        }
-    }
-
-    /// 在返回预览页面时清理旧播放器，并重新订阅应用后台暂停事件。
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        // 包含播放器的“完成”按钮及交互式关闭；回到媒体预览后不遗留声音。
-        stopActivePlayer()
-        NotificationCenter.default.removeObserver(self, name: UIApplication.didEnterBackgroundNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(pauseActiveVideo),
-                                               name: UIApplication.didEnterBackgroundNotification, object: nil)
-    }
-
-    /// 应用进入后台时暂停当前视频播放器。
-    @objc private func pauseActiveVideo() {
-        activePlayerController?.player?.pause()
-    }
-
-    /// 暂停并解除系统播放器，按当前令牌释放播放所有权。
-    ///
-    /// - Parameter dismiss: 是否同时无动画关闭仍在展示的播放器界面。
-    private func stopActivePlayer(dismiss: Bool = false) {
-        let controller = activePlayerController
-        controller?.player?.pause()
-        // 连同原生播放控件的 player 一起移除，旧视频不能重新启动后叠加音频。
-        controller?.player = nil
-        activePlayerController = nil
-        playbackCoordinator.release(owner: playbackOwner)
-        if dismiss, controller?.presentingViewController != nil {
-            controller?.dismiss(animated: false)
-        }
-    }
-
-    /// 停止当前视频并关闭全屏媒体预览。
-    @objc private func closeTapped() {
-        stopActivePlayer()
-        dismiss(animated: true)
-    }
-}
-
-/// 在系统播放器交互式关闭后清理视频播放状态。
-@available(iOS 26.0, *)
-extension IMessageChatMediaPreviewController: UIAdaptivePresentationControllerDelegate {
-    /// 系统展示控制器关闭后停止并解除活动播放器。
-    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
-        stopActivePlayer()
     }
 }

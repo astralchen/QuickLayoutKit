@@ -65,6 +65,9 @@ final class IMessageChatKeyboardUITests: XCTestCase {
             alert.textFields.firstMatch.typeText("https://apple.com")
             alert.buttons.element(boundBy: 1).tap()
             XCTAssertTrue(card.waitForExistence(timeout: 10))
+            // Measure the loaded link card, not its shorter URL-only placeholder.
+            expectation(for: NSPredicate(format: "label CONTAINS %@", "Apple"), evaluatedWith: card)
+            waitForExpectations(timeout: 25)
             text.coordinate(withNormalizedOffset: .init(dx: 0.15, dy: 0.98)).tap()
             XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         }
@@ -108,6 +111,7 @@ final class IMessageChatKeyboardUITests: XCTestCase {
         ]
         app.launch()
         let route = app.cells["demo.imessage.title"]
+        for _ in 0..<8 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
         XCTAssertTrue(route.waitForExistence(timeout: 10))
         route.tap()
         let text = app.textViews["imessage.composer.text"]

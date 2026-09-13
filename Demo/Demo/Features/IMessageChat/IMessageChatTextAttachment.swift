@@ -87,6 +87,9 @@ final class IMessageChatTextAttachment: NSTextAttachment {
         return provider
     }
 
+    /// 返回仍处于可见编辑器中的附件卡片。
+    var previewSourceView: UIView? { cards.allObjects.first { $0.window != nil && !$0.isHidden } }
+
     /// 以弱引用登记卡片，并立即应用草稿、布局方向和交互回调。
     func register(_ card: IMessageChatAttachmentCard) {
         cards.add(card)
@@ -651,6 +654,8 @@ final class IMessageChatDocumentBubbleCell: QuickLayoutCollectionViewCell {
     private var showsSaveButton = false
     /// 当前绑定的消息展示模型；未配置或复用清理后为 `nil`。
     private var message: IMessageChatMessagePresentation?
+    /// 当前绑定身份，避免收回到复用后的文件卡片。
+    var previewMessageID: Int? { message?.id }
     /// 当前布局允许的消息气泡最大宽度，单位为点。
     private var maximumBubbleWidth: CGFloat = 300
     /// 用户打开当前消息附件时调用的闭包。

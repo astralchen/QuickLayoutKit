@@ -6,17 +6,35 @@
 
 Demo 应用、单元测试和 UI 测试目标的 deployment target 均为 iOS 15.0。`IMessageChat` 功能声明为 iOS 26.0 及以上可用，页面使用 iOS 26 原生玻璃 API。主菜单在旧系统隐藏聊天入口，路由也检查系统版本。媒体层保留旧版语音识别后端，用于现代识别服务不可用时回退；聊天页面不在 iOS 15–25 运行。聊天单元测试通过 Swift Testing 条件跳过，聊天 UI 测试和真实语音集成测试通过 `XCTSkip` 跳过旧系统。
 
+## UI 布局约定
+
+本目录新增或修改常规 UI 时优先使用 `QuickLayoutKit`、`QuickLayout` 与 `ListKit`，沿用现有页面的布局方式：
+
+- 页面与组件使用 `QuickLayoutHostingController`、`QuickLayoutView` 及 `HStack` / `VStack` / `ZStack` 描述层级、尺寸、间距和安全区域；玻璃内容使用 `QuickLayoutVisualEffectView`，保持原生 effect 的 `contentView` 层级。
+- 时间线、附件分页等集合内容优先交给 `CollectionListAdapter`，使用稳定 Row 身份管理注册、复用与更新。滚动、展示及专用分页尺寸回调通过 ListKit 的 delegate 转发；不再额外维护一份手写 data source。
+- 少量连续排列的预览控制按钮使用 `QuickLayoutScrollView` / `ScrollView` 描述内容与滚动范围，避免逐个按钮计算 frame。
+- 手动几何仅用于明确依赖像素／坐标的行为，例如图片缩放与居中、`AVPlayerLayer`、气泡遮罩、卡片堆叠手势、键盘／照片面板桥接和自定义转场。普通标题、按钮、播放条和文档占位布局不采用逐控件 frame 排版。
+- 自适应媒体 Cell 必须将 QuickLayout 测量结果写入布局属性，并在真实 ListKit 列表中验证；仅验证脱离列表的单个 Cell 尺寸不足以发现估算行高导致的内容越界。
+
 ## 文件职责
 
 - `IMessageChatModel.swift`：内部文本/附件消息模型、音频与有序媒体组元数据、收发方向、送达状态、稳定时间线 ID、集中刷新身份与渲染模型。
 - `IMessageChatViewModel.swift`：初始会话、文本与统一附件发送、按文档片段顺序的原子批量发送、类型专属验证、时间分隔、输入中状态、模拟回复、已读状态和本地化物化。
 - `IMessageChatAttachmentStore.swift`：页面独立临时目录、外部文件导入、附件草稿、事务式提交、取消删除和页面销毁清理。
 - `IMessageChatAudioController.swift`：录音、文本转音频回复、波形采样、预览、单实例播放、语音转写、权限、音频会话与中断处理。
-- `IMessageChatDocumentController.swift`：文件选择、异步导入、录音文件所有权接收、网页元数据、缩略图、提交与清理、Quick Look 文件预览。
+- `IMessageChatDocumentController.swift`：文件选择、异步导入、录音文件所有权接收、网页元数据、缩略图、提交与清理，以及草稿删除前的预览关闭通知。
 - `IMessageChatTextAttachment.swift`：TextKit 2 原生附件、按类型显示的文件/网页卡片及时间线 Cell。
 - `IMessageChatPhotoPickerController.swift`：UIKit `PHPickerViewController`、有序增量选择、图片/视频文件导入、缩略图、草稿代次、选择同步与 Sheet detent。
 - `IMessageChatBottomObstructionCoordinator.swift`：逐帧采样公开的键盘 layout guide 与照片 Sheet presentation layer，并统一计算输入栏底部遮挡。
-- `IMessageChatMediaViews.swift`：媒体草稿预览条、单媒体尾巴气泡、多媒体层叠卡片、展示索引状态与全屏图片/视频预览。
+- `IMessageChatMediaViews.swift`：媒体草稿预览条、单媒体尾巴气泡、多媒体层叠卡片、展示索引状态及预览来源定位。
+- `IMessageChatAttachmentPreviewModel.swift`：只读预览请求、稳定来源身份、文件路由和交互关闭规则。
+- `IMessageChatAttachmentPreviewController.swift`：QuickLayout 全屏画布及玻璃控制层、ListKit 附件分页、缩略图导航和预览状态协调。
+- `IMessageChatAttachmentThumbnailStripView.swift`：独立缩略图导航控件，封装玻璃背景、点击回调、选中描边与自动露出。
+- `IMessageChatAttachmentPagingLayout.swift`：全屏页面与 20 pt 间距的自定义几何、索引换算和单次手势吸附。
+- `IMessageChatPreviewPage.swift`：图片缩放、PDF／文本只读内容、加载取消与视频图层。
+- `IMessageChatPreviewPlayer.swift`：页内播放、进度、静音、音频所有权及生命周期清理。
+- `IMessageChatPreviewTransition.swift`：来源卡片坐标解析、展开／收回动画、交互完成／取消与离屏回退。
+- `IMessageChatQuickLookPreviewController.swift`：其他格式的系统 Quick Look 兼容入口与关闭回调。
 - `IMessageConversationView.swift`：使用 `UICollectionView` 与 `CollectionListAdapter` 渲染时间线，并管理列表更新、音频播放刷新、层叠封面状态、滚底和运行时方向刷新。
 - `IMessageChatCells.swift`：文本发送/接收气泡、时间标记、送达状态和输入中动画。
 - `IMessageChatAudioViews.swift`：音频气泡、播放/暂停按钮、波形进度、时长、可选转写文本与可复用音频 Cell。
@@ -130,6 +148,16 @@ iOS 26 优先使用 `SpeechAnalyzer` 的文件输入，先通过 `AssetInventory
 通过宿主视口补偿 iOS 26.5 中保留拖动条时的 15 pt 顶部留白，照片网格贴齐面板顶部，
 Sheet 拖动条叠加显示而不单独占用高度。通过 `.selectionActions` 禁用重复的确认／清除操作，并关闭 staging area
 与敏感内容干预界面。选中即更新 Composer 草稿，使用草稿上的 × 移除单项，使用输入框发送按钮发送。
+发送成功后清空已发送草稿及系统网格的勾选，照片面板保持展开、当前档位和滚动位置，便于继续选图发送；
+不主动切换键盘焦点。发送未被受理时保留草稿与勾选。点击正文输入框仍按原有流程切回键盘。
+提交时先推进草稿版本再取消系统勾选；无系统照片 ID 的附件跳过取消勾选调用，避免 PHPicker 对空数组触发断言。
+
+2026-09-13 连续发送回归：使用已安装 Xcode 26.5，以命令级 `DEVELOPER_DIR` 在 iPhone 17 Pro / iOS 26.5
+构建并通过媒体、输入框焦点两套单元测试，共 36 项（`/private/tmp/PhotoSend-unit-final.xcresult`）。
+两条模拟器 UI 流程通过：预览返回保持原档位（`/private/tmp/PhotoSend-ui.xcresult`）；发送照片和正文后面板不下退、
+同一系统照片连续选择发送两次、草稿与勾选清空（`/private/tmp/PhotoSend-ui-final.xcresult`），结果包保留截图。
+首轮发送 UI 发现空标识数组断言，加入保护后复验通过；真机验证未执行。
+
 页面不请求完整照片库权限，
 也不遍历或修改系统选择器私有视图层级。重新打开时使用资源标识恢复预选；选择数组、
 全屏预览页序和发送模型始终保持用户勾选顺序。
@@ -141,7 +169,12 @@ JPEG 缩略图；视频验证视频轨道与正时长，通过 `AVAssetImageGene
 `NSItemProvider`、`PHAsset`、`AVAsset`、播放器或手势对象。
 
 媒体草稿存在时，输入栏上层显示 80 × 120pt、4pt 间距的横向预览条，下层继续使用
-1–5 行文字输入。所有项目完成导入后才启用发送；视频预览显示图标和 `m:ss` 时长，
+1–5 行文字输入。首项选中后即显示发送箭头，导入过程中保持该入口但禁用发送；所有项目完成导入后才启用发送。
+继续追加照片或视频时同样保留发送箭头，不短暂切回语音转文字图标；清空全部草稿且正文为空时恢复听写入口。
+2026-09-13 按钮状态回归在同一模拟器通过 37 项媒体与输入框焦点单元测试，覆盖首项导入、追加导入、就绪、移除、
+清空的实际控件可见性，以及未就绪时拒绝发送（`/private/tmp/PhotoImportButton-unit.xcresult`）。
+真实照片连续选择与发送 UI 流程通过（`/private/tmp/PhotoImportButton-ui.xcresult`）；真机未验证。
+视频预览显示图标和 `m:ss` 时长，
 删除按钮同步取消系统勾选并清理该项文件。录音中首次选中照片或视频会取消录音并删除临时录音文件；仅打开或关闭照片 Sheet
 不会取消录音，也不会丢弃已经导入的媒体或文字。
 
@@ -154,7 +187,7 @@ JPEG 缩略图；视频验证视频轨道与正时长，通过 `AVAssetImageGene
 完整 HTTP(S) URL 可插入网页卡片，直接发送单独的网址也生成链接消息。文件卡片显示
 Quick Look 缩略图（不可用时使用类型图标）、原文件名、类型和大小；网页使用系统
 `LPLinkView`，元数据失败时仍可发送原 URL。点击文件用 `QLPreviewController` 预览，
-音频文件也由 Quick Look 播放；点击网页打开 URL。此处不伪造 Notes/iCloud 协作卡片。
+常用文件使用统一自定义预览，音频文件在预览页内播放；点击网页打开 URL。此处不伪造 Notes/iCloud 协作卡片。
 
 所有内联卡片由 `NSTextAttachment` / `NSTextAttachmentViewProvider` 参与原生排版，
 可移动光标、在前后输入、通过删除键/选区删除/剪切移除，并提供 VoiceOver 打开和删除操作。
@@ -208,7 +241,7 @@ Apple 公开 API 依据：[TextKit 附件视图](https://developer.apple.com/doc
 - 拖动期间保留已确认封面和卡片绑定：以开始时实际卡片宽度 `W` 为基准，向外达到 `0.60W` 时候选卡片盖到前面，回拖至同一临界值 `0.60W` 以下时原卡片立即重新盖到前面，不再设置额外回拖距离。可以反复跨界预览；穿过起点改向时重新计算相邻候选。原卡片水平跟手，以 `min(1, |x| / (0.60W))` 驱动缩放至 `0.72`、旋转至 `±10°`，视频图标随卡片同步变换。
 - 仅松手确认切换：仍处于换层状态，或同向速度达到 `550pt/s`，才提交相邻封面；慢速回拖退出临界区及系统取消均回弹。确认时立即保存索引并仅回调一次，收尾不重复提交。提交使用 `0.28s / 0.86` 弹簧，回弹使用 `0.22s / 0.78` 弹簧，全程保持卡片不透明并连续收拢；减弱动态效果时关闭交互旋转、缩放和弹簧，改用 `0.16s` 简短过渡。这些参数是本 Demo 的参考图实现值，不是 Apple 私有参数。
 - 同一消息重新布局或普通刷新保持拖动预览；尺寸、布局方向、媒体内容或消息身份变化会取消当前交互，已确认的索引仍保留。收尾完成后整理最多五张卡片的窗口，旧动画完成回调通过绑定身份及递增令牌校验；拖动和收尾期间不接受点击预览或重复切换。
-- 点击主卡片或可明确命中的后置卡片，从对应原始索引进入全屏预览。图片页支持捏合和双击缩放；视频页使用 `AVPlayerViewController` 播放本地文件，离页时停止并释放播放器。
+- 点击主卡片或可明确命中的后置卡片，从对应原始索引进入全屏预览。图片页支持捏合和双击缩放；视频页使用 `AVPlayerLayer` 与自定义玻璃控件播放本地文件，离页时停止并释放播放器。
 
 发送顺序固定为“读取完整草稿 → ViewModel 原子验证并追加 → 提交草稿”。任何项目
 缺文件、缩略图、有效像素尺寸、视频轨道或正时长时都不产生部分消息，媒体和文字草稿
@@ -303,10 +336,10 @@ Apple 公开 API 依据：[TextKit 附件视图](https://developer.apple.com/doc
 - 耳机等旧输出路由移除时立即暂停播放。
 
 音频控制器与视频预览共享页面级 `IMessageChatPlaybackCoordinator`。开始播放前同步停止旧所有者，
-音频切视频时恢复音频总时长；视频切音频时停止视频、移除原生控件的播放器并关闭播放器页面。
-视频暂停期间仍保留所有权，以覆盖原生控件再次播放；切换对象和关闭时释放，不自动恢复旧对象。
+音频切视频时恢复音频总时长；视频切音频时停止并解除页内播放器。
+视频暂停期间仍保留所有权；切换对象和关闭时释放，不自动恢复旧对象。
 打开媒体预览前也停止并重置聊天音频。视频使用 `.playback` / `.moviePlayback` 会话，
-由 `AVPlayer` 管理激活；聊天音频控制器仅释放自己激活的会话，闲置时不会误关闭视频会话。
+由预览播放器管理激活；两个播放器各自仅释放自己激活的会话，闲置时不会误关闭其他所有者的会话。
 视频退后台暂停且不自动续播，关闭播放器时释放播放器，禁用画中画；返回聊天后音频仍需手动播放。
 
 权限只在首次触发对应功能时请求。录音发送需要麦克风权限；实时语音输入同时需要麦克风和 Speech 权限；文件转写仅在所选后端需要时请求 Speech 权限。拒绝或受限制时显示英语、简体中文或阿拉伯语说明；可恢复的拒绝状态提供“打开设置”。录音、播放、实时语音输入、语音合成资产或文件失效也通过本地化错误反馈处理，不自动发送消息。文件转写失败或权限拒绝则静默保留纯音频。
@@ -466,3 +499,87 @@ MainRoute.imessageChat
 - 整组三张图片已写入模拟器相册，三份文件与原图字节一致；音频和 PDF 已保存到「我的 iPhone」，与原始文件字节一致，并分别在系统播放器和预览中打开。音频工具确认 16 kHz 单声道、1 秒、16000 有效帧。
 - 曾发现系统先关闭文件选择器再交付成功回调，已移除按视图消失推断取消的逻辑，并通过可注入呈现入口加入回调顺序回归。
 - 已检查 402 × 874 pt 浅色、深色 RTL 和大字号截图；窄屏和隐藏前后几何由测试验证。未做真机、iCloud／第三方文件提供器、真实视频／GIF 写入相册的手动验收。
+
+
+## 统一液态玻璃附件预览
+
+`IMessageChatAttachmentPreviewController` 统一已发送附件、文档草稿及照片草稿入口。
+媒体采用黑色等比画布，顶部参考 iPhone 16 Pro 照片浏览器：44 pt 圆形玻璃返回按钮、严格居中的双行标题／数量胶囊、
+44 pt 更多按钮。左右预留对称空间，长文件名截断，大字号增加胶囊高度，PDF／文本顶部避让同步更新。
+更多菜单提供上一项、下一项与隐藏控件；边界项禁用对应导航，VoiceOver 开启时保留控件。多项媒体提供底部缩略图导航。
+2026-09-13 顶部布局使用 Xcode 26.5、命令级 `DEVELOPER_DIR` 在 iPhone 16 Pro / iOS 26.5 构建与验证。
+3 条 UI 流程通过：居中几何和 44 pt 按钮、菜单翻页与下拉转场、RTL／最大字号媒体及文档避让
+（`/private/tmp/PreviewHeader16-ui.xcresult`）。截图检查后补充返回箭头镜像和数量文字适配，相关两条复验通过
+（`/private/tmp/PreviewHeader16-final.xcresult`）。应用内语言切换的返回箭头按页面实际方向显式选择，
+最终 RTL 截图复验通过（`/private/tmp/PreviewHeader16-rtl.xcresult`）；结果包保留截图，真机未验证。
+玻璃控制层遵循 [Apple UIKit 设计说明](https://developer.apple.com/videos/play/wwdc2025/284/)，
+使用 `UIGlassEffect` / `UIGlassContainerEffect`，透明区域不拦截内容手势。
+底部缩略图条由 Demo 内部 `IMessageChatAttachmentThumbnailStripView` 提供，使用 QuickLayout 横向滚动布局。
+控件接收附件数组和初始索引，`didSelectItem` 只请求翻页，宿主在页面停稳后通过 `select(_:animated:)` 同步选中项，
+不会因程序更新重复触发点击回调。高度 64 pt，缩略图 44 × 48 pt、间隔 8 pt，选中项显示 2 pt 白色描边。
+首次布局及宽度变化后按实际按钮坐标露出选中项；物理 LTR 顺序与分页一致，保留本地化数量及 VoiceOver 选中状态。
+独立使用默认带原生玻璃背景，降低透明度时改为实色；预览页使用 `.embedded` 共用播放控制区的外层玻璃，避免材质叠加。
+同文件 `#Preview` 使用现有附件预览数据，点击可切换选中项；不新增 QuickLayoutKit 公共 API。
+2026-09-13 控件抽取验证：Xcode 26.5 构建成功，iPhone 16 Pro / iOS 26.5 上 13 项单元测试通过
+（`/private/tmp/ThumbnailStrip-unit.xcresult`），覆盖空数据、索引边界、末项首次露出、宽度变化、点击与提交状态分离及原有分页／预览回归。
+两条 UI 回归通过（`/private/tmp/ThumbnailStrip-ui.xcresult`）：缩略图／菜单翻页、旋转、下拉取消与关闭、RTL 最大字号。
+已检查结果包截图，导出位于 `/private/tmp/ThumbnailStrip-screenshots`；本次未做真机验证。
+
+图片支持 1–4 倍捏合、双击缩放及单击控件显隐，分页和旋转保留当前项目。
+分页使用 Demo 内部 `IMessageChatAttachmentPagingLayout`，直接继承 `UICollectionViewLayout`，由 ListKit 提供页面数据。
+每页与视口等大，页间固定 20 pt，首尾不留间隔；关闭系统 `isPagingEnabled`，使用 `.fast` 减速和自定义目标吸附。
+索引与坐标统一按“视口宽度 + 20”转换。慢拖以半页为界；速度绝对值达到 UIKit 回调的 0.35 且有至少 8 pt 同向位移时
+翻向相邻页，快速反向回拖返回起始页，单次手势最多翻一页。普通滚动复用布局属性，尺寸或数量变化才更新几何。
+拖动、减速和程序翻页结束统一校正精确位置并更新标题、缩略图及播放器；横向翻页期间暂停播放并禁止下拉关闭。
+连续点击替换程序翻页目标，手势打断时从最近可见页接手。旋转保留程序目标或手势最近页；点击返回先停到最近可见页，再查询收回来源。
+
+2026-09-13 自定义分页验证：通过命令级 `DEVELOPER_DIR` 使用 Xcode 26.5，在 iPhone 16 Pro / iOS 26.5 构建成功。
+分页、附件预览和播放生命周期共 20 项单元测试通过（`/private/tmp/Paging20-unit-final.xcresult`），
+覆盖 0／1／2／20 页、首尾边界、快慢拖动、反向回拖、动画替换与迟到回调、旋转及关闭时的当前附件。
+5 条真实 UI 流程通过（`/private/tmp/Paging20-ui.xcresult`）：精确停页与边缘回弹、菜单／缩略图翻页和下拉转场、
+图片缩放、RTL 最大字号、减少动态效果／降低透明度、视频进度与静音。结果包保留截图，另录制 `/private/tmp/Paging20-swipes.mov`。
+首次验证遇到模拟器服务无响应和启动超时，恢复服务后完成上述回归；位置断言使用小于 0.001 pt 的浮点误差。
+本轮未执行真机验证。
+
+`IMessageChatAttachmentPreviewItem` 在后台按 UTType 分类。PDF 由 PDFKit 只读显示，文本由可选择的 UITextView 显示；
+UTF-8 和带 BOM 的 UTF-16 文本最多读取 5 MiB。较大／无法解码的文本及其他格式由 Quick Look 兼容预览，
+系统兼容预览保留原生工具栏；不存在、锁定或无法解码的内容显示本地化错误。
+
+`IMessageChatPreviewPlayer` 为视频和音频文件提供播放／暂停、时间、进度拖动与静音。
+默认不自动播放，分页停止上一项，后台、音频中断及耳机断开暂停；关闭后清理 AVPlayer、观察者和音频会话。
+波形语音、网页打开方式及旁侧保存业务保持原入口。
+
+`IMessageChatPreviewTransition` 使用自定义 presentation、可中断 property animator 和百分比交互驱动。
+卡片展开约 0.42 秒，收回约 0.34 秒；下拉超过视口的 22%，或位移超过 24pt 且向下速度超过 900pt/s 时完成关闭，
+否则回弹。缩放、文档滚动／选择和控件拖动优先。来源通过消息／草稿 ID 延迟查询，离屏时淡出，不滚动聊天列表。
+减少动态效果改用淡入淡出，降低透明度使用实色控制层，VoiceOver 模式保持控件可见。
+
+调试样例沿用 `-imessage-save-fixture`，新增 `preview-text`、`preview-video`、`preview-rtf`、`preview-unavailable`。
+与 `-imessage-preview-draft` 组合时，将已有媒体／文件样例放入输入栏，便于验证打开后原草稿和焦点恢复。
+正常启动不注入样例。所有组件 `#Preview` 的固定资源仍来自 `IMessageChatPreviewData`。
+
+验收包含 `IMessageChatAttachmentPreviewTests`、更新后的 `IMessageChatAudioLifecycleTests` 和
+`IMessageChatAttachmentPreviewUITests`；构建、单元回归、模拟器截图／录屏及真机证据分别记录。
+
+2026-09-13 液态玻璃附件预览验证（Xcode 26.5 / iPhone 17 Pro / iOS 26.5）：
+
+- 构建：命令级指定 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`；Demo 通用模拟器构建成功，Demo 与 IMessageChatRegression 最新测试目标编译成功。
+- 单元回归：附件预览、音频生命周期、媒体、文档、保存和输入框焦点共 6 个 suite、84 项通过，0 失败、0 跳过；结果 `/private/tmp/QuickLayoutPreview-unit-complete.xcresult`。包含 20 项媒体起始索引与尺寸变化、失效文件、迟到加载、来源离屏回退、关闭清理、后台暂停和播放互斥。
+- 模拟器交互：10 条附件预览流程及 4 条现有键盘流程最终全部通过。覆盖消息与照片／文档草稿、1／2／20 项媒体、下拉完成与取消、当前封面同步、横竖屏切换、双击缩放、视频进度与静音、PDF 缩放滚动、文本上下滚动、Quick Look、错误状态和照片面板原档位恢复。
+- UI 结果：主要记录 `/private/tmp/QuickLayoutPreview-ui-clean.xcresult`；其中视频进度用例暴露了 iOS 26 滑块在 touch-up 后继续发送 valueChanged 的顺序问题，修复后 `/private/tmp/QuickLayoutPreview-video-fixed.xcresult` 通过。旋转与文档手势补验 `/private/tmp/QuickLayoutPreview-gestures.xcresult` 两条通过；另外两条录音提示键盘回归在 `/private/tmp/QuickLayoutPreview-ui-final.xcresult` 中通过。
+- 视觉与辅助功能：检查浅／深色、阿拉伯语 RTL、最大辅助功能字号；实际开启系统减少动态效果和降低透明度验证降级展示，结束后恢复开关及原浅色外观。中文、英文、阿拉伯语预览文案已校验。截图检查包含大字号文档首行避让、播放条和关闭入口；录屏覆盖展开、分页、下拉回弹与收回。
+- 截图和转场录屏保存于 `/Users/chenchen/.codex/visualizations/2026/09/13/01a099e6-2f8b-75e2-a0f8-738889c2d6a0/attachment-preview/`；原始截图也保留在上述 xcresult 中。
+- 真机验证：未执行；VoiceOver 已实现标签、控件常显、Escape 与返回来源焦点，但未执行真机朗读及完整手势遍历验收。
+
+2026-09-13 媒体消息重叠修复：
+
+- 真实 compositional 列表中，UIKit 的默认 Auto Layout 自适应路径把媒体 Cell 保留为 52pt 估算高度，而内部卡片仍绘制为 356pt，导致上下消息重叠。媒体 Cell 现在直接返回 QuickLayout 的内容测量结果，保留卡片原有尺寸。
+- 新增真实窗口中的相邻发出／收到媒体消息回归；修复前复现两行均为 52pt 及内容越界，修复后通过。媒体、预览、保存三组共 56 项通过：`/private/tmp/MediaRows-fixed.xcresult`。
+- 模拟器两条 UI 回归通过，检查打开前／返回后的媒体行包含完整卡片区域，并覆盖分页、旋转、下拉取消及完成关闭：`/private/tmp/MediaRows-ui.xcresult`。已检查截图中的相邻消息、数量标题和旁侧保存按钮位置。
+
+2026-09-13 预览布局约定同步：
+
+- 附件预览页面改用 `QuickLayoutHostingController`，玻璃标题、关闭按钮、播放条使用 `QuickLayoutVisualEffectView` 与 Stack 布局；缩略图改用 `QuickLayoutScrollView`。附件分页由 `CollectionListAdapter` 管理，保留专用 Flow Layout 和 delegate 转发处理全屏尺寸、旋转与播放绑定。
+- 内容页改用 `QuickLayoutCollectionViewCell` 排布 PDF、文本、错误信息和加载状态；仅图片缩放居中及视频图层保留手动几何。分页的物理 LTR 与正文语义方向独立，避免从滚动容器覆盖阿拉伯语内容方向。
+- 标题和文档顶部间距共用尺寸规则，避免嵌套布局时序导致大字号正文被标题遮挡。新增间距更新断言；预览及音频生命周期 16 项测试通过：`/private/tmp/Preview-QuickLayout-final-unit.xcresult`。
+- 6 条相关 UI 流程最终通过，覆盖分页／旋转／交互转场、PDF／文本滚动、视频进度、草稿恢复、RTL 和最大字号。结果：`/private/tmp/Preview-QuickLayout-ui.xcresult`（其中大字号间距问题修正后复验）及 `/private/tmp/Preview-QuickLayout-final-ui.xcresult`（3 条复验通过）。已检查玻璃外形与大字号文档截图；本次未执行真机验证。

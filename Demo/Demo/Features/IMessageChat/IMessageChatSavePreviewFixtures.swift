@@ -6,6 +6,46 @@ import UIKit
 @available(iOS 26.0, *)
 @MainActor
 enum IMessageChatSavePreviewFixtures {
+    /// 为页内播放 UI 测试生成固定十秒视频，不读取相册或网络。
+    static func videoAttachment(store: any IMessageChatAttachmentStoring) async throws -> IMessageChatAttachment {
+        let url = store.makeFileURL(prefix: "preview-video", pathExtension: "mov")
+        let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
+        defer { if writer.status == .writing { writer.cancelWriting() } }
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
+            AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: 320, AVVideoHeightKey: 240,
+        ])
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferWidthKey as String: 320, kCVPixelBufferHeightKey as String: 240,
+        ])
+        let error = NSError(domain: "IMessagePreviewFixture", code: 1)
+        writer.add(input)
+        guard writer.startWriting() else { throw error }
+        writer.startSession(atSourceTime: .zero)
+        var buffer: CVPixelBuffer?
+        guard CVPixelBufferCreate(kCFAllocatorDefault, 320, 240, kCVPixelFormatType_32BGRA, nil, &buffer) == kCVReturnSuccess, let pixels = buffer else { throw error }
+        CVPixelBufferLockBaseAddress(pixels, [])
+        memset(CVPixelBufferGetBaseAddress(pixels), 0x7f, CVPixelBufferGetBytesPerRow(pixels) * 240)
+        CVPixelBufferUnlockBaseAddress(pixels, [])
+        for frame in 0..<2 {
+            let deadline = ContinuousClock.now.advanced(by: .seconds(10))
+            while !input.isReadyForMoreMediaData, writer.status == .writing, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
+            guard input.isReadyForMoreMediaData, adaptor.append(pixels, withPresentationTime: CMTime(value: Int64(frame * 5), timescale: 1)) else { throw error }
+        }
+        writer.endSession(atSourceTime: CMTime(seconds: 10, preferredTimescale: 600))
+        input.markAsFinished()
+        await writer.finishWriting()
+        guard writer.status == .completed else { throw error }
+        let thumbnail = store.makeFileURL(prefix: "preview-video-cover", pathExtension: "png")
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 320, height: 240)).image { context in
+            UIColor.gray.setFill(); context.fill(CGRect(x: 0, y: 0, width: 320, height: 240))
+        }
+        try image.pngData()?.write(to: thumbnail)
+        let attachment = IMessageChatAttachment.mediaGroup(.init(items: [.init(assetIdentifier: nil, originalFileURL: url, thumbnailFileURL: thumbnail, pixelSize: image.size, kind: .video(duration: 10))]))
+        store.registerCommitted(attachment)
+        return attachment
+    }
+
     /// 根据调试启动参数创建真实本地保存样例，并登记为已提交附件。
     ///
     /// 未指定支持的样例类型时返回 `nil`；文件生成失败时抛出错误。
@@ -62,6 +102,19 @@ enum IMessageChatSavePreviewFixtures {
             try audio.write(from: buffer)
             attachment = .file(.init(id: UUID(), fileURL: url, displayName: "Audio Message.caf",
                 typeIdentifier: "com.apple.coreaudio-format", byteCount: 64_000))
+        case "preview-rtf":
+            let url = store.makeFileURL(prefix: "preview-system", pathExtension: "rtf")
+            let data = Data("{\\rtf1\\ansi Quick Look compatibility preview.}".utf8)
+            try data.write(to: url)
+            attachment = .file(.init(id: UUID(), fileURL: url, displayName: "Compatibility.rtf", typeIdentifier: "public.rtf", byteCount: Int64(data.count)))
+        case "preview-unavailable":
+            let url = store.makeFileURL(prefix: "missing", pathExtension: "pdf")
+            attachment = .file(.init(id: UUID(), fileURL: url, displayName: "Unavailable.pdf", typeIdentifier: "com.adobe.pdf", byteCount: 0))
+        case "preview-text":
+            let url = store.makeFileURL(prefix: "preview-text", pathExtension: "txt")
+            let text = String(repeating: "附件预览 · Liquid Glass\nReadable text with selection.\n\n", count: 50)
+            try Data(text.utf8).write(to: url)
+            attachment = .file(.init(id: UUID(), fileURL: url, displayName: "Read me.txt", typeIdentifier: "public.plain-text", byteCount: Int64(text.utf8.count)))
         case "document":
             let url = store.makeFileURL(prefix: "save-preview", pathExtension: "pdf")
             try UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 300, height: 200)).writePDF(to: url) { context in

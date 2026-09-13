@@ -12,6 +12,11 @@ import UIKit
 @MainActor
 enum IMessageChatPreviewData {
 
+    /// 统一预览使用现有固定媒体资源，不创建临时业务身份。
+    static var attachmentPreviewItems: [IMessageChatAttachmentPreviewItem] {
+        IMessageChatAttachmentPreviewItem.prepare(pastedMediaDrafts[0].attachment)
+    }
+
     /// 音频气泡和录音预览共用的固定归一化波形采样。
     static let audioWaveform: [Float] = [
         0.18, 0.24, 0.34, 0.45, 0.72, 0.48, 0.38, 0.84, 0.62,

@@ -1,0 +1,260 @@
+import AVFoundation
+import ImageIO
+import PDFKit
+import UIKit
+import QuickLayout
+import QuickLayoutKit
+
+/// 一个可复用预览页，负责只读内容、缩放和可取消的原图加载。
+@available(iOS 26.0, *)
+final class IMessageChatPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDelegate {
+    /// 分页固定为物理 LTR；文字方向由预览控制器设置，不从分页列表覆盖。
+    override func synchronizeLayoutDirectionFromCollectionViewIfNeeded() -> Bool { false }
+
+    let imageScrollView = UIScrollView()
+    let imageView = UIImageView()
+    let playerLayer = AVPlayerLayer()
+    /// 布局引擎放置视频画布；AVPlayerLayer 只同步其本地 bounds。
+    private let videoSurface = UIView()
+
+    /// 常规内容由 QuickLayout 放置，缩放图像保留 UIScrollView 的坐标语义。
+    override var body: Layout {
+        ZStack {
+            imageScrollView.resizable()
+            videoSurface.resizable()
+            if let pdfView { pdfView.resizable().padding(.top, documentTop).padding(.bottom, documentBottom) }
+            if let textView { textView.resizable().padding(.top, documentTop).padding(.bottom, documentBottom) }
+            messageLabel.resizable().padding(.horizontal, 28).padding(.vertical, 120)
+            loading.resizable().frame(width: 44, height: 44)
+        }
+    }
+    private var documentTop: CGFloat { max(documentTopInset, max(88, safeAreaInsets.top + 72)) }
+    private var documentBottom: CGFloat { max(24, safeAreaInsets.bottom + 12) }
+    private(set) var pdfView: PDFView?
+    private(set) var textView: UITextView?
+    private let messageLabel = UILabel()
+    private let loading = UIActivityIndicatorView(style: .large)
+    private var imageTask: Task<Void, Never>?
+    private var pdfObserver: NSObjectProtocol?
+    private(set) var itemID: UUID?
+    private var imageSize = CGSize.zero
+    private var previousSize = CGSize.zero
+    /// 由控制层的实际高度决定文档起点，大字号下首行也必须完整可读。
+    var documentTopInset: CGFloat = 0 {
+        didSet { if documentTopInset != oldValue { setNeedsLayout() } }
+    }
+    /// 单击媒体背景时切换玻璃控件。
+    var toggleControls: (() -> Void)?
+    /// PDF 页码变化时刷新顶部状态。
+    var pageDidChange: ((Int, Int) -> Void)?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        quickLayoutHorizontalFlexibility = .fixedSize
+        quickLayoutVerticalFlexibility = .fixedSize
+        contentView.backgroundColor = .clear
+        imageScrollView.minimumZoomScale = 1
+        imageScrollView.maximumZoomScale = 4
+        imageScrollView.delegate = self
+        imageScrollView.contentInsetAdjustmentBehavior = .never
+        imageScrollView.showsVerticalScrollIndicator = false
+        imageScrollView.showsHorizontalScrollIndicator = false
+        imageView.contentMode = .scaleAspectFit
+        imageScrollView.addSubview(imageView)
+        playerLayer.videoGravity = .resizeAspect
+        videoSurface.isUserInteractionEnabled = false
+        videoSurface.layer.addSublayer(playerLayer)
+        messageLabel.font = .preferredFont(forTextStyle: .body)
+        messageLabel.adjustsFontForContentSizeCategory = true
+        messageLabel.textColor = .white
+        messageLabel.numberOfLines = 0
+        messageLabel.textAlignment = .center
+        messageLabel.accessibilityIdentifier = "imessage.preview.message"
+        loading.color = .white
+        loading.hidesWhenStopped = true
+        let doubleTap = UITapGestureRecognizer(target: self, action: #selector(doubleTapped(_:)))
+        doubleTap.numberOfTapsRequired = 2
+        imageScrollView.addGestureRecognizer(doubleTap)
+        let tap = UITapGestureRecognizer(target: self, action: #selector(singleTapped))
+        tap.require(toFail: doubleTap)
+        imageScrollView.addGestureRecognizer(tap)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    /// 展示指定项目并拒绝已复用页面的迟到加载结果。
+    func configure(_ item: IMessageChatAttachmentPreviewItem) {
+        reset()
+        itemID = item.id
+        accessibilityIdentifier = "imessage.preview.page.\(item.id.uuidString)"
+        switch item.kind {
+        case .image, .video:
+            imageScrollView.isHidden = false
+            imageScrollView.maximumZoomScale = item.kind == .image ? 4 : 1
+            if let url = item.thumbnailURL, let image = UIImage(contentsOfFile: url.path) { apply(image) }
+            guard item.kind == .image else { return }
+            loading.startAnimating()
+            let id = item.id
+            let task = Task.detached(priority: .userInitiated) { Self.downsample(item.url) }
+            imageTask = Task { [weak self] in
+                let cgImage = await withTaskCancellationHandler(operation: { await task.value }, onCancel: { task.cancel() })
+                guard !Task.isCancelled, let self, itemID == id else { return }
+                loading.stopAnimating()
+                if let cgImage { apply(UIImage(cgImage: cgImage)) } else { showError() }
+            }
+        case .pdf:
+            loading.startAnimating()
+            let id = item.id
+            let task = Task.detached(priority: .userInitiated) { try? Data(contentsOf: item.url, options: .mappedIfSafe) }
+            imageTask = Task { [weak self] in
+                let data = await withTaskCancellationHandler(operation: { await task.value }, onCancel: { task.cancel() })
+                guard !Task.isCancelled, let self, itemID == id else { return }
+                loading.stopAnimating()
+                guard let data, let document = PDFDocument(data: data), !document.isLocked, document.pageCount > 0 else { showError(); return }
+                let pdf = PDFView()
+                pdf.autoScales = true
+                pdf.displayMode = .singlePageContinuous
+                pdf.displayDirection = .vertical
+                pdf.backgroundColor = .secondarySystemBackground
+                pdf.document = document
+                pdf.accessibilityIdentifier = "imessage.preview.pdf"
+                pdfView = pdf
+                pdfObserver = NotificationCenter.default.addObserver(forName: .PDFViewPageChanged, object: pdf, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.reportPDFPage() }
+                }
+                setNeedsLayout()
+                reportPDFPage()
+            }
+        case .text(let text):
+            let view = UITextView()
+            view.text = text
+            view.isEditable = false
+            view.isSelectable = true
+            view.font = .preferredFont(forTextStyle: .body)
+            view.adjustsFontForContentSizeCategory = true
+            view.textColor = .label
+            view.backgroundColor = .systemBackground
+            view.textContainerInset = UIEdgeInsets(top: 24, left: 20, bottom: 24, right: 20)
+            view.accessibilityIdentifier = "imessage.preview.text"
+            textView = view
+        case .audio:
+            messageLabel.text = "♫\n\n\(item.title)"
+        case .quickLook, .unavailable:
+            showError()
+        }
+        setNeedsLayout()
+    }
+
+    /// 当前内容允许向下关闭时为 true；放大和文本选择具有优先权。
+    var permitsDismissal: Bool {
+        if imageScrollView.zoomScale > 1.01 { return false }
+        if let textView {
+            return textView.selectedRange.length == 0 && textView.contentOffset.y <= -textView.adjustedContentInset.top + 1
+        }
+        if let pdfView {
+            if pdfView.currentSelection != nil || pdfView.scaleFactor > pdfView.scaleFactorForSizeToFit + 0.01 { return false }
+            guard let scroll = Self.firstScrollView(in: pdfView) else { return false }
+            return scroll.contentOffset.y <= -scroll.adjustedContentInset.top + 1
+        }
+        return true
+    }
+
+    /// 用于卡片展开匹配的内容矩形。
+    var transitionRect: CGRect {
+        if !imageScrollView.isHidden, imageSize.width > 0 { return imageView.convert(imageView.bounds, to: self) }
+        return contentView.bounds
+    }
+
+    /// 视频图层切换时保留静态封面，首帧准备后由播放器覆盖。
+    func bind(player: AVPlayer?) { playerLayer.player = player }
+
+    func showError() {
+        loading.stopAnimating()
+        messageLabel.text = Localization.text("imessage.preview.unavailable")
+        messageLabel.isHidden = false
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if previousSize != bounds.size {
+            previousSize = bounds.size
+            imageScrollView.zoomScale = 1
+            layoutImage()
+        }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        playerLayer.frame = videoSurface.bounds
+        CATransaction.commit()
+
+    }
+    func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
+    func scrollViewDidZoom(_ scrollView: UIScrollView) {
+        imageView.center = CGPoint(x: max(scrollView.contentSize.width, scrollView.bounds.width) / 2,
+                                   y: max(scrollView.contentSize.height, scrollView.bounds.height) / 2)
+    }
+    @objc private func singleTapped() { toggleControls?() }
+    @objc private func doubleTapped(_ recognizer: UITapGestureRecognizer) {
+        guard imageScrollView.maximumZoomScale > 1 else { toggleControls?(); return }
+        if imageScrollView.zoomScale > 1 { imageScrollView.setZoomScale(1, animated: !UIAccessibility.isReduceMotionEnabled); return }
+        let point = recognizer.location(in: imageView)
+        let size = CGSize(width: bounds.width / 2, height: bounds.height / 2)
+        imageScrollView.zoom(to: CGRect(x: point.x - size.width / 2, y: point.y - size.height / 2, width: size.width, height: size.height), animated: !UIAccessibility.isReduceMotionEnabled)
+    }
+    private func apply(_ image: UIImage) {
+        imageView.image = image
+        imageSize = image.size
+        layoutImage()
+    }
+    private func layoutImage() {
+        guard imageSize.width > 0, bounds.width > 0 else { return }
+        let scale = min(bounds.width / imageSize.width, bounds.height / imageSize.height)
+        let size = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+        imageView.frame = CGRect(x: (bounds.width - size.width) / 2, y: (bounds.height - size.height) / 2, width: size.width, height: size.height)
+        imageScrollView.contentSize = bounds.size
+    }
+    private func reportPDFPage() {
+        guard let pdfView, let document = pdfView.document, let page = pdfView.currentPage else { return }
+        pageDidChange?(document.index(for: page) + 1, document.pageCount)
+    }
+    private static func firstScrollView(in view: UIView) -> UIScrollView? {
+        if let scroll = view as? UIScrollView { return scroll }
+        return view.subviews.lazy.compactMap { firstScrollView(in: $0) }.first
+    }
+    /// 取消页面加载并清除仅属于当前项目的观察者。
+    func reset() {
+        imageTask?.cancel(); imageTask = nil
+        if let pdfObserver { NotificationCenter.default.removeObserver(pdfObserver) }
+        pdfObserver = nil
+        itemID = nil
+        playerLayer.player = nil
+        pdfView?.removeFromSuperview(); pdfView = nil
+        textView?.removeFromSuperview(); textView = nil
+        imageScrollView.zoomScale = 1
+        imageScrollView.isHidden = true
+        imageView.image = nil
+        imageSize = .zero
+        messageLabel.text = nil
+        loading.stopAnimating()
+    }
+    override func prepareForReuse() { super.prepareForReuse(); reset(); toggleControls = nil; pageDidChange = nil }
+    isolated deinit { imageTask?.cancel(); if let pdfObserver { NotificationCenter.default.removeObserver(pdfObserver) } }
+
+    nonisolated private static func downsample(_ url: URL) -> CGImage? {
+        guard !Task.isCancelled, let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: 3072,
+        ] as CFDictionary)
+    }
+}
+
+#if DEBUG
+@available(iOS 26.0, *)
+#Preview("附件内容 · 图片") {
+    let page = IMessageChatPreviewPage(frame: CGRect(x: 0, y: 0, width: 402, height: 874))
+    page.backgroundColor = .black
+    page.configure(IMessageChatPreviewData.attachmentPreviewItems[0])
+    return page
+}
+#endif
