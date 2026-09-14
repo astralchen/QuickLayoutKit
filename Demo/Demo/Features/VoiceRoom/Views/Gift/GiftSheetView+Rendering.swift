@@ -1,0 +1,276 @@
+//
+//  GiftSheetView+Rendering.swift
+//  Demo
+//
+//  VoiceRoom MVVM feature.
+//
+
+import AppLocalization
+import QuickLayout
+import QuickLayoutKit
+import UIKit
+
+extension GiftSheetView {
+
+    func updateBalanceLabel() {
+        balanceLabel.text = Localization.text(
+            showsInsufficientBalancePrompt
+                ? "liveRoom.gift.balance.insufficient"
+                : "liveRoom.gift.balance",
+            giftBalance
+        )
+        balanceLabel.textColor = showsInsufficientBalancePrompt
+            ? .systemPink
+            : UIColor.white.withAlphaComponent(0.72)
+        setNeedsQuickLayout()
+    }
+
+    func updateRecipientStatusLabel() {
+        if showsRecipientRequiredPrompt {
+            recipientTitleLabel.text = Localization.text(
+                "liveRoom.gift.recipient.required"
+            )
+            recipientTitleLabel.textColor = .systemPink
+        } else {
+            recipientTitleLabel.text = Localization.text(
+                "liveRoom.gift.recipient.count",
+                selectedRecipientUserIDs.count
+            )
+            recipientTitleLabel.textColor = UIColor.white.withAlphaComponent(
+                0.72
+            )
+        }
+        if selectedRecipientUserIDs.isEmpty {
+            sendButton.accessibilityHint = Localization.text(
+                "liveRoom.gift.recipient.required"
+            )
+        } else if let selectedGift = gifts.first(where: {
+            $0.id == selectedGiftID
+        }) {
+            let (totalCost, overflow) = selectedGift.totalCost(
+                quantity: selectedGiftQuantity,
+                recipientCount: selectedRecipientUserIDs.count
+            )
+            sendButton.accessibilityHint = overflow || totalCost > giftBalance
+                ? Localization.text(
+                    "liveRoom.gift.balance.insufficient",
+                    giftBalance
+                )
+                : nil
+        } else {
+            sendButton.accessibilityHint = nil
+        }
+    }
+
+    func updateButtons(reloadsGifts: Bool = false) {
+        for (button, recipient) in zip(recipientButtons, recipients) {
+            let isSelected = recipient.userID.map(
+                selectedRecipientUserIDs.contains
+            ) == true
+            button.configure(
+                recipient: recipient,
+                isSelected: isSelected,
+                usesCompactMetrics: usesCompactMetrics
+            )
+            button.accessibilityLabel = Localization.text(recipient.nameKey)
+            button.accessibilityValue = isSelected
+                ? Localization.text("liveRoom.gift.selected")
+                : nil
+        }
+
+        for (button, category) in zip(
+            categoryButtons,
+            GiftCategory.allCases
+        ) {
+            let isSelected = category == selectedCategory
+            button.configure(
+                title: Localization.text(category.titleKey),
+                font: .systemFont(
+                    ofSize: usesCompactMetrics ? 11 : 13,
+                    weight: isSelected ? .bold : .semibold
+                ),
+                foregroundColor: isSelected
+                    ? .white
+                    : UIColor.white.withAlphaComponent(0.50),
+                backgroundColor: isSelected
+                    ? UIColor.white.withAlphaComponent(0.14)
+                    : .clear,
+                borderColor: isSelected
+                    ? UIColor.systemYellow.withAlphaComponent(0.85)
+                    : .clear,
+                borderWidth: isSelected ? 1 : 0,
+                contentInsets: EdgeInsets(
+                    top: 5,
+                    leading: usesCompactMetrics ? 5 : 9,
+                    bottom: 5,
+                    trailing: usesCompactMetrics ? 5 : 9
+                )
+            )
+            button.accessibilityValue = isSelected
+                ? Localization.text("liveRoom.gift.selected")
+                : nil
+        }
+
+        if reloadsGifts {
+            giftCollectionView.reloadData()
+        }
+
+        updateQuantityButton()
+
+        if let selectedGift = gifts.first(where: {
+            $0.id == selectedGiftID
+        }) {
+            sendButton.configure(
+                title: Localization.text("liveRoom.gift.send.action"),
+                font: .systemFont(ofSize: 16, weight: .semibold),
+                foregroundColor: UIColor(
+                    red: 0.12,
+                    green: 0.10,
+                    blue: 0.04,
+                    alpha: 1
+                ),
+                backgroundColor: .systemYellow,
+                contentInsets: EdgeInsets(
+                    top: 8,
+                    leading: 24,
+                    bottom: 8,
+                    trailing: 24
+                )
+            )
+            let (giftValue, giftValueOverflow) = selectedGift.price
+                .multipliedReportingOverflow(by: selectedGiftQuantity)
+            giftSummaryLabel.text = Localization.text(
+                "liveRoom.gift.summary",
+                Localization.text(selectedGift.titleKey),
+                giftValueOverflow ? Int.max : giftValue
+            )
+        }
+        updateBalanceLabel()
+        updateRecipientStatusLabel()
+        let selectsAllRecipients = !recipients.isEmpty
+            && selectedRecipientUserIDs.count == recipients.count
+        selectAllButton.configure(
+            isSelected: selectsAllRecipients,
+            usesCompactMetrics: usesCompactMetrics
+        )
+        selectAllButton.accessibilityLabel = Localization.text(
+            selectsAllRecipients
+                ? "liveRoom.gift.selectAll.cancel"
+                : "liveRoom.gift.selectAll"
+        )
+    }
+
+    func updateQuantityButton() {
+        var configuration = UIButton.Configuration.tinted()
+        configuration.title = "×\(selectedGiftQuantity)"
+        configuration.image = UIImage(
+            systemName: "chevron.up.chevron.down"
+        )
+        configuration.imagePlacement = .trailing
+        configuration.imagePadding = 5
+        configuration.cornerStyle = .capsule
+        configuration.baseForegroundColor = .white
+        configuration.baseBackgroundColor = UIColor.white.withAlphaComponent(
+            0.10
+        )
+        configuration.contentInsets = NSDirectionalEdgeInsets(
+            top: 8,
+            leading: usesCompactMetrics ? 9 : 12,
+            bottom: 8,
+            trailing: usesCompactMetrics ? 9 : 12
+        )
+        configuration.background.strokeColor = UIColor.white
+            .withAlphaComponent(0.18)
+        configuration.background.strokeWidth = 1
+        quantityButton.configuration = configuration
+
+        let selectedOption = giftQuantityOptions.first {
+            $0.value == selectedGiftQuantity
+        }
+        quantityButton.accessibilityLabel = Localization.text(
+            "liveRoom.gift.quantity.accessibility",
+            selectedGiftQuantity,
+            selectedOption.map {
+                Localization.text($0.titleKey)
+            } ?? ""
+        )
+        quantityButton.menu = UIMenu(
+            title: Localization.text("liveRoom.gift.quantity.title"),
+            children: giftQuantityOptions.map { option in
+                let action = UIAction(
+                    title: "\(option.value)  \(Localization.text(option.titleKey))"
+                ) { [weak self] _ in
+                    self?.selectGiftQuantity(option.value)
+                }
+                action.state = option.value == selectedGiftQuantity ? .on : .off
+                return action
+            }
+        )
+    }
+
+    func updateGiftGridMetrics() {
+        guard
+            let layout = giftCollectionView.collectionViewLayout
+                as? UICollectionViewFlowLayout,
+            giftCollectionView.bounds.width > 0
+        else { return }
+
+        let spacing: CGFloat = usesCompactMetrics ? 6 : 10
+        let minimumItemWidth: CGFloat = usesCompactMetrics ? 62 : 72
+        let availableWidth = giftCollectionView.bounds.width
+        // 根据礼物容器的真实宽度求列数，不依赖具体设备型号或屏幕方向。
+        let resolvedColumnCount = min(
+            6,
+            max(
+                3,
+                Int((availableWidth + spacing) / (minimumItemWidth + spacing))
+            )
+        )
+        let itemWidth = floor(
+            (availableWidth - CGFloat(resolvedColumnCount - 1) * spacing)
+                / CGFloat(resolvedColumnCount)
+        )
+        let itemHeight: CGFloat = usesCompactMetrics ? 72 : 82
+        let resolvedItemSize = CGSize(width: itemWidth, height: itemHeight)
+        guard
+            giftColumnCount != resolvedColumnCount
+                || layout.itemSize != resolvedItemSize
+                || layout.minimumInteritemSpacing != spacing
+        else { return }
+
+        giftColumnCount = resolvedColumnCount
+        layout.itemSize = resolvedItemSize
+        layout.minimumInteritemSpacing = spacing
+        layout.minimumLineSpacing = spacing
+        layout.sectionInset = .zero
+        layout.invalidateLayout()
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        numberOfItemsInSection section: Int
+    ) -> Int {
+        visibleGifts.count
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        cellForItemAt indexPath: IndexPath
+    ) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(
+            withReuseIdentifier: GiftCollectionCell.reuseIdentifier,
+            for: indexPath
+        )
+        guard let giftCell = cell as? GiftCollectionCell else {
+            return cell
+        }
+        let gift = visibleGifts[indexPath.item]
+        giftCell.configure(
+            gift: gift,
+            isSelected: gift.id == selectedGiftID
+        ) { [weak self] in
+            self?.selectGift(gift)
+        }
+        return giftCell
+    }
+}

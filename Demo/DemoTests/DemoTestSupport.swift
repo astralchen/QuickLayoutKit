@@ -22,23 +22,23 @@ extension DemoTests {
 
 @MainActor
 @discardableResult
-func applyLiveRoomSnapshot(
-    to viewController: LiveRoomViewController,
-    businessMode: LiveRoomBusinessMode,
-    audienceSeatState: LiveRoomAudienceSeatState
+func applyVoiceRoomSnapshot(
+    to viewController: VoiceRoomViewController,
+    roomMode: RoomMode,
+    audienceSeatState: AudienceSeatState
 ) -> Bool {
     let current = viewController.viewModel.state.snapshot
-    let assignments = LiveRoomViewModel.fixtureAssignments(
-        for: businessMode
+    let assignments = VoiceRoomViewModel.fixtureAssignments(
+        for: roomMode
     )
     return viewController.viewModel.consumeStageSnapshot(
-        LiveRoomStageSnapshot(
+        RoomStageSnapshot(
             revision: current.revision + 1,
-            businessMode: businessMode,
+            roomMode: roomMode,
             audienceSeatState: audienceSeatState,
             assignments: assignments,
-            capabilities: LiveRoomBusinessCapability.defaults(
-                for: businessMode
+            capabilities: RoomCapability.defaults(
+                for: roomMode
             )
         )
     )
@@ -46,8 +46,8 @@ func applyLiveRoomSnapshot(
 
 /// 测试专用的可控关注接口，用于分别断言请求开始、成功和失败状态。
 @MainActor
-final class ControlledLiveRoomFollowRequestHandler:
-    LiveRoomFollowRequestHandling {
+final class ControlledFollowRequestHandler:
+    FollowRequestHandling {
 
     private enum RequestError: Error {
         case failed

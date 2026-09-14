@@ -17,8 +17,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
     case counter
     case dynamicScroll
     case dashboard
-    case liveRoom
-    case imessageChat
+    case voiceRoom
+    case chat
     case collectionContentConfiguration
     case waterfallContentConfiguration
     case tableContentConfiguration
@@ -34,7 +34,7 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
     case localizationBoundary
 
     var isAvailable: Bool {
-        guard self == .imessageChat else { return true }
+        guard self == .chat else { return true }
         if #available(iOS 26.0, *) { return true }
         return false
     }
@@ -61,9 +61,9 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "demo.dynamicScroll.title"
         case .dashboard:
             "demo.dashboard.title"
-        case .liveRoom:
+        case .voiceRoom:
             "demo.liveRoom.title"
-        case .imessageChat:
+        case .chat:
             "demo.imessage.title"
         case .collectionContentConfiguration:
             "demo.contentConfiguration.collection.title"
@@ -118,9 +118,9 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "scroll"
         case .dashboard:
             "rectangle.3.group"
-        case .liveRoom:
+        case .voiceRoom:
             "music.mic"
-        case .imessageChat:
+        case .chat:
             "message.fill"
         case .collectionContentConfiguration:
             "rectangle.grid.1x2"

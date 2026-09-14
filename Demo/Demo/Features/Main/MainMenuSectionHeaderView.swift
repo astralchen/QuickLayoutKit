@@ -116,9 +116,9 @@ extension MainRoute {
             .systemIndigo
         case .counter, .keyboard, .form:
             .systemOrange
-        case .liveRoom:
+        case .voiceRoom:
             .systemPink
-        case .imessageChat, .collectionContentConfiguration, .waterfallContentConfiguration, .tableContentConfiguration:
+        case .chat, .collectionContentConfiguration, .waterfallContentConfiguration, .tableContentConfiguration:
             .systemGreen
         case .representable, .swiftUIBridge:
             .systemOrange

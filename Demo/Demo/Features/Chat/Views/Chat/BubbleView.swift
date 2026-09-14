@@ -1,0 +1,277 @@
+//
+//  BubbleView.swift
+//  Demo
+//
+
+import QuickLayout
+import QuickLayoutKit
+import UIKit
+
+/// 根据消息方向显示文本与圆角气泡轮廓的视图。
+final class BubbleView: QuickLayoutView {
+
+    /// 显示消息正文并支持动态字体的标签。
+    let messageLabel = UILabel()
+    /// 按消息方向裁剪气泡圆角的形状遮罩。
+    private let maskLayer = CAShapeLayer()
+    /// 当前消息的接收或发出方向，用于确定气泡外观与语义对齐。
+    private var direction: MessageDirection = .incoming
+
+    /// 定义 `BubbleView` 的布局层级、间距和对齐方式。
+    override var body: Layout {
+        messageLabel
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+    }
+
+    /// 使用指定初始边框创建 `BubbleView`，并配置其子视图和默认外观。
+    ///
+    /// - Parameter frame: 在父视图坐标系中指定的初始边框。
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        messageLabel.font = .preferredFont(forTextStyle: .body)
+        messageLabel.adjustsFontForContentSizeCategory = true
+        messageLabel.numberOfLines = 0
+        messageLabel.textAlignment = .natural
+        layer.mask = maskLayer
+        isAccessibilityElement = true
+    }
+
+    /// 不支持从归档创建 `BubbleView`。
+    ///
+    /// 请使用代码初始化方法创建此对象。
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    /// 根据当前边界更新 `BubbleView` 的子视图布局与图层几何。
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        updateBubbleMask()
+    }
+
+    /// 应用消息文本、收发方向和辅助功能信息，并请求重新布局。
+    func configure(_ message: MessagePresentation) {
+        direction = message.direction
+        messageLabel.text = message.text
+        switch message.direction {
+        case .incoming:
+            backgroundColor = .secondarySystemFill
+            messageLabel.textColor = .label
+        case .outgoing:
+            backgroundColor = .systemBlue
+            messageLabel.textColor = .white
+        }
+        accessibilityLabel = message.text
+        setNeedsQuickLayout()
+        setNeedsLayout()
+    }
+
+    /// 清空文本与辅助功能信息，恢复未配置的气泡状态。
+    func reset() {
+        direction = .incoming
+        messageLabel.text = nil
+        accessibilityLabel = nil
+        backgroundColor = .clear
+        maskLayer.path = nil
+        setNeedsQuickLayout()
+    }
+
+    /// 根据当前边界和收发方向更新气泡遮罩路径。
+    private func updateBubbleMask() {
+        guard bounds.width > 0, bounds.height > 0 else {
+            maskLayer.path = nil
+            return
+        }
+        let isRTL = effectiveUserInterfaceLayoutDirection == .rightToLeft
+        let compactBottomLeft = direction == .incoming ? !isRTL : isRTL
+        let compactBottomRight = !compactBottomLeft
+        maskLayer.frame = bounds
+        maskLayer.path = Self.roundedPath(
+            in: bounds,
+            topLeft: 18,
+            topRight: 18,
+            bottomLeft: compactBottomLeft ? 5 : 18,
+            bottomRight: compactBottomRight ? 5 : 18
+        )
+    }
+
+    /// 返回分别指定四个圆角半径的闭合矩形路径。
+    ///
+    /// - Parameters:
+    ///   - rect: 需要绘制的矩形区域。
+    ///   - topLeft: 左上角半径，单位为点。
+    ///   - topRight: 右上角半径，单位为点。
+    ///   - bottomLeft: 左下角半径，单位为点。
+    ///   - bottomRight: 右下角半径，单位为点。
+    /// - Returns: 用于气泡遮罩的闭合路径。
+    private static func roundedPath(
+        in rect: CGRect,
+        topLeft: CGFloat,
+        topRight: CGFloat,
+        bottomLeft: CGFloat,
+        bottomRight: CGFloat
+    ) -> CGPath {
+        let maximumRadius = min(rect.width, rect.height) / 2
+        let tl = min(topLeft, maximumRadius)
+        let tr = min(topRight, maximumRadius)
+        let bl = min(bottomLeft, maximumRadius)
+        let br = min(bottomRight, maximumRadius)
+        let path = UIBezierPath()
+
+        path.move(to: CGPoint(x: rect.minX + tl, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - tr, y: rect.minY))
+        path.addArc(
+            withCenter: CGPoint(x: rect.maxX - tr, y: rect.minY + tr),
+            radius: tr,
+            startAngle: -.pi / 2,
+            endAngle: 0,
+            clockwise: true
+        )
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - br))
+        path.addArc(
+            withCenter: CGPoint(x: rect.maxX - br, y: rect.maxY - br),
+            radius: br,
+            startAngle: 0,
+            endAngle: .pi / 2,
+            clockwise: true
+        )
+        path.addLine(to: CGPoint(x: rect.minX + bl, y: rect.maxY))
+        path.addArc(
+            withCenter: CGPoint(x: rect.minX + bl, y: rect.maxY - bl),
+            radius: bl,
+            startAngle: .pi / 2,
+            endAngle: .pi,
+            clockwise: true
+        )
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + tl))
+        path.addArc(
+            withCenter: CGPoint(x: rect.minX + tl, y: rect.minY + tl),
+            radius: tl,
+            startAngle: .pi,
+            endAngle: .pi * 1.5,
+            clockwise: true
+        )
+        path.close()
+        return path.cgPath
+    }
+}
+
+#if DEBUG
+/// 创建承载指定消息文本气泡的独立预览控制器。
+@available(iOS 16.0, *)
+@MainActor
+private func makeBubbleViewPreview(
+    _ message: MessagePresentation
+) -> UIViewController {
+    let backgroundView = UIView()
+    backgroundView.backgroundColor = .systemBackground
+    let bubbleView = BubbleView(frame: .zero)
+    bubbleView.configure(message)
+    return QuickLayoutHostingController {
+        ZStack {
+            backgroundView.resizable()
+            bubbleView
+        }
+        .frame(width: 330, height: 110)
+    }
+}
+
+/// 创建承载指定文本消息单元格的独立预览控制器。
+@available(iOS 16.0, *)
+@MainActor
+private func makeBubbleCellPreview(
+    _ message: MessagePresentation
+) -> UIViewController {
+    let backgroundView = UIView()
+    backgroundView.backgroundColor = .systemBackground
+    let cell = BubbleCell(frame: .zero)
+    cell.configure(message)
+    return QuickLayoutHostingController {
+        ZStack {
+            backgroundView.resizable()
+            cell.resizable().frame(width: 390, height: 86)
+        }
+    }
+}
+
+/// 创建使用固定示例时间的时间分隔单元格预览。
+@available(iOS 16.0, *)
+@MainActor
+private func makeTimestampCellPreview() -> UIViewController {
+    let cell = TimestampCell(frame: .zero)
+    cell.configure(ConversationPreviewData.timestamp)
+    return QuickLayoutHostingController {
+        cell.resizable().frame(width: 390, height: 52)
+    }
+}
+
+/// 创建用于检查输入圆点动画及外观的气泡视图预览。
+@available(iOS 16.0, *)
+@MainActor
+private func makeTypingBubbleViewPreview() -> UIViewController {
+    let backgroundView = UIView()
+    backgroundView.backgroundColor = .systemBackground
+    let typingView = TypingBubbleView(frame: .zero)
+    typingView.configure(
+        accessibilityLabel: ConversationPreviewData
+            .typingAccessibilityLabel
+    )
+    return QuickLayoutHostingController {
+        ZStack {
+            backgroundView.resizable()
+            typingView
+        }
+        .frame(width: 160, height: 90)
+    }
+}
+
+/// 创建用于检查时间线输入状态布局的单元格预览。
+@available(iOS 16.0, *)
+@MainActor
+private func makeTypingCellPreview() -> UIViewController {
+    let cell = TypingCell(frame: .zero)
+    cell.configure(
+        accessibilityLabel: ConversationPreviewData
+            .typingAccessibilityLabel
+    )
+    return QuickLayoutHostingController {
+        cell.resizable().frame(width: 390, height: 62)
+    }
+}
+
+@available(iOS 17.0, *)
+#Preview("消息气泡 View · 收到") {
+    makeBubbleViewPreview(ConversationPreviewData.incomingMessage)
+}
+
+@available(iOS 17.0, *)
+#Preview("消息气泡 View · 发出") {
+    makeBubbleViewPreview(ConversationPreviewData.outgoingMessage)
+}
+
+@available(iOS 17.0, *)
+#Preview("消息气泡 Cell · 收到") {
+    makeBubbleCellPreview(ConversationPreviewData.incomingMessage)
+}
+
+@available(iOS 17.0, *)
+#Preview("消息气泡 Cell · 发出") {
+    makeBubbleCellPreview(ConversationPreviewData.outgoingMessage)
+}
+
+@available(iOS 17.0, *)
+#Preview("消息时间 Cell") {
+    makeTimestampCellPreview()
+}
+
+@available(iOS 17.0, *)
+#Preview("输入中气泡 View") {
+    makeTypingBubbleViewPreview()
+}
+
+@available(iOS 17.0, *)
+#Preview("输入中 Cell") {
+    makeTypingCellPreview()
+}
+#endif

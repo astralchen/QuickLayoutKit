@@ -60,11 +60,11 @@ final class MainRouter: MainRouting {
             DynamicScrollViewController()
         case .dashboard:
             DashboardViewController()
-        case .liveRoom:
-            LiveRoomViewController()
-        case .imessageChat:
+        case .voiceRoom:
+            VoiceRoomViewController()
+        case .chat:
             if #available(iOS 26.0, *) {
-                IMessageChatViewController()
+                ChatViewController()
             } else {
                 nil
             }

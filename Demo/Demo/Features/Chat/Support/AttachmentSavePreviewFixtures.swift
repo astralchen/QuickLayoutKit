@@ -1,0 +1,132 @@
+#if DEBUG
+import AVFoundation
+import UIKit
+
+/// UI 回归通过启动参数使用真实本地附件；正常启动不改变会话内容。
+@available(iOS 16.0, *)
+@MainActor
+enum AttachmentSavePreviewFixtures {
+    /// 为页内播放 UI 测试生成固定十秒视频，不读取相册或网络。
+    static func videoAttachment(store: any AttachmentStoring) async throws -> Attachment {
+        let url = store.makeFileURL(prefix: "preview-video", pathExtension: "mov")
+        let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
+        defer { if writer.status == .writing { writer.cancelWriting() } }
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
+            AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: 320, AVVideoHeightKey: 240,
+        ])
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferWidthKey as String: 320, kCVPixelBufferHeightKey as String: 240,
+        ])
+        let error = NSError(domain: "PreviewFixture", code: 1)
+        writer.add(input)
+        guard writer.startWriting() else { throw error }
+        writer.startSession(atSourceTime: .zero)
+        var buffer: CVPixelBuffer?
+        guard CVPixelBufferCreate(kCFAllocatorDefault, 320, 240, kCVPixelFormatType_32BGRA, nil, &buffer) == kCVReturnSuccess, let pixels = buffer else { throw error }
+        CVPixelBufferLockBaseAddress(pixels, [])
+        memset(CVPixelBufferGetBaseAddress(pixels), 0x7f, CVPixelBufferGetBytesPerRow(pixels) * 240)
+        CVPixelBufferUnlockBaseAddress(pixels, [])
+        for frame in 0..<2 {
+            let deadline = ContinuousClock.now.advanced(by: .seconds(10))
+            while !input.isReadyForMoreMediaData, writer.status == .writing, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
+            guard input.isReadyForMoreMediaData, adaptor.append(pixels, withPresentationTime: CMTime(value: Int64(frame * 5), timescale: 1)) else { throw error }
+        }
+        writer.endSession(atSourceTime: CMTime(seconds: 10, preferredTimescale: 600))
+        input.markAsFinished()
+        await writer.finishWriting()
+        guard writer.status == .completed else { throw error }
+        let thumbnail = store.makeFileURL(prefix: "preview-video-cover", pathExtension: "png")
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 320, height: 240)).image { context in
+            UIColor.gray.setFill(); context.fill(CGRect(x: 0, y: 0, width: 320, height: 240))
+        }
+        try image.pngData()?.write(to: thumbnail)
+        let attachment = Attachment.mediaGroup(.init(items: [.init(assetIdentifier: nil, originalFileURL: url, thumbnailFileURL: thumbnail, pixelSize: image.size, kind: .video(duration: 10))]))
+        store.registerCommitted(attachment)
+        return attachment
+    }
+
+    /// 根据调试启动参数创建真实本地保存样例，并登记为已提交附件。
+    ///
+    /// 未指定支持的样例类型时返回 `nil`；文件生成失败时抛出错误。
+    static func attachment(store: any AttachmentStoring) throws -> Attachment? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: "-imessage-save-fixture"), arguments.indices.contains(index + 1) else { return nil }
+        let attachment: Attachment
+        switch arguments[index + 1] {
+        case "stack2", "stack5", "stack20":
+            let count = Int(arguments[index + 1].dropFirst(5)) ?? 5
+            let colors: [UIColor] = [.systemOrange, .systemBlue, .systemGreen, .systemPurple, .systemPink]
+            let items = try (0..<count).map { index in
+                let url = store.makeFileURL(prefix: "stack-preview-\(index)", pathExtension: "png")
+                let image = UIGraphicsImageRenderer(size: CGSize(width: 432, height: 600)).image { context in
+                    colors[index % colors.count].setFill()
+                    context.fill(CGRect(x: 0, y: 0, width: 432, height: 600))
+                    UIColor.white.withAlphaComponent(0.15).setFill()
+                    context.cgContext.fillEllipse(in: CGRect(x: 170, y: 40, width: 300, height: 300))
+                    ("\(index + 1)" as NSString).draw(at: CGPoint(x: 35, y: 35), withAttributes: [
+                        .font: UIFont.boldSystemFont(ofSize: 100), .foregroundColor: UIColor.white
+                    ])
+                    ("MEDIA STACK" as NSString).draw(at: CGPoint(x: 35, y: 500), withAttributes: [
+                        .font: UIFont.boldSystemFont(ofSize: 32), .foregroundColor: UIColor.white
+                    ])
+                }
+                try image.pngData()?.write(to: url)
+                return MediaItem(assetIdentifier: nil, originalFileURL: url,
+                                            thumbnailFileURL: url, pixelSize: image.size, kind: .image)
+            }
+            attachment = .mediaGroup(.init(items: items))
+        case "photo", "group":
+            let url = store.makeFileURL(prefix: "save-preview", pathExtension: "png")
+            let image = UIGraphicsImageRenderer(size: CGSize(width: 300, height: 200)).image { context in
+                UIColor.systemTeal.setFill()
+                context.fill(CGRect(x: 0, y: 0, width: 300, height: 200))
+                UIColor.systemYellow.setFill()
+                context.cgContext.fillEllipse(in: CGRect(x: 210, y: 24, width: 48, height: 48))
+                UIColor.systemGreen.setFill()
+                context.fill(CGRect(x: 0, y: 140, width: 300, height: 60))
+            }
+            try image.pngData()?.write(to: url)
+            let count = arguments[index + 1] == "group" ? 3 : 1
+            attachment = .mediaGroup(.init(items: (0..<count).map { _ in
+                .init(assetIdentifier: nil, originalFileURL: url, thumbnailFileURL: url,
+                      pixelSize: image.size, kind: .image)
+            }))
+        case "audio":
+            let url = store.makeFileURL(prefix: "save-preview", pathExtension: "caf")
+            let format = AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1)!
+            let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 16_000)!
+            buffer.frameLength = 16_000
+            if let channel = buffer.floatChannelData?[0] { channel.initialize(repeating: 0, count: 16_000) }
+            let audio = try AVAudioFile(forWriting: url, settings: format.settings)
+            try audio.write(from: buffer)
+            attachment = .file(.init(id: UUID(), fileURL: url, displayName: "Audio Message.caf",
+                typeIdentifier: "com.apple.coreaudio-format", byteCount: 64_000))
+        case "preview-rtf":
+            let url = store.makeFileURL(prefix: "preview-system", pathExtension: "rtf")
+            let data = Data("{\\rtf1\\ansi Quick Look compatibility preview.}".utf8)
+            try data.write(to: url)
+            attachment = .file(.init(id: UUID(), fileURL: url, displayName: "Compatibility.rtf", typeIdentifier: "public.rtf", byteCount: Int64(data.count)))
+        case "preview-unavailable":
+            let url = store.makeFileURL(prefix: "missing", pathExtension: "pdf")
+            attachment = .file(.init(id: UUID(), fileURL: url, displayName: "Unavailable.pdf", typeIdentifier: "com.adobe.pdf", byteCount: 0))
+        case "preview-text":
+            let url = store.makeFileURL(prefix: "preview-text", pathExtension: "txt")
+            let text = String(repeating: "附件预览 · Liquid Glass\nReadable text with selection.\n\n", count: 50)
+            try Data(text.utf8).write(to: url)
+            attachment = .file(.init(id: UUID(), fileURL: url, displayName: "Read me.txt", typeIdentifier: "public.plain-text", byteCount: Int64(text.utf8.count)))
+        case "document":
+            let url = store.makeFileURL(prefix: "save-preview", pathExtension: "pdf")
+            try UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 300, height: 200)).writePDF(to: url) { context in
+                context.beginPage()
+                ("Attachment save preview" as NSString).draw(at: CGPoint(x: 20, y: 40), withAttributes: nil)
+            }
+            attachment = .file(.init(id: UUID(), fileURL: url, displayName: "Attachment.pdf",
+                typeIdentifier: "com.adobe.pdf", byteCount: 1000))
+        default: return nil
+        }
+        store.registerCommitted(attachment)
+        return attachment
+    }
+}
+#endif

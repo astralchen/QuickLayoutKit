@@ -785,7 +785,7 @@ print(snapshot.totalLayoutPasses)
 
 ## Demo 与测试
 
-Demo 应用支持 iOS 15.0 及以上版本。`IMessageChat` 功能使用 iOS 26 API，仅在 iOS 26
+Demo 应用支持 iOS 15.0 及以上版本。`Chat` 功能使用 iOS 26 API，仅在 iOS 26
 及以上显示入口；其他演示页面保留 iOS 15 兼容路径。Xcode 预览要求 iOS 17，聊天预览要求
 iOS 26。Demo 单元测试和 UI 测试目标同样支持 iOS 15；聊天相关用例在 iOS 26 以下明确跳过，
 普通布局、菜单和本地化测试继续运行。
