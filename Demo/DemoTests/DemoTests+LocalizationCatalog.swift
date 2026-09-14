@@ -9,6 +9,31 @@ import QuickLayoutKit
 
 extension DemoTests {
 
+    @Test func percentagesFollowApplicationLanguage() throws {
+        defer { Localization.setLocale(identifier: "en-US") }
+
+        for identifier in ["en-US", "zh-Hans", "ar"] {
+            Localization.setLocale(identifier: identifier)
+            // 使用独立的系统数字格式器校验区域规则，避免固定某个系统版本的阿拉伯数字形态。
+            let formatter = NumberFormatter()
+            formatter.locale = Locale(identifier: identifier)
+            formatter.numberStyle = .percent
+            #expect(Localization.percent(0.72) == formatter.string(from: 0.72))
+            #expect(Localization.percent(0.98) == formatter.string(from: 0.98))
+            let percentage = try #require(formatter.string(from: 0.12))
+            let trend: String
+            switch identifier {
+            case "zh-Hans": trend = "本周 +\(percentage)"
+            case "ar": trend = "+\(percentage) هذا الأسبوع"
+            default: trend = "+\(percentage) this week"
+            }
+            #expect(
+                Localization.text("dashboard.score.trend", Localization.percent(0.12)).removingBidiIsolationMarks
+                    == trend
+            )
+        }
+    }
+
     @Test func demoLocalizationResolvesCoreLanguages() {
         Localization.setLocale(identifier: "en-US")
         #expect(Localization.text("main.title") == "Examples")

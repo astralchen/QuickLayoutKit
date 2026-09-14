@@ -52,12 +52,12 @@ final class DashboardViewController: LocalizedQuickLayoutHostingController {
             name: Localization.text("dashboard.name"),
             score: Localization.text("dashboard.score", 1_250),
             achievement: Localization.text("dashboard.achievement"),
-            trend: Localization.text("dashboard.score.trend")
+            trend: Localization.text("dashboard.score.trend", Localization.percent(0.12))
         )
         overviewLabel.text = Localization.text("dashboard.overview")
         weeklyGoalView.configure(
             title: Localization.text("dashboard.weekly.title"),
-            progressText: Localization.text("dashboard.weekly.progress"),
+            progressText: Localization.percent(0.72),
             detail: Localization.text("dashboard.weekly.detail")
         )
         recentActivityLabel.text = Localization.text(

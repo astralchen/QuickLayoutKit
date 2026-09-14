@@ -85,7 +85,7 @@ extension DemoTests {
         #expect(viewController.weeklyProgressView.progress == 0.72)
         #expect(
             viewController.weeklyProgressLabel.text
-                == Localization.text("dashboard.weekly.progress")
+                == Localization.percent(0.72)
         )
         #expect(
             viewController.recentActivityLabel.text

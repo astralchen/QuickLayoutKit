@@ -910,7 +910,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "内容配置瀑布流"
+            "value" : "内容配置 · 瀑布流"
           }
         },
         "ar" : {
@@ -944,18 +944,8 @@
         }
       }
     },
-    "%@: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@: %2$@"
-          }
-        }
-      }
-    },
     "app.name" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -978,7 +968,7 @@
       }
     },
     "boundary.body" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1001,7 +991,7 @@
       }
     },
     "boundary.recreateAlert" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1024,7 +1014,7 @@
       }
     },
     "boundary.systemMetadata" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1047,7 +1037,7 @@
       }
     },
     "common.boolean.false" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1070,7 +1060,7 @@
       }
     },
     "common.boolean.true" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1093,7 +1083,7 @@
       }
     },
     "common.close" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1116,7 +1106,7 @@
       }
     },
     "common.ok" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1139,7 +1129,7 @@
       }
     },
     "common.submit" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1162,7 +1152,7 @@
       }
     },
     "contentMargins.intro" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1185,7 +1175,7 @@
       }
     },
     "contentMargins.next" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1208,7 +1198,7 @@
       }
     },
     "contentMargins.previous" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1231,7 +1221,7 @@
       }
     },
     "counter.controls.subtitle" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1254,7 +1244,7 @@
       }
     },
     "counter.controls.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1277,7 +1267,7 @@
       }
     },
     "counter.decrement" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1300,7 +1290,7 @@
       }
     },
     "counter.eyebrow" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1323,7 +1313,7 @@
       }
     },
     "counter.goal" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1346,7 +1336,7 @@
       }
     },
     "counter.headline" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1369,7 +1359,7 @@
       }
     },
     "counter.increment" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1392,7 +1382,7 @@
       }
     },
     "counter.progress" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1415,7 +1405,7 @@
       }
     },
     "counter.reset" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1438,7 +1428,7 @@
       }
     },
     "counter.reset.action" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1461,7 +1451,7 @@
       }
     },
     "counter.reset.cancel" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1484,7 +1474,7 @@
       }
     },
     "counter.reset.confirm.message" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1507,7 +1497,7 @@
       }
     },
     "counter.reset.confirm.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1530,7 +1520,7 @@
       }
     },
     "counter.status.complete.message" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1553,7 +1543,7 @@
       }
     },
     "counter.status.complete.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1576,7 +1566,7 @@
       }
     },
     "counter.status.progress.message" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1599,7 +1589,7 @@
       }
     },
     "counter.status.progress.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1622,7 +1612,7 @@
       }
     },
     "counter.status.ready.message" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1645,7 +1635,7 @@
       }
     },
     "counter.status.ready.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1668,7 +1658,7 @@
       }
     },
     "counter.subtitle" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1691,7 +1681,7 @@
       }
     },
     "counter.unit" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1714,7 +1704,7 @@
       }
     },
     "dashboard.achievement" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1990,7 +1980,7 @@
       }
     },
     "dashboard.name" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2036,7 +2026,7 @@
       }
     },
     "dashboard.score" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2064,19 +2054,19 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "+١٢٪ هذا الأسبوع"
+            "value" : "+%@ هذا الأسبوع"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "+12% this week"
+            "value" : "+%@ this week"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "本周 +12%"
+            "value" : "本周 +%@"
           }
         }
       }
@@ -2100,29 +2090,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "距离 1,500 分目标还差 280 分"
-          }
-        }
-      }
-    },
-    "dashboard.weekly.progress" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "٧٢٪"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "72%"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "72%"
           }
         }
       }
@@ -2151,7 +2118,7 @@
       }
     },
     "demo.contentMargins.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2174,7 +2141,7 @@
       }
     },
     "demo.counter.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2197,7 +2164,7 @@
       }
     },
     "demo.dashboard.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2220,7 +2187,7 @@
       }
     },
     "demo.directionalNavigation.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2243,7 +2210,7 @@
       }
     },
     "demo.dynamicScroll.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2266,7 +2233,7 @@
       }
     },
     "demo.form.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2289,7 +2256,7 @@
       }
     },
     "demo.horizontalScroll.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2312,7 +2279,7 @@
       }
     },
     "demo.imessage.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2335,7 +2302,7 @@
       }
     },
     "demo.keyboard.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2358,7 +2325,7 @@
       }
     },
     "demo.liveRoom.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2381,7 +2348,7 @@
       }
     },
     "demo.localizationBoundary.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2404,7 +2371,7 @@
       }
     },
     "demo.localizationOverview.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2427,7 +2394,7 @@
       }
     },
     "demo.contentConfiguration.collection.header" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2450,7 +2417,7 @@
       }
     },
     "demo.contentConfiguration.collection.header.detail" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2473,7 +2440,7 @@
       }
     },
     "demo.contentConfiguration.collection.footer" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2496,7 +2463,7 @@
       }
     },
     "demo.contentConfiguration.collection.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2519,7 +2486,7 @@
       }
     },
     "demo.positionAndZIndex.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2542,7 +2509,7 @@
       }
     },
     "demo.profile.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2565,7 +2532,7 @@
       }
     },
     "demo.representable.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2588,7 +2555,7 @@
       }
     },
     "demo.safeAreaPadding.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2611,7 +2578,7 @@
       }
     },
     "demo.semantic.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2634,7 +2601,7 @@
       }
     },
     "demo.semanticGesture.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2657,7 +2624,7 @@
       }
     },
     "demo.swiftUIBridge.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2680,7 +2647,7 @@
       }
     },
     "demo.contentConfiguration.table.footer" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2703,7 +2670,7 @@
       }
     },
     "demo.contentConfiguration.table.header" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2726,7 +2693,7 @@
       }
     },
     "demo.contentConfiguration.table.header.detail" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2749,7 +2716,7 @@
       }
     },
     "demo.contentConfiguration.table.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2772,7 +2739,7 @@
       }
     },
     "demo.uikitLocalization.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2795,7 +2762,7 @@
       }
     },
     "demo.viewThatFits.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2818,7 +2785,7 @@
       }
     },
     "dynamic.addItem" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2841,7 +2808,7 @@
       }
     },
     "dynamic.item.deleteAccessibilityHint" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2864,7 +2831,7 @@
       }
     },
     "dynamic.item.deleteButton" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2887,7 +2854,7 @@
       }
     },
     "dynamic.item.deleteHint" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2910,7 +2877,7 @@
       }
     },
     "dynamic.item.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2933,7 +2900,7 @@
       }
     },
     "form.address" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2956,7 +2923,7 @@
       }
     },
     "form.alert.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2979,7 +2946,7 @@
       }
     },
     "form.customInput" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3002,7 +2969,7 @@
       }
     },
     "form.email" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3025,7 +2992,7 @@
       }
     },
     "form.header.subtitle" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3048,7 +3015,7 @@
       }
     },
     "form.header.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3071,7 +3038,7 @@
       }
     },
     "form.name" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3094,7 +3061,7 @@
       }
     },
     "form.notes" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3117,7 +3084,7 @@
       }
     },
     "form.phone" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3140,7 +3107,7 @@
       }
     },
     "form.submit" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3163,7 +3130,7 @@
       }
     },
     "form.summary" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3186,7 +3153,7 @@
       }
     },
     "gesture.backSwipe" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3209,7 +3176,7 @@
       }
     },
     "gesture.hint" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3232,7 +3199,7 @@
       }
     },
     "gesture.leading" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3255,7 +3222,7 @@
       }
     },
     "gesture.none" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3278,7 +3245,7 @@
       }
     },
     "gesture.trailing" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3301,7 +3268,7 @@
       }
     },
     "gesture.translation" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3324,7 +3291,7 @@
       }
     },
     "horizontal.explore.card.accessibilityHint" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3347,7 +3314,7 @@
       }
     },
     "horizontal.explore.destination.bamboo.location" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3370,7 +3337,7 @@
       }
     },
     "horizontal.explore.destination.bamboo.price" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3393,7 +3360,7 @@
       }
     },
     "horizontal.explore.destination.bamboo.summary" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3416,7 +3383,7 @@
       }
     },
     "horizontal.explore.destination.bamboo.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3439,7 +3406,7 @@
       }
     },
     "horizontal.explore.destination.city.location" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3462,7 +3429,7 @@
       }
     },
     "horizontal.explore.destination.city.price" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3485,7 +3452,7 @@
       }
     },
     "horizontal.explore.destination.city.summary" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3508,7 +3475,7 @@
       }
     },
     "horizontal.explore.destination.city.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3531,7 +3498,7 @@
       }
     },
     "horizontal.explore.destination.coast.location" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3554,7 +3521,7 @@
       }
     },
     "horizontal.explore.destination.coast.price" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3577,7 +3544,7 @@
       }
     },
     "horizontal.explore.destination.coast.summary" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3600,7 +3567,7 @@
       }
     },
     "horizontal.explore.destination.coast.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3623,7 +3590,7 @@
       }
     },
     "horizontal.explore.destination.garden.location" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3646,7 +3613,7 @@
       }
     },
     "horizontal.explore.destination.garden.price" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3669,7 +3636,7 @@
       }
     },
     "horizontal.explore.destination.garden.summary" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3692,7 +3659,7 @@
       }
     },
     "horizontal.explore.destination.garden.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3715,7 +3682,7 @@
       }
     },
     "horizontal.explore.destination.lakeside.location" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3738,7 +3705,7 @@
       }
     },
     "horizontal.explore.destination.lakeside.price" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3761,7 +3728,7 @@
       }
     },
     "horizontal.explore.destination.lakeside.summary" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3784,7 +3751,7 @@
       }
     },
     "horizontal.explore.destination.lakeside.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3807,7 +3774,7 @@
       }
     },
     "horizontal.explore.eyebrow" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3830,7 +3797,7 @@
       }
     },
     "horizontal.explore.headline" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3853,7 +3820,7 @@
       }
     },
     "horizontal.explore.hint" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3876,7 +3843,7 @@
       }
     },
     "horizontal.explore.page" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3899,7 +3866,7 @@
       }
     },
     "horizontal.explore.priceCaption" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3922,7 +3889,7 @@
       }
     },
     "horizontal.explore.subtitle" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3945,7 +3912,7 @@
       }
     },
     "horizontal.explore.tag" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3968,7 +3935,7 @@
       }
     },
     "imessage.action.cancel" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3991,7 +3958,7 @@
       }
     },
     "imessage.action.ok" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4014,7 +3981,7 @@
       }
     },
     "imessage.action.settings" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4037,7 +4004,7 @@
       }
     },
     "imessage.attachment.add" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4060,7 +4027,7 @@
       }
     },
     "imessage.attachment.audio" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4083,7 +4050,7 @@
       }
     },
     "imessage.attachment.file" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4106,7 +4073,7 @@
       }
     },
     "imessage.attachment.importFailed" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4129,7 +4096,7 @@
       }
     },
     "imessage.attachment.link" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4198,7 +4165,7 @@
       }
     },
     "imessage.audio.attachment.recording" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4221,7 +4188,7 @@
       }
     },
     "imessage.audio.cancel" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4244,7 +4211,7 @@
       }
     },
     "imessage.audio.pause" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4267,7 +4234,7 @@
       }
     },
     "imessage.audio.play" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4313,7 +4280,7 @@
       }
     },
     "imessage.audio.record.stop" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4336,7 +4303,7 @@
       }
     },
     "imessage.composer.placeholder" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4359,7 +4326,7 @@
       }
     },
     "imessage.composer.send" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4382,7 +4349,7 @@
       }
     },
     "imessage.contact.subtitle" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4405,7 +4372,7 @@
       }
     },
     "imessage.dictation.start" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4428,7 +4395,7 @@
       }
     },
     "imessage.dictation.stop" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4497,7 +4464,7 @@
       }
     },
     "imessage.error.microphonePermission" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4520,7 +4487,7 @@
       }
     },
     "imessage.error.playbackFailed" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4543,7 +4510,7 @@
       }
     },
     "imessage.error.recordingFailed" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4566,7 +4533,7 @@
       }
     },
     "imessage.error.recordingTooShort" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4589,7 +4556,7 @@
       }
     },
     "imessage.error.speechFailed" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4612,7 +4579,7 @@
       }
     },
     "imessage.error.speechPermission" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4635,7 +4602,7 @@
       }
     },
     "imessage.error.speechUnavailable" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4658,7 +4625,7 @@
       }
     },
     "imessage.error.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4980,7 +4947,7 @@
       }
     },
     "imessage.reply.1" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5141,7 +5108,7 @@
       }
     },
     "imessage.seed.incoming.1" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5164,7 +5131,7 @@
       }
     },
     "imessage.seed.incoming.2" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5187,7 +5154,7 @@
       }
     },
     "imessage.seed.outgoing.1" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5210,7 +5177,7 @@
       }
     },
     "imessage.status.delivered" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5233,7 +5200,7 @@
       }
     },
     "imessage.status.failed" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5256,7 +5223,7 @@
       }
     },
     "imessage.status.read" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5279,7 +5246,7 @@
       }
     },
     "imessage.status.retry.hint" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5302,7 +5269,7 @@
       }
     },
     "imessage.status.sending" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5325,7 +5292,7 @@
       }
     },
     "imessage.typing.accessibility" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5348,7 +5315,7 @@
       }
     },
     "keyboard.diagnostics.event" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5371,7 +5338,7 @@
       }
     },
     "keyboard.diagnostics.height" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5394,7 +5361,7 @@
       }
     },
     "keyboard.diagnostics.intersection" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5417,7 +5384,7 @@
       }
     },
     "keyboard.diagnostics.rawFrame" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5440,7 +5407,7 @@
       }
     },
     "keyboard.diagnostics.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5463,7 +5430,7 @@
       }
     },
     "keyboard.placeholder" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5486,7 +5453,7 @@
       }
     },
     "language.change.hint" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5509,7 +5476,7 @@
       }
     },
     "language.current" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5532,7 +5499,7 @@
       }
     },
     "language.direction" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5555,7 +5522,7 @@
       }
     },
     "language.follow.system" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5578,7 +5545,7 @@
       }
     },
     "language.menu.accessibility" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5601,7 +5568,7 @@
       }
     },
     "language.menu.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5624,7 +5591,7 @@
       }
     },
     "liveRoom.action.cancel" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5647,7 +5614,7 @@
       }
     },
     "liveRoom.action.gift" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5670,7 +5637,7 @@
       }
     },
     "liveRoom.action.input.placeholder" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5693,7 +5660,7 @@
       }
     },
     "liveRoom.action.message" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5716,7 +5683,7 @@
       }
     },
     "liveRoom.action.microphone" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5739,7 +5706,7 @@
       }
     },
     "liveRoom.action.more" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5762,7 +5729,7 @@
       }
     },
     "liveRoom.action.send" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5785,7 +5752,7 @@
       }
     },
     "liveRoom.audience.contribution" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5808,7 +5775,7 @@
       }
     },
     "liveRoom.audience.listening" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5831,7 +5798,7 @@
       }
     },
     "liveRoom.audience.onMicrophone" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5854,7 +5821,7 @@
       }
     },
     "liveRoom.audience.openHint" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5877,7 +5844,7 @@
       }
     },
     "liveRoom.audience.profile.about.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5900,7 +5867,7 @@
       }
     },
     "liveRoom.audience.profile.about.value" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5923,7 +5890,7 @@
       }
     },
     "liveRoom.audience.profile.avatar" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5946,7 +5913,7 @@
       }
     },
     "liveRoom.audience.profile.contribution.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5969,7 +5936,7 @@
       }
     },
     "liveRoom.audience.profile.details.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5992,7 +5959,7 @@
       }
     },
     "liveRoom.audience.profile.memberID" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6015,7 +5982,7 @@
       }
     },
     "liveRoom.audience.profile.navigationTitle" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6038,7 +6005,7 @@
       }
     },
     "liveRoom.audience.profile.openHint" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6061,7 +6028,7 @@
       }
     },
     "liveRoom.audience.subtitle" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6084,7 +6051,7 @@
       }
     },
     "liveRoom.audience.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6107,7 +6074,7 @@
       }
     },
     "liveRoom.business.command.failure.message" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6130,7 +6097,7 @@
       }
     },
     "liveRoom.business.command.failure.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6153,7 +6120,7 @@
       }
     },
     "liveRoom.business.pk.end" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6176,7 +6143,7 @@
       }
     },
     "liveRoom.business.pk.start" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6199,7 +6166,7 @@
       }
     },
     "liveRoom.condition.cancel" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6222,7 +6189,7 @@
       }
     },
     "liveRoom.condition.met" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6245,7 +6212,7 @@
       }
     },
     "liveRoom.condition.notMet" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6268,7 +6235,7 @@
       }
     },
     "liveRoom.condition.satisfy" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6291,7 +6258,7 @@
       }
     },
     "liveRoom.gift.balance" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6314,7 +6281,7 @@
       }
     },
     "liveRoom.gift.balance.insufficient" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6337,7 +6304,7 @@
       }
     },
     "liveRoom.gift.category.all" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6360,7 +6327,7 @@
       }
     },
     "liveRoom.gift.category.collection" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6383,7 +6350,7 @@
       }
     },
     "liveRoom.gift.category.interactive" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6406,7 +6373,7 @@
       }
     },
     "liveRoom.gift.category.luxury" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6429,7 +6396,7 @@
       }
     },
     "liveRoom.gift.category.party" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6452,7 +6419,7 @@
       }
     },
     "liveRoom.gift.category.popular" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6475,7 +6442,7 @@
       }
     },
     "liveRoom.gift.category.romantic" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6498,7 +6465,7 @@
       }
     },
     "liveRoom.gift.celebration" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6521,7 +6488,7 @@
       }
     },
     "liveRoom.gift.close" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6544,7 +6511,7 @@
       }
     },
     "liveRoom.gift.item.aurora" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6567,7 +6534,7 @@
       }
     },
     "liveRoom.gift.item.castle" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6590,7 +6557,7 @@
       }
     },
     "liveRoom.gift.item.constellation" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6613,7 +6580,7 @@
       }
     },
     "liveRoom.gift.item.crown" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6636,7 +6603,7 @@
       }
     },
     "liveRoom.gift.item.crystal" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6659,7 +6626,7 @@
       }
     },
     "liveRoom.gift.item.fireworks" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6682,7 +6649,7 @@
       }
     },
     "liveRoom.gift.item.galaxy" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6705,7 +6672,7 @@
       }
     },
     "liveRoom.gift.item.heart" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6728,7 +6695,7 @@
       }
     },
     "liveRoom.gift.item.microphone" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6751,7 +6718,7 @@
       }
     },
     "liveRoom.gift.item.music" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6774,7 +6741,7 @@
       }
     },
     "liveRoom.gift.item.phoenix" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6797,7 +6764,7 @@
       }
     },
     "liveRoom.gift.item.rocket" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6820,7 +6787,7 @@
       }
     },
     "liveRoom.gift.item.rose" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6843,7 +6810,7 @@
       }
     },
     "liveRoom.gift.item.sportsCar" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6866,7 +6833,7 @@
       }
     },
     "liveRoom.gift.item.star" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6889,7 +6856,7 @@
       }
     },
     "liveRoom.gift.item.treasure" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6912,7 +6879,7 @@
       }
     },
     "liveRoom.gift.item.universe" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6935,7 +6902,7 @@
       }
     },
     "liveRoom.gift.item.yacht" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6958,7 +6925,7 @@
       }
     },
     "liveRoom.gift.name.separator" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6981,7 +6948,7 @@
       }
     },
     "liveRoom.gift.price" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7004,7 +6971,7 @@
       }
     },
     "liveRoom.gift.quantity.accessibility" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7027,7 +6994,7 @@
       }
     },
     "liveRoom.gift.quantity.fiveTwenty" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7050,7 +7017,7 @@
       }
     },
     "liveRoom.gift.quantity.one" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7073,7 +7040,7 @@
       }
     },
     "liveRoom.gift.quantity.oneEightyEight" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7096,7 +7063,7 @@
       }
     },
     "liveRoom.gift.quantity.sixtySix" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7119,7 +7086,7 @@
       }
     },
     "liveRoom.gift.quantity.ten" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7142,7 +7109,7 @@
       }
     },
     "liveRoom.gift.quantity.thirteenFourteen" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7165,7 +7132,7 @@
       }
     },
     "liveRoom.gift.quantity.thirty" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7188,7 +7155,7 @@
       }
     },
     "liveRoom.gift.quantity.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7211,7 +7178,7 @@
       }
     },
     "liveRoom.gift.recipient.count" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7234,7 +7201,7 @@
       }
     },
     "liveRoom.gift.recipient.required" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7257,7 +7224,7 @@
       }
     },
     "liveRoom.gift.recipient.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7280,7 +7247,7 @@
       }
     },
     "liveRoom.gift.selectAll" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7303,7 +7270,7 @@
       }
     },
     "liveRoom.gift.selectAll.cancel" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7326,7 +7293,7 @@
       }
     },
     "liveRoom.gift.selected" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7349,7 +7316,7 @@
       }
     },
     "liveRoom.gift.selection.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7372,7 +7339,7 @@
       }
     },
     "liveRoom.gift.send.action" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7395,7 +7362,7 @@
       }
     },
     "liveRoom.gift.sent.quantity" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7418,7 +7385,7 @@
       }
     },
     "liveRoom.gift.summary" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7441,7 +7408,7 @@
       }
     },
     "liveRoom.gift.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7464,7 +7431,7 @@
       }
     },
     "liveRoom.info.announcement.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7487,7 +7454,7 @@
       }
     },
     "liveRoom.info.announcement.value" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7510,7 +7477,7 @@
       }
     },
     "liveRoom.info.audience" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7533,7 +7500,7 @@
       }
     },
     "liveRoom.info.avatar.accessibility" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7556,7 +7523,7 @@
       }
     },
     "liveRoom.info.avatar.hint" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7579,7 +7546,7 @@
       }
     },
     "liveRoom.info.details.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7602,7 +7569,7 @@
       }
     },
     "liveRoom.info.host" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7625,7 +7592,7 @@
       }
     },
     "liveRoom.info.navigationTitle" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7648,7 +7615,7 @@
       }
     },
     "liveRoom.info.roomID" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7671,7 +7638,7 @@
       }
     },
     "liveRoom.info.status.live" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7694,7 +7661,7 @@
       }
     },
     "liveRoom.layout.five" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7717,7 +7684,7 @@
       }
     },
     "liveRoom.layout.nine" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7740,7 +7707,7 @@
       }
     },
     "liveRoom.layout.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7763,7 +7730,7 @@
       }
     },
     "liveRoom.messages.first" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7786,7 +7753,7 @@
       }
     },
     "liveRoom.messages.follow" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7855,7 +7822,7 @@
       }
     },
     "liveRoom.messages.me" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7878,7 +7845,7 @@
       }
     },
     "liveRoom.messages.second" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7901,7 +7868,7 @@
       }
     },
     "liveRoom.messages.third" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7924,7 +7891,7 @@
       }
     },
     "liveRoom.messages.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7970,7 +7937,7 @@
       }
     },
     "liveRoom.recharge.alert.action" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7993,7 +7960,7 @@
       }
     },
     "liveRoom.recharge.alert.cancel" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8016,7 +7983,7 @@
       }
     },
     "liveRoom.recharge.alert.message" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8039,7 +8006,7 @@
       }
     },
     "liveRoom.recharge.alert.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8062,7 +8029,7 @@
       }
     },
     "liveRoom.recharge.balance.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8085,7 +8052,7 @@
       }
     },
     "liveRoom.recharge.balance.value" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8108,7 +8075,7 @@
       }
     },
     "liveRoom.recharge.confirm" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8131,7 +8098,7 @@
       }
     },
     "liveRoom.recharge.failure" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8154,7 +8121,7 @@
       }
     },
     "liveRoom.recharge.package.amount" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8177,7 +8144,7 @@
       }
     },
     "liveRoom.recharge.package.bonus" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8200,7 +8167,7 @@
       }
     },
     "liveRoom.recharge.package.selected" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8223,7 +8190,7 @@
       }
     },
     "liveRoom.recharge.package.standard" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8246,7 +8213,7 @@
       }
     },
     "liveRoom.recharge.package.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8269,7 +8236,7 @@
       }
     },
     "liveRoom.recharge.page.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8292,7 +8259,7 @@
       }
     },
     "liveRoom.recharge.required" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8315,7 +8282,7 @@
       }
     },
     "liveRoom.recharge.success" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8338,7 +8305,7 @@
       }
     },
     "liveRoom.room.audience" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8361,7 +8328,7 @@
       }
     },
     "liveRoom.room.subtitle" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8384,7 +8351,7 @@
       }
     },
     "liveRoom.room.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8407,7 +8374,7 @@
       }
     },
     "liveRoom.seat.available" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8430,7 +8397,7 @@
       }
     },
     "liveRoom.seat.eight" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8453,7 +8420,7 @@
       }
     },
     "liveRoom.seat.muted" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8476,7 +8443,7 @@
       }
     },
     "liveRoom.seat.score" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8499,7 +8466,7 @@
       }
     },
     "liveRoom.seat.speaking" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8522,7 +8489,7 @@
       }
     },
     "liveRoom.user.host" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8545,7 +8512,7 @@
       }
     },
     "liveRoom.user.individual.1" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8568,7 +8535,7 @@
       }
     },
     "liveRoom.user.individual.2" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8591,7 +8558,7 @@
       }
     },
     "liveRoom.user.individual.3" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8614,7 +8581,7 @@
       }
     },
     "liveRoom.user.individual.4" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8637,7 +8604,7 @@
       }
     },
     "liveRoom.user.party.1" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8660,7 +8627,7 @@
       }
     },
     "liveRoom.user.party.2" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8683,7 +8650,7 @@
       }
     },
     "liveRoom.user.party.3" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8706,7 +8673,7 @@
       }
     },
     "liveRoom.user.party.4" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8729,7 +8696,7 @@
       }
     },
     "liveRoom.user.party.5" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8752,7 +8719,7 @@
       }
     },
     "liveRoom.user.party.6" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8775,7 +8742,7 @@
       }
     },
     "liveRoom.userCard.guestSeat" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8798,7 +8765,7 @@
       }
     },
     "liveRoom.userCard.hostSeat" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8821,7 +8788,7 @@
       }
     },
     "liveRoom.userCard.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8844,7 +8811,7 @@
       }
     },
     "localization.overview.body" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8936,7 +8903,7 @@
       }
     },
     "main.section.hosting" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8959,7 +8926,7 @@
       }
     },
     "main.section.localization" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8982,7 +8949,7 @@
       }
     },
     "main.section.quicklayout" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9005,7 +8972,7 @@
       }
     },
     "main.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9028,7 +8995,7 @@
       }
     },
     "contentConfiguration.sample.detail.1" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9051,7 +9018,7 @@
       }
     },
     "contentConfiguration.sample.detail.2" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9074,7 +9041,7 @@
       }
     },
     "contentConfiguration.sample.detail.3" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9097,7 +9064,7 @@
       }
     },
     "contentConfiguration.sample.detail.4" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9120,7 +9087,7 @@
       }
     },
     "contentConfiguration.sample.title.1" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9143,7 +9110,7 @@
       }
     },
     "contentConfiguration.sample.title.2" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9166,7 +9133,7 @@
       }
     },
     "contentConfiguration.sample.title.3" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9189,7 +9156,7 @@
       }
     },
     "contentConfiguration.sample.title.4" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9212,7 +9179,7 @@
       }
     },
     "navigation.body" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9235,7 +9202,7 @@
       }
     },
     "navigation.edge.left" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9258,7 +9225,7 @@
       }
     },
     "navigation.edge.right" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9281,7 +9248,7 @@
       }
     },
     "navigation.edge.summary" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9304,7 +9271,7 @@
       }
     },
     "navigation.leading" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9327,7 +9294,7 @@
       }
     },
     "navigation.trailing" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9350,7 +9317,7 @@
       }
     },
     "positionAndZIndex.intro" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9373,7 +9340,7 @@
       }
     },
     "positionAndZIndex.position.description" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9396,7 +9363,7 @@
       }
     },
     "positionAndZIndex.zIndex.description" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9419,7 +9386,7 @@
       }
     },
     "profile.action.message" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9442,7 +9409,7 @@
       }
     },
     "profile.action.portfolio" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9465,7 +9432,7 @@
       }
     },
     "profile.activity.detail" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9488,7 +9455,7 @@
       }
     },
     "profile.activity.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9511,7 +9478,7 @@
       }
     },
     "profile.availability" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9534,7 +9501,7 @@
       }
     },
     "profile.bio" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9557,7 +9524,7 @@
       }
     },
     "profile.location" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9580,7 +9547,7 @@
       }
     },
     "profile.name" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9603,7 +9570,7 @@
       }
     },
     "profile.role" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9626,7 +9593,7 @@
       }
     },
     "profile.section.about" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9649,7 +9616,7 @@
       }
     },
     "profile.section.activity" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9672,7 +9639,7 @@
       }
     },
     "profile.section.skills" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9695,7 +9662,7 @@
       }
     },
     "profile.skill.accessibility" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9718,7 +9685,7 @@
       }
     },
     "profile.skill.collection" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9741,7 +9708,7 @@
       }
     },
     "profile.skill.controllerHosting" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9764,7 +9731,7 @@
       }
     },
     "profile.skill.dynamicType" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9787,7 +9754,7 @@
       }
     },
     "profile.skill.keyboard" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9810,7 +9777,7 @@
       }
     },
     "profile.skill.localization" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9833,7 +9800,7 @@
       }
     },
     "profile.skill.quicklayout" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9856,7 +9823,7 @@
       }
     },
     "profile.skill.rtl" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9879,7 +9846,7 @@
       }
     },
     "profile.skill.scroll" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9902,7 +9869,7 @@
       }
     },
     "profile.skill.uikit" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9925,7 +9892,7 @@
       }
     },
     "profile.stats.followers.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9948,7 +9915,7 @@
       }
     },
     "profile.stats.followers.value" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9971,7 +9938,7 @@
       }
     },
     "profile.stats.projects.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9994,7 +9961,7 @@
       }
     },
     "profile.stats.projects.value" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10017,7 +9984,7 @@
       }
     },
     "profile.stats.response.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10039,31 +10006,8 @@
         }
       }
     },
-    "profile.stats.response.value" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "98%"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "98%"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "98%"
-          }
-        }
-      }
-    },
     "representable.child.button" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10086,7 +10030,7 @@
       }
     },
     "representable.child.subtitle" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10109,7 +10053,7 @@
       }
     },
     "representable.child.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10132,7 +10076,7 @@
       }
     },
     "representable.hide" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10155,7 +10099,7 @@
       }
     },
     "representable.preferredSize" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10178,7 +10122,7 @@
       }
     },
     "representable.replace" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10201,7 +10145,7 @@
       }
     },
     "representable.reset" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10224,7 +10168,7 @@
       }
     },
     "representable.showAgain" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10247,7 +10191,7 @@
       }
     },
     "representable.showLazy" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10270,7 +10214,7 @@
       }
     },
     "safeAreaPadding.intro" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10293,7 +10237,7 @@
       }
     },
     "safeAreaPadding.next" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10316,7 +10260,7 @@
       }
     },
     "safeAreaPadding.previous" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10339,7 +10283,7 @@
       }
     },
     "semantic.avatar" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10362,7 +10306,7 @@
       }
     },
     "semantic.header.subtitle" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10385,7 +10329,7 @@
       }
     },
     "semantic.header.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10408,7 +10352,7 @@
       }
     },
     "semantic.leading" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10431,7 +10375,7 @@
       }
     },
     "semantic.leadingTrailing" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10454,7 +10398,7 @@
       }
     },
     "semantic.ltr" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10477,7 +10421,7 @@
       }
     },
     "semantic.next" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10500,7 +10444,7 @@
       }
     },
     "semantic.phone" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10523,7 +10467,7 @@
       }
     },
     "semantic.rtl" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10546,7 +10490,7 @@
       }
     },
     "semantic.trailing" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10569,7 +10513,7 @@
       }
     },
     "semantic.unspecified" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10592,7 +10536,7 @@
       }
     },
     "swiftui.bridge.body" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10615,7 +10559,7 @@
       }
     },
     "swiftui.sheet.message" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10638,7 +10582,7 @@
       }
     },
     "swiftui.showSheet" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10661,7 +10605,7 @@
       }
     },
     "uikit.collection.1" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10684,7 +10628,7 @@
       }
     },
     "uikit.collection.2" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10707,7 +10651,7 @@
       }
     },
     "uikit.collection.3" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10730,7 +10674,7 @@
       }
     },
     "uikit.modal.message" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10753,7 +10697,7 @@
       }
     },
     "uikit.showcase.subtitle" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10776,7 +10720,7 @@
       }
     },
     "uikit.showModal" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10799,7 +10743,7 @@
       }
     },
     "viewThatFits.expected" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10822,7 +10766,7 @@
       }
     },
     "viewThatFits.height" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10845,7 +10789,7 @@
       }
     },
     "viewThatFits.intro" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10868,7 +10812,7 @@
       }
     },
     "viewThatFits.next" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10891,7 +10835,7 @@
       }
     },
     "viewThatFits.previous" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10914,7 +10858,7 @@
       }
     },
     "viewThatFits.selected" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10937,7 +10881,7 @@
       }
     },
     "viewThatFits.width" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {

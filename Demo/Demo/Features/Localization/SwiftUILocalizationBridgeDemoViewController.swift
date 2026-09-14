@@ -77,7 +77,8 @@ private struct SwiftUILocalizationBridgeView: View {
         VStack(alignment: .leading, spacing: 20) {
             Text(resolver.string("swiftui.bridge.body", bundle: .main))
                 .font(.body)
-            Text("\(resolver.string("language.direction", bundle: .main)): \(localizationController.layoutDirection == .rightToLeft ? "RTL" : "LTR")")
+            // 文案已由 resolver 本地化，直接展示，避免 SwiftUI 再次提取插值模板。
+            Text(verbatim: "\(resolver.string("language.direction", bundle: .main)): \(localizationController.layoutDirection == .rightToLeft ? "RTL" : "LTR")")
                 .foregroundStyle(.secondary)
             Button(resolver.string("swiftui.showSheet", bundle: .main)) {
                 isSheetPresented = true

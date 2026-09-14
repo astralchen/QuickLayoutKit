@@ -60,7 +60,7 @@ final class ProfileViewController: LocalizedQuickLayoutHostingController {
                 title: Localization.text("profile.stats.followers.title")
             ),
             response: .init(
-                value: Localization.text("profile.stats.response.value"),
+                value: Localization.percent(0.98),
                 title: Localization.text("profile.stats.response.title")
             )
         )

@@ -150,6 +150,11 @@ enum Localization {
         resolver.string(key, bundle: .main)
     }
 
+    /// 按当前应用语言格式化比例；例如 `0.72` 在英文下显示为 `72%`。
+    static func percent(_ value: Double) -> String {
+        value.formatted(.percent.locale(localizationController.locale))
+    }
+
     static func localeDisplayName(_ locale: AppLocale) -> String {
         locale.localizedDisplayName(preferredBy: localizationController.currentLocale)
     }
