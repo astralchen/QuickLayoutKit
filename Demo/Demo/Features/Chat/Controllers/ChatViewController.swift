@@ -12,7 +12,14 @@ import QuickLook
 
 /// 支持文本、录制音频和语音转写草稿的一对一聊天 Demo。
 @available(iOS 26.0, *)
-final class ChatViewController: LocalizedQuickLayoutHostingController {
+final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImageLoadingOwner {
+
+    /// 页面全部媒体导入与图片显示共享的服务。
+    let mediaImageLoader = MediaImageLoader()
+    #if MEDIA_BENCHMARK
+    /// 专用性能构建的页面测试驱动；正常构建不包含测试入口。
+    private var mediaBenchmark: MediaConcurrencyBenchmark?
+    #endif
 
     /// 异步文件分类任务及当前预览来源，拒绝过期展示请求。
     var attachmentPreviewTask: Task<Void, Never>?
@@ -110,11 +117,12 @@ final class ChatViewController: LocalizedQuickLayoutHostingController {
         self.audioFileTranscriber = audioFileTranscriber ?? AudioFileTranscriber()
         self.audioController = audioController
         self.attachmentStore = attachmentStore
-        documentController = DocumentController(store: attachmentStore)
+        documentController = DocumentController(store: attachmentStore, imageLoader: mediaImageLoader)
         photoController = PhotoPickerController(
-            attachmentStore: attachmentStore
+            attachmentStore: attachmentStore, imageLoader: mediaImageLoader
         )
         super.init(nibName: nil, bundle: nil)
+        (attachmentStore as? PageAttachmentStore)?.imageLoader = mediaImageLoader
     }
 
     /// 使用指定消息模型、音频控制器和附件存储组装页面依赖。
@@ -126,11 +134,12 @@ final class ChatViewController: LocalizedQuickLayoutHostingController {
         self.viewModel = viewModel
         self.audioController = audioController
         self.attachmentStore = attachmentStore
-        documentController = DocumentController(store: attachmentStore)
+        documentController = DocumentController(store: attachmentStore, imageLoader: mediaImageLoader)
         photoController = PhotoPickerController(
-            attachmentStore: attachmentStore
+            attachmentStore: attachmentStore, imageLoader: mediaImageLoader
         )
         super.init(nibName: nil, bundle: nil)
+        (attachmentStore as? PageAttachmentStore)?.imageLoader = mediaImageLoader
     }
 
     /// 不支持从归档创建 `ChatViewController`。
@@ -141,14 +150,15 @@ final class ChatViewController: LocalizedQuickLayoutHostingController {
         self.audioController = audioController
         let attachmentStore = audioController.attachmentStore
         self.attachmentStore = attachmentStore
-        documentController = DocumentController(store: attachmentStore)
+        documentController = DocumentController(store: attachmentStore, imageLoader: mediaImageLoader)
         photoController = PhotoPickerController(
-            attachmentStore: attachmentStore
+            attachmentStore: attachmentStore, imageLoader: mediaImageLoader
         )
         viewModel = ChatViewModel(
             replyAudioSynthesizer: audioController
         )
         super.init(coder: coder)
+        (attachmentStore as? PageAttachmentStore)?.imageLoader = mediaImageLoader
     }
 
     /// 定义 `ChatViewController` 的布局层级、间距和对齐方式。
@@ -222,6 +232,12 @@ final class ChatViewController: LocalizedQuickLayoutHostingController {
         bindViewModel()
         observeKeyboard()
         configureBottomObstruction()
+        #if MEDIA_BENCHMARK
+        if ProcessInfo.processInfo.arguments.contains("-media-benchmark") {
+            mediaBenchmark = MediaConcurrencyBenchmark(chat: self)
+            mediaBenchmark?.install()
+        }
+        #endif
     }
 
     /// 在页面布局完成后重新采样键盘与照片面板的遮挡几何。
@@ -267,14 +283,19 @@ final class ChatViewController: LocalizedQuickLayoutHostingController {
         guard isLeavingChat, transitionCoordinator?.isCancelled != true,
               !hasCleanedUpChat else { return }
         hasCleanedUpChat = true
+        #if MEDIA_BENCHMARK
+        mediaBenchmark?.cancel()
+        mediaBenchmark = nil
+        #endif
         #if DEBUG
         resourceFixtureTask?.cancel()
         resourceFixtureTask = nil
         #endif
         attachmentPreviewTask?.cancel()
         attachmentPreviewGeneration += 1
-        (attachmentPreviewController as? AttachmentPreviewController)?.playback.stop()
-        attachmentPreviewController?.dismiss(animated: false)
+        let activePreview = attachmentPreviewController
+        (activePreview as? AttachmentPreviewController)?.completeDismissal()
+        activePreview?.dismiss(animated: false)
         attachmentSaveCoordinator.invalidate()
         composerView.dismissRecordingUnavailableHint()
         composerView.pasteCoordinator.invalidate()
@@ -286,6 +307,8 @@ final class ChatViewController: LocalizedQuickLayoutHostingController {
         photoController.discardDraft()
         documentController.discardAll()
         bottomObstructionCoordinator.stop()
+        mediaImageLoader.cancelAll()
+        mediaImageLoader.clearCache()
         attachmentStore.removeAll()
     }
 

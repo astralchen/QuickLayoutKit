@@ -12,15 +12,16 @@ import UniformTypeIdentifiers
 @available(iOS 17.0, *)
 final class AttachmentThumbnailView: UIView {
     /// 显示当前媒体图像的图像视图。
-    private let imageView = UIImageView()
+    private let imageView = MediaImageView()
 
     /// 缩略图视图显示的图像；设置后同步到内层图像视图。
     var image: UIImage? {
-        didSet {
-            imageView.image = image
-            setNeedsLayout()
-        }
+        get { imageView.image }
+        set { imageView.image = newValue; setNeedsLayout() }
     }
+
+    /// 设置媒体缩略图 URL，实际显示像素由布局阶段决定。
+    func setThumbnail(_ url: URL?, placeholder: UIImage? = nil) { imageView.setThumbnail(url, placeholder: placeholder) }
 
     /// 缩略图的内容缩放模式；变化时同步到内层图像视图。
     override var contentMode: UIView.ContentMode {
@@ -77,7 +78,7 @@ final class AttachmentThumbnailView: UIView {
         imageView.contentMode = image?.isSymbolImage == true ? .center : contentMode
         imageView.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 30, weight: .regular)
         imageView.backgroundColor = image?.isSymbolImage == true ? .secondarySystemGroupedBackground : .clear
-        imageView.isHidden = image == nil
+        imageView.isHidden = false
         layer.shadowPath = image == nil ? nil
             : UIBezierPath(roundedRect: imageRect,
                            cornerRadius: AttachmentCardStyle.thumbnailCornerRadius).cgPath

@@ -1,0 +1,7 @@
+{
+  "decision": "exploratory_keep_2",
+  "defaultLimit": 2,
+  "reason": "User selected small daily-usage comparison; report trends without claiming the original 20-pair acceptance passed.",
+  "summary": "2026-09-15-daily-summary.json",
+  "untestedLimit": 3
+}

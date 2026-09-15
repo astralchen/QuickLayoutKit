@@ -35,7 +35,7 @@ nonisolated enum MessageAction: Equatable, Sendable {
 
 /// 将时间线状态映射为可复用消息单元格，并管理滚动与局部交互的视图。
 @available(iOS 17.0, *)
-final class ConversationView: UIView {
+final class ConversationView: UIView, UICollectionViewDelegate {
 
     /// 会话集合视图使用的稳定分区身份。
     nonisolated enum Section: Hashable, Sendable {
@@ -144,6 +144,7 @@ final class ConversationView: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureCollectionView()
+        adapter.collectionDelegate = self
     }
 
     /// 不支持从归档创建 `ConversationView`。
@@ -151,6 +152,16 @@ final class ConversationView: UIView {
     /// 请使用代码初始化方法创建此对象。
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    /// 列表重新显示已有 Cell 时恢复缩略图消费者。
+    func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        MediaImageView.setContentActive(true, in: cell)
+    }
+
+    /// 离屏立即取消读取并释放图像，无需等待 Cell 进入复用池。
+    func collectionView(_ collectionView: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        MediaImageView.setContentActive(false, in: cell)
     }
 
     /// 将完整时间线状态串行应用到列表，并按更新原因选择滚动与阅读锚点策略。

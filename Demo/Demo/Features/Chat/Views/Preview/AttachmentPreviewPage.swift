@@ -2,6 +2,7 @@ import AVFoundation
 import ImageIO
 import PDFKit
 import UIKit
+import os
 import QuickLayout
 import QuickLayoutKit
 
@@ -34,6 +35,28 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
     private let messageLabel = UILabel()
     private let loading = UIActivityIndicatorView(style: .large)
     private var imageTask: Task<Void, Never>?
+    /// 当前页使用的页面图片服务。
+    private var mediaLoader: MediaImageLoader?
+    /// 当前配置，离屏后再次显示时恢复缩略图请求。
+    private var representedItem: AttachmentPreviewItem?
+    /// 缩略图消费者句柄。
+    private var thumbnailRequest: MediaImageLoader.Request?
+    /// 最近请求的缩略图尺寸。
+    private var thumbnailPixels = CGSize.zero
+    /// 原图加载期间和翻页过程中显示的缩略图。
+    private var previewThumbnail: UIImage?
+    /// 完整原图任务，只有正式当前页能启动。
+    private var originalTask: Task<Void, Never>?
+    /// 原图回填代次。
+    private var originalGeneration = UUID()
+    /// 离屏后布局回调不得重新启动图片读取。
+    private var imagesAreVisible = true
+    /// 配置回填代次，防止同一项目复用后旧缩略图回填。
+    private var configurationGeneration = UUID()
+    /// 当前页是否拥有完整原图显示资格。
+    private(set) var isOriginalActive = false
+    /// 图像是否已经达到原始分辨率。
+    private(set) var hasOriginalImage = false
     private var pdfObserver: NSObjectProtocol?
     private(set) var itemID: UUID?
     /// 视频转场只复制静态封面，不能对已绑定播放器的整页创建系统快照。
@@ -83,8 +106,11 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     /// 展示指定项目并拒绝已复用页面的迟到加载结果。
-    func configure(_ item: AttachmentPreviewItem) {
+    func configure(_ item: AttachmentPreviewItem, imageLoader: MediaImageLoader? = nil, isVisible: Bool = true) {
         reset()
+        mediaLoader = imageLoader ?? mediaLoader ?? MediaImageLoader()
+        representedItem = item
+        imagesAreVisible = isVisible
         itemID = item.id
         isVideo = item.kind == .video
         accessibilityIdentifier = "imessage.preview.page.\(item.id.uuidString)"
@@ -92,17 +118,7 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
         case .image, .video:
             imageScrollView.isHidden = false
             imageScrollView.maximumZoomScale = item.kind == .image ? 4 : 1
-            if let url = item.thumbnailURL, let image = UIImage(contentsOfFile: url.path) { apply(image) }
-            guard item.kind == .image else { return }
-            loading.startAnimating()
-            let id = item.id
-            let task = Task.detached(priority: .userInitiated) { Self.downsample(item.url) }
-            imageTask = Task { [weak self] in
-                let cgImage = await withTaskCancellationHandler(operation: { await task.value }, onCancel: { task.cancel() })
-                guard !Task.isCancelled, let self, itemID == id else { return }
-                loading.stopAnimating()
-                if let cgImage { apply(UIImage(cgImage: cgImage)) } else { showError() }
-            }
+            loadThumbnailIfNeeded()
         case .pdf:
             loading.startAnimating()
             let id = item.id
@@ -194,6 +210,7 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        loadThumbnailIfNeeded()
         if previousSize != bounds.size {
             previousSize = bounds.size
             imageScrollView.zoomScale = 1
@@ -218,11 +235,85 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
         let size = CGSize(width: bounds.width / 2, height: bounds.height / 2)
         imageScrollView.zoom(to: CGRect(x: point.x - size.width / 2, y: point.y - size.height / 2, width: size.width, height: size.height), animated: !UIAccessibility.isReduceMotionEnabled)
     }
+    /// 图片升级时保持用户缩放和可见区域，避免原图就绪把视口跳回中央。
     private func apply(_ image: UIImage) {
+        let zoom = imageScrollView.zoomScale
+        let offset = imageScrollView.contentOffset
+        imageScrollView.zoomScale = 1
         imageView.image = image
         imageSize = image.size
         layoutImage()
+        imageScrollView.zoomScale = zoom
+        imageScrollView.contentOffset = offset
     }
+
+    /// 只有稳定当前页可以读取完整原图；取消不提前归还同步解码槽位。
+    func setOriginalActive(_ active: Bool) {
+        let active = active && imagesAreVisible && representedItem?.kind == .image
+        guard active != isOriginalActive else { return }
+        isOriginalActive = active
+        originalGeneration = UUID()
+        originalTask?.cancel()
+        originalTask = nil
+        hasOriginalImage = false
+        if let previewThumbnail { apply(previewThumbnail) } else { imageView.image = nil }
+        guard active, let item = representedItem, let mediaLoader else { loading.stopAnimating(); return }
+        loading.startAnimating()
+        messageLabel.isHidden = true
+        let token = originalGeneration
+        let readyInterval = MediaPerformance.signposter.beginInterval("OriginalReady", id: MediaPerformance.signposter.makeSignpostID())
+        originalTask = Task { [weak self] in
+            defer { MediaPerformance.signposter.endInterval("OriginalReady", readyInterval) }
+            do {
+                let image = try await mediaLoader.original(url: item.url)
+                guard !Task.isCancelled, let self, originalGeneration == token, isOriginalActive else { return }
+                hasOriginalImage = true
+                loading.stopAnimating()
+                apply(image)
+                #if MEDIA_BENCHMARK
+                mediaLoader.benchmarkOriginalDisplayed?(item.url, CGSize(width: image.cgImage?.width ?? 0, height: image.cgImage?.height ?? 0))
+                #endif
+                originalTask = nil
+            } catch {
+                guard !Task.isCancelled, let self, originalGeneration == token, isOriginalActive else { return }
+                originalTask = nil
+                showError()
+            }
+        }
+    }
+
+    /// 显示阶段只从 thumbnailURL 读取封面，永远不以原件作为缩略图回退。
+    private func loadThumbnailIfNeeded() {
+        guard imagesAreVisible, let item = representedItem, item.kind == .image || item.kind == .video,
+              let url = item.thumbnailURL, let mediaLoader, bounds.width > 0, bounds.height > 0 else { return }
+        let scale = max(1, traitCollection.displayScale)
+        let pixels = CGSize(width: ceil(bounds.width * scale), height: ceil(bounds.height * scale))
+        guard pixels != thumbnailPixels else { return }
+        mediaLoader.cancel(thumbnailRequest)
+        thumbnailPixels = pixels
+        let token = configurationGeneration
+        thumbnailRequest = mediaLoader.load(url: url, size: pixels, mode: .fit) { [weak self] image in
+            guard let self, configurationGeneration == token, thumbnailPixels == pixels else { return }
+            thumbnailRequest = nil
+            previewThumbnail = image
+            if !hasOriginalImage, let image { apply(image) }
+        }
+    }
+
+    /// 离屏立即释放大图和缩略图消费者；再显示时无需重新配置项目。
+    func suspendImages() {
+        imagesAreVisible = false
+        setOriginalActive(false)
+        configurationGeneration = UUID()
+        mediaLoader?.cancel(thumbnailRequest)
+        thumbnailRequest = nil
+        thumbnailPixels = .zero
+        previewThumbnail = nil
+        if representedItem?.kind == .image || representedItem?.kind == .video { imageView.image = nil }
+    }
+
+    /// 可复用页再次进入视口时恢复封面请求。
+    func resumeImages() { imagesAreVisible = true; loadThumbnailIfNeeded() }
     private func layoutImage() {
         guard imageSize.width > 0, bounds.width > 0 else { return }
         let scale = min(bounds.width / imageSize.width, bounds.height / imageSize.height)
@@ -240,6 +331,8 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
     }
     /// 取消页面加载并清除仅属于当前项目的观察者。
     func reset() {
+        suspendImages()
+        representedItem = nil
         imageTask?.cancel(); imageTask = nil
         if let pdfObserver { NotificationCenter.default.removeObserver(pdfObserver) }
         pdfObserver = nil
@@ -256,17 +349,7 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
         loading.stopAnimating()
     }
     override func prepareForReuse() { super.prepareForReuse(); reset(); toggleControls = nil; pageDidChange = nil }
-    isolated deinit { imageTask?.cancel(); if let pdfObserver { NotificationCenter.default.removeObserver(pdfObserver) } }
-
-    nonisolated private static func downsample(_ url: URL) -> CGImage? {
-        guard !Task.isCancelled, let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
-        return CGImageSourceCreateThumbnailAtIndex(source, 0, [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceThumbnailMaxPixelSize: 3072,
-        ] as CFDictionary)
-    }
+    isolated deinit { originalTask?.cancel(); mediaLoader?.cancel(thumbnailRequest); imageTask?.cancel(); if let pdfObserver { NotificationCenter.default.removeObserver(pdfObserver) } }
 }
 
 #if DEBUG

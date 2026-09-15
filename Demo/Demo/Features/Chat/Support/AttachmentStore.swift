@@ -67,6 +67,9 @@ protocol AttachmentStoring: AnyObject {
 @MainActor
 final class PageAttachmentStore: AttachmentStoring {
 
+    /// 页面注入的缓存失效入口，不延长图片服务生命周期。
+    weak var imageLoader: MediaImageLoader?
+
     /// 当前页面拥有的独立附件目录。
     let directoryURL: URL
 
@@ -169,6 +172,7 @@ final class PageAttachmentStore: AttachmentStoring {
 
     /// 尝试删除指定本地文件；文件不存在或删除失败时不抛出错误。
     func removeFile(at url: URL) {
+        imageLoader?.invalidate(url: url)
         try? fileManager.removeItem(at: url)
     }
 
@@ -176,6 +180,8 @@ final class PageAttachmentStore: AttachmentStoring {
     func removeAll() {
         guard !removedAllFiles else { return }
         removedAllFiles = true
+        imageLoader?.cancelAll()
+        imageLoader?.clearCache()
         drafts.removeAll()
         committed.removeAll()
         try? fileManager.removeItem(at: directoryURL)

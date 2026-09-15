@@ -6,7 +6,9 @@ import ListKit
 
 /// 照片、视频和常用文件共享的全屏玻璃预览容器。
 @available(iOS 26.0, *)
-final class AttachmentPreviewController: QuickLayoutHostingController, UICollectionViewDelegate, UIGestureRecognizerDelegate {
+final class AttachmentPreviewController: QuickLayoutHostingController, UICollectionViewDelegate, UIGestureRecognizerDelegate, MediaImageLoadingOwner {
+    /// 与聊天页面共享的图片调度器和缩略图缓存。
+    let mediaImageLoader: MediaImageLoader
     let items: [AttachmentPreviewItem]
     private(set) var currentIndex: Int
     let playback: AttachmentPreviewPlayer
@@ -14,7 +16,7 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     let backdrop = UIView()
     /// 独立控制层拥有全部预览控件，宿主只连接播放、分页和转场意图。
     private(set) lazy var chrome: AttachmentPreviewControlsView = {
-        let controls = AttachmentPreviewControlsView(items: items, selectedIndex: currentIndex)
+        let controls = AttachmentPreviewControlsView(items: items, selectedIndex: currentIndex, imageLoader: mediaImageLoader)
         controls.didRequestClose = { [weak self] in self?.closeTapped() }
         controls.didRequestPlaybackToggle = { [weak self] in self?.playTapped() }
         controls.didRequestMuteToggle = { [weak self] in self?.playback.isMuted.toggle() }
@@ -49,6 +51,7 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     private func beginThumbnailScrubbing() {
         thumbnailScrubbingStartIndex = currentIndex
         isThumbnailScrubbing = true
+        suspendOriginals()
         stopHorizontalScrolling()
         playback.stop()
         currentPage?.bind(player: nil)
@@ -87,7 +90,8 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     /// 关闭成功后恢复编辑器和辅助功能焦点。
     var didClose: (() -> Void)?
 
-    init(items: [AttachmentPreviewItem], initialIndex: Int, playbackCoordinator: PlaybackCoordinator) {
+    init(items: [AttachmentPreviewItem], initialIndex: Int, playbackCoordinator: PlaybackCoordinator, imageLoader: MediaImageLoader? = nil) {
+        mediaImageLoader = imageLoader ?? MediaImageLoader()
         self.items = items
         currentIndex = AttachmentPreviewPolicy.index(initialIndex, count: items.count)
         playback = AttachmentPreviewPlayer(coordinator: playbackCoordinator)
@@ -164,6 +168,7 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
         }
         chrome.semanticContentAttribute = view.semanticContentAttribute
         chrome.layoutIfNeeded()
+        updateOriginalEligibility()
         for case let page as AttachmentPreviewPage in collectionView.visibleCells {
             page.documentTopInset = chrome.documentTopInset
         }
@@ -173,6 +178,7 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         bindCurrentPlayer()
+        updateOriginalEligibility()
         if !didCompleteInitialAppearance {
             didCompleteInitialAppearance = true
             autoplayCurrentVideo()
@@ -195,7 +201,7 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     private func configure(_ page: AttachmentPreviewPage, item: AttachmentPreviewItem, index: Int) {
         page.semanticContentAttribute = view.semanticContentAttribute
         page.contentView.semanticContentAttribute = view.semanticContentAttribute
-        page.configure(item)
+        page.configure(item, imageLoader: mediaImageLoader, isVisible: false)
         page.documentTopInset = chrome.documentTopInset
         page.toggleControls = { [weak self] in self?.toggleControls() }
         page.pageDidChange = { [weak self] number, count in
@@ -205,9 +211,14 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     }
     func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
         (cell as? AttachmentPreviewPage)?.documentTopInset = chrome.documentTopInset
+        (cell as? AttachmentPreviewPage)?.resumeImages()
+        (cell as? AttachmentPreviewPage)?.setOriginalActive(indexPath.item == currentIndex && !isThumbnailScrubbing && !isHorizontalPaging && view.window != nil)
         if indexPath.item == currentIndex, !isThumbnailScrubbing { (cell as? AttachmentPreviewPage)?.bind(player: playback.player) }
     }
-    func collectionView(_ collectionView: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) { (cell as? AttachmentPreviewPage)?.bind(player: nil) }
+    func collectionView(_ collectionView: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        (cell as? AttachmentPreviewPage)?.bind(player: nil)
+        (cell as? AttachmentPreviewPage)?.suspendImages()
+    }
     /// 旋转前使用旧尺寸确定锚点；程序翻页保留目标，手势翻页保留最近可见项。
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         chrome.thumbnailStrip.endScrubbing()
@@ -223,6 +234,7 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
         chrome.thumbnailStrip.endScrubbing()
         pendingPageIndex = nil
         pagingStartIndex = currentIndex
+        suspendOriginals()
         playback.pause()
         pagingLayout.beginDragging(at: collectionView.contentOffset)
         commitCurrentPage(pagingLayout.index(nearestTo: collectionView.contentOffset))
@@ -273,6 +285,7 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
         guard index != currentIndex else { return }
         playback.stop()
         currentPage?.bind(player: nil)
+        currentPage?.setOriginalActive(false)
         currentIndex = index
         updateCurrentItem()
     }
@@ -289,6 +302,7 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
         collectionView.layoutIfNeeded()
         bindCurrentPlayer()
         isPositioningPage = false
+        updateOriginalEligibility()
         if autoplayVideo { autoplayCurrentVideo() }
     }
     /// 缩略图与菜单使用布局提供的坐标，连续跳转会替换旧目标。
@@ -301,11 +315,25 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
         if animated, !UIAccessibility.isReduceMotionEnabled, view.window != nil, abs(target.x - collectionView.contentOffset.x) > 0.5 {
             playback.pause()
             pendingPageIndex = index
+            suspendOriginals()
             collectionView.setContentOffset(target, animated: true)
         } else {
             finishPaging(at: index, autoplayVideo: index != currentIndex)
         }
     }
+    /// 翻页和缩略图拖动期间只保留封面，不解码经过的原件。
+    private func suspendOriginals() {
+        for case let page as AttachmentPreviewPage in collectionView.visibleCells { page.setOriginalActive(false) }
+    }
+
+    /// 仅稳定当前页在预览器显示期间有资格加载原图。
+    private func updateOriginalEligibility() {
+        let stable = !isHorizontalPaging && !isThumbnailScrubbing && !didCompleteDismissal && view.window != nil
+        for case let page as AttachmentPreviewPage in collectionView.visibleCells {
+            page.setOriginalActive(stable && page.itemID == currentItem?.id)
+        }
+    }
+
     private func updateCurrentItem() {
         guard let item = currentItem else { return }
         chrome.updateItem(

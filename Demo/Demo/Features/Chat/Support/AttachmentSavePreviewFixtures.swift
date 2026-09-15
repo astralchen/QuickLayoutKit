@@ -59,7 +59,7 @@ enum AttachmentSavePreviewFixtures {
             }
             let thumbnail = store.makeFileURL(prefix: "bundled-preview-cover", pathExtension: "jpg")
             created.append(thumbnail)
-            let metadata = try await PhotoPickerController.makeMetadata(originalURL: original,
+            let metadata = try await MediaImportProcessor.makeMetadata(originalURL: original,
                 thumbnailURL: thumbnail,
                 isVideo: kind == "video" || source.lastPathComponent.hasPrefix("preview-video-"),
                 isLivePhoto: name == "resources-draft" && source.lastPathComponent.hasPrefix("preview-image-"))

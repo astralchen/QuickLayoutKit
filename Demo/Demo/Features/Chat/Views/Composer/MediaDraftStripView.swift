@@ -39,7 +39,7 @@ nonisolated enum MediaDraftLayoutPolicy {
 }
 
 /// 按选择顺序显示可删除媒体草稿的横向滚动视图。
-final class MediaDraftStripView: UIView {
+final class MediaDraftStripView: UIView, UIScrollViewDelegate {
     /// 媒体草稿条带的布局常量。
     private enum Metrics {
         /// 相邻媒体草稿卡片之间的间距，单位为点。
@@ -84,6 +84,7 @@ final class MediaDraftStripView: UIView {
     /// - Parameter frame: 在父视图坐标系中指定的初始边框。
     override init(frame: CGRect) {
         super.init(frame: frame)
+        scrollView.delegate = self
         scrollView.showsHorizontalScrollIndicator = false
         scrollView.alwaysBounceHorizontal = true
         scrollView.contentInset = UIEdgeInsets(top: 0, left: 2, bottom: 0, right: 2)
@@ -116,6 +117,17 @@ final class MediaDraftStripView: UIView {
             height: MediaDraftLayoutPolicy.itemHeight
         )
         scrollView.contentSize = contentView.bounds.size
+        updateVisibleThumbnails()
+    }
+
+    /// 滚动时仅保留可见草稿缩略图。
+    func scrollViewDidScroll(_ scrollView: UIScrollView) { updateVisibleThumbnails() }
+
+    /// 实际可见范围控制读取和像素持有，不预加载整组资源。
+    private func updateVisibleThumbnails() {
+        for view in itemViews.values {
+            view.imageView.isContentActive = view.frame.intersects(scrollView.bounds)
+        }
     }
 
     /// 按草稿身份增删和复用项目视图，应用有序内容及本地化标签。
@@ -155,7 +167,7 @@ final class MediaDraftStripView: UIView {
     /// 显示单个媒体草稿缩略图、导入状态和删除入口的视图。
     private final class DraftItemView: UIView {
         /// 显示当前媒体图像的图像视图。
-        let imageView = UIImageView()
+        let imageView = MediaImageView()
         /// 媒体原件尚在导入时显示的活动指示器。
         let activityIndicator = UIActivityIndicatorView(style: .medium)
         /// 标示草稿为视频的图像视图。
@@ -266,7 +278,6 @@ final class MediaDraftStripView: UIView {
             strings: MediaStrings
         ) {
             self.order = order
-            imageView.image = nil
             videoBadge.isHidden = true
             durationLabel.isHidden = true
             durationBackgroundView.isHidden = true
@@ -275,6 +286,7 @@ final class MediaDraftStripView: UIView {
             isReady = false
             switch item.content {
             case .importing:
+                imageView.setThumbnail(nil)
                 activityIndicator.startAnimating()
                 accessibilityLabel = strings.importing
             case .ready(let media):
@@ -284,7 +296,7 @@ final class MediaDraftStripView: UIView {
                 imageView.accessibilityIdentifier = "imessage.composer.media.preview.\(item.id.uuidString)"
                 imageView.accessibilityLabel = strings.openPreview
                 activityIndicator.stopAnimating()
-                imageView.image = UIImage(contentsOfFile: media.thumbnailFileURL.path)
+                imageView.setThumbnail(media.thumbnailFileURL)
                 itemSize = MediaDraftLayoutPolicy.itemSize(
                     for: media.pixelSize
                 )

@@ -60,7 +60,7 @@ extension MediaMessageView {
             card.alpha = 1
         }
         cards = orderedCards + reusableCards
-        reusableCards.forEach { $0.isHidden = true }
+        reusableCards.forEach { $0.reset(); $0.isHidden = true }
     }
 
     /// 将卡片池增减到所需数量，并清理移出窗口的多余卡片。

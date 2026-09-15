@@ -1,0 +1,478 @@
+[
+  {
+    "testIdentifier": "ChatMediaConcurrencyPerformanceTests/testColdImport()",
+    "testIdentifierURL": "test://com.apple.xcode/Demo/DemoUITests/ChatMediaConcurrencyPerformanceTests/testColdImport",
+    "testRuns": [
+      {
+        "device": {
+          "deviceId": "00008030-001E69322223802E",
+          "deviceName": "iPhoneSE"
+        },
+        "metrics": [
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "Clock Monotonic Time",
+            "identifier": "com.apple.dt.XCTMetric_Clock.time.monotonic",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              2.259292372,
+              2.285320402,
+              2.253837158,
+              2.28407925,
+              2.239667189,
+              2.2865997250000003
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "s"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "CPU Cycles (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_CPU-com.sondra.Demo.cycles",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              8967855.181,
+              9037870.698,
+              9033506.689,
+              8905964.468,
+              8954705.293,
+              9031019.533
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "kC"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "Hitches Total Duration (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_Hitch-Demo.total.duration",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "s"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "CPU Instructions Retired (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_CPU-com.sondra.Demo.instructions_retired",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              21172176.896,
+              21174103.159,
+              20965179.248,
+              20976522.198,
+              21170060.579,
+              20991018.006
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "kI"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "Memory Peak Physical (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_Memory-com.sondra.Demo.physical_peak",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              55920.056,
+              81708.552,
+              80660.016,
+              56116.704,
+              55936.48,
+              78530.096
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "kB"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "Duration (MediaBenchmarkScenario)",
+            "identifier": "com.apple.dt.XCTMetric_OSSignpost-MediaBenchmarkScenario.duration",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              1.7612115840000002,
+              1.06203,
+              1.051137625,
+              1.7786357920000002,
+              1.766768375,
+              1.0727470000000001
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "s"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "Memory Physical (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_Memory-com.sondra.Demo.physical",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              22676.96,
+              22808.072,
+              23299.592,
+              22873.568,
+              22840.8,
+              22693.384
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "kB"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "Number of Hitches (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_Hitch-Demo.number",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "hitches"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "Hitch Time Ratio (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_Hitch-Demo.time.ratio",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "ms per s"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "CPU Time (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_CPU-com.sondra.Demo.time",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              4.136385122,
+              4.188007361,
+              4.217363525000001,
+              4.0651759940000005,
+              4.0814436050000005,
+              4.186361662
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "s"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "Absolute Memory Physical (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_Memory-com.sondra.Demo.physical_absolute",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              22676.96,
+              22808.072,
+              23299.592,
+              22873.568,
+              22840.8,
+              22693.384
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "kB"
+          }
+        ],
+        "testPlanConfiguration": {
+          "configurationId": "1",
+          "configurationName": "Test Scheme Action"
+        }
+      }
+    ]
+  },
+  {
+    "testIdentifier": "ChatMediaConcurrencyPerformanceTests/testPreviewDuringImport()",
+    "testIdentifierURL": "test://com.apple.xcode/Demo/DemoUITests/ChatMediaConcurrencyPerformanceTests/testPreviewDuringImport",
+    "testRuns": [
+      {
+        "device": {
+          "deviceId": "00008030-001E69322223802E",
+          "deviceName": "iPhoneSE"
+        },
+        "metrics": [
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "Clock Monotonic Time",
+            "identifier": "com.apple.dt.XCTMetric_Clock.time.monotonic",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              2.5925073260000002,
+              2.643992994,
+              2.753296821,
+              2.627859494,
+              2.613571117,
+              2.6104848830000003
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "s"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "CPU Cycles (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_CPU-com.sondra.Demo.cycles",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              9454099.644,
+              9707495.91,
+              9637577.029,
+              9518846.033,
+              9458614.926,
+              9553361.11
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "kC"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "Hitches Total Duration (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_Hitch-Demo.total.duration",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              0.016667749000000003,
+              0.016667749000000003,
+              0.016667749000000003,
+              0.016667749000000003,
+              0.016667749000000003,
+              0.016667791
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "s"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "CPU Instructions Retired (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_CPU-com.sondra.Demo.instructions_retired",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              21934815.552,
+              21958534.375,
+              21749857.993,
+              21954375.921,
+              21929689.462,
+              21759131.071
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "kI"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "Memory Peak Physical (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_Memory-com.sondra.Demo.physical_peak",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              131925.592,
+              139396.736,
+              134940.248,
+              131958.4,
+              131974.744,
+              136529.496
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "kB"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "Duration (MediaBenchmarkScenario)",
+            "identifier": "com.apple.dt.XCTMetric_OSSignpost-MediaBenchmarkScenario.duration",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              1.868406959,
+              1.284262792,
+              1.3764975830000001,
+              1.8841398340000002,
+              1.871484833,
+              1.242707916
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "s"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "Memory Physical (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_Memory-com.sondra.Demo.physical",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              24331.744,
+              24233.52,
+              24151.52,
+              24249.904,
+              24249.824,
+              24757.768
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "kB"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "Number of Hitches (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_Hitch-Demo.number",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "hitches"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "Hitch Time Ratio (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_Hitch-Demo.time.ratio",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              3.1631791167076977,
+              3.1015858571791144,
+              2.9784606070428925,
+              3.120626628529679,
+              3.13769851908687,
+              3.1414015658366385
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "ms per s"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "CPU Time (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_CPU-com.sondra.Demo.time",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              4.293509299,
+              4.501963098,
+              4.438975946,
+              4.333283399,
+              4.284115707000001,
+              4.448825663
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "s"
+          },
+          {
+            "baselineAverage": 0,
+            "baselineName": "",
+            "displayName": "Absolute Memory Physical (Demo)",
+            "identifier": "com.apple.dt.XCTMetric_Memory-com.sondra.Demo.physical_absolute",
+            "maxPercentRegression": 10,
+            "maxPercentRelativeStandardDeviation": 10,
+            "maxRegression": 0,
+            "maxStandardDeviation": 10,
+            "measurements": [
+              24331.744,
+              24233.52,
+              24151.52,
+              24249.904,
+              24249.824,
+              24757.768
+            ],
+            "polarity": "prefers smaller",
+            "unitOfMeasurement": "kB"
+          }
+        ],
+        "testPlanConfiguration": {
+          "configurationId": "1",
+          "configurationName": "Test Scheme Action"
+        }
+      }
+    ]
+  }
+]

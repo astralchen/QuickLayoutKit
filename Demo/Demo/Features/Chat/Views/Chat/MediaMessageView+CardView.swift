@@ -27,7 +27,7 @@ extension MediaMessageView {
         }
 
         /// 显示当前媒体图像的图像视图。
-        let imageView = UIImageView()
+        let imageView = MediaImageView()
         /// 视频播放符号背后的模糊材质容器。
         let playBackground = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialLight))
         /// 覆盖在视频缩略图上的播放符号。
@@ -40,8 +40,6 @@ extension MediaMessageView {
         var restingTransform: CGAffineTransform = .identity
         /// 当前缩略图加载绑定的完整身份，用于丢弃旧请求结果。
         private var representedIdentity: BindingIdentity?
-        /// 后台准备缩略图的可取消任务。
-        private var imageTask: Task<Void, Never>?
 
         /// 返回卡片是否仍绑定指定消息、媒体组与媒体项目。
         func represents(
@@ -107,29 +105,14 @@ extension MediaMessageView {
             )
             mediaIndex = index
             representedIdentity = identity
-            imageTask?.cancel()
-            if !keepsCurrentImage {
-                imageView.image = nil
-            }
-            // 同一媒体在堆叠中移动时保留现有图片；新请求只在完整绑定身份仍匹配时回填。
+            if !keepsCurrentImage { imageView.setThumbnail(nil) }
             playBackground.isHidden = !item.kind.isVideo
-            let url = item.thumbnailFileURL
-            imageTask = Task { [weak self] in
-                let data = await Task.detached(priority: .userInitiated) {
-                    try? Data(contentsOf: url, options: .mappedIfSafe)
-                }.value
-                guard !Task.isCancelled,
-                      let self,
-                      self.representedIdentity == identity,
-                      let data else { return }
-                self.imageView.image = UIImage(data: data)
-            }
+            imageView.setThumbnail(item.thumbnailFileURL)
         }
 
         /// 取消图像任务并清空绑定内容、动画及复用状态。
         func reset() {
-            imageTask?.cancel()
-            imageTask = nil
+            imageView.setThumbnail(nil)
             representedIdentity = nil
             imageView.image = nil
             playBackground.isHidden = true

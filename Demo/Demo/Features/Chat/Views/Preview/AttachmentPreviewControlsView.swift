@@ -79,9 +79,9 @@ final class AttachmentPreviewControlsView: QuickLayoutView {
     private let moreButton = UIButton(type: .system)
 
     /// 安装固定视图层级和事件回调，所有回调由宿主以弱引用连接。
-    init(items: [AttachmentPreviewItem], selectedIndex: Int) {
+    init(items: [AttachmentPreviewItem], selectedIndex: Int, imageLoader: MediaImageLoader? = nil) {
         itemCount = items.count
-        thumbnailStrip = AttachmentThumbnailStripView(items: items, selectedIndex: selectedIndex)
+        thumbnailStrip = AttachmentThumbnailStripView(items: items, selectedIndex: selectedIndex, imageLoader: imageLoader)
         super.init(frame: .zero)
         configureButton(closeButton, symbol: "chevron.backward", key: "imessage.media.close", identifier: "imessage.media.preview.close")
         closeButton.configuration?.baseForegroundColor = .label

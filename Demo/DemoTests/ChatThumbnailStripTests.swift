@@ -133,12 +133,14 @@ struct ChatThumbnailStripTests {
             UIColor.red.setFill(); context.fill(CGRect(x: 0, y: 0, width: 400, height: 200))
         }
         try #require(image.pngData()).write(to: url)
-        let decoded = try #require(AttachmentThumbnailLoader.decode(url: url, pixels: 90))
+        let decoded = try await MediaImageLoader.decodeThumbnail(.init(url: url, width: 90, height: 90, mode: .fill)).image
         #expect(decoded.width == 180 && decoded.height == 90)
         let bad = directory.appendingPathComponent("bad.png")
         try Data("broken".utf8).write(to: bad)
-        #expect(AttachmentThumbnailLoader.decode(url: bad, pixels: 90) == nil)
-        let loader = AttachmentThumbnailLoader()
+        await #expect(throws: (any Error).self) {
+            try await MediaImageLoader.decodeThumbnail(.init(url: bad, width: 90, height: 90, mode: .fill))
+        }
+        let loader = MediaImageLoader()
         var cancelledCallback = false
         let request = loader.load(url: url, pixels: 90) { _ in cancelledCallback = true }
         loader.cancel(request)

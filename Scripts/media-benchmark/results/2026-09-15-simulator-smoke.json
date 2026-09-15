@@ -1,0 +1,520 @@
+{
+  "purpose": "test-driver-verification-only",
+  "platform": "iOS Simulator",
+  "configuration": "Debug",
+  "notForSelectingConcurrency": true,
+  "runs": [
+    {
+      "sourceLog": "/private/tmp/media-ab-sim-smoke.log",
+      "sample": {
+        "allReadyMs": 2472.3589583300054,
+        "brightness": 0.5,
+        "firstReadyMs": 338.81612500408664,
+        "limit": 1,
+        "lowPowerInvalid": false,
+        "measured": true,
+        "memoryWarnings": 0,
+        "originals": [],
+        "os": "Version 27.0 (Build 24A434)",
+        "overlappingScrollSteps": 0,
+        "pair": 0,
+        "remainingFiles": 0,
+        "sample": 0,
+        "scenario": "cold",
+        "status": "complete",
+        "thermalInvalid": false
+      }
+    },
+    {
+      "sourceLog": "/private/tmp/media-ab-sim-smoke.log",
+      "sample": {
+        "allReadyMs": 1516.8065000034403,
+        "brightness": 0.5,
+        "firstReadyMs": 405.3064583276864,
+        "limit": 2,
+        "lowPowerInvalid": false,
+        "measured": true,
+        "memoryWarnings": 0,
+        "originals": [],
+        "os": "Version 27.0 (Build 24A434)",
+        "overlappingScrollSteps": 0,
+        "pair": 0,
+        "remainingFiles": 0,
+        "sample": 1,
+        "scenario": "cold",
+        "status": "complete",
+        "thermalInvalid": false
+      }
+    },
+    {
+      "sourceLog": "/private/tmp/media-ab-sim-smoke.log",
+      "sample": {
+        "allReadyMs": 2855.3162916650763,
+        "brightness": 0.5,
+        "firstReadyMs": 347.4516249989392,
+        "limit": 1,
+        "lowPowerInvalid": false,
+        "measured": true,
+        "memoryWarnings": 0,
+        "originals": [
+          {
+            "height": 3024,
+            "milliseconds": 338.62433333706576,
+            "width": 4032
+          }
+        ],
+        "os": "Version 27.0 (Build 24A434)",
+        "overlappingScrollSteps": 0,
+        "pair": 0,
+        "remainingFiles": 0,
+        "sample": 0,
+        "scenario": "preview",
+        "status": "complete",
+        "thermalInvalid": false
+      }
+    },
+    {
+      "sourceLog": "/private/tmp/media-ab-sim-smoke.log",
+      "sample": {
+        "allReadyMs": 1902.8383750119247,
+        "brightness": 0.5,
+        "firstReadyMs": 421.3774166710209,
+        "limit": 2,
+        "lowPowerInvalid": false,
+        "measured": true,
+        "memoryWarnings": 0,
+        "originals": [
+          {
+            "height": 3024,
+            "milliseconds": 274.56429167068563,
+            "width": 4032
+          }
+        ],
+        "os": "Version 27.0 (Build 24A434)",
+        "overlappingScrollSteps": 0,
+        "pair": 0,
+        "remainingFiles": 0,
+        "sample": 1,
+        "scenario": "preview",
+        "status": "complete",
+        "thermalInvalid": false
+      }
+    },
+    {
+      "sourceLog": "/private/tmp/media-ab-sim-smoke.log",
+      "sample": {
+        "allReadyMs": 2741.3023749977583,
+        "brightness": 0.5,
+        "firstReadyMs": 500.07808332156856,
+        "limit": 1,
+        "lowPowerInvalid": false,
+        "measured": true,
+        "memoryWarnings": 0,
+        "originals": [],
+        "os": "Version 27.0 (Build 24A434)",
+        "overlappingScrollSteps": 11,
+        "pair": 0,
+        "remainingFiles": 0,
+        "sample": 0,
+        "scenario": "scroll",
+        "status": "complete",
+        "thermalInvalid": false
+      }
+    },
+    {
+      "sourceLog": "/private/tmp/media-ab-sim-smoke.log",
+      "sample": {
+        "allReadyMs": 1702.9269999911776,
+        "brightness": 0.5,
+        "firstReadyMs": 467.2849999915343,
+        "limit": 2,
+        "lowPowerInvalid": false,
+        "measured": true,
+        "memoryWarnings": 0,
+        "originals": [],
+        "os": "Version 27.0 (Build 24A434)",
+        "overlappingScrollSteps": 7,
+        "pair": 0,
+        "remainingFiles": 0,
+        "sample": 1,
+        "scenario": "scroll",
+        "status": "complete",
+        "thermalInvalid": false
+      }
+    },
+    {
+      "sourceLog": "/private/tmp/media-ab-sim-smoke.log",
+      "sample": {
+        "allReadyMs": 2547.6646666647866,
+        "brightness": 0.5,
+        "firstReadyMs": 469.8977499938337,
+        "limit": 1,
+        "lowPowerInvalid": false,
+        "measured": true,
+        "memoryWarnings": 0,
+        "originals": [
+          {
+            "height": 3024,
+            "milliseconds": 244.8993333382532,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 373.63400000322144,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 185.41533332609106,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 366.62687500938773,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 177.29345832776744,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 432.33683334256057,
+            "width": 4032
+          }
+        ],
+        "os": "Version 27.0 (Build 24A434)",
+        "overlappingScrollSteps": 0,
+        "pair": 0,
+        "remainingFiles": 0,
+        "sample": 0,
+        "scenario": "warm",
+        "status": "complete",
+        "thermalInvalid": false
+      }
+    },
+    {
+      "sourceLog": "/private/tmp/media-ab-sim-smoke.log",
+      "sample": {
+        "allReadyMs": 1677.6224999921396,
+        "brightness": 0.5,
+        "firstReadyMs": 575.2807499957271,
+        "limit": 2,
+        "lowPowerInvalid": false,
+        "measured": true,
+        "memoryWarnings": 0,
+        "originals": [
+          {
+            "height": 3024,
+            "milliseconds": 231.66995833162218,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 380.5808749893913,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 169.36629166593775,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 365.0095416523982,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 173.76879167568404,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 370.78299999120645,
+            "width": 4032
+          }
+        ],
+        "os": "Version 27.0 (Build 24A434)",
+        "overlappingScrollSteps": 0,
+        "pair": 0,
+        "remainingFiles": 0,
+        "sample": 1,
+        "scenario": "warm",
+        "status": "complete",
+        "thermalInvalid": false
+      }
+    },
+    {
+      "sourceLog": "/private/tmp/media-ab-sim-final.log",
+      "sample": {
+        "allReadyMs": 4133.68649999029,
+        "brightness": 0.5,
+        "firstReadyMs": 686.3153750018682,
+        "limit": 1,
+        "lowPowerInvalid": false,
+        "measured": true,
+        "memoryWarnings": 0,
+        "originals": [
+          {
+            "height": 3024,
+            "milliseconds": 483.70924999471754,
+            "width": 4032
+          }
+        ],
+        "os": "Version 27.0 (Build 24A434)",
+        "overlappingScrollSteps": 0,
+        "pair": 0,
+        "physicalDevice": false,
+        "previewOverlappedImport": true,
+        "remainingFiles": 0,
+        "sample": 0,
+        "scenario": "preview",
+        "status": "complete",
+        "thermalInvalid": false
+      }
+    },
+    {
+      "sourceLog": "/private/tmp/media-ab-sim-final.log",
+      "sample": {
+        "allReadyMs": 2202.6137499924516,
+        "brightness": 0.5,
+        "firstReadyMs": 518.6023749993183,
+        "limit": 2,
+        "lowPowerInvalid": false,
+        "measured": true,
+        "memoryWarnings": 0,
+        "originals": [
+          {
+            "height": 3024,
+            "milliseconds": 333.0895833350951,
+            "width": 4032
+          }
+        ],
+        "os": "Version 27.0 (Build 24A434)",
+        "overlappingScrollSteps": 0,
+        "pair": 0,
+        "physicalDevice": false,
+        "previewOverlappedImport": true,
+        "remainingFiles": 0,
+        "sample": 1,
+        "scenario": "preview",
+        "status": "complete",
+        "thermalInvalid": false
+      }
+    },
+    {
+      "sourceLog": "/private/tmp/media-ab-sim-final.log",
+      "sample": {
+        "allReadyMs": 3032.2811666701455,
+        "brightness": 0.5,
+        "firstReadyMs": 585.5292083288077,
+        "limit": 1,
+        "lowPowerInvalid": false,
+        "measured": true,
+        "memoryWarnings": 0,
+        "originals": [],
+        "os": "Version 27.0 (Build 24A434)",
+        "overlappingScrollSteps": 12,
+        "pair": 0,
+        "physicalDevice": false,
+        "previewOverlappedImport": false,
+        "remainingFiles": 0,
+        "sample": 0,
+        "scenario": "scroll",
+        "status": "complete",
+        "thermalInvalid": false
+      }
+    },
+    {
+      "sourceLog": "/private/tmp/media-ab-sim-final.log",
+      "sample": {
+        "allReadyMs": 2192.52100000449,
+        "brightness": 0.5,
+        "firstReadyMs": 605.7466250058496,
+        "limit": 2,
+        "lowPowerInvalid": false,
+        "measured": true,
+        "memoryWarnings": 0,
+        "originals": [],
+        "os": "Version 27.0 (Build 24A434)",
+        "overlappingScrollSteps": 9,
+        "pair": 0,
+        "physicalDevice": false,
+        "previewOverlappedImport": false,
+        "remainingFiles": 0,
+        "sample": 1,
+        "scenario": "scroll",
+        "status": "complete",
+        "thermalInvalid": false
+      }
+    },
+    {
+      "sourceLog": "/private/tmp/media-ab-delivery-smoke.log",
+      "sample": {
+        "allReadyMs": 2690.716708340915,
+        "brightness": 0.5,
+        "firstReadyMs": 334.7467083367519,
+        "limit": 1,
+        "lowPowerInvalid": false,
+        "measured": true,
+        "memoryWarnings": 0,
+        "originals": [
+          {
+            "height": 3024,
+            "milliseconds": 354.09920832898933,
+            "width": 4032
+          }
+        ],
+        "os": "Version 27.0 (Build 24A434)",
+        "overlappingScrollSteps": 0,
+        "pair": 0,
+        "physicalDevice": false,
+        "previewOverlappedImport": true,
+        "remainingFiles": 0,
+        "sample": 0,
+        "scenario": "preview",
+        "status": "complete",
+        "thermalInvalid": false
+      }
+    },
+    {
+      "sourceLog": "/private/tmp/media-ab-delivery-smoke.log",
+      "sample": {
+        "allReadyMs": 1929.5134583371691,
+        "brightness": 0.5,
+        "firstReadyMs": 486.9688333419617,
+        "limit": 2,
+        "lowPowerInvalid": false,
+        "measured": true,
+        "memoryWarnings": 0,
+        "originals": [
+          {
+            "height": 3024,
+            "milliseconds": 300.0167083373526,
+            "width": 4032
+          }
+        ],
+        "os": "Version 27.0 (Build 24A434)",
+        "overlappingScrollSteps": 0,
+        "pair": 0,
+        "physicalDevice": false,
+        "previewOverlappedImport": true,
+        "remainingFiles": 0,
+        "sample": 1,
+        "scenario": "preview",
+        "status": "complete",
+        "thermalInvalid": false
+      }
+    },
+    {
+      "sourceLog": "/private/tmp/media-ab-delivery-smoke.log",
+      "sample": {
+        "allReadyMs": 2557.8312083234778,
+        "brightness": 0.5,
+        "firstReadyMs": 486.0974166658707,
+        "limit": 1,
+        "lowPowerInvalid": false,
+        "measured": true,
+        "memoryWarnings": 0,
+        "originals": [
+          {
+            "height": 3024,
+            "milliseconds": 245.24520832346752,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 371.3205416715937,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 195.97212500229944,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 373.95854166243225,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 192.61854166688863,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 372.45604165946133,
+            "width": 4032
+          }
+        ],
+        "os": "Version 27.0 (Build 24A434)",
+        "overlappingScrollSteps": 0,
+        "pair": 0,
+        "physicalDevice": false,
+        "previewOverlappedImport": false,
+        "remainingFiles": 0,
+        "sample": 0,
+        "scenario": "warm",
+        "status": "complete",
+        "thermalInvalid": false
+      }
+    },
+    {
+      "sourceLog": "/private/tmp/media-ab-delivery-smoke.log",
+      "sample": {
+        "allReadyMs": 1659.1992916655727,
+        "brightness": 0.5,
+        "firstReadyMs": 555.212749997736,
+        "limit": 2,
+        "lowPowerInvalid": false,
+        "measured": true,
+        "memoryWarnings": 0,
+        "originals": [
+          {
+            "height": 3024,
+            "milliseconds": 243.7388333346462,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 374.4591249997029,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 177.51108334050514,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 368.61304167541675,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 200.27462499274407,
+            "width": 4032
+          },
+          {
+            "height": 3024,
+            "milliseconds": 384.4844583363738,
+            "width": 4032
+          }
+        ],
+        "os": "Version 27.0 (Build 24A434)",
+        "overlappingScrollSteps": 0,
+        "pair": 0,
+        "physicalDevice": false,
+        "previewOverlappedImport": false,
+        "remainingFiles": 0,
+        "sample": 1,
+        "scenario": "warm",
+        "status": "complete",
+        "thermalInvalid": false
+      }
+    }
+  ]
+}

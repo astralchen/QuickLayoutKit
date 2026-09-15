@@ -24,6 +24,8 @@ nonisolated struct DocumentDraft: Equatable, Sendable {
 final class DocumentController: NSObject, UIDocumentPickerDelegate {
     /// 与页面其他附件控制器共享的本地文件存储。
     let store: any AttachmentStoring
+    /// 粘贴媒体与照片选择器共用图片处理预算。
+    let imageLoader: MediaImageLoader
     /// 按稳定标识符登记的当前文档草稿集合。
     private(set) var drafts: [UUID: DocumentDraft] = [:]
     /// 单个草稿插入并完成存储登记时调用的闭包。
@@ -46,7 +48,10 @@ final class DocumentController: NSObject, UIDocumentPickerDelegate {
     var willRemoveDraft: ((UUID) -> Void)?
 
     /// 创建使用指定页面附件存储的文档控制器。
-    init(store: any AttachmentStoring) { self.store = store }
+    init(store: any AttachmentStoring, imageLoader: MediaImageLoader? = nil) {
+        self.store = store
+        self.imageLoader = imageLoader ?? MediaImageLoader()
+    }
 
     /// 保留录音文件与稳定身份，将其转换为可内联编辑的文件草稿并请求缩略图。
     func adoptRecording(_ audio: AudioAttachment) {
@@ -235,10 +240,12 @@ final class DocumentController: NSObject, UIDocumentPickerDelegate {
             if type.conforms(to: .image) || type.conforms(to: .movie) {
                 let thumbnail = store.makeFileURL(prefix: "paste-thumbnail", pathExtension: "jpg")
                 do {
-                    let metadata = try await PhotoPickerController.makeMetadata(
-                        originalURL: copied.fileURL, thumbnailURL: thumbnail,
-                        isVideo: type.conforms(to: .movie), isLivePhoto: false
-                    )
+                    let metadata = try await imageLoader.scheduler.run(kind: .importing) {
+                        try await MediaImportProcessor.makeMetadata(
+                            originalURL: copied.fileURL, thumbnailURL: thumbnail,
+                            isVideo: type.conforms(to: .movie), isLivePhoto: false
+                        )
+                    }
                     guard !Task.isCancelled, drafts[file.id] != nil else {
                         store.removeFile(at: copied.fileURL); store.removeFile(at: thumbnail); return
                     }
@@ -251,7 +258,9 @@ final class DocumentController: NSObject, UIDocumentPickerDelegate {
                 } catch {
                     store.removeFile(at: copied.fileURL)
                     store.removeFile(at: thumbnail)
-                    update(.init(attachment: .file(file), status: .failed))
+                    if !Task.isCancelled, drafts[file.id] != nil {
+                        update(.init(attachment: .file(file), status: .failed))
+                    }
                 }
                 tasks[file.id] = nil
             } else {

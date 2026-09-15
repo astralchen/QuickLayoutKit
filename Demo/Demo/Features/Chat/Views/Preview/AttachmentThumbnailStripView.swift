@@ -11,9 +11,9 @@ final class AttachmentThumbnailStripCell: UICollectionViewCell {
     /// 当前配置代次，拒绝旧任务回写。
     private var generation = UUID()
     /// Cell 不拥有加载器，其生命周期由缩略图条管理。
-    private weak var loader: AttachmentThumbnailLoader?
+    private weak var loader: MediaImageLoader?
     /// 当前消费者的取消句柄。
-    private var request: AttachmentThumbnailLoader.Request?
+    private var request: MediaImageLoader.Request?
     /// 当前显示配置，隐藏后重新显示时可重启未完成请求。
     private var item: AttachmentPreviewItem?
     /// 当前屏幕的像素需求。
@@ -43,7 +43,7 @@ final class AttachmentThumbnailStripCell: UICollectionViewCell {
         imageView.frame = CGRect(x: 0, y: (bounds.height - 30) / 2, width: bounds.width, height: 30)
     }
     /// 配置身份、占位图及辅助功能，加载仅在可见阶段启动。
-    func configure(item: AttachmentPreviewItem, index: Int, count: Int, loader: AttachmentThumbnailLoader, scale: CGFloat) {
+    func configure(item: AttachmentPreviewItem, index: Int, count: Int, loader: MediaImageLoader, scale: CGFloat) {
         cancelLoading()
         generation = UUID()
         self.item = item
@@ -66,11 +66,13 @@ final class AttachmentThumbnailStripCell: UICollectionViewCell {
             if let image { imageView.image = image }
         }
     }
-    /// 离屏或隐藏时使旧回写失效；已解码图像仍可保留。
+    /// 离屏或隐藏时使旧回写失效并释放像素，重新显示时从共享缓存恢复。
     func cancelLoading() {
         generation = UUID()
         loader?.cancel(request)
         request = nil
+        didFinishLoading = false
+        imageView.image = nil
     }
     /// 正式选中状态只改变辅助功能语义，展开由布局连续控制。
     func updateSelection(_ selected: Bool) {
@@ -119,7 +121,7 @@ final class AttachmentThumbnailStripView: QuickLayoutView, UICollectionViewDataS
     /// 透明列表；只在 44 pt 的交互带内命中。
     private(set) lazy var collectionView = UICollectionView(frame: .zero, collectionViewLayout: stripLayout)
     /// 有界后台图片加载器。
-    let imageLoader = AttachmentThumbnailLoader()
+    let imageLoader: MediaImageLoader
     /// 固定在视口两端的透明度遮罩。
     private let fade = CAGradientLayer()
     /// 防止程序定位被解释为用户滚动。
@@ -146,7 +148,8 @@ final class AttachmentThumbnailStripView: QuickLayoutView, UICollectionViewDataS
     override var body: Layout { collectionView.resizable().frame(height: Self.preferredHeight) }
 
     /// 创建按需加载的列表，不提前创建任何缩略图。
-    init(items: [AttachmentPreviewItem], selectedIndex: Int = 0) {
+    init(items: [AttachmentPreviewItem], selectedIndex: Int = 0, imageLoader: MediaImageLoader? = nil) {
+        self.imageLoader = imageLoader ?? MediaImageLoader()
         self.items = items
         super.init(frame: .zero)
         semanticContentAttribute = .forceLeftToRight
@@ -206,7 +209,6 @@ final class AttachmentThumbnailStripView: QuickLayoutView, UICollectionViewDataS
             cancelAnimation()
             endScrubbing()
             for case let cell as AttachmentThumbnailStripCell in collectionView.visibleCells { cell.cancelLoading() }
-            imageLoader.cancelAll()
         } else {
             updateVisibleSelection()
             applyPosition(pagingPosition)

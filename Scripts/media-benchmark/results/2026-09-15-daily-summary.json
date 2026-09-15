@@ -1,0 +1,360 @@
+{
+  "mode": "exploratory",
+  "pairsPerScenario": 3,
+  "decision": "exploratory_keep_2",
+  "missing": [],
+  "failedThresholds": [
+    "cold: peak memory grows more than 20%",
+    "preview: original readiness P90 regression"
+  ],
+  "scenarios": {
+    "cold": {
+      "1": {
+        "allReadyMedianMs": 1705.198041672702,
+        "allReadyP90Ms": 1713.8870416674763,
+        "firstReadyMedianMs": 107.97141666989774,
+        "firstReadyP90Ms": 112.28395834041294,
+        "originalReadyMedianMs": null,
+        "originalReadyP90Ms": null,
+        "peakMemoryMedianMB": 55.93648,
+        "peakMemoryP90MB": 56.116704,
+        "cpuMedianSeconds": 4.0814436050000005,
+        "cpuP90Seconds": 4.136385122,
+        "hitchRatioMedianMsPerSecond": 0,
+        "hitchRatioP90MsPerSecond": 0
+      },
+      "2": {
+        "allReadyMedianMs": 999.3393333425047,
+        "allReadyP90Ms": 1015.8836666523712,
+        "firstReadyMedianMs": 120.94441667431965,
+        "firstReadyP90Ms": 132.845374988392,
+        "originalReadyMedianMs": null,
+        "originalReadyP90Ms": null,
+        "peakMemoryMedianMB": 80.660016,
+        "peakMemoryP90MB": 81.708552,
+        "cpuMedianSeconds": 4.188007361,
+        "cpuP90Seconds": 4.217363525000001,
+        "hitchRatioMedianMsPerSecond": 0,
+        "hitchRatioP90MsPerSecond": 0
+      },
+      "bFasterPairs": 3,
+      "improvement": 0.4139452961356853,
+      "hitchRatioMedianMsPerSecond": {
+        "1": 0,
+        "2": 0
+      }
+    },
+    "preview": {
+      "1": {
+        "allReadyMedianMs": 1807.794708336587,
+        "allReadyP90Ms": 1819.2104166664649,
+        "firstReadyMedianMs": 106.88504166319035,
+        "firstReadyP90Ms": 107.56895833765157,
+        "originalReadyMedianMs": 187.2728333401028,
+        "originalReadyP90Ms": 188.13720832986291,
+        "peakMemoryMedianMB": 131.95839999999998,
+        "peakMemoryP90MB": 131.97474400000002,
+        "cpuMedianSeconds": 4.293509299,
+        "cpuP90Seconds": 4.333283399,
+        "hitchRatioMedianMsPerSecond": 3.13769851908687,
+        "hitchRatioP90MsPerSecond": 3.1631791167076977
+      },
+      "2": {
+        "allReadyMedianMs": 1135.7228749984642,
+        "allReadyP90Ms": 1151.3974999979837,
+        "firstReadyMedianMs": 120.1090416579973,
+        "firstReadyP90Ms": 124.57641666696873,
+        "originalReadyMedianMs": 180.26516666577663,
+        "originalReadyP90Ms": 258.1905416591326,
+        "peakMemoryMedianMB": 136.52949600000002,
+        "peakMemoryP90MB": 139.396736,
+        "cpuMedianSeconds": 4.448825663,
+        "cpuP90Seconds": 4.501963098,
+        "hitchRatioMedianMsPerSecond": 3.1015858571791144,
+        "hitchRatioP90MsPerSecond": 3.1414015658366385
+      },
+      "hitchRatioMedianMsPerSecond": {
+        "1": 3.13769851908687,
+        "2": 3.1015858571791144
+      }
+    }
+  },
+  "samples": [
+    {
+      "allReadyMs": 1696.4647916611284,
+      "brightness": 0.5,
+      "firstReadyMs": 107.97141666989774,
+      "limit": 1,
+      "lowPowerInvalid": false,
+      "measured": true,
+      "memoryWarnings": 0,
+      "originals": [],
+      "os": "Version 26.6.1 (Build 23G83)",
+      "overlappingScrollSteps": 0,
+      "pair": 0,
+      "physicalDevice": true,
+      "previewOverlappedImport": false,
+      "remainingFiles": 0,
+      "sample": 0,
+      "scenario": "cold",
+      "status": "complete",
+      "thermalInvalid": false
+    },
+    {
+      "allReadyMs": 999.3393333425047,
+      "brightness": 0.5,
+      "firstReadyMs": 120.94441667431965,
+      "limit": 2,
+      "lowPowerInvalid": false,
+      "measured": true,
+      "memoryWarnings": 0,
+      "originals": [],
+      "os": "Version 26.6.1 (Build 23G83)",
+      "overlappingScrollSteps": 0,
+      "pair": 0,
+      "physicalDevice": true,
+      "previewOverlappedImport": false,
+      "remainingFiles": 0,
+      "sample": 1,
+      "scenario": "cold",
+      "status": "complete",
+      "thermalInvalid": false
+    },
+    {
+      "allReadyMs": 991.6585416794987,
+      "brightness": 0.5,
+      "firstReadyMs": 119.40083334047813,
+      "limit": 2,
+      "lowPowerInvalid": false,
+      "measured": true,
+      "memoryWarnings": 0,
+      "originals": [],
+      "os": "Version 26.6.1 (Build 23G83)",
+      "overlappingScrollSteps": 0,
+      "pair": 1,
+      "physicalDevice": true,
+      "previewOverlappedImport": false,
+      "remainingFiles": 0,
+      "sample": 2,
+      "scenario": "cold",
+      "status": "complete",
+      "thermalInvalid": false
+    },
+    {
+      "allReadyMs": 1713.8870416674763,
+      "brightness": 0.5,
+      "firstReadyMs": 104.71949999919161,
+      "limit": 1,
+      "lowPowerInvalid": false,
+      "measured": true,
+      "memoryWarnings": 0,
+      "originals": [],
+      "os": "Version 26.6.1 (Build 23G83)",
+      "overlappingScrollSteps": 0,
+      "pair": 1,
+      "physicalDevice": true,
+      "previewOverlappedImport": false,
+      "remainingFiles": 0,
+      "sample": 3,
+      "scenario": "cold",
+      "status": "complete",
+      "thermalInvalid": false
+    },
+    {
+      "allReadyMs": 1705.198041672702,
+      "brightness": 0.5,
+      "firstReadyMs": 112.28395834041294,
+      "limit": 1,
+      "lowPowerInvalid": false,
+      "measured": true,
+      "memoryWarnings": 0,
+      "originals": [],
+      "os": "Version 26.6.1 (Build 23G83)",
+      "overlappingScrollSteps": 0,
+      "pair": 2,
+      "physicalDevice": true,
+      "previewOverlappedImport": false,
+      "remainingFiles": 0,
+      "sample": 4,
+      "scenario": "cold",
+      "status": "complete",
+      "thermalInvalid": false
+    },
+    {
+      "allReadyMs": 1015.8836666523712,
+      "brightness": 0.5,
+      "firstReadyMs": 132.845374988392,
+      "limit": 2,
+      "lowPowerInvalid": false,
+      "measured": true,
+      "memoryWarnings": 0,
+      "originals": [],
+      "os": "Version 26.6.1 (Build 23G83)",
+      "overlappingScrollSteps": 0,
+      "pair": 2,
+      "physicalDevice": true,
+      "previewOverlappedImport": false,
+      "remainingFiles": 0,
+      "sample": 5,
+      "scenario": "cold",
+      "status": "complete",
+      "thermalInvalid": false
+    },
+    {
+      "allReadyMs": 1802.3319166677538,
+      "brightness": 0.5,
+      "firstReadyMs": 106.83083333424293,
+      "limit": 1,
+      "lowPowerInvalid": false,
+      "measured": true,
+      "memoryWarnings": 0,
+      "originals": [
+        {
+          "height": 3024,
+          "milliseconds": 186.19587499415502,
+          "width": 4032
+        }
+      ],
+      "os": "Version 26.6.1 (Build 23G83)",
+      "overlappingScrollSteps": 0,
+      "pair": 0,
+      "physicalDevice": true,
+      "previewOverlappedImport": true,
+      "remainingFiles": 0,
+      "sample": 0,
+      "scenario": "preview",
+      "status": "complete",
+      "thermalInvalid": false
+    },
+    {
+      "allReadyMs": 1135.7228749984642,
+      "brightness": 0.5,
+      "firstReadyMs": 118.84262500097975,
+      "limit": 2,
+      "lowPowerInvalid": false,
+      "measured": true,
+      "memoryWarnings": 0,
+      "originals": [
+        {
+          "height": 3024,
+          "milliseconds": 180.26516666577663,
+          "width": 4032
+        }
+      ],
+      "os": "Version 26.6.1 (Build 23G83)",
+      "overlappingScrollSteps": 0,
+      "pair": 0,
+      "physicalDevice": true,
+      "previewOverlappedImport": true,
+      "remainingFiles": 0,
+      "sample": 1,
+      "scenario": "preview",
+      "status": "complete",
+      "thermalInvalid": false
+    },
+    {
+      "allReadyMs": 1123.4710833232384,
+      "brightness": 0.5,
+      "firstReadyMs": 120.1090416579973,
+      "limit": 2,
+      "lowPowerInvalid": false,
+      "measured": true,
+      "memoryWarnings": 0,
+      "originals": [
+        {
+          "height": 3024,
+          "milliseconds": 258.1905416591326,
+          "width": 4032
+        }
+      ],
+      "os": "Version 26.6.1 (Build 23G83)",
+      "overlappingScrollSteps": 0,
+      "pair": 1,
+      "physicalDevice": true,
+      "previewOverlappedImport": true,
+      "remainingFiles": 0,
+      "sample": 2,
+      "scenario": "preview",
+      "status": "complete",
+      "thermalInvalid": false
+    },
+    {
+      "allReadyMs": 1819.2104166664649,
+      "brightness": 0.5,
+      "firstReadyMs": 106.88504166319035,
+      "limit": 1,
+      "lowPowerInvalid": false,
+      "measured": true,
+      "memoryWarnings": 0,
+      "originals": [
+        {
+          "height": 3024,
+          "milliseconds": 187.2728333401028,
+          "width": 4032
+        }
+      ],
+      "os": "Version 26.6.1 (Build 23G83)",
+      "overlappingScrollSteps": 0,
+      "pair": 1,
+      "physicalDevice": true,
+      "previewOverlappedImport": true,
+      "remainingFiles": 0,
+      "sample": 3,
+      "scenario": "preview",
+      "status": "complete",
+      "thermalInvalid": false
+    },
+    {
+      "allReadyMs": 1807.794708336587,
+      "brightness": 0.5,
+      "firstReadyMs": 107.56895833765157,
+      "limit": 1,
+      "lowPowerInvalid": false,
+      "measured": true,
+      "memoryWarnings": 0,
+      "originals": [
+        {
+          "height": 3024,
+          "milliseconds": 188.13720832986291,
+          "width": 4032
+        }
+      ],
+      "os": "Version 26.6.1 (Build 23G83)",
+      "overlappingScrollSteps": 0,
+      "pair": 2,
+      "physicalDevice": true,
+      "previewOverlappedImport": true,
+      "remainingFiles": 0,
+      "sample": 4,
+      "scenario": "preview",
+      "status": "complete",
+      "thermalInvalid": false
+    },
+    {
+      "allReadyMs": 1151.3974999979837,
+      "brightness": 0.5,
+      "firstReadyMs": 124.57641666696873,
+      "limit": 2,
+      "lowPowerInvalid": false,
+      "measured": true,
+      "memoryWarnings": 0,
+      "originals": [
+        {
+          "height": 3024,
+          "milliseconds": 161.98495832213666,
+          "width": 4032
+        }
+      ],
+      "os": "Version 26.6.1 (Build 23G83)",
+      "overlappingScrollSteps": 0,
+      "pair": 2,
+      "physicalDevice": true,
+      "previewOverlappedImport": true,
+      "remainingFiles": 0,
+      "sample": 5,
+      "scenario": "preview",
+      "status": "complete",
+      "thermalInvalid": false
+    }
+  ]
+}

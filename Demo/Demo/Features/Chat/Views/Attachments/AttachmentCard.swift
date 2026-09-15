@@ -209,7 +209,10 @@ final class AttachmentCard: QuickLayoutView, UIGestureRecognizerDelegate {
         icon.contentMode = .scaleAspectFit
         titleLabel.text = nil
         detailLabel.text = nil
-        icon.image = nil
+        switch draft.attachment {
+        case .mediaGroup, .file: break
+        default: icon.setThumbnail(nil); icon.image = nil
+        }
         switch draft.attachment {
         case .file(let file):
             titleLabel.text = file.displayName
@@ -220,7 +223,7 @@ final class AttachmentCard: QuickLayoutView, UIGestureRecognizerDelegate {
             detailLabel.text = "\(typeName) · \(ByteCountFormatter.string(fromByteCount: file.byteCount, countStyle: .file))"
             let symbol = type?.conforms(to: .audio) == true ? "music.note"
                 : type?.conforms(to: .pdf) == true ? "doc.richtext" : "doc.text"
-            icon.image = file.thumbnailURL.flatMap { UIImage(contentsOfFile: $0.path) } ?? UIImage(systemName: symbol)
+            icon.setThumbnail(file.thumbnailURL, placeholder: UIImage(systemName: symbol))
             accessibilityIdentifier = "imessage.attachment.file.card"
         case .link(let link):
             isLink = true
@@ -236,9 +239,8 @@ final class AttachmentCard: QuickLayoutView, UIGestureRecognizerDelegate {
             accessibilityIdentifier = "imessage.attachment.media.card"
             if let media = group.items.first {
                 isVideo = media.kind.isVideo
-                let thumbnail = UIImage(contentsOfFile: media.thumbnailFileURL.path)
-                icon.image = thumbnail ?? UIImage(systemName: isVideo ? "video.fill" : "photo")
-                icon.contentMode = thumbnail == nil ? .scaleAspectFit : .scaleAspectFill
+                icon.contentMode = .scaleAspectFill
+                icon.setThumbnail(media.thumbnailFileURL)
                 titleLabel.text = Localization.text(isVideo ? "imessage.media.video"
                     : media.isAnimatedImage ? "imessage.media.animatedImage" : "imessage.media.image")
                 if let duration = media.kind.duration {

@@ -1,0 +1,122 @@
+[
+  {
+    "scenario": "cold",
+    "pair": 0,
+    "limit": 1,
+    "ratioMsPerSecond": 0,
+    "newMediaStallOver100ms": false,
+    "totalHitchSeconds": 0,
+    "hitchCount": 0,
+    "evidence": "2026-09-15-daily-metrics.json: testColdImport, measurement 0; total captured hitch duration below 100 ms, so no individual captured hitch exceeds 100 ms. This does not attribute sub-100 ms hitches or prove absence of all main-thread hangs."
+  },
+  {
+    "scenario": "cold",
+    "pair": 0,
+    "limit": 2,
+    "ratioMsPerSecond": 0,
+    "newMediaStallOver100ms": false,
+    "totalHitchSeconds": 0,
+    "hitchCount": 0,
+    "evidence": "2026-09-15-daily-metrics.json: testColdImport, measurement 1; total captured hitch duration below 100 ms, so no individual captured hitch exceeds 100 ms. This does not attribute sub-100 ms hitches or prove absence of all main-thread hangs."
+  },
+  {
+    "scenario": "cold",
+    "pair": 1,
+    "limit": 2,
+    "ratioMsPerSecond": 0,
+    "newMediaStallOver100ms": false,
+    "totalHitchSeconds": 0,
+    "hitchCount": 0,
+    "evidence": "2026-09-15-daily-metrics.json: testColdImport, measurement 2; total captured hitch duration below 100 ms, so no individual captured hitch exceeds 100 ms. This does not attribute sub-100 ms hitches or prove absence of all main-thread hangs."
+  },
+  {
+    "scenario": "cold",
+    "pair": 1,
+    "limit": 1,
+    "ratioMsPerSecond": 0,
+    "newMediaStallOver100ms": false,
+    "totalHitchSeconds": 0,
+    "hitchCount": 0,
+    "evidence": "2026-09-15-daily-metrics.json: testColdImport, measurement 3; total captured hitch duration below 100 ms, so no individual captured hitch exceeds 100 ms. This does not attribute sub-100 ms hitches or prove absence of all main-thread hangs."
+  },
+  {
+    "scenario": "cold",
+    "pair": 2,
+    "limit": 1,
+    "ratioMsPerSecond": 0,
+    "newMediaStallOver100ms": false,
+    "totalHitchSeconds": 0,
+    "hitchCount": 0,
+    "evidence": "2026-09-15-daily-metrics.json: testColdImport, measurement 4; total captured hitch duration below 100 ms, so no individual captured hitch exceeds 100 ms. This does not attribute sub-100 ms hitches or prove absence of all main-thread hangs."
+  },
+  {
+    "scenario": "cold",
+    "pair": 2,
+    "limit": 2,
+    "ratioMsPerSecond": 0,
+    "newMediaStallOver100ms": false,
+    "totalHitchSeconds": 0,
+    "hitchCount": 0,
+    "evidence": "2026-09-15-daily-metrics.json: testColdImport, measurement 5; total captured hitch duration below 100 ms, so no individual captured hitch exceeds 100 ms. This does not attribute sub-100 ms hitches or prove absence of all main-thread hangs."
+  },
+  {
+    "scenario": "preview",
+    "pair": 0,
+    "limit": 1,
+    "ratioMsPerSecond": 3.1631791167076977,
+    "newMediaStallOver100ms": false,
+    "totalHitchSeconds": 0.016667749000000003,
+    "hitchCount": 1,
+    "evidence": "2026-09-15-daily-metrics.json: testPreviewDuringImport, measurement 0; total captured hitch duration below 100 ms, so no individual captured hitch exceeds 100 ms. This does not attribute sub-100 ms hitches or prove absence of all main-thread hangs."
+  },
+  {
+    "scenario": "preview",
+    "pair": 0,
+    "limit": 2,
+    "ratioMsPerSecond": 3.1015858571791144,
+    "newMediaStallOver100ms": false,
+    "totalHitchSeconds": 0.016667749000000003,
+    "hitchCount": 1,
+    "evidence": "2026-09-15-daily-metrics.json: testPreviewDuringImport, measurement 1; total captured hitch duration below 100 ms, so no individual captured hitch exceeds 100 ms. This does not attribute sub-100 ms hitches or prove absence of all main-thread hangs."
+  },
+  {
+    "scenario": "preview",
+    "pair": 1,
+    "limit": 2,
+    "ratioMsPerSecond": 2.9784606070428925,
+    "newMediaStallOver100ms": false,
+    "totalHitchSeconds": 0.016667749000000003,
+    "hitchCount": 1,
+    "evidence": "2026-09-15-daily-metrics.json: testPreviewDuringImport, measurement 2; total captured hitch duration below 100 ms, so no individual captured hitch exceeds 100 ms. This does not attribute sub-100 ms hitches or prove absence of all main-thread hangs."
+  },
+  {
+    "scenario": "preview",
+    "pair": 1,
+    "limit": 1,
+    "ratioMsPerSecond": 3.120626628529679,
+    "newMediaStallOver100ms": false,
+    "totalHitchSeconds": 0.016667749000000003,
+    "hitchCount": 1,
+    "evidence": "2026-09-15-daily-metrics.json: testPreviewDuringImport, measurement 3; total captured hitch duration below 100 ms, so no individual captured hitch exceeds 100 ms. This does not attribute sub-100 ms hitches or prove absence of all main-thread hangs."
+  },
+  {
+    "scenario": "preview",
+    "pair": 2,
+    "limit": 1,
+    "ratioMsPerSecond": 3.13769851908687,
+    "newMediaStallOver100ms": false,
+    "totalHitchSeconds": 0.016667749000000003,
+    "hitchCount": 1,
+    "evidence": "2026-09-15-daily-metrics.json: testPreviewDuringImport, measurement 4; total captured hitch duration below 100 ms, so no individual captured hitch exceeds 100 ms. This does not attribute sub-100 ms hitches or prove absence of all main-thread hangs."
+  },
+  {
+    "scenario": "preview",
+    "pair": 2,
+    "limit": 2,
+    "ratioMsPerSecond": 3.1414015658366385,
+    "newMediaStallOver100ms": false,
+    "totalHitchSeconds": 0.016667791,
+    "hitchCount": 1,
+    "evidence": "2026-09-15-daily-metrics.json: testPreviewDuringImport, measurement 5; total captured hitch duration below 100 ms, so no individual captured hitch exceeds 100 ms. This does not attribute sub-100 ms hitches or prove absence of all main-thread hangs."
+  }
+]

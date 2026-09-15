@@ -1,0 +1,22 @@
+{
+  "configuration": "Release",
+  "optimization": "-O, whole-module-optimization",
+  "benchmarkConditions": [
+    "MEDIA_BENCHMARK",
+    "DEBUG"
+  ],
+  "normalBuildContainsBenchmarkEntry": false,
+  "physicalSamplesCompleted": 12,
+  "sha256": {
+    "normalApp": "6e3941d84f7a664b05966ec9c15ef45bc49d2705688a7cde6bd80136fe0f4afc",
+    "benchmarkApp": "7d5695cd472fbbb150759b0c19f2ac17f6d54f972e1d97d0248ceb6394f79cbc",
+    "benchmarkRunner": "a35dadab8aedafb37f20397a9e1d270e17cd17d93cae81589d99b674ce56bca3",
+    "benchmarkTests": "c3090bb773a4bf5aa8ed52ae93a57ce897123486830409fe8df3291d355da46d",
+    "resourceManifest": "6d36a2ab7f230458c709472caf684fa5dd3301d43516fb2944736a45b70cf4a1"
+  },
+  "chatSourceFingerprint": "c7ee1bfa6adb5fd42284d193f70b9d5dd6f3014994cbc194dcc7868a102fc710",
+  "benchmarkBuildContainsBenchmarkEntry": true,
+  "cooldownSeconds": 10,
+  "testSourceSHA256": "2ff2d74ade89a1ddd80a33d0563fb218ba3380b24cf6653fea822b8f39f8c545",
+  "physicalSamplesScope": "daily-usage exploratory: 3 pairs cold and 3 pairs preview"
+}

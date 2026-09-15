@@ -27,6 +27,10 @@ final class PhotoPickerController: NSObject,
         var content: MediaDraftItemContent = .importing
         /// 系统文件表示加载的可取消进度对象。
         var progress: Progress?
+        /// 可取消的后台媒体处理任务。
+        var task: Task<Void, Never>?
+        /// 文件复制和取消竞争的单次状态机。
+        var fileRequest: MediaFileRequest?
         /// 正在导入的媒体原件目标 URL。
         var originalURL: URL?
         /// 媒体缩略图的目标 URL。
@@ -57,6 +61,22 @@ final class PhotoPickerController: NSObject,
     let attachmentStore: any AttachmentStoring
     /// 媒体控制器初始化时注入并保留的文件管理器。
     private let fileManager: FileManager
+    /// 导入和显示共用的页面图片服务。
+    let imageLoader: MediaImageLoader
+    /// 已登记占位但尚未启动的选择结果。
+    struct PendingImport {
+        /// 系统提供者及资源身份。
+        let provider: NSItemProvider
+        /// 可变草稿条目。
+        let entry: DraftEntry
+        /// 创建请求时的草稿代次。
+        let generation: Int
+    }
+    /// 等待系统文件导入的有序队列。
+    var pendingImports: [PendingImport] = []
+    /// 尚未真正完成的导入；取消后也不能提前释放槽位。
+    var activeImports: Set<UUID> = []
+
     /// 当前媒体草稿组的身份；提交或丢弃后重新生成。
     private var groupID = UUID()
     /// 按系统连续选择顺序排列的媒体导入条目。
@@ -74,6 +94,10 @@ final class PhotoPickerController: NSObject,
     var stateDidChange: ((MediaDraftPresentation?) -> Void)?
     /// 媒体导入失败并完成条目清理后调用的闭包。
     var failureDidOccur: (() -> Void)?
+    #if MEDIA_BENCHMARK
+    /// 性能构建在实际草稿发布后记录就绪时间，不改变生产观察者。
+    var benchmarkDidPublish: (() -> Void)?
+    #endif
     /// 开始展示面板前调用的闭包，使页面能够先跟踪面板并处理键盘交接。
     var pickerDidPresent: ((UIViewController) -> Void)?
     /// 系统入场动画完成时调用，用于解除键盘到照片面板的输入栏位置冻结。
@@ -84,10 +108,12 @@ final class PhotoPickerController: NSObject,
     /// 创建使用页面附件存储和指定文件管理器的照片控制器。
     init(
         attachmentStore: any AttachmentStoring,
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        imageLoader: MediaImageLoader? = nil
     ) {
         self.attachmentStore = attachmentStore
         self.fileManager = fileManager
+        self.imageLoader = imageLoader ?? MediaImageLoader()
         super.init()
     }
 
@@ -226,9 +252,7 @@ final class PhotoPickerController: NSObject,
     func removeItem(id: UUID) {
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
         let entry = entries.remove(at: index)
-        entry.progress?.cancel()
-        if let url = entry.originalURL { attachmentStore.removeFile(at: url) }
-        if let url = entry.thumbnailURL { attachmentStore.removeFile(at: url) }
+        cancelImport(entry)
         if let assetIdentifier = entry.assetIdentifier {
             picker?.deselectAssets(withIdentifiers: [assetIdentifier])
         }
@@ -259,15 +283,9 @@ final class PhotoPickerController: NSObject,
 
     /// 取消全部导入，删除未提交文件并使当前草稿版本失效。
     func discardDraft() {
-        entries.forEach { $0.progress?.cancel() }
-        if let draftAttachment {
-            attachmentStore.discardDraft(id: draftAttachment.id)
-        } else {
-            for entry in entries {
-                if let url = entry.originalURL { attachmentStore.removeFile(at: url) }
-                if let url = entry.thumbnailURL { attachmentStore.removeFile(at: url) }
-            }
-        }
+        entries.forEach(cancelImport)
+        pendingImports.removeAll()
+        if let draftAttachment { attachmentStore.discardDraft(id: draftAttachment.id) }
         entries.removeAll()
         groupID = UUID()
         generation &+= 1
@@ -311,19 +329,14 @@ final class PhotoPickerController: NSObject,
             let entry = DraftEntry(assetIdentifier: result.assetIdentifier)
             nextEntries.append(entry)
             retainedIDs.insert(entry.id)
-            beginImport(
-                result: result,
-                entry: entry,
-                generation: currentGeneration
-            )
+            pendingImports.append(PendingImport(provider: result.itemProvider, entry: entry, generation: currentGeneration))
         }
 
         for entry in entries where !retainedIDs.contains(entry.id) {
-            entry.progress?.cancel()
-            if let url = entry.originalURL { attachmentStore.removeFile(at: url) }
-            if let url = entry.thumbnailURL { attachmentStore.removeFile(at: url) }
+            cancelImport(entry)
         }
         entries = nextEntries
+        drainImports()
         registerReadyDraftIfPossible()
         publishDraft()
     }
@@ -331,6 +344,14 @@ final class PhotoPickerController: NSObject,
     /// 向观察者发布当前有序草稿快照。
     func publishDraft() {
         stateDidChange?(draft)
+        #if MEDIA_BENCHMARK
+        benchmarkDidPublish?()
+        #endif
+    }
+
+    /// 控制器释放时停止所有请求；回调仍会清理未交付文件。
+    isolated deinit {
+        entries.forEach { $0.fileRequest?.cancel(); $0.task?.cancel() }
     }
 
     /// 设置不低于 220 点的键盘高度档位及系统大档位。

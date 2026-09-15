@@ -543,56 +543,112 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         }
     }
 
+    /// 在真实系统开关开启时验证预览，并在任何退出路径恢复测试前的设置。
     @MainActor func testSystemReducedMotionAndTransparency() throws {
+        // XCTest 的立即中止会绕过 Swift defer；保留失败记录并让设置恢复代码执行。
+        continueAfterFailure = true
         let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
         settings.launch()
-        func row(_ names: [String]) -> XCUIElement {
-            settings.staticTexts.matching(NSPredicate(format: "label IN %@", names)).firstMatch
-        }
+        defer { settings.terminate() }
+
+        /// 等待页面加载并双向查找；目标还须避开导航栏和底部搜索栏的遮挡。
         func reveal(_ element: XCUIElement) -> Bool {
-            for _ in 0..<8 {
-                if element.exists && element.isHittable { return true }
-                settings.swipeUp()
+            _ = element.waitForExistence(timeout: 3)
+            for attempt in 0..<16 {
+                if element.exists {
+                    let middle = element.frame.midY
+                    let top = settings.navigationBars.firstMatch.frame.maxY
+                    let bottom = settings.frame.maxY - 160
+                    if element.isHittable, middle > top, middle < bottom { return true }
+                    if middle <= top { settings.swipeDown() } else { settings.swipeUp() }
+                } else if attempt < 4 {
+                    settings.swipeDown()
+                } else {
+                    settings.swipeUp()
+                }
             }
-            return element.exists && element.isHittable
+            return false
         }
-        let accessibility = row(["Accessibility", "辅助功能"])
-        guard reveal(accessibility) else { throw XCTSkip("Settings Accessibility entry unavailable") }
-        accessibility.tap()
-        let motion = row(["Motion", "动态效果"])
-        guard reveal(motion) else { throw XCTSkip("Settings Motion entry unavailable") }
-        motion.tap()
-        let reduceMotion = settings.switches.matching(NSPredicate(format: "label IN %@", ["Reduce Motion", "减弱动态效果"])).firstMatch
-        guard reduceMotion.waitForExistence(timeout: 5) else { throw XCTSkip("Reduce Motion switch unavailable") }
-        let motionWasOn = (reduceMotion.value as? String) == "1"
-        if !motionWasOn { reduceMotion.tap() }
-        settings.navigationBars.buttons.firstMatch.tap()
-        let display = row(["Display & Text Size", "显示与文字大小"])
-        guard reveal(display) else {
-            motion.tap(); if !motionWasOn { reduceMotion.tap() }
-            throw XCTSkip("Display & Text Size unavailable")
-        }
-        display.tap()
-        let transparency = settings.switches.matching(NSPredicate(format: "label IN %@", ["Reduce Transparency", "降低透明度"])).firstMatch
-        guard reveal(transparency) else {
-            settings.navigationBars.buttons.firstMatch.tap(); motion.tap()
-            if !motionWasOn { reduceMotion.tap() }
-            throw XCTSkip("Reduce Transparency switch unavailable")
-        }
-        let transparencyWasOn = (transparency.value as? String) == "1"
-        if !transparencyWasOn { transparency.tap() }
-        defer {
+
+        /// 从设置根页面进入指定辅助功能页面，避免依赖上次运行留下的导航状态。
+        func openPage(_ names: [String]) -> Bool {
             settings.activate()
-            if !transparencyWasOn, reveal(transparency), (transparency.value as? String) == "1" { transparency.tap() }
-            settings.navigationBars.buttons.firstMatch.tap()
-            if reveal(motion) {
-                motion.tap()
-                if !motionWasOn, reduceMotion.exists, (reduceMotion.value as? String) == "1" { reduceMotion.tap() }
-                settings.navigationBars.buttons.firstMatch.tap()
+            for _ in 0..<6 {
+                let back = settings.navigationBars.buttons["BackButton"]
+                guard back.exists else { break }
+                back.tap()
             }
-            settings.navigationBars.buttons.firstMatch.tap()
-            settings.terminate()
+            let accessibility = settings.buttons["com.apple.settings.accessibility"]
+            guard reveal(accessibility) else { return false }
+            accessibility.tap()
+            let page = settings.staticTexts.matching(NSPredicate(format: "label IN %@", names)).firstMatch
+            guard reveal(page) else { return false }
+            page.tap()
+            return true
         }
+
+        /// iOS 设置将整行和内部控件都暴露为 Switch；只有内部控件能可靠改变开关值。
+        func toggle(_ names: [String]) -> XCUIElement {
+            let row = settings.switches.matching(NSPredicate(format: "label IN %@", names)).firstMatch
+            guard reveal(row) else { return row }
+            let control = row.switches.firstMatch
+            return control.exists ? control : row
+        }
+
+        /// 保留无法读取的状态，避免将未知状态误判为关闭。
+        func state(_ control: XCUIElement) -> Bool? {
+            if let number = control.value as? NSNumber { return number.boolValue }
+            guard let value = control.value as? String else { return nil }
+            return value == "1" ? true : (value == "0" ? false : nil)
+        }
+
+        /// 等待真实开关值改变，并将开启及恢复结果写入测试日志。
+        func set(_ control: XCUIElement, to enabled: Bool, name: String) {
+            guard let before = state(control) else {
+                XCTFail("无法读取系统开关：\(name)")
+                return
+            }
+            if before != enabled { control.tap() }
+            let changed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                state(control) == enabled
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [changed], timeout: 5), .completed, "系统开关未改变：\(name)")
+            print("[AccessibilityEvidence] \(name): \(before ? 1 : 0) -> \(String(describing: state(control)))")
+        }
+
+        let motionPage = ["Motion", "动态效果"]
+        let motionNames = ["Reduce Motion", "减弱动态效果"]
+        let displayPage = ["Display & Text Size", "显示与文字大小"]
+        let transparencyNames = ["Reduce Transparency", "降低透明度"]
+        guard openPage(motionPage) else { throw XCTSkip("Settings Motion entry unavailable") }
+        let reduceMotion = toggle(motionNames)
+        let motionWasOn = try XCTUnwrap(state(reduceMotion), "无法读取减弱动态效果初始状态")
+        defer {
+            if openPage(motionPage) {
+                set(toggle(motionNames), to: motionWasOn, name: "恢复减弱动态效果")
+            } else {
+                XCTFail("无法返回动态效果页面恢复设置")
+            }
+        }
+        set(reduceMotion, to: true, name: "开启减弱动态效果")
+        capture(settings, "减弱动态效果已开启")
+
+        guard openPage(displayPage) else {
+            XCTFail("无法进入显示与文字大小页面")
+            return
+        }
+        let transparency = toggle(transparencyNames)
+        let transparencyWasOn = try XCTUnwrap(state(transparency), "无法读取降低透明度初始状态")
+        defer {
+            if openPage(displayPage) {
+                set(toggle(transparencyNames), to: transparencyWasOn, name: "恢复降低透明度")
+            } else {
+                XCTFail("无法返回显示与文字大小页面恢复设置")
+            }
+        }
+        set(transparency, to: true, name: "开启降低透明度")
+        capture(settings, "降低透明度已开启")
+
         let app = chat(fixture: "stack2")
         openMedia(app)
         app.cells["imessage.preview.thumbnail.1"].tap()

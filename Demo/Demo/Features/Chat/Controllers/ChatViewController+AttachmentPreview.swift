@@ -71,7 +71,7 @@ extension ChatViewController {
                     let item = items[0]
                     items[0] = .init(id: item.id, url: item.url, thumbnailURL: item.thumbnailURL, title: item.title, kind: .unavailable)
                 }
-                let preview = AttachmentPreviewController(items: items, initialIndex: request.initialIndex, playbackCoordinator: audioController.playbackCoordinator)
+                let preview = AttachmentPreviewController(items: items, initialIndex: request.initialIndex, playbackCoordinator: audioController.playbackCoordinator, imageLoader: mediaImageLoader)
                 preview.didClose = restore
                 preview.sourceResolver = { [weak self] index, synchronize in
                     guard let self else { return nil }

@@ -211,8 +211,6 @@ private func documentCardPreview(
 #Preview("粘贴图片视频 · RTL 大字体") {
     documentCardPreview(text: "صور وفيديو", direction: .rightToLeft, photos: false, largeText: true, pastedMedia: true)
 }
-#endif
-
 @available(iOS 26.0, *)
 #Preview("按位置分段 · 文字与多个附件") {
     documentCardPreview(text: " 一段正文\n", direction: .leftToRight, photos: false, interleaved: true)
@@ -222,3 +220,4 @@ private func documentCardPreview(
 #Preview("按位置分段 · RTL 大字体") {
     documentCardPreview(text: " نص الرسالة\n", direction: .rightToLeft, photos: false, largeText: true, interleaved: true)
 }
+#endif
