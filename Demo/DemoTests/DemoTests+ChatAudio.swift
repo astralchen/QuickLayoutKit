@@ -218,6 +218,34 @@ extension DemoTests {
         #expect(transcriber.stopCount == 1)
     }
 
+    /// 无效输入格式通过启动错误返回后，应恢复编辑状态、释放会话并允许重试。
+    @Test(.enabled(if: ChatTestAvailability.isSupported)) func dictationInvalidInputReleasesSessionAndAllowsRetry() async {
+        guard #available(iOS 26.0, *) else { return }
+        let transcriber = ControlledSpeechTranscriber()
+        transcriber.startError = SpeechInputFormat.ValidationError.unavailable
+        let audioSession = RecordingAudioSession()
+        let controller = AudioController(
+            audioSession: audioSession,
+            fileManager: .default,
+            speechTranscriber: transcriber,
+            permissionProvider: ControlledMediaPermissions(microphoneGranted: true, speechGranted: true)
+        )
+        defer { controller.stopAll() }
+        var failure: MediaFailure?
+        controller.failureDidOccur = { failure = $0 }
+        controller.startDictation(locale: Locale(identifier: "zh-CN"))
+        #expect(await waitForCondition { failure == .speechUnavailable })
+        #expect(controller.state == .idle)
+        #expect(audioSession.deactivationCount == 1)
+        #expect(transcriber.stopCount == 1)
+
+        transcriber.startError = nil
+        controller.startDictation(locale: Locale(identifier: "zh-CN"))
+        #expect(await waitForCondition { controller.state == .dictating(text: "") })
+        #expect(transcriber.startCount == 2)
+        #expect(audioSession.captureActivationCount == 2)
+    }
+
     @Test(.enabled(if: ChatTestAvailability.isSupported)) func dictationPermissionFailureDoesNotStartCapture() async {
         guard #available(iOS 26.0, *) else { return }
         let transcriber = ControlledSpeechTranscriber()
@@ -258,6 +286,8 @@ private final class ControlledSpeechTranscriber:
     private(set) var startCount = 0
     private(set) var stopCount = 0
     private(set) var locale: Locale?
+    /// 本次启动需要模拟的错误；清空后可用于验证重试。
+    var startError: (any Error)?
 
     func start(
         locale: Locale,
@@ -265,6 +295,7 @@ private final class ControlledSpeechTranscriber:
         failure: @escaping @MainActor () -> Void
     ) async throws {
         startCount += 1
+        if let startError { throw startError }
         self.locale = locale
         self.result = result
         self.failure = failure

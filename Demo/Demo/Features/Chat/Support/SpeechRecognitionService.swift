@@ -39,6 +39,8 @@ final class SpeechRecognitionService: SpeechTranscribing {
 
     /// 调用方显式选择的语音后端；为 `nil` 时根据系统能力自动选择。
     private let requestedBackend: SpeechBackend?
+    /// 标识当前启动请求，使停止或重新启动前的异步工作失效。
+    private var generation: UUID?
     /// 向识别请求或分析器提供麦克风输入的音频引擎。
     private var audioEngine: AVAudioEngine?
     /// 兼容后端当前接收音频缓冲区的识别请求。
@@ -75,43 +77,63 @@ final class SpeechRecognitionService: SpeechTranscribing {
         failure: @escaping @MainActor () -> Void
     ) async throws {
         stop()
+        try Task.checkCancellation()
+        let generation = UUID()
+        self.generation = generation
+        var didStart = false
+        defer {
+            if !didStart, self.generation == generation { stop() }
+        }
         let backend = requestedBackend ?? .speechAnalyzer
 
         if backend == .speechAnalyzer {
             do {
                 try await startModern(
+                    generation: generation,
                     locale: locale,
                     result: result,
                     failure: failure
                 )
+                didStart = true
                 return
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
+                try checkActive(generation)
                 guard SpeechConfiguration.fallbackBackend(
                     afterFailureOf: backend,
                     wasExplicitlyRequested: requestedBackend != nil
                 ) == .speechRecognizer else {
                     throw error
                 }
-                stop()
+                releaseResources()
                 try startLegacy(
+                    generation: generation,
                     locale: locale,
                     result: result,
                     failure: failure
                 )
+                didStart = true
                 return
             }
         }
         try startLegacy(
+            generation: generation,
             locale: locale,
             result: result,
             failure: failure
         )
+        didStart = true
     }
 
     /// 停止音频输入并取消两种后端的任务，清空累计识别文本。
     func stop() {
+        generation = nil
+        releaseResources()
+    }
+
+    /// 清理后端资源；自动回退时保留当前启动请求的标识。
+    private func releaseResources() {
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
         recognitionTask = nil
@@ -137,6 +159,7 @@ final class SpeechRecognitionService: SpeechTranscribing {
 
     /// 准备语言资源与现代分析器，将麦克风缓冲区输入识别流程并发布文本更新。
     private func startModern(
+        generation: UUID,
         locale: Locale,
         result: @escaping @MainActor (String, Bool) -> Void,
         failure: @escaping @MainActor () -> Void
@@ -146,6 +169,7 @@ final class SpeechRecognitionService: SpeechTranscribing {
         ) else {
             throw CocoaError(.featureUnsupported)
         }
+        try checkActive(generation)
         let transcriber = SpeechTranscriber(
             locale: supportedLocale,
             preset: .progressiveTranscription
@@ -153,13 +177,16 @@ final class SpeechRecognitionService: SpeechTranscribing {
         modernTranscriptSeparator = (
             supportedLocale.language.languageCode?.identifier == "zh"
         ) ? "" : " "
-        if let installationRequest = try await AssetInventory
-            .assetInstallationRequest(supporting: [transcriber]) {
+        let installationRequest = try await AssetInventory
+            .assetInstallationRequest(supporting: [transcriber])
+        try checkActive(generation)
+        if let installationRequest {
             try await installationRequest.downloadAndInstall()
+            try checkActive(generation)
         }
 
         let engine = AVAudioEngine()
-        let naturalFormat = engine.inputNode.outputFormat(forBus: 0)
+        let naturalFormat = try validatedInputFormat(of: engine)
         guard let analyzerFormat = await SpeechAnalyzer
             .bestAvailableAudioFormat(
                 compatibleWith: [transcriber],
@@ -167,10 +194,18 @@ final class SpeechRecognitionService: SpeechTranscribing {
             ) else {
             throw CocoaError(.featureUnsupported)
         }
+        try checkActive(generation)
+        // 格式选择期间路由可能变化；直接挂在输入节点的 tap 必须匹配硬件采样率。
+        let currentFormat = try validatedInputFormat(of: engine)
+        try SpeechInputFormat.validate(analyzerFormat)
+        guard currentFormat == naturalFormat,
+              analyzerFormat.sampleRate == currentFormat.sampleRate,
+              analyzerFormat.channelCount == currentFormat.channelCount else {
+            throw CocoaError(.featureUnsupported)
+        }
         let (stream, continuation) = AsyncStream<AnalyzerInput>.makeStream()
         let analyzer = SpeechAnalyzer(modules: [transcriber])
         self.analyzer = analyzer
-        audioEngine = engine
 
         engine.inputNode.installTap(
             onBus: 0,
@@ -179,13 +214,14 @@ final class SpeechRecognitionService: SpeechTranscribing {
         ) { buffer, _ in
             continuation.yield(AnalyzerInput(buffer: buffer))
         }
+        audioEngine = engine
         engine.prepare()
         try engine.start()
 
         resultsTask = Task {
             do {
                 for try await transcription in transcriber.results {
-                    guard !Task.isCancelled else { return }
+                    guard !Task.isCancelled, self.generation == generation else { return }
                     let text = String(transcription.text.characters)
                     if transcription.isFinal {
                         stableModernTranscript = joinedTranscript(
@@ -207,6 +243,7 @@ final class SpeechRecognitionService: SpeechTranscribing {
             } catch is CancellationError {
                 return
             } catch {
+                guard self.generation == generation else { return }
                 failure()
             }
         }
@@ -216,6 +253,7 @@ final class SpeechRecognitionService: SpeechTranscribing {
             } catch is CancellationError {
                 return
             } catch {
+                guard self.generation == generation else { return }
                 failure()
             }
         }
@@ -223,10 +261,14 @@ final class SpeechRecognitionService: SpeechTranscribing {
 
     /// 创建兼容识别器和麦克风缓冲区请求，并发布部分与最终识别结果。
     private func startLegacy(
+        generation: UUID,
         locale: Locale,
         result: @escaping @MainActor (String, Bool) -> Void,
         failure: @escaping @MainActor () -> Void
     ) throws {
+        try checkActive(generation)
+        let engine = AVAudioEngine()
+        let format = try validatedInputFormat(of: engine)
         guard let recognizer = SFSpeechRecognizer(locale: locale),
               recognizer.isAvailable else {
             throw CocoaError(.featureUnsupported)
@@ -238,8 +280,6 @@ final class SpeechRecognitionService: SpeechTranscribing {
         request.requiresOnDeviceRecognition = recognizer
             .supportsOnDeviceRecognition
 
-        let engine = AVAudioEngine()
-        let format = engine.inputNode.outputFormat(forBus: 0)
         engine.inputNode.installTap(
             onBus: 0,
             bufferSize: 1_024,
@@ -249,21 +289,40 @@ final class SpeechRecognitionService: SpeechTranscribing {
         }
         recognitionRequest = request
         audioEngine = engine
-        recognitionTask = recognizer.recognitionTask(with: request) {
+        recognitionTask = recognizer.recognitionTask(with: request) { [weak self]
             recognitionResult,
             error in
             if let recognitionResult {
                 let text = recognitionResult.bestTranscription.formattedString
                 Task { @MainActor in
+                    guard self?.generation == generation else { return }
                     result(text, recognitionResult.isFinal)
                 }
             }
             if error != nil {
-                Task { @MainActor in failure() }
+                Task { @MainActor in
+                    guard self?.generation == generation else { return }
+                    failure()
+                }
             }
         }
         engine.prepare()
         try engine.start()
+    }
+
+    /// 同时验证硬件输入与 tap 输出，避免把无输入路由的零格式交给 AVFAudio。
+    private func validatedInputFormat(of engine: AVAudioEngine) throws -> AVAudioFormat {
+        let input = engine.inputNode
+        try SpeechInputFormat.validate(input.inputFormat(forBus: 0))
+        let format = input.outputFormat(forBus: 0)
+        try SpeechInputFormat.validate(format)
+        return format
+    }
+
+    /// 在异步准备后确认调用方未取消，且本次启动仍拥有识别服务。
+    private func checkActive(_ generation: UUID) throws {
+        try Task.checkCancellation()
+        guard self.generation == generation else { throw CancellationError() }
     }
 
     /// 按当前语言的分隔规则拼接已确认文本和当前片段。
@@ -271,5 +330,22 @@ final class SpeechRecognitionService: SpeechTranscribing {
         guard !prefix.isEmpty else { return suffix }
         guard !suffix.isEmpty else { return prefix }
         return prefix + modernTranscriptSeparator + suffix
+    }
+}
+
+/// 检查录音格式能否用于 tap；无效格式必须在进入系统断言前作为启动错误返回。
+enum SpeechInputFormat {
+    /// 硬件尚未提供有效的采样率或声道数。
+    enum ValidationError: Error {
+        /// 当前输入格式无法录音。
+        case unavailable
+    }
+
+    /// 拒绝零采样率、非有限采样率及无声道输入，不使用虚构格式替代硬件状态。
+    static func validate(_ format: AVAudioFormat) throws {
+        guard format.sampleRate.isFinite, format.sampleRate > 0,
+              format.channelCount > 0 else {
+            throw ValidationError.unavailable
+        }
     }
 }
