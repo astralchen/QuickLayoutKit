@@ -163,7 +163,8 @@ enum ConversationPreviewData {
         pauseAudio: "Pause audio",
         recordingRequiresEmptyDraft: "若要录音，请清除输入栏。",
         file: "文件",
-        link: "链接"
+        link: "链接",
+        mediaPlaceholder: "添加注释或发送"
     )
     /// 用于检查多行文本输入高度的示例草稿。
     static let composerMultilineText = "今晚七点见\n我会提前几分钟到"

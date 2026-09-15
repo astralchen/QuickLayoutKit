@@ -16,6 +16,10 @@ final class ChatViewController: LocalizedQuickLayoutHostingController {
 
     /// 异步文件分类任务及当前预览来源，拒绝过期展示请求。
     var attachmentPreviewTask: Task<Void, Never>?
+    #if DEBUG
+    /// 页面退出时取消测试资源导入，迟到结果不得插入已清理的会话。
+    private var resourceFixtureTask: Task<Void, Never>?
+    #endif
     var attachmentPreviewGeneration = 0
     weak var attachmentPreviewController: UIViewController?
     var attachmentPreviewSource: AttachmentPreviewRequest.Source?
@@ -181,6 +185,27 @@ final class ChatViewController: LocalizedQuickLayoutHostingController {
         attachmentSaveCoordinator.failed = { [weak self] error in self?.presentAttachmentSaveFailure(error) }
         configureInteractions()
         #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-imessage-save-fixture"),
+           arguments.indices.contains(index + 1),
+           ["resources", "resources-video", "resources-pdf", "resources-heic", "resources-draft"].contains(arguments[index + 1]) {
+            resourceFixtureTask = Task { [weak self] in
+                guard let self else { return }
+                do {
+                    let fixture = try await AttachmentSavePreviewFixtures.resourceAttachment(
+                        named: arguments[index + 1], store: attachmentStore)
+                    guard !Task.isCancelled, !hasCleanedUpChat else { return }
+                    if arguments.contains("-imessage-preview-draft") {
+                        if case .mediaGroup(let group) = fixture { photoController.applyPreviewFixture(group) }
+                        else if case .file(let file) = fixture { documentController.importDocument(file.fileURL) }
+                    } else { viewModel.appendSavePreviewAttachment(fixture) }
+                } catch is CancellationError {
+                    // 页面退出属于正常取消，导入器负责回收部分文件。
+                } catch {
+                    NSLog("[AttachmentPreviewFixture] import failed: %@", String(describing: error))
+                }
+            }
+        }
         if let fixture = try? AttachmentSavePreviewFixtures.attachment(store: attachmentStore) {
             if ProcessInfo.processInfo.arguments.contains("-imessage-preview-draft") {
                 if case .mediaGroup(let group) = fixture { photoController.applyPreviewFixture(group) }
@@ -242,6 +267,10 @@ final class ChatViewController: LocalizedQuickLayoutHostingController {
         guard isLeavingChat, transitionCoordinator?.isCancelled != true,
               !hasCleanedUpChat else { return }
         hasCleanedUpChat = true
+        #if DEBUG
+        resourceFixtureTask?.cancel()
+        resourceFixtureTask = nil
+        #endif
         attachmentPreviewTask?.cancel()
         attachmentPreviewGeneration += 1
         (attachmentPreviewController as? AttachmentPreviewController)?.playback.stop()
@@ -294,7 +323,8 @@ final class ChatViewController: LocalizedQuickLayoutHostingController {
                     "imessage.audio.record.requiresEmptyDraft"
                 ),
                 file: Localization.text("imessage.attachment.file"),
-                link: Localization.text("imessage.attachment.link")
+                link: Localization.text("imessage.attachment.link"),
+                mediaPlaceholder: Localization.text("imessage.composer.mediaPlaceholder")
             ),
             mediaStrings: mediaStrings
         )

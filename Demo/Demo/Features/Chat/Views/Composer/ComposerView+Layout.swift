@@ -92,7 +92,7 @@ extension ComposerView {
         /// 音频预览控件之间的水平间距。
         static let previewHorizontalSpacing: CGFloat = 8
         /// 照片和视频草稿条带的固定高度。
-        static let mediaDraftHeight: CGFloat = 120
+        static let mediaDraftHeight = MediaDraftLayoutPolicy.itemHeight
         /// 媒体草稿条带与其余输入内容之间的间距。
         static let mediaDraftSpacing: CGFloat = 8
     }

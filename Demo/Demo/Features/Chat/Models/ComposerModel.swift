@@ -33,6 +33,8 @@ nonisolated struct ComposerStrings: Equatable, Sendable {
     var file: String = "Files"
     /// 链接插入菜单项的本地化标题；默认值为 `Link`。
     var link: String = "Link"
+    /// 已选照片或视频时，空注释输入区域显示的占位文字。
+    var mediaPlaceholder: String = "Add a comment or send"
 }
 
 /// 输入栏当前可以请求的附件类型。

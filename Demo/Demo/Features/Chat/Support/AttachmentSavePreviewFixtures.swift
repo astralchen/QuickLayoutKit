@@ -6,6 +6,74 @@ import UIKit
 @available(iOS 16.0, *)
 @MainActor
 enum AttachmentSavePreviewFixtures {
+    /// 从随包资源创建页面独立副本；逐项导入，取消或失败时删除部分产物。
+    ///
+    /// `resources` 使用全部 20 张图片，`resources-video` 使用 6 段视频，
+    /// `resources-pdf` 使用 PDF，`resources-heic` 使用新增 HEIC 静态原件。
+    /// `resources-draft` 混合真实视频和图片，并模拟实况照片角标；不代表实况资源导入或播放验证。
+    /// Bundle 原件永远不登记到页面清理目录；每组仍遵守 20 项上限。
+    @available(iOS 17.0, *)
+    static func resourceAttachment(named name: String, store: any AttachmentStoring) async throws -> Attachment {
+        let kind: String
+        switch name {
+        case "resources": kind = "image"
+        case "resources-heic": kind = "image"
+        case "resources-video": kind = "video"
+        case "resources-pdf": kind = "document"
+        case "resources-draft": kind = "mixed"
+        default: throw CocoaError(.fileReadUnsupportedScheme)
+        }
+        guard let directory = Bundle.main.url(forResource: "AttachmentPreviewResources", withExtension: "bundle") else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        let sources: [URL]
+        if name == "resources-draft" {
+            sources = ["preview-video-01.mp4", "preview-image-08.png", "preview-image-09.png"]
+                .map { directory.appendingPathComponent($0) }
+        } else {
+            sources = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+                .filter { $0.lastPathComponent.hasPrefix("preview-\(kind)-") }
+                .filter { name == "resources-heic" ? $0.pathExtension == "heic" : $0.pathExtension != "heic" }
+                .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        }
+        guard !sources.isEmpty, sources.count <= MediaGroupAttachment.selectionLimit else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        var created: [URL] = []
+        var committed = false
+        defer {
+            if !committed { created.forEach { store.removeFile(at: $0) } }
+        }
+        var items: [MediaItem] = []
+        for source in sources {
+            try Task.checkCancellation()
+            let original = try store.importFile(at: source, prefix: "bundled-preview", pathExtension: nil)
+            created.append(original)
+            if kind == "document" {
+                let bytes = try original.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+                let attachment = Attachment.file(.init(id: UUID(), fileURL: original, displayName: "Claude.pdf",
+                    typeIdentifier: "com.adobe.pdf", byteCount: Int64(bytes)))
+                store.registerCommitted(attachment)
+                committed = true
+                return attachment
+            }
+            let thumbnail = store.makeFileURL(prefix: "bundled-preview-cover", pathExtension: "jpg")
+            created.append(thumbnail)
+            let metadata = try await PhotoPickerController.makeMetadata(originalURL: original,
+                thumbnailURL: thumbnail,
+                isVideo: kind == "video" || source.lastPathComponent.hasPrefix("preview-video-"),
+                isLivePhoto: name == "resources-draft" && source.lastPathComponent.hasPrefix("preview-image-"))
+            try Task.checkCancellation()
+            items.append(.init(assetIdentifier: nil, originalFileURL: original,
+                thumbnailFileURL: thumbnail, pixelSize: metadata.pixelSize, kind: metadata.kind,
+                isAnimatedImage: metadata.isAnimatedImage))
+        }
+        let attachment = Attachment.mediaGroup(.init(items: items))
+        store.registerCommitted(attachment)
+        committed = true
+        return attachment
+    }
+
     /// 为页内播放 UI 测试生成固定十秒视频，不读取相册或网络。
     static func videoAttachment(store: any AttachmentStoring) async throws -> Attachment {
         let url = store.makeFileURL(prefix: "preview-video", pathExtension: "mov")

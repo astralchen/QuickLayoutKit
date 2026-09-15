@@ -106,7 +106,7 @@ private final class AttachmentPreviewAnimator: NSObject, UIViewControllerAnimate
         let page = preview.currentPage
         let contentFrame = page.map { $0.convert($0.transitionRect, to: container) } ?? view.frame
         fullFrame = contentFrame
-        if !reduceMotion, let page, let copy = page.resizableSnapshotView(from: page.transitionRect, afterScreenUpdates: presenting, withCapInsets: .zero) {
+        if !reduceMotion, let page, let copy = page.transitionSnapshot(afterScreenUpdates: presenting) {
             copy.frame = presenting ? (targetFrame ?? contentFrame) : contentFrame
             copy.clipsToBounds = true
             copy.layer.cornerCurve = .continuous

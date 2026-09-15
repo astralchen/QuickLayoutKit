@@ -23,9 +23,7 @@ extension ComposerView {
         if let mediaStrings {
             self.mediaStrings = mediaStrings
         }
-        placeholderLabel.text = strings.placeholder
         recordingUnavailableLabel.text = strings.recordingRequiresEmptyDraft
-        textView.accessibilityLabel = strings.placeholder
         sendButton.accessibilityLabel = strings.send
         attachmentButton.accessibilityLabel = strings.addAttachment
         recordingStopButton.accessibilityLabel = strings.stopRecording
@@ -167,6 +165,9 @@ extension ComposerView {
 
     /// 根据当前输入与媒体状态同步控件显示、交互、辅助功能标签及波形。
     func updateComposerState() {
+        let placeholder = mediaDraft == nil ? strings.placeholder : strings.mediaPlaceholder
+        placeholderLabel.text = placeholder
+        textView.accessibilityLabel = placeholder
         let showsTextInput: Bool
         switch composerState {
         case .idle, .preparingSpeech, .dictating:

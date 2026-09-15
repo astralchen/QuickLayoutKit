@@ -7,78 +7,34 @@ import ListKit
 /// 照片、视频和常用文件共享的全屏玻璃预览容器。
 @available(iOS 26.0, *)
 final class AttachmentPreviewController: QuickLayoutHostingController, UICollectionViewDelegate, UIGestureRecognizerDelegate {
-    /// 仅玻璃交互控件命中，透明区域把手势交给内容页。
-    final class ControlsView: QuickLayoutView {
-        override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-            let hit = super.hitTest(point, with: event)
-            var ancestor = hit
-            while let view = ancestor, view !== self {
-                if view is UIControl || view is UIScrollView { return hit }
-                ancestor = view.superview
-            }
-            return nil
-        }
-    }
     let items: [AttachmentPreviewItem]
     private(set) var currentIndex: Int
     let playback: AttachmentPreviewPlayer
     let collectionView: UICollectionView
     let backdrop = UIView()
-    /// 控制层与玻璃内容由 QuickLayout 管理，只有转场改变整体 alpha。
-    lazy var chrome = ControlsView { [unowned self] in glassContainer.resizable() }
-    private lazy var glassContainer = QuickLayoutVisualEffectView(effect: UIGlassContainerEffect()) { [unowned self] in
-        VStack(spacing: 0) {
-            ZStack {
-                titleGlass.resizable().frame(width: titleWidth, height: titleHeight)
-                HStack(spacing: 0) {
-                    closeButton.resizable().frame(width: 44, height: 44)
-                    Spacer()
-                    moreButton.resizable().frame(width: 44, height: 44)
-                }
-            }.frame(height: titleHeight)
-            Spacer()
-            if bottomHeight > 0 {
-                bottomGlass.resizable()
-                    .frame(width: min(560, max(0, view.bounds.width - view.safeAreaInsets.left - view.safeAreaInsets.right - 32)), height: bottomHeight)
-            }
+    /// 独立控制层拥有全部预览控件，宿主只连接播放、分页和转场意图。
+    private(set) lazy var chrome: AttachmentPreviewControlsView = {
+        let controls = AttachmentPreviewControlsView(items: items, selectedIndex: currentIndex)
+        controls.didRequestClose = { [weak self] in self?.closeTapped() }
+        controls.didRequestPlaybackToggle = { [weak self] in self?.playTapped() }
+        controls.didRequestMuteToggle = { [weak self] in self?.playback.isMuted.toggle() }
+        controls.didBeginSeeking = { [weak self] in self?.playback.beginSeeking() }
+        controls.didChangeSeekPosition = { [weak self] fraction, isTracking in
+            guard let self else { return }
+            playback.seek(fraction: fraction, finished: !isTracking && !playback.isSeeking)
         }
-        .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 16)
-        .safeAreaPadding(.all, 0)
-    }
-    private lazy var titleGlass = QuickLayoutVisualEffectView(effect: UIGlassEffect(style: .regular)) { [unowned self] in
-        VStack(spacing: 2) {
-            titleLabel.resizable(axis: .horizontal).frame(height: titleLabel.font.lineHeight)
-            positionLabel.resizable(axis: .horizontal).frame(height: positionLabel.font.lineHeight)
-        }.padding(.horizontal, 16).padding(.vertical, 4)
-    }
-    private lazy var bottomGlass = QuickLayoutVisualEffectView(effect: UIGlassEffect(style: .regular)) { [unowned self] in
-        VStack(spacing: 0) {
-            if isPlayable {
-                VStack(spacing: 0) {
-                    HStack(spacing: 8) {
-                        playButton.resizable().frame(width: 44, height: 44)
-                        slider.resizable(axis: .horizontal).frame(height: 44)
-                        muteButton.resizable().frame(width: 44, height: 44)
-                    }
-                    timeLabel.resizable(axis: .horizontal).frame(height: 24)
-                }.padding(.horizontal, 8).padding(.top, 8).padding(.bottom, 16)
-            }
-            if items.count > 1 {
-                thumbnailStrip.resizable().frame(height: AttachmentThumbnailStripView.preferredHeight)
-            }
+        controls.didEndSeeking = { [weak self] fraction in
+            guard let self, playback.isSeeking else { return }
+            playback.seek(fraction: fraction, finished: true)
         }
-    }
-    private var titleHeight: CGFloat { max(44, titleLabel.font.lineHeight + positionLabel.font.lineHeight + 10) }
-    /// 左右各预留相同的按钮与间隔，长文件名和大字号也保持信息胶囊居中。
-    private var titleWidth: CGFloat {
-        let available = view.bounds.width - view.safeAreaInsets.left - view.safeAreaInsets.right - 32 - 120
-        let content = max(titleLabel.intrinsicContentSize.width, positionLabel.intrinsicContentSize.width) + 32
-        return min(max(0, available), max(160, content))
-    }
-    /// 与玻璃标题共享尺寸，避免依赖嵌套宿主完成布局的先后顺序。
-    private var documentTopInset: CGFloat { view.safeAreaInsets.top + 20 + titleHeight }
-    private var isPlayable: Bool { currentItem?.kind == .audio || currentItem?.kind == .video }
-    private var bottomHeight: CGFloat { (isPlayable ? 92 : 0) + (items.count > 1 ? AttachmentThumbnailStripView.preferredHeight : 0) }
+        controls.willRevealControls = { [weak self] in self?.synchronizeThumbnailPosition() }
+        controls.didChangeVisibility = { [weak self] in self?.setNeedsStatusBarAppearanceUpdate() }
+        controls.thumbnailStrip.didSelectItem = { [weak self] index in self?.select(index, animated: true) }
+        controls.thumbnailStrip.didBeginScrubbing = { [weak self] in self?.beginThumbnailScrubbing() }
+        controls.thumbnailStrip.didScrubToItem = { [weak self] index in self?.select(index, animated: false) }
+        controls.thumbnailStrip.didEndScrubbing = { [weak self] index in self?.endThumbnailScrubbing(at: index) }
+        return controls
+    }()
     private lazy var adapter = CollectionListAdapter<Int>(collectionView: collectionView)
 
     /// 黑色画布、分页和玻璃控制层共享全屏布局。
@@ -89,20 +45,29 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
             chrome.resizable()
         }
     }
-    private let titleLabel = UILabel()
-    private let positionLabel = UILabel()
-    let closeButton = UIButton(type: .system)
-    /// 只包含已有浏览动作的系统菜单，避免为装饰性省略号增加空入口。
-    let moreButton = UIButton(type: .system)
-    let playButton = UIButton(type: .system)
-    private let muteButton = UIButton(type: .system)
-    let slider = UISlider()
-    private let timeLabel = UILabel()
-    private lazy var thumbnailStrip: AttachmentThumbnailStripView = {
-        let strip = AttachmentThumbnailStripView(items: items, selectedIndex: currentIndex, backgroundStyle: .embedded)
-        strip.didSelectItem = { [weak self] index in self?.select(index, animated: true) }
-        return strip
-    }()
+    /// 连续浏览开始时暂停并解除当前输出，经过的中间项目不准备播放器。
+    private func beginThumbnailScrubbing() {
+        thumbnailScrubbingStartIndex = currentIndex
+        isThumbnailScrubbing = true
+        stopHorizontalScrolling()
+        playback.stop()
+        currentPage?.bind(player: nil)
+    }
+    /// 停稳后只准备最终项目，是否自动播放由起始索引与最终索引决定。
+    private func endThumbnailScrubbing(at index: Int) {
+        isThumbnailScrubbing = false
+        finishPaging(at: index)
+        prepareCurrentPlayback()
+        bindCurrentPlayer()
+        if index != thumbnailScrubbingStartIndex { autoplayCurrentVideo() }
+        thumbnailScrubbingStartIndex = nil
+    }
+    /// 连续缩略图浏览期间延迟音视频准备，避免经过每项都创建播放器。
+    private var isThumbnailScrubbing = false
+    /// 记录整次缩略图拖动的起点；中间索引只预览，最终切换到其他视频时才自动播放。
+    private var thumbnailScrubbingStartIndex: Int?
+    /// 保留主图手势开始前的正式索引，打断旧翻页动画时仍能识别最终是否切换了视频。
+    private var pagingStartIndex: Int?
     private var didPosition = false
     private var lastSize = CGSize.zero
     /// 待完成的程序翻页目标；实际当前项仅在停稳后提交。
@@ -111,12 +76,11 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     private var rotationPageIndex: Int?
     private var previousMetrics = AttachmentPagingLayout.Metrics(size: .zero, count: 0)
     let pagingLayout: AttachmentPagingLayout
-    /// AppLocalization 可独立于系统语言切换布局方向，缓存物理返回图标方向。
-    private var headerDirection: UIUserInterfaceLayoutDirection?
-    private(set) var controlsVisible = true
     private var transitionHandler: AttachmentPreviewTransition!
     private var pan: UIPanGestureRecognizer!
     private var didCompleteDismissal = false
+    /// 首次展开完成时仅消费一次自动播放机会，避免取消关闭或返回页面时覆盖手动暂停。
+    private var didCompleteInitialAppearance = false
     private var accessibilityObservers: [NSObjectProtocol] = []
     /// 当前项目对应的可见来源，转场发生时重新求值。
     var sourceResolver: ((Int, Bool) -> UIView?)?
@@ -138,7 +102,7 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
-    override var prefersStatusBarHidden: Bool { !controlsVisible }
+    override var prefersStatusBarHidden: Bool { chrome.prefersStatusBarHidden }
     var currentItem: AttachmentPreviewItem? { items.indices.contains(currentIndex) ? items[currentIndex] : nil }
     var currentPage: AttachmentPreviewPage? { collectionView.cellForItem(at: IndexPath(item: currentIndex, section: 0)) as? AttachmentPreviewPage }
 
@@ -157,45 +121,6 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
         collectionView.contentInsetAdjustmentBehavior = .never
         // Preserve the attachment's physical order, matching the existing stack gesture.
         collectionView.semanticContentAttribute = .forceLeftToRight
-        bottomGlass.overrideUserInterfaceStyle = .dark
-        for glass in [titleGlass, bottomGlass] {
-            glass.clipsToBounds = true
-            glass.layer.cornerCurve = .continuous
-            glass.layer.cornerRadius = 28
-        }
-        titleGlass.cornerConfiguration = .capsule()
-        configureButton(closeButton, symbol: "chevron.backward", key: "imessage.media.close", identifier: "imessage.media.preview.close")
-        closeButton.configuration?.baseForegroundColor = .label
-        closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
-        configureButton(moreButton, symbol: "ellipsis", key: "imessage.preview.more", identifier: "imessage.preview.more")
-        moreButton.configuration?.baseForegroundColor = .label
-        moreButton.showsMenuAsPrimaryAction = true
-        titleLabel.font = .preferredFont(forTextStyle: .headline)
-        titleLabel.adjustsFontForContentSizeCategory = true
-        titleLabel.textColor = .label
-        titleLabel.textAlignment = .center
-        titleLabel.lineBreakMode = .byTruncatingMiddle
-        positionLabel.font = .preferredFont(forTextStyle: .caption1)
-        positionLabel.adjustsFontForContentSizeCategory = true
-        positionLabel.adjustsFontSizeToFitWidth = true
-        positionLabel.minimumScaleFactor = 0.6
-        positionLabel.textColor = .secondaryLabel
-        positionLabel.textAlignment = .center
-        positionLabel.accessibilityIdentifier = "imessage.preview.position"
-        titleGlass.accessibilityIdentifier = "imessage.preview.title"
-        configureButton(playButton, symbol: "play.fill", key: "imessage.preview.play", identifier: "imessage.preview.play")
-        playButton.addTarget(self, action: #selector(playTapped), for: .touchUpInside)
-        configureButton(muteButton, symbol: "speaker.wave.2.fill", key: "imessage.preview.mute", identifier: "imessage.preview.mute")
-        muteButton.addAction(UIAction { [weak self] _ in guard let self else { return }; playback.isMuted.toggle() }, for: .touchUpInside)
-        slider.accessibilityLabel = Localization.text("imessage.preview.progress")
-        slider.accessibilityIdentifier = "imessage.preview.progress"
-        slider.semanticContentAttribute = .forceLeftToRight
-        slider.addTarget(self, action: #selector(seekBegan), for: .touchDown)
-        slider.addTarget(self, action: #selector(seekChanged), for: .valueChanged)
-        slider.addTarget(self, action: #selector(seekEnded), for: [.touchUpInside, .touchUpOutside, .touchCancel])
-        timeLabel.font = .monospacedDigitSystemFont(ofSize: 13, weight: .medium)
-        timeLabel.textColor = .white
-        timeLabel.textAlignment = .center
         playback.didChange = { [weak self] in self?.refreshPlayback() }
         playback.didFail = { [weak self] in self?.currentPage?.showError() }
         pan = UIPanGestureRecognizer(target: self, action: #selector(panned(_:)))
@@ -237,29 +162,30 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
             previousMetrics = pagingLayout.metrics
             finishPaging(at: index)
         }
-        glassContainer.semanticContentAttribute = view.semanticContentAttribute
-        let direction = view.effectiveUserInterfaceLayoutDirection
-        if headerDirection != direction {
-            headerDirection = direction
-            closeButton.configuration?.image = UIImage(systemName: direction == .rightToLeft ? "chevron.right" : "chevron.left")
-        }
+        chrome.semanticContentAttribute = view.semanticContentAttribute
         chrome.layoutIfNeeded()
-        glassContainer.setNeedsQuickLayout()
-        glassContainer.layoutIfNeeded()
-        titleGlass.layoutIfNeeded()
-        bottomGlass.layoutIfNeeded()
         for case let page as AttachmentPreviewPage in collectionView.visibleCells {
-            page.documentTopInset = documentTopInset
+            page.documentTopInset = chrome.documentTopInset
         }
     }
 
-    override func viewDidAppear(_ animated: Bool) { super.viewDidAppear(animated); bindCurrentPlayer(); UIAccessibility.post(notification: .screenChanged, argument: closeButton) }
+    /// 展开转场完成且视频输出已绑定后启动首个视频，后续出现回调不重复启动。
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        bindCurrentPlayer()
+        if !didCompleteInitialAppearance {
+            didCompleteInitialAppearance = true
+            autoplayCurrentVideo()
+        }
+        UIAccessibility.post(notification: .screenChanged, argument: chrome.closeButton)
+    }
     override func viewDidDisappear(_ animated: Bool) { super.viewDidDisappear(animated); if isBeingDismissed { completeDismissal() } }
 
     /// 仅在成功关闭后清理；交互式取消不能销毁播放状态。
     func completeDismissal() {
         guard !didCompleteDismissal else { return }
         didCompleteDismissal = true
+        chrome.thumbnailStrip.setContentActive(false)
         playback.stop()
         for case let page as AttachmentPreviewPage in collectionView.visibleCells { page.reset() }
         didClose?()
@@ -270,22 +196,21 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
         page.semanticContentAttribute = view.semanticContentAttribute
         page.contentView.semanticContentAttribute = view.semanticContentAttribute
         page.configure(item)
-        page.documentTopInset = documentTopInset
+        page.documentTopInset = chrome.documentTopInset
         page.toggleControls = { [weak self] in self?.toggleControls() }
         page.pageDidChange = { [weak self] number, count in
             guard let self, currentIndex == index else { return }
-            positionLabel.text = String(format: Localization.text("imessage.preview.pages"), number, count)
-            glassContainer.setNeedsQuickLayout()
-            titleGlass.setNeedsQuickLayout()
+            chrome.updatePosition(String(format: Localization.text("imessage.preview.pages"), number, count))
         }
     }
     func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
-        (cell as? AttachmentPreviewPage)?.documentTopInset = documentTopInset
-        if indexPath.item == currentIndex { (cell as? AttachmentPreviewPage)?.bind(player: playback.player) }
+        (cell as? AttachmentPreviewPage)?.documentTopInset = chrome.documentTopInset
+        if indexPath.item == currentIndex, !isThumbnailScrubbing { (cell as? AttachmentPreviewPage)?.bind(player: playback.player) }
     }
     func collectionView(_ collectionView: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) { (cell as? AttachmentPreviewPage)?.bind(player: nil) }
     /// 旋转前使用旧尺寸确定锚点；程序翻页保留目标，手势翻页保留最近可见项。
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+        chrome.thumbnailStrip.endScrubbing()
         rotationPageIndex = pendingPageIndex ?? pagingLayout.index(nearestTo: collectionView.contentOffset)
         stopHorizontalScrolling()
         super.viewWillTransition(to: size, with: coordinator)
@@ -295,10 +220,23 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     }
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
         guard scrollView === collectionView, !isPositioningPage else { return }
+        chrome.thumbnailStrip.endScrubbing()
         pendingPageIndex = nil
+        pagingStartIndex = currentIndex
         playback.pause()
         pagingLayout.beginDragging(at: collectionView.contentOffset)
         commitCurrentPage(pagingLayout.index(nearestTo: collectionView.contentOffset))
+        synchronizeThumbnailPosition()
+    }
+    /// 主图的真实滚动进度同时驱动缩略图尺寸、间距及居中，取消手势也连续恢复。
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        guard scrollView === collectionView, !isPositioningPage, !isThumbnailScrubbing else { return }
+        synchronizeThumbnailPosition()
+    }
+    /// 隐藏时只记录进度，显示时立即恢复当前主图位置。
+    private func synchronizeThumbnailPosition() {
+        guard pagingLayout.metrics.stride > 0 else { return }
+        chrome.thumbnailStrip.setPagingPosition(collectionView.contentOffset.x / pagingLayout.metrics.stride)
     }
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
         guard scrollView === collectionView else { return }; settlePage()
@@ -314,11 +252,13 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     }
     private func settlePage() {
         guard !isPositioningPage, collectionView.bounds.width > 0 else { return }
-        finishPaging(at: pendingPageIndex ?? pagingLayout.dragTargetIndex ?? pagingLayout.index(nearestTo: collectionView.contentOffset))
+        let index = pendingPageIndex ?? pagingLayout.dragTargetIndex ?? pagingLayout.index(nearestTo: collectionView.contentOffset)
+        finishPaging(at: index, autoplayVideo: index != (pagingStartIndex ?? currentIndex))
     }
     /// 取消旧动画及拖动，屏蔽取消过程中 UIKit 同步发出的结束回调。
     private func stopHorizontalScrolling() {
         isPositioningPage = true
+        pagingStartIndex = nil
         pendingPageIndex = nil
         pagingLayout.endDragging()
         collectionView.setContentOffset(collectionView.contentOffset, animated: false)
@@ -337,15 +277,19 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
         updateCurrentItem()
     }
     /// 所有滚动结束路径共用精确停页与当前附件同步。
-    private func finishPaging(at index: Int) {
+    /// autoplayVideo 仅由用户切换索引的完成路径开启，布局和关闭过程不自动播放。
+    private func finishPaging(at index: Int, autoplayVideo: Bool = false) {
         isPositioningPage = true
+        pagingStartIndex = nil
         pendingPageIndex = nil
         pagingLayout.endDragging()
         collectionView.setContentOffset(pagingLayout.offset(for: index), animated: false)
         commitCurrentPage(index)
+        chrome.thumbnailStrip.select(index)
         collectionView.layoutIfNeeded()
         bindCurrentPlayer()
         isPositioningPage = false
+        if autoplayVideo { autoplayCurrentVideo() }
     }
     /// 缩略图与菜单使用布局提供的坐标，连续跳转会替换旧目标。
     func select(_ index: Int, animated: Bool) {
@@ -359,23 +303,40 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
             pendingPageIndex = index
             collectionView.setContentOffset(target, animated: true)
         } else {
-            finishPaging(at: index)
+            finishPaging(at: index, autoplayVideo: index != currentIndex)
         }
     }
     private func updateCurrentItem() {
         guard let item = currentItem else { return }
-        titleLabel.text = item.title.isEmpty ? Localization.text(item.kind == .video ? "imessage.media.video" : "imessage.media.image") : item.title
-        positionLabel.text = positionText(index: currentIndex)
+        chrome.updateItem(
+            title: item.title.isEmpty ? Localization.text(item.kind == .video ? "imessage.media.video" : "imessage.media.image") : item.title,
+            position: positionText(index: currentIndex), isPlayable: item.kind == .audio || item.kind == .video)
         updateMoreMenu()
-        if item.kind == .video || item.kind == .audio { playback.prepare(url: item.url) }
-        thumbnailStrip.select(currentIndex)
-        glassContainer.setNeedsQuickLayout()
-        titleGlass.setNeedsQuickLayout()
-        bottomGlass.setNeedsQuickLayout()
-        setNeedsQuickLayout()
+        prepareCurrentPlayback()
+        chrome.thumbnailStrip.select(currentIndex)
         refreshPlayback()
     }
-    private func bindCurrentPlayer() { currentPage?.bind(player: playback.player) }
+    /// 只有稳定项目需要播放器；连续浏览的中间项目只展示封面。
+    private func prepareCurrentPlayback() {
+        guard !isThumbnailScrubbing, let item = currentItem,
+              item.kind == .video || item.kind == .audio else { return }
+        playback.prepare(url: item.url)
+        bindCurrentPlayer()
+    }
+    /// 首次展开完成或用户翻到新视频并停稳后播放；布局刷新及手动暂停不触发此入口。
+    /// 拖动中的中间项目、后台或关闭中的页面不得启动任务，已有播放或激活也不能被 toggle 暂停。
+    private func autoplayCurrentVideo() {
+        guard !isThumbnailScrubbing, !isHorizontalPaging, !didCompleteDismissal,
+              !isBeingDismissed, view.window != nil, UIApplication.shared.applicationState == .active,
+              currentItem?.kind == .video, !playback.isPlaying, playback.activationTask == nil else { return }
+        prepareCurrentPlayback()
+        playback.toggle()
+    }
+    /// 浏览期间不把旧播放器绑定到中间页面。
+    private func bindCurrentPlayer() {
+        guard !isThumbnailScrubbing else { return }
+        currentPage?.bind(player: playback.player)
+    }
     private func positionText(index: Int) -> String { String(format: Localization.text("imessage.preview.position"), index + 1, items.count) }
     /// 菜单边界跟随当前项目更新，RTL 下使用语义方向图标。
     private func updateMoreMenu() {
@@ -389,42 +350,19 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
             })
         }
         actions.append(UIAction(title: Localization.text("imessage.preview.hideControls"), image: UIImage(systemName: "rectangle"), attributes: UIAccessibility.isVoiceOverRunning ? .disabled : []) { [weak self] _ in self?.toggleControls() })
-        moreButton.menu = UIMenu(children: actions)
+        chrome.updateMenu(UIMenu(children: actions))
     }
-    private func configureButton(_ button: UIButton, symbol: String, key: String, identifier: String) {
-        var config = UIButton.Configuration.glass()
-        config.image = UIImage(systemName: symbol)
-        config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 20, weight: .semibold)
-        config.baseForegroundColor = .white
-        config.cornerStyle = .capsule
-        button.configuration = config
-        button.accessibilityLabel = Localization.text(key)
-        button.accessibilityIdentifier = identifier
-    }
+    /// 只传递播放器状态快照，UI 更新不得重新绑定视频输出。
     private func refreshPlayback() {
-        playButton.configuration?.image = UIImage(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-        playButton.accessibilityLabel = Localization.text(playback.isPlaying ? "imessage.preview.pause" : "imessage.preview.play")
-        muteButton.configuration?.image = UIImage(systemName: playback.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-        muteButton.accessibilityLabel = Localization.text(playback.isMuted ? "imessage.preview.unmute" : "imessage.preview.mute")
-        if !playback.isSeeking { slider.value = playback.duration > 0 ? Float(playback.time / playback.duration) : 0 }
-        slider.isEnabled = playback.duration > 0
-        timeLabel.text = "\(Self.time(playback.time)) / \(Self.time(playback.duration))"
-        slider.accessibilityValue = timeLabel.text
-        bindCurrentPlayer()
+        chrome.updatePlayback(time: playback.time, duration: playback.duration,
+                              isPlaying: playback.isPlaying, isMuted: playback.isMuted, isSeeking: playback.isSeeking)
     }
-    private static func time(_ value: Double) -> String { let seconds = Int(max(0, value)); return String(format: "%d:%02d", seconds / 60, seconds % 60) }
     @objc func playTapped() {
-        if playback.player == nil, let item = currentItem { playback.prepare(url: item.url) }
+        if playback.player == nil, let item = currentItem {
+            playback.prepare(url: item.url)
+            bindCurrentPlayer()
+        }
         playback.toggle()
-    }
-    @objc private func seekBegan() { playback.beginSeeking() }
-    @objc private func seekChanged() {
-        // VoiceOver adjusts sliders without touch-down/up events.
-        playback.seek(fraction: Double(slider.value), finished: !slider.isTracking && !playback.isSeeking)
-    }
-    @objc private func seekEnded() {
-        guard playback.isSeeking else { return }
-        playback.seek(fraction: Double(slider.value), finished: true)
     }
     @objc func closeTapped() {
         guard !transitionHandler.isInteracting, !isBeingDismissed else { return }
@@ -434,20 +372,12 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
         dismiss(animated: true)
     }
     override func accessibilityPerformEscape() -> Bool { closeTapped(); return true }
-    private func toggleControls() {
-        guard !UIAccessibility.isVoiceOverRunning else { return }
-        controlsVisible.toggle()
-        chrome.isUserInteractionEnabled = controlsVisible
-        UIView.animate(withDuration: UIAccessibility.isReduceMotionEnabled ? 0.15 : 0.22) { self.chrome.alpha = self.controlsVisible ? 1 : 0 }
-        setNeedsStatusBarAppearanceUpdate()
-    }
+    /// 主图单击与菜单共用控制层的沉浸显隐状态。
+    func toggleControls() { chrome.toggleControls() }
+    /// 环境变更时更新菜单权限和视觉设置，控制层负责自身显隐。
     private func applyAccessibilitySettings() {
         updateMoreMenu()
-        for glass in [titleGlass, bottomGlass] {
-            glass.effect = UIAccessibility.isReduceTransparencyEnabled ? nil : UIGlassEffect(style: .regular)
-            glass.backgroundColor = UIAccessibility.isReduceTransparencyEnabled ? .secondarySystemBackground : .clear
-        }
-        if UIAccessibility.isVoiceOverRunning { controlsVisible = true; chrome.alpha = 1; chrome.isUserInteractionEnabled = true }
+        chrome.applyAccessibilitySettings()
     }
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         guard gestureRecognizer === pan else { return true }
@@ -457,7 +387,7 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         var target = touch.view
         while let view = target {
-            if view is UIControl || view === chrome { return false }
+            if view is UIControl || view is AttachmentThumbnailStripView || view === chrome { return false }
             target = view.superview
         }
         return true

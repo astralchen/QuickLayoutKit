@@ -14,12 +14,12 @@ import UIKit
 /// 设计图固定预览高度，并让宽度跟随附件像素比例。极窄或极宽资源会被限制在
 /// 合理范围，避免删除按钮相互覆盖或单个横图占满整条输入栏。
 nonisolated enum MediaDraftLayoutPolicy {
-    /// 媒体草稿预览项的固定高度，单位为点。
-    static let itemHeight: CGFloat = 120
+    /// 按 iPhone 16 Pro 参考图换算的媒体草稿高度，单位为点。
+    static let itemHeight: CGFloat = 156
     /// 媒体草稿预览项的最小宽度，单位为点。
     static let minimumWidth: CGFloat = 80
     /// 媒体草稿预览项的最大宽度，单位为点。
-    static let maximumWidth: CGFloat = 160
+    static let maximumWidth: CGFloat = 208
 
     /// 按媒体宽高比计算固定高度的草稿尺寸，并限制宽度范围。
     ///
@@ -43,7 +43,7 @@ final class MediaDraftStripView: UIView {
     /// 媒体草稿条带的布局常量。
     private enum Metrics {
         /// 相邻媒体草稿卡片之间的间距，单位为点。
-        static let spacing: CGFloat = 4
+        static let spacing: CGFloat = 6
     }
 
     /// 承载媒体草稿条带的水平滚动容器。
@@ -86,7 +86,7 @@ final class MediaDraftStripView: UIView {
         super.init(frame: frame)
         scrollView.showsHorizontalScrollIndicator = false
         scrollView.alwaysBounceHorizontal = true
-        scrollView.contentInset = UIEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
+        scrollView.contentInset = UIEdgeInsets(top: 0, left: 2, bottom: 0, right: 2)
         addSubview(scrollView)
         scrollView.addSubview(contentView)
         accessibilityIdentifier = "imessage.composer.mediaStrip"
@@ -160,7 +160,9 @@ final class MediaDraftStripView: UIView {
         let activityIndicator = UIActivityIndicatorView(style: .medium)
         /// 标示草稿为视频的图像视图。
         let videoBadge = UIImageView()
-        /// 显示音频或视频时长的标签。
+        /// 视频时长的深色半透明底衬，使白色文字在明亮封面上保持可读。
+        let durationBackgroundView = UIView()
+        /// 显示视频时长的标签。
         let durationLabel = UILabel()
         /// 动态图像标记的背景容器。
         let animatedBadgeView = UIView()
@@ -185,7 +187,7 @@ final class MediaDraftStripView: UIView {
         override init(frame: CGRect) {
             super.init(frame: frame)
             clipsToBounds = true
-            layer.cornerRadius = 12
+            layer.cornerRadius = 14
             layer.cornerCurve = .continuous
             backgroundColor = .secondarySystemFill
 
@@ -200,22 +202,27 @@ final class MediaDraftStripView: UIView {
 
             videoBadge.image = UIImage(systemName: "video.fill")
             videoBadge.tintColor = .white
+            videoBadge.contentMode = .scaleAspectFit
             addSubview(videoBadge)
 
-            durationLabel.font = .monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
+            durationBackgroundView.backgroundColor = UIColor.black.withAlphaComponent(0.65)
+            durationBackgroundView.layer.cornerRadius = 5
+            durationBackgroundView.layer.cornerCurve = .continuous
+            durationBackgroundView.isUserInteractionEnabled = false
+            addSubview(durationBackgroundView)
+
+            durationLabel.font = .monospacedDigitSystemFont(ofSize: 13, weight: .regular)
             durationLabel.textColor = .white
-            durationLabel.shadowColor = UIColor.black.withAlphaComponent(0.6)
-            durationLabel.shadowOffset = CGSize(width: 0, height: 1)
             addSubview(durationLabel)
 
-            animatedBadgeView.backgroundColor = UIColor.white.withAlphaComponent(0.92)
-            animatedBadgeView.layer.cornerRadius = 14
+            animatedBadgeView.backgroundColor = .white
+            animatedBadgeView.layer.cornerRadius = 13
             animatedBadgeView.layer.cornerCurve = .continuous
             animatedBadgeImageView.image = UIImage(
                 systemName: "livephoto",
                 withConfiguration: UIImage.SymbolConfiguration(
-                    pointSize: 15,
-                    weight: .semibold
+                    pointSize: 18,
+                    weight: .regular
                 )
             )
             animatedBadgeImageView.tintColor = .systemBlue
@@ -240,14 +247,15 @@ final class MediaDraftStripView: UIView {
             imageView.frame = bounds
             activityIndicator.center = CGPoint(x: bounds.midX, y: bounds.midY)
             removeButton.frame = CGRect(x: bounds.maxX - 44, y: 0, width: 44, height: 44)
-            animatedBadgeView.frame = CGRect(x: 6, y: 6, width: 28, height: 28)
-            animatedBadgeImageView.frame = animatedBadgeView.bounds.insetBy(dx: 5, dy: 5)
-            videoBadge.frame = CGRect(x: 8, y: bounds.maxY - 26, width: 20, height: 18)
+            animatedBadgeView.frame = CGRect(x: 6, y: 4, width: 26, height: 26)
+            animatedBadgeImageView.frame = animatedBadgeView.bounds.insetBy(dx: 4, dy: 4)
+            videoBadge.frame = CGRect(x: 12, y: bounds.maxY - 24, width: 17, height: 12)
             durationLabel.sizeToFit()
             durationLabel.frame.origin = CGPoint(
-                x: bounds.maxX - durationLabel.bounds.width - 7,
-                y: bounds.maxY - durationLabel.bounds.height - 6
+                x: bounds.maxX - durationLabel.bounds.width - 8,
+                y: bounds.maxY - durationLabel.bounds.height - 10
             )
+            durationBackgroundView.frame = durationLabel.frame.insetBy(dx: -4, dy: -2)
         }
 
         /// 应用媒体导入状态、缩略图、序号及可访问的类型和位置说明。
@@ -261,6 +269,7 @@ final class MediaDraftStripView: UIView {
             imageView.image = nil
             videoBadge.isHidden = true
             durationLabel.isHidden = true
+            durationBackgroundView.isHidden = true
             animatedBadgeView.isHidden = true
             itemSize = MediaDraftLayoutPolicy.itemSize(for: nil)
             isReady = false
@@ -294,6 +303,7 @@ final class MediaDraftStripView: UIView {
                 case .video(let duration):
                     videoBadge.isHidden = false
                     durationLabel.isHidden = false
+                    durationBackgroundView.isHidden = false
                     durationLabel.text = Self.durationText(duration)
                     let videoDescription = String(
                         format: strings.videoDurationFormat,

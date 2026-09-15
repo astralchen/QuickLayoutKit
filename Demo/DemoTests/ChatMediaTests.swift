@@ -217,21 +217,21 @@ struct ChatMediaTests {
         #expect(
             MediaDraftLayoutPolicy.itemSize(
                 for: CGSize(width: 900, height: 1600)
-            ) == CGSize(width: 80, height: 120)
+            ) == CGSize(width: 87.75, height: 156)
         )
         #expect(
             MediaDraftLayoutPolicy.itemSize(
                 for: CGSize(width: 1000, height: 1000)
-            ) == CGSize(width: 120, height: 120)
+            ) == CGSize(width: 156, height: 156)
         )
         #expect(
             MediaDraftLayoutPolicy.itemSize(
                 for: CGSize(width: 1600, height: 900)
-            ) == CGSize(width: 160, height: 120)
+            ) == CGSize(width: 208, height: 156)
         )
         #expect(
             MediaDraftLayoutPolicy.itemSize(for: .zero)
-                == CGSize(width: 80, height: 120)
+                == CGSize(width: 80, height: 156)
         )
     }
 
@@ -271,12 +271,12 @@ struct ChatMediaTests {
 
         let itemFrames = composer.mediaDraftStripView.renderedItemFrames
         #expect(itemFrames.map(\.size) == [
-            CGSize(width: 80, height: 120),
-            CGSize(width: 120, height: 120),
-            CGSize(width: 160, height: 120),
+            CGSize(width: 87.75, height: 156),
+            CGSize(width: 156, height: 156),
+            CGSize(width: 208, height: 156),
         ])
-        #expect(itemFrames[1].minX - itemFrames[0].maxX == 4)
-        #expect(itemFrames[2].minX - itemFrames[1].maxX == 4)
+        #expect(itemFrames[1].minX - itemFrames[0].maxX == 6)
+        #expect(itemFrames[2].minX - itemFrames[1].maxX == 6)
         #expect(
             composer.mediaDraftStripView.animatedBadgeItemIDs
                 == [fixture.group.items[1].id]
@@ -304,6 +304,10 @@ struct ChatMediaTests {
         #expect(separatorFrame.maxY < textFrame.minY)
         #expect(abs(separatorFrame.minX - 84) < 0.5)
         #expect(abs(separatorFrame.maxX - 370) < 0.5)
+        #expect(composer.placeholderLabel.text == "添加注释或发送")
+        composer.applyMediaDraft(nil)
+        #expect(composer.placeholderLabel.text == ConversationPreviewData.composerStrings.placeholder)
+        #expect(composer.textView.accessibilityLabel == ConversationPreviewData.composerStrings.placeholder)
     }
 
     @Test func fiveItemRenderOrderRotatesWithoutMutatingModelOrder() throws {

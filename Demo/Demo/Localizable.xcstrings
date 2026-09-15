@@ -4302,6 +4302,29 @@
         }
       }
     },
+    "imessage.composer.mediaPlaceholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أضف تعليقًا أو أرسل"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a comment or send"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加注释或发送"
+          }
+        }
+      }
+    },
     "imessage.composer.placeholder" : {
       "extractionState" : "manual",
       "localizations" : {

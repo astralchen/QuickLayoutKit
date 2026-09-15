@@ -196,7 +196,7 @@ iOS 26 优先使用 `SpeechAnalyzer` 的文件输入，先通过 `AssetInventory
 “+ → 照片”使用 UIKit `PHPickerViewController`，同时选择图片和视频，最多 20 项。
 配置采用 `.continuousAndOrdered` 与 `.current` 表示模式。通过 `edgesWithoutContentMargins = [.top, .bottom]`
 隐藏顶部导航附件区（数量提示、照片／精选集切换及操作按钮）和底部工具栏（选项、搜索、已选数量和位置提示）。
-通过宿主视口补偿 iOS 26.5 中保留拖动条时的 15 pt 顶部留白，照片网格贴齐面板顶部，
+照片选择器视口完整贴合宿主边界，由系统配置管理顶部内容边距；不再负向偏移视口或安全区，以免第一行被裁剪。
 Sheet 拖动条叠加显示而不单独占用高度。通过 `.selectionActions` 禁用重复的确认／清除操作，并关闭 staging area
 与敏感内容干预界面。选中即更新 Composer 草稿，使用草稿上的 × 移除单项，使用输入框发送按钮发送。
 发送成功后清空已发送草稿及系统网格的勾选，照片面板保持展开、当前档位和滚动位置，便于继续选图发送；
@@ -219,8 +219,8 @@ JPEG 缩略图；视频验证视频轨道与正时长，通过 `AVAssetImageGene
 封面。模型只保存值类型和文件 URL，不保存 `UIImage`、`PHPickerResult`、
 `NSItemProvider`、`PHAsset`、`AVAsset`、播放器或手势对象。
 
-媒体草稿存在时，输入栏上层显示 80 × 120pt、4pt 间距的横向预览条，下层继续使用
-1–5 行文字输入。首项选中后即显示发送箭头，导入过程中保持该入口但禁用发送；所有项目完成导入后才启用发送。
+媒体草稿存在时，输入栏上层显示固定 156pt 高、按原件比例计算 80～208pt 宽、6pt 间距的横向预览条，下层继续使用
+1–5 行文字输入，占位文字为“添加注释或发送”，清空媒体草稿后恢复“iMessage”；占位文字随页面语言切换。首项选中后即显示发送箭头，导入过程中保持该入口但禁用发送；所有项目完成导入后才启用发送。
 继续追加照片或视频时同样保留发送箭头，不短暂切回语音转文字图标；清空全部草稿且正文为空时恢复听写入口。
 2026-09-13 按钮状态回归在同一模拟器通过 37 项媒体与输入框焦点单元测试，覆盖首项导入、追加导入、就绪、移除、
 清空的实际控件可见性，以及未就绪时拒绝发送（`/private/tmp/PhotoImportButton-unit.xcresult`）。
@@ -489,7 +489,7 @@ MainRoute.chat
 6. 修改气泡布局时必须同时验证短文本、长文本、音频、单媒体、多媒体层叠、LTR、RTL 和 Dynamic Type。
 7. 修改输入栏时必须验证键盘展开、照片 Sheet 小/大档与交互拖动、两种遮挡源交接、1–5 行、录音态、媒体预览态、原草稿恢复和最后一条消息遮挡。
 8. iOS 26 原生玻璃 API 只用于导航或输入控制层，消息内容层保持系统纯色背景。
-9. Composer 预览项固定为 120 点高，按附件像素比例计算 80～160 点宽度；多帧图片和 Live Photo 显示动态图片标志。当前范围不包含相机拍摄、图片编辑、视频剪辑、GIF 动画播放、Live Photo 播放、协作附件、上传、持久化、Tapback、内联回复或真实已读回执；GIF 与 Live Photo 仍按静态缩略图发送和预览。
+9. Composer 预览项按 iPhone 16 Pro 参考图固定为 156 点高，按附件像素比例计算 80～208 点宽度，相邻项目间距 6 点；视频左下角显示白色摄像机图标，右下角显示时长，多帧图片和 Live Photo 左上角显示白底蓝色动态图片标志。删除按钮仍位于右上角，视觉直径 18 点、命中区域 44 点。当前范围不包含相机拍摄、图片编辑、视频剪辑、GIF 动画播放、Live Photo 播放、协作附件、上传、持久化、Tapback、内联回复或真实已读回执；GIF 与 Live Photo 仍按静态缩略图发送和预览。调试参数 `-imessage-save-fixture resources-draft -imessage-preview-draft` 可展示真实视频与模拟实况角标的混合草稿，仅用于 UI 验证。
 10. Demo 应用支持 iOS 15，但聊天入口及依赖 iOS 26 API 的类型限定为 iOS 26；旧版语音识别后端只用于回退，不代表聊天页面支持旧系统。
 11. 新增独立 View 或 ViewController 时，必须在同一源文件补充基于 `ConversationPreviewData` 的 `#Preview`。
 12. 新增内部类型、状态、回调和用户动作方法使用 UIKit SDK 风格的 `///` 文档注释：先给出简洁摘要，再按需要补充讨论、参数和返回值；不要用逐行翻译代码的噪声注释。
@@ -565,12 +565,26 @@ MainRoute.chat
 最终 RTL 截图复验通过（`/private/tmp/PreviewHeader16-rtl.xcresult`）；结果包保留截图，真机未验证。
 玻璃控制层遵循 [Apple UIKit 设计说明](https://developer.apple.com/videos/play/wwdc2025/284/)，
 使用 `UIGlassEffect` / `UIGlassContainerEffect`，透明区域不拦截内容手势。
-底部缩略图条由 Demo 内部 `AttachmentThumbnailStripView` 提供，使用 QuickLayout 横向滚动布局。
-控件接收附件数组和初始索引，`didSelectItem` 只请求翻页，宿主在页面停稳后通过 `select(_:animated:)` 同步选中项，
-不会因程序更新重复触发点击回调。高度 64 pt，缩略图 44 × 48 pt、间隔 8 pt，选中项显示 2 pt 白色描边。
-首次布局及宽度变化后按实际按钮坐标露出选中项；物理 LTR 顺序与分页一致，保留本地化数量及 VoiceOver 选中状态。
-独立使用默认带原生玻璃背景，降低透明度时改为实色；预览页使用 `.embedded` 共用播放控制区的外层玻璃，避免材质叠加。
-同文件 `#Preview` 使用现有附件预览数据，点击可切换选中项；不新增 QuickLayoutKit 公共 API。
+底部缩略图条由 Demo 内部 `AttachmentThumbnailStripView` 提供，使用可复用 `UICollectionView` 和
+`AttachmentThumbnailStripLayout` 自定义几何。普通项 20 × 30 pt、选中项 30 × 30 pt，普通间距 3 pt、
+选中项两侧各 13 pt，圆角 2 pt、无描边。控件高 64 pt，有效交互带高 44 pt，左右各 12 pt 透明渐隐。
+缩略图独立透明悬浮，播放控件才使用玻璃背景。首尾均可居中，附件按物理 LTR 排列。
+
+`setPagingPosition(_:)` 接收主图连续进度，旧项收窄、新项展开和两侧留白同步插值，
+固定 23 pt 逻辑步长避免尺寸变化反过来改变选中判断。`didSelectItem` 只请求翻页；正式状态由
+`select(_:animated:)` 提交。缩略图拖动通过 `didBeginScrubbing` / `didScrubToItem` / `didEndScrubbing`
+驱动即时切页，宿主回传不会改写拖动位置，停稳后吸附整数索引并只为最终项目准备播放器。
+布局按可见范围计算，不构造全量属性或视图。
+
+`AttachmentThumbnailLoader` 在后台按屏幕像素降采样，最多两个并发任务、16 MiB 成本缓存；
+复用和离屏时取消消费者，回写校验请求代次。控件随主图单击统一显隐，沉浸隐藏后取消加载且不拦截手势，
+只记录最新进度，重新显示前恢复当前项；VoiceOver 开启时保持控制层可见。不新增 QuickLayoutKit 公共 API。
+
+2026-09-14 胶片条改造验证：iPhone 18 Pro / iOS 27.0 编译通过，20 项预览、分页和胶片条单元测试通过；
+其中千项用例使用不同项目 ID 和不同缩略图 URL，检查首次末项定位、宽度变化和可见 Cell／请求数量。
+两条 UI 流程通过：原有翻页、旋转和下拉关闭，以及新增尺寸／间距、拖动浏览、沉浸隐藏后翻页再恢复。
+截图导出位于 `/private/tmp/QuickLayoutThumbnailEvidence/ui-passed`。这些结果不代表真机帧率或峰值内存测量；真机未验证。
+
 2026-09-13 控件抽取验证：Xcode 26.5 构建成功，iPhone 16 Pro / iOS 26.5 上 13 项单元测试通过
 （`/private/tmp/ThumbnailStrip-unit.xcresult`），覆盖空数据、索引边界、末项首次露出、宽度变化、点击与提交状态分离及原有分页／预览回归。
 两条 UI 回归通过（`/private/tmp/ThumbnailStrip-ui.xcresult`）：缩略图／菜单翻页、旋转、下拉取消与关闭、RTL 最大字号。
@@ -597,11 +611,23 @@ UTF-8 和带 BOM 的 UTF-16 文本最多读取 5 MiB。较大／无法解码的�
 系统兼容预览保留原生工具栏；不存在、锁定或无法解码的内容显示本地化错误。
 
 `AttachmentPreviewPlayer` 为视频和音频文件提供播放／暂停、时间、进度拖动与静音。
-默认不自动播放，分页停止上一项，后台、音频中断及耳机断开暂停；关闭后清理 AVPlayer、观察者和音频会话。
+初次打开视频预览，在展开转场完成后自动播放当前视频；主图翻页或点击缩略图切换到新视频后，停稳时自动播放。
+首次出现的启动机会只消费一次，取消关闭或返回页面不会覆盖用户的手动暂停状态。
+连续拖动缩略图只展示中间项封面，松手停稳后仅播放最终视频；音频保留手动播放。
+分页停止上一项，手动暂停后的布局、旋转及控件显隐不会重新启动当前视频；沉浸翻页自动播放也不显示控制层。
+后台、音频中断及耳机断开暂停；关闭后清理 AVPlayer、观察者和音频会话。
 音频和预览通过 `AudioSessionOperationQueue` 顺序执行会话配置、激活及停用，
 避免旧停用回调影响新所有者。iOS 27 使用系统异步激活／停用 API；iOS 26 的同步调用在后台执行。
 `AudioPreparation` 同样在后台准备录音器和音频播放器，避免准备过程内部同步激活会话阻塞主线程。
 所有启动流程在等待后检查取消及请求代次，退出、暂停或切换媒体后不会因迟到回调重新录音或播放。
+2026-09-14 自动播放验收：附件预览与音频生命周期 26 项单元测试通过，另补验旧翻页动画被打断后的自动播放场景。
+iPhone 16 Pro / iOS 26.5 的主图翻页、缩略图切换、沉浸状态翻页与恢复共用一项 UI 回归，通过；
+原生录屏八秒无操作区间内，中央游戏画面的半秒连续采样均有变化。录屏为
+`/Users/sondra/.codex/visualizations/2026/09/14/01a09eda-4e04-7692-93f3-40b5edb1a130/video-playback/ios26-scroll-autoplay.mp4`。
+本次自动播放改动未另行复验 iOS 27 或真机。
+首次打开自动播放的追加验收：27 项附件预览与音频生命周期单元测试通过；
+iOS 26.5 的“发送真实游戏视频 → 点击预览 → 不点击播放按钮”UI 用例通过。
+原生录屏的无操作区间确认画面连续运动，录屏为同目录 `ios26-initial-autoplay.mp4`。
 波形语音、网页打开方式及旁侧保存业务保持原入口。
 
 `AttachmentPreviewTransition` 使用自定义 presentation、可中断 property animator 和百分比交互驱动。
@@ -634,7 +660,60 @@ UTF-8 和带 BOM 的 UTF-16 文本最多读取 5 MiB。较大／无法解码的�
 
 2026-09-13 预览布局约定同步：
 
-- 附件预览页面改用 `QuickLayoutHostingController`，玻璃标题、关闭按钮、播放条使用 `QuickLayoutVisualEffectView` 与 Stack 布局；缩略图改用 `QuickLayoutScrollView`。附件分页由 `CollectionListAdapter` 管理，保留专用 Flow Layout 和 delegate 转发处理全屏尺寸、旋转与播放绑定。
+- 附件预览页面改用 `QuickLayoutHostingController`，玻璃标题、关闭按钮、播放条使用 `QuickLayoutVisualEffectView` 与 Stack 布局；缩略图使用自定义 `UICollectionViewLayout` 和可复用 Cell。附件分页由 `CollectionListAdapter` 管理，保留自定义分页布局和 delegate 转发处理全屏尺寸、旋转与播放绑定。
 - 内容页改用 `QuickLayoutCollectionViewCell` 排布 PDF、文本、错误信息和加载状态；仅图片缩放居中及视频图层保留手动几何。分页的物理 LTR 与正文语义方向独立，避免从滚动容器覆盖阿拉伯语内容方向。
 - 标题和文档顶部间距共用尺寸规则，避免嵌套布局时序导致大字号正文被标题遮挡。新增间距更新断言；预览及音频生命周期 16 项测试通过：`/private/tmp/Preview-QuickLayout-final-unit.xcresult`。
 - 6 条相关 UI 流程最终通过，覆盖分页／旋转／交互转场、PDF／文本滚动、视频进度、草稿恢复、RTL 和最大字号。结果：`/private/tmp/Preview-QuickLayout-ui.xcresult`（其中大字号间距问题修正后复验）及 `/private/tmp/Preview-QuickLayout-final-ui.xcresult`（3 条复验通过）。已检查玻璃外形与大字号文档截图；本次未执行真机验证。
+
+桌面 Resources 真实附件样例（2026-09-14）：
+
+- 原件位于 `Demo/Resources/AttachmentPreviewResources.bundle`：21 张图片（含 GIF 和 HEIC）、6 段 MP4、1 个 PDF，总计 94,799,839 字节。原始文件逐字节复制；5 组重复宠物图片也保留为独立文件，便于验证相同内容的不同项目身份。忽略 `.DS_Store`。
+- `manifest.json` 记录新文件名、桌面原文件名、类型、字节数与 SHA-256。Bundle 随 Demo 复制，因此会增加约 90.4 MiB 的未压缩资源体积；没有改写或压缩桌面原件。
+- Xcode Scheme → Run → Arguments 增加 `-imessage-save-fixture resources`，进入「iMessage 风格聊天」即可打开 20 张真实图片的消息。视频使用 `resources-video`，PDF 使用 `resources-pdf`，新增 HEIC 使用 `resources-heic`；可叠加 `-imessage-preview-draft` 从输入栏预览。
+- 样例仅在 Debug 且显式传入参数时注入；照片选择上限仍为 20。导入复用照片选择器的尺寸读取和封面生成路径，先复制到页面目录，再登记附件；退出时取消导入并回收临时文件。GIF 依照现有媒体业务生成静态封面，不新增动画播放能力。
+
+- `IMG_7294.HEIC` 原样复制为 `preview-image-21.heic`，像素尺寸 4032 × 3024。当前资源目录没有配对 MOV，`resources-heic` 验证静态图像解码和单项预览；不能据此验收完整 Live Photo 动态播放。
+- 真实资源验收：iPhone 18 Pro / iOS 27.0 模拟器构建成功；`testBundledResourcesPreview` 1 项测试通过（包含图片、HEIC、视频、PDF 四条路径），0 失败、0 跳过。验证选中宽度与中心误差 ≤ 0.5 pt、隐藏和恢复控件后中央主图像素一致、视频播放和跳转进度；已检查导出截图。真机性能与完整 Live Photo 动态播放未验证。
+- 显隐回归直接对归档的同一张截图进行中央主图像素校验，覆盖隐藏与恢复两个状态，避免仅依赖控件存在性或采样截图与归档截图不一致。
+
+2026-09-14 已发送视频连续画面回归：
+
+- `testSentVideoActuallyRendersMovingFrames` 从真实视频草稿点击发送，再打开消息预览，依次播放 Resources 中全部 6 段游戏视频。
+- 每段先等待播放时间达到 3 秒，再比较两个相隔至少 3 秒的中央主画面像素，排除仅封面切到第一帧造成的假通过；截图取样与归档使用同一对象。
+- iPhone 16 Pro / iOS 26.5：1 项 UI 测试通过，覆盖 6 段视频，0 失败、0 跳过。iPhone 18 Pro / iOS 27.0 的第一段发送播放检查也通过。本轮增加回归验证，未修改播放器实现；先前报告的停帧原因尚未确定，用户在本轮运行中已确认画面恢复运动。
+
+2026-09-14 视频无操作播放停帧修复：
+
+- 复现：Resources 游戏视频发送后，从消息卡片展开预览，正常播放时进度前进但画面不变，拖动进度后更新一帧。之前的截图间像素差无法排除截图或 AX 查询触发刷新，不能作为无操作连续播放的证明。
+- 触发点位于转场对整个 `AttachmentPreviewPage` 调用系统快照的路径，快照包含已绑定播放器的 `AVPlayerLayer`。同一模拟器、同一素材下，单独内容页及无动画打开的完整预览均正常；视频转场改为独立静态封面后，原发送／展开路径恢复连续输出。
+- 新增 `transitionSnapshot(afterScreenUpdates:)`：视频仅复制封面 UIImage，缺少封面时淡入淡出；图片和文档保留原快照行为。视频展开和收回不会再对播放图层做系统快照，也不需要通过反复 seek 维持画面刷新。
+- 同时移除每 0.2 秒进度回调中的播放器重新绑定，并按播放器身份过滤重复绑定；准备、更换页面和解除绑定仍走原生命周期。
+- iPhone 18 Pro / iOS 27.0：真实视频发送、打开、播放、拖动后继续播放的 UI 用例通过；原生录屏检查正常播放十秒及跳转后六秒中的无操作区间，连续采样均有游戏画面变化。修改转场之前，同条件录屏在这两个区间停帧。录屏采集期间不截图、不查询 AX、不触碰进度条。
+- iPhone 16 Pro / iOS 26.5：附件预览和音频生命周期 25 项单元测试通过，0 失败、0 跳过；包含静态转场封面、缺图回退、播放器绑定身份、页面回收、暂停取消及音视频互斥回归。
+- iOS 26.5 最终版本另有 2 项 UI 测试通过，覆盖真实视频播放及跳转后继续播放、图片分页、下拉取消和完成关闭。原生录屏中正常播放与跳转后的无操作区间均有连续游戏画面输出；与 iOS 27 合计本次 3 项 UI 测试通过。
+- 修复前后短录屏与验证记录保存在 `/Users/sondra/.codex/visualizations/2026/09/14/01a09eda-4e04-7692-93f3-40b5edb1a130/video-playback/`，分别为 `ios27-before-frozen.mp4`、`ios27-after-fixed.mp4` 和 `ios26-after-fixed.mp4`。
+- `testSentVideoUninterruptedPlaybackForRecording` 输出两段无操作区间的时间标记；测试本身只断言状态和进度，连续画面仍需独立检查原生录屏。真机性能未验证。
+
+2026-09-14 播放条常态与拖拽形态：
+
+- 参考用户提供的 iPhone 16 Pro 照片应用截图：常态为 48 pt 单层清透玻璃播放条，仅显示播放／暂停、进度和静音；保留 iOS 26 `UISlider` 交互语义，按钮不再叠加玻璃圆底。
+- 拖动开始后向上增加时间行，左侧显示 `mm:ss.SS`，右侧显示总时长；进度条横向展开并从 8 pt 加粗到 15 pt；`AttachmentPlaybackSlider` 自绘统一圆角的外轨道和无独立圆角的填充，保证进度分界竖直。常态和拖动共用同一个 UISlider，底边及进度条纵向位置固定；0.22 秒 ease-in-out 支持从当前动画状态反向收起，减少动态效果时直接布局。
+- 拖动暂隐标题、返回、菜单、缩略图和状态栏，并关闭隐藏控件命中；不修改 `controlsVisible`。VoiceOver 开启时保留外围控制层。松手／取消恢复控件，播放状态沿用拖动前的状态；异步 seek 回调不驱动面板展开。
+- iPhone 16 Pro / iOS 26.5：本轮构建通过；附件预览和音频生命周期 28 项测试通过，含拖动取消、主图几何及滑动控件身份保持；2 项 UI 测试通过，含真实游戏视频展开／拖动／收起、续播、暂停后拖动、静音。已检查原生录屏中常态、展开及恢复画面。
+- 本轮形态过渡未在真机验证；iOS 27 和辅助功能大字号的该交互未单独运行视觉验收。正常、拖拽截图和过渡短录屏位于 `/Users/sondra/.codex/visualizations/2026/09/14/01a09eda-4e04-7692-93f3-40b5edb1a130/playback-controls/`。
+
+2026-09-14 截图尺寸复核修正：
+
+- 播放条宽度保持 346 pt（402 pt 视口下两侧各 28 pt）；常态高度 48 pt、圆角 24 pt；默认拖动高度 70 pt、圆角 26 pt。圆角值来自截图轮廓估算，通过同一次 UIKit 动画衔接。
+- 时间行以底边定位，默认文字顶部约距面板顶部 19 pt、文字下方至轨道约 10–11 pt；大字号仍按字体行高扩展。缩略图外层仍高 64 pt，播放条与该容器间增加 4 pt，因此至图片可见顶部的间隔为 21 pt。
+- 常态和展开态不替换触摸控件；整条轨道可起拖，按下不跳转，以起点窗口坐标和原轨道宽度计算相对位移，避免展开改变进度。保留取消、VoiceOver 调整和播放进度回调，图片大小及缩略图相邻间距不变。
+- 本次尺寸修正后的最终验证：iPhone 16 Pro / iOS 26.5 构建及 28 项单元测试、2 项 UI 测试通过。展开时进度控件纵向中心保持测试通过；录屏确认两种形态、隐藏／恢复和直线填充分界。像素复核：常态外框 144 px、展开外框 210 px，轨道分别 24／45 px。真机、iOS 27 和 VoiceOver 实机操作未在本轮单独验收。
+- 最终截图和过渡录屏：`/Users/sondra/.codex/visualizations/2026/09/14/01a09eda-4e04-7692-93f3-40b5edb1a130/playback-controls-fixed/`。
+
+2026-09-14 预览控制层封装：
+
+- `AttachmentPreviewController` 保留分页、播放准备、音频会话协调和转场，仅持有统一的 `chrome` 控制层；不再声明标题、位置、按钮、时间、滑块及玻璃容器等零散 UI 属性。
+- `AttachmentPreviewControlsView` 管理整体布局、菜单入口、缩略图、透明区域命中、沉浸显隐与拖动时的联动动画，以弱引用回调传递用户意图。
+- `AttachmentPreviewTitleView` 自行管理标题／位置标签、字号、截断、玻璃样式和尺寸测量。`AttachmentPlaybackControlsView` 自行创建播放／静音按钮、精确时间和 `AttachmentPlaybackSlider`，通过状态快照更新 UI，不持有播放器。
+- 保留已校准的 48／70 pt 播放条高度、24／26 pt 圆角、8／15 pt 轨道、缩略图尺寸和间距；控制器与视图之间通过方法和回调通信，不保留旧 UI 属性的转发别名。
+- 封装后验证：iPhone 16 Pro / iOS 26.5 构建通过；35 项单元测试通过，覆盖附件预览、音频生命周期及缩略图；3 项 UI 测试通过，覆盖播放条形变、隐藏控件后翻页自动播放、RTL 大字号文档避让。已检查普通播放、拖动及大字号文档截图；本轮未重新验收真机和 iOS 27。

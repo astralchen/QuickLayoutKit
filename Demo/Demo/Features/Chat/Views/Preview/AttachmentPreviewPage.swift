@@ -36,6 +36,8 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
     private var imageTask: Task<Void, Never>?
     private var pdfObserver: NSObjectProtocol?
     private(set) var itemID: UUID?
+    /// 视频转场只复制静态封面，不能对已绑定播放器的整页创建系统快照。
+    private var isVideo = false
     private var imageSize = CGSize.zero
     private var previousSize = CGSize.zero
     /// 由控制层的实际高度决定文档起点，大字号下首行也必须完整可读。
@@ -84,6 +86,7 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
     func configure(_ item: AttachmentPreviewItem) {
         reset()
         itemID = item.id
+        isVideo = item.kind == .video
         accessibilityIdentifier = "imessage.preview.page.\(item.id.uuidString)"
         switch item.kind {
         case .image, .video:
@@ -163,8 +166,25 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
         return contentView.bounds
     }
 
+    /// 视频的展开和收回使用封面，避免快照复制视频输出导致后续播放停帧。
+    /// 没有封面时返回 nil，由宿主淡入淡出；其他内容保留原有快照行为。
+    func transitionSnapshot(afterScreenUpdates: Bool) -> UIView? {
+        if isVideo {
+            guard let image = imageView.image else { return nil }
+            let snapshot = UIImageView(image: image)
+            snapshot.contentMode = .scaleAspectFill
+            snapshot.clipsToBounds = true
+            return snapshot
+        }
+        return resizableSnapshotView(from: transitionRect, afterScreenUpdates: afterScreenUpdates, withCapInsets: .zero)
+    }
+
+    /// 仅在播放器身份变化时接入或解除视频输出；同一实例不得被进度刷新重复绑定。
     /// 视频图层切换时保留静态封面，首帧准备后由播放器覆盖。
-    func bind(player: AVPlayer?) { playerLayer.player = player }
+    func bind(player: AVPlayer?) {
+        guard playerLayer.player !== player else { return }
+        playerLayer.player = player
+    }
 
     func showError() {
         loading.stopAnimating()
@@ -224,6 +244,7 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
         if let pdfObserver { NotificationCenter.default.removeObserver(pdfObserver) }
         pdfObserver = nil
         itemID = nil
+        isVideo = false
         playerLayer.player = nil
         pdfView?.removeFromSuperview(); pdfView = nil
         textView?.removeFromSuperview(); textView = nil
