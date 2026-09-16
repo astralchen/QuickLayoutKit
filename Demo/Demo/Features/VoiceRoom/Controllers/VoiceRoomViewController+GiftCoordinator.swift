@@ -202,18 +202,57 @@ extension VoiceRoomViewController {
             quantity: quantity,
             recipients: currentRecipients
         )
+        // 单项原生礼物保留即时飞行；远程或组合礼物按整份赠送进入串行队列。
+        if gift.effects.count == 1, case .native(let style) = gift.effects.first {
+            _ = playNativeGift(gift, style: style, to: currentRecipients, quantity: quantity) { _ in }
+        } else {
+            lastGiftAnimationOrigin = nil
+            lastGiftAnimationTargetPoints = []
+            giftMainEffectCoordinator.enqueue(gift: gift, quantity: quantity) { [weak self] in
+                GiftNativeEffectPlayer { [weak self] style, item, quantity, completion in
+                    guard let self else {
+                        completion(.failure(GiftMainEffectPlaybackError.unavailable))
+                        return {}
+                    }
+                    let userIDs = Set(currentRecipients.compactMap(\.userID))
+                    let recipients = self.viewModel.state.visibleRecipients.filter {
+                        $0.userID.map(userIDs.contains) ?? false
+                    }
+                    return self.playNativeGift(item, style: style, to: recipients, quantity: quantity, completion: completion)
+                }
+            }
+        }
+    }
+
+    /// 在原生效果真正开始时查询麦位坐标；返回的清理只取消本项动画，不影响其他赠送。
+    /// 全部收礼人的动画结束才完成该效果；取消后不再触发到达反馈或完成通知。
+    private func playNativeGift(
+        _ gift: Gift, style: GiftEffectStyle, to currentRecipients: [SeatAssignment], quantity: Int,
+        completion: @escaping GiftPlaybackOperation.Completion
+    ) -> GiftPlaybackOperation.Cleanup {
+        view.layoutIfNeeded()
+        giftEffectOverlayView.layoutIfNeeded()
         // 起点和终点统一转换到共享特效容器，避免安全区、RTL 或 iPad 尺寸造成偏移。
         guard let origin = giftSheetViewController?
             .giftAnimationOrigin(in: giftEffectOverlayView)
             ?? actionBarView.giftAnimationOrigin(
                 in: giftEffectOverlayView
             ) else {
-            return
+            completion(.failure(GiftMainEffectPlaybackError.unavailable))
+            return {}
         }
         lastGiftAnimationOrigin = origin
         lastGiftAnimationTargetPoints = []
 
         let color = VoiceRoomTheme.giftColor(at: gift.themeIndex)
+        guard !currentRecipients.isEmpty else {
+            completion(.failure(GiftMainEffectPlaybackError.unavailable))
+            return {}
+        }
+        var isCancelled = false
+        var isStarting = true
+        var remaining = 0
+        var animators: [GiftFlightAnimator] = []
         let centerIndex = CGFloat(currentRecipients.count - 1) / 2
         for (index, recipient) in currentRecipients.enumerated() {
             guard let userID = recipient.userID else { continue }
@@ -238,25 +277,42 @@ extension VoiceRoomViewController {
                 containerView: giftEffectOverlayView
             )
             giftFlightAnimators[animator.id] = animator
+            animators.append(animator)
+            remaining += 1
             animator.start(
                 gift: gift,
+                style: style,
                 quantity: quantity,
                 from: startPoint,
                 to: endPoint,
                 delay: Double(index) * 0.10,
                 showsCelebration: index == 0,
                 arrival: { [weak self] in
+                    guard !isCancelled else { return }
                     self?.seatStageView.playGiftArrival(
                         forUserID: userID,
                         gift: gift,
-                        color: color
+                        color: color,
+                        style: style
                     )
                 },
                 completion: { [weak self, weak animator] in
                     guard let animator else { return }
                     self?.giftFlightAnimators[animator.id] = nil
+                    guard !isCancelled else { return }
+                    remaining -= 1
+                    if remaining == 0, !isStarting { completion(.success(())) }
                 }
             )
+        }
+        isStarting = false
+        if remaining == 0 { completion(animators.isEmpty ? .failure(GiftMainEffectPlaybackError.unavailable) : .success(())) }
+        return { [weak self] in
+            isCancelled = true
+            for animator in animators {
+                animator.cancel()
+                self?.giftFlightAnimators[animator.id] = nil
+            }
         }
     }
 
@@ -286,7 +342,7 @@ extension VoiceRoomViewController {
             notification: .announcement,
             argument: Localization.text(
                 "liveRoom.gift.sent.quantity",
-                Localization.text(gift.titleKey),
+                gift.localizedTitle,
                 quantity,
                 recipientNames
             )

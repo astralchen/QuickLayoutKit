@@ -293,7 +293,8 @@ final class SeatStageView: TranslucentCardView {
     func playGiftArrival(
         forUserID userID: RoomUserID,
         gift: Gift,
-        color: UIColor
+        color: UIColor,
+        style: GiftEffectStyle? = nil
     ) {
         let itemID = SeatCollectionItemID.user(userID)
         guard let cell = collectionDataSource.cell(for: itemID) else {
@@ -302,7 +303,7 @@ final class SeatStageView: TranslucentCardView {
             )
             return
         }
-        cell.playGiftArrival(gift: gift, color: color)
+        cell.playGiftArrival(gift: gift, color: color, style: style)
     }
 
     private func configureViews() {

@@ -135,10 +135,12 @@ final class SeatCollectionCell: QuickLayoutCollectionViewCell {
         return sourceLayer.convert(pointInCell, to: destinationLayer)
     }
 
-    func playGiftArrival(gift: Gift, color: UIColor) {
+    /// 使用当前原生配置的样式展示到达反馈；省略时采用礼物默认样式。
+    func playGiftArrival(gift: Gift, color: UIColor, style: GiftEffectStyle? = nil) {
         (destinationSeatView ?? currentSeatView).playGiftArrival(
             gift: gift,
-            color: color
+            color: color,
+            style: style
         )
     }
 

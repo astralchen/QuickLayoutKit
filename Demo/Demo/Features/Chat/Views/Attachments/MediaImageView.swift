@@ -26,8 +26,8 @@ final class MediaImageView: UIImageView {
     private weak var loader: MediaImageLoader?
     /// 无页面宿主的独立组件预览使用本地服务。
     private var standaloneLoader: MediaImageLoader?
-    /// 请求代次，拒绝复用后的迟到结果。
-    private var generation = UUID()
+    /// 当前缩略图操作的有效期，拒绝复用后的迟到结果。
+    private let thumbnailScope = OperationScope()
     /// 由滚动容器传入的实际可见性。
     var isContentActive = true { didSet { if oldValue != isContentActive { updateThumbnail() } } }
 
@@ -71,7 +71,7 @@ final class MediaImageView: UIImageView {
 
     /// 复用和离屏时取消当前消费者，失效回调不得回填。
     private func cancelThumbnail() {
-        generation = UUID()
+        thumbnailScope.invalidate()
         loader?.cancel(request)
         request = nil
         binding = nil
@@ -94,10 +94,10 @@ final class MediaImageView: UIImageView {
         cancelThumbnail()
         loader = service
         binding = key
-        let token = generation
+        let operation = thumbnailScope.begin()
         if image == nil { image = placeholderImage }
         request = service.load(url: thumbnailURL, size: CGSize(width: key.width, height: key.height), mode: mode) { [weak self] image in
-            guard let self, generation == token else { return }
+            guard let self, operation.isCurrent else { return }
             request = nil
             self.image = image ?? placeholderImage
         }

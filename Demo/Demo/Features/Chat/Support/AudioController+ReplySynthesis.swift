@@ -11,9 +11,9 @@ import UIKit
 /// 将模拟回复文本生成为可在消息气泡中回放的本地音频附件。
 ///
 /// 实现负责文件创建、波形提取和取消清理。调用方只接收值类型附件，不持有
-/// `AVSpeechSynthesizer` 或 `AVAudioFile`。
+/// `AVSpeechSynthesizer` 或 `AVAudioFile`。协议引用可传入子任务，所有实现状态仍受主 Actor 保护。
 @MainActor
-protocol ReplyAudioSynthesizing: AnyObject {
+protocol ReplyAudioSynthesizing: AnyObject, Sendable {
     /// 使用指定语言合成一条模拟回复音频。
     ///
     /// - Parameters:

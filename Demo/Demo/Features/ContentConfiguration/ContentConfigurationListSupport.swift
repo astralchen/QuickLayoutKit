@@ -19,6 +19,8 @@ struct ContentConfigurationListItem {
     let model: ContentConfigurationModel
 }
 
+/// 在主 Actor 读取当前语言并生成列表展示数据。
+@MainActor
 enum ContentConfigurationListFactory {
 
     static func localizedItems(

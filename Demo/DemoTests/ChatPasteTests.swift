@@ -630,7 +630,9 @@ struct ChatPasteTests {
     private func paste(_ providers: [NSItemProvider], into composer: ComposerView) async throws {
         let textView = composer.textView
         let delegate = try #require(textView.pasteDelegate)
-        #expect((delegate as AnyObject) === composer.pasteCoordinator)
+        // 先完成对象身份比较，避免 Swift 6 测试宏为 AnyObject 比较生成无效的泛型符合性。
+        let usesPasteCoordinator = (delegate as AnyObject) === composer.pasteCoordinator
+        #expect(usesPasteCoordinator)
         #expect(textView.pasteConfiguration != nil)
         let range = try #require(textView.selectedTextRange)
         let items = providers.map { PasteItemProbe(provider: $0) }

@@ -29,6 +29,14 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
     // 首次测量后会按 Action Bar 的真实高度更新，避免紧凑屏幕出现额外空隙。
     var actionBarReservedHeight: CGFloat = 65
     var giftFlightAnimators: [UUID: GiftFlightAnimator] = [:]
+    /// VAP、SVGA 共用的主特效队列，页面不可见时取消全部展示。
+    lazy var giftMainEffectCoordinator = GiftMainEffectCoordinator { [weak self] in
+        GiftMainEffectPlayer(containerView: self?.giftEffectOverlayView ?? UIView())
+    }
+    /// Scene 恢复前台时仅激活实际可见的房间页面。
+    private var isGiftEffectPageVisible = false
+    /// Scene 事件来源；测试使用独立通知中心，避免模拟事件触发系统观察者。
+    private let notificationCenter: NotificationCenter
     var pendingRechargeRequiredBalance: Int?
     // representable 负责送礼子控制器的 UIKit containment，避免 modal 层级压住特效。
     var giftSheetHost: QuickLayoutViewControllerRepresentable?
@@ -113,15 +121,18 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
 
     init(
         viewModel: VoiceRoomViewModel,
-        initialGiftBalance: Int = 12_800
+        initialGiftBalance: Int = 12_800,
+        notificationCenter: NotificationCenter = .default
     ) {
         self.viewModel = viewModel
+        self.notificationCenter = notificationCenter
         viewModel.configureGiftBalance(initialGiftBalance)
         super.init(nibName: nil, bundle: nil)
     }
 
     required init?(coder: NSCoder) {
         viewModel = VoiceRoomViewModel(initialGiftBalance: 12_800)
+        notificationCenter = .default
         super.init(coder: coder)
     }
 
@@ -133,6 +144,35 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
         configureViews()
         bindViewModel()
         viewModel.startObservingStageSnapshots()
+        observeGiftEffectSceneLifecycle()
+    }
+
+    /// 页面显示后接受新主特效；先前清空的队列不会恢复。
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        isGiftEffectPageVisible = true
+        if view.window?.windowScene?.activationState == .foregroundActive {
+            giftMainEffectCoordinator.activate()
+        }
+    }
+
+    /// 只响应当前页面所属 Scene，避免多窗口后台事件误停其他房间。
+    private func observeGiftEffectSceneLifecycle() {
+        notificationCenter.publisher(for: UIScene.didEnterBackgroundNotification)
+            .sink { [weak self] notification in
+                guard let self, let scene = notification.object as? UIScene,
+                      scene === self.view.window?.windowScene else { return }
+                self.giftMainEffectCoordinator.deactivate()
+            }
+            .store(in: &cancellables)
+        notificationCenter.publisher(for: UIScene.didActivateNotification)
+            .sink { [weak self] notification in
+                guard let self, self.isGiftEffectPageVisible,
+                      let scene = notification.object as? UIScene,
+                      scene === self.view.window?.windowScene else { return }
+                self.giftMainEffectCoordinator.activate()
+            }
+            .store(in: &cancellables)
     }
 
     override func viewDidLayoutSubviews() {
@@ -184,6 +224,8 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
+        isGiftEffectPageVisible = false
+        giftMainEffectCoordinator.deactivate()
         guard isMovingFromParent || navigationController?.isBeingDismissed == true
         else { return }
         giftFlightAnimators.values.forEach { $0.cancel() }

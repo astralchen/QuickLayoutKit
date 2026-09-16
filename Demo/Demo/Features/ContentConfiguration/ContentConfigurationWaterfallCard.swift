@@ -9,6 +9,8 @@ struct ContentConfigurationWaterfallItem {
     let model: ContentConfigurationModel
     let imageAspectRatio: CGFloat
 
+    /// 在主 Actor 读取本地化文案并生成瀑布流示例数据。
+    @MainActor
     static func samples(localizer: Localizer) -> [Self] {
         let models = ContentConfigurationModel.localizedMockData(localizer: localizer)
         let ratios: [CGFloat] = [1, 4.0 / 3, 3.0 / 4]

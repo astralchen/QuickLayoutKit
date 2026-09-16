@@ -15,6 +15,12 @@ enum GiftEffectStyle: Int, Equatable, Sendable {
 
 enum GiftCategory: CaseIterable {
     case all
+    /// 使用远程 VAP 主特效的礼物栏目。
+    case vap
+    /// 使用远程 SVGA 主特效的礼物栏目。
+    case svga
+    /// 同一次赠送包含多个按顺序播放的主特效。
+    case multiple
     case popular
     case romantic
     case party
@@ -26,6 +32,12 @@ enum GiftCategory: CaseIterable {
         switch self {
         case .all:
             "liveRoom.gift.category.all"
+        case .vap:
+            "liveRoom.gift.category.vap"
+        case .svga:
+            "liveRoom.gift.category.svga"
+        case .multiple:
+            "liveRoom.gift.category.multiple"
         case .popular:
             "liveRoom.gift.category.popular"
         case .romantic:
@@ -45,6 +57,12 @@ enum GiftCategory: CaseIterable {
         switch self {
         case .all:
             "all"
+        case .vap:
+            "vap"
+        case .svga:
+            "svga"
+        case .multiple:
+            "multiple"
         case .popular:
             "popular"
         case .romantic:
@@ -64,10 +82,17 @@ enum GiftCategory: CaseIterable {
         switch self {
         case .all:
             true
+        case .vap:
+            gift.effects.contains { if case .vap = $0 { true } else { false } }
+        case .svga:
+            gift.effects.contains { if case .svga = $0 { true } else { false } }
+        case .multiple:
+            gift.effects.count > 1
         case .popular:
             gift.price <= 520
         case .romantic:
-            ["heart", "rose", "star", "crystal", "constellation", "aurora"]
+            ["heart", "rose", "star", "crystal", "constellation", "aurora",
+             "flowerJourney", "flowerBouquet"]
                 .contains(gift.id)
         case .party:
             ["music", "microphone", "fireworks", "castle", "sportsCar", "yacht"]
@@ -88,7 +113,28 @@ struct Gift: Equatable, Sendable {
     let symbolName: String
     let price: Int
     let themeIndex: Int
-    let effectStyle: GiftEffectStyle
+    var effectStyle: GiftEffectStyle
+
+    /// 按配置顺序各播放一次的统一特效列表，可混合原生、VAP 和 SVGA。
+    var effects: [GiftEffect]
+
+    /// 配置提供的原始名称；没有对应翻译时用于展示，不影响礼物身份。
+    var sourceName: String? = nil
+
+    /// 创建统一礼物数据；未指定列表时使用与单元格样式一致的原生特效。
+    init(id: String, titleKey: String, symbolName: String, price: Int,
+         themeIndex: Int, effectStyle: GiftEffectStyle,
+         effects: [GiftEffect]? = nil, sourceName: String? = nil) {
+        self.id = id
+        self.titleKey = titleKey
+        self.symbolName = symbolName
+        self.price = price
+        self.themeIndex = themeIndex
+        self.effectStyle = effectStyle
+        self.effects = effects ?? [.native(effectStyle)]
+        self.sourceName = sourceName
+    }
+
 }
 
 struct GiftQuantityOption: Equatable, Sendable {

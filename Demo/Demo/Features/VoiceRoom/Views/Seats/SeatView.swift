@@ -286,7 +286,9 @@ final class SeatView: QuickLayoutView {
         )
     }
 
-    func playGiftArrival(gift: Gift, color: UIColor) {
+    /// 使用当前原生配置的样式展示到达反馈；省略时采用礼物默认样式。
+    func playGiftArrival(gift: Gift, color: UIColor, style: GiftEffectStyle? = nil) {
+        let style = style ?? gift.effectStyle
         let avatarFrame = avatarBackgroundView.convert(
             avatarBackgroundView.bounds,
             to: self
@@ -295,7 +297,7 @@ final class SeatView: QuickLayoutView {
             fillColor: .clear,
             strokeColor: color,
             strokeStyle: QuickLayoutStrokeStyle(
-                lineWidth: gift.effectStyle == .celebration ? 4 : 3
+                lineWidth: style == .celebration ? 4 : 3
             ),
             path: { rect in UIBezierPath(ovalIn: rect).cgPath }
         )
@@ -307,7 +309,7 @@ final class SeatView: QuickLayoutView {
         insertSubview(ringView, belowSubview: interactionButton)
 
         let ringScale = CAKeyframeAnimation(keyPath: "transform.scale")
-        ringScale.values = gift.effectStyle == .celebration
+        ringScale.values = style == .celebration
             ? [0.62, 1.08, 1.62]
             : [0.72, 1.0, 1.34]
         ringScale.keyTimes = [0, 0.28, 1]
@@ -318,11 +320,11 @@ final class SeatView: QuickLayoutView {
         ringGroup.animations = [ringScale, ringOpacity]
         ringGroup.duration = UIAccessibility.isReduceMotionEnabled
             ? 0.28
-            : (gift.effectStyle == .celebration ? 1.0 : 0.72)
+            : (style == .celebration ? 1.0 : 0.72)
         ringGroup.timingFunction = CAMediaTimingFunction(name: .easeOut)
         ringView.layer.add(ringGroup, forKey: "liveRoom.gift.arrival.ring")
 
-        let badgeDiameter: CGFloat = gift.effectStyle == .celebration ? 42 : 34
+        let badgeDiameter: CGFloat = style == .celebration ? 42 : 34
         let badgeView = UIView(
             frame: CGRect(
                 x: 0,
@@ -339,7 +341,7 @@ final class SeatView: QuickLayoutView {
         badgeView.layer.shadowRadius = 8
         badgeView.isUserInteractionEnabled = false
 
-        let imageInset: CGFloat = gift.effectStyle == .celebration ? 9 : 8
+        let imageInset: CGFloat = style == .celebration ? 9 : 8
         let badgeImageView = UIImageView(
             frame: badgeView.bounds.insetBy(dx: imageInset, dy: imageInset)
         )
@@ -371,8 +373,10 @@ final class SeatView: QuickLayoutView {
                 ).scaledBy(x: 0.82, y: 0.82)
             }
         } completion: { _ in
-            badgeView.removeFromSuperview()
-            ringView.removeFromSuperview()
+            Task { @MainActor in
+                badgeView.removeFromSuperview()
+                ringView.removeFromSuperview()
+            }
         }
     }
 

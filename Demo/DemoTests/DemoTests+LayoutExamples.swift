@@ -702,6 +702,8 @@ extension DemoTests {
     }
 }
 
+/// 在主 Actor 读取视图几何并转换测试坐标。
+@MainActor
 private func center(of view: UIView, in coordinateSpace: UIView) -> CGPoint {
     view.convert(
         CGPoint(x: view.bounds.midX, y: view.bounds.midY),

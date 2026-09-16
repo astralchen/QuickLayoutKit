@@ -64,9 +64,7 @@ final class AudioController: NSObject, AVAudioRecorderDelegate, AVAudioPlayerDel
     /// 音频会话占用的代次；释放或重新申请后旧激活结果立即失效。
     var audioSessionGeneration = 0
     /// 等待音频播放会话激活的任务；暂停或切换目标时取消。
-    var playbackTask: Task<Void, Never>?
-    /// 播放请求代次，防止旧激活完成后启动或清理新的播放器。
-    var playbackGeneration = 0
+    let playbackTask = LatestTask()
     /// 与页面视频预览共享的播放互斥协调器。
     let playbackCoordinator = PlaybackCoordinator()
     /// 当前音频控制器获取和释放播放所有权时使用的稳定令牌。
@@ -160,7 +158,7 @@ final class AudioController: NSObject, AVAudioRecorderDelegate, AVAudioPlayerDel
     /// 取消异步操作、停止音频设备与计时器，并释放合成资源和通知观察者。
     isolated deinit {
         operationTask?.cancel()
-        playbackTask?.cancel()
+        playbackTask.cancel()
         replyAudioSynthesizer?.stopSpeaking(at: .immediate)
         if let context = replyAudioSynthesisContext {
             context.audioFile = nil

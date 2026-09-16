@@ -57,28 +57,25 @@ extension AudioController {
             object: audioSession.notificationObject,
             queue: .main
         ) { [weak self] notification in
-            MainActor.assumeIsolated {
-                guard let typeValue = notification.userInfo?[
-                    AVAudioSessionInterruptionTypeKey
-                ] as? UInt,
-                      AVAudioSession.InterruptionType(rawValue: typeValue)
-                        == .began else { return }
-                self?.handleCaptureInterruption()
-            }
+            guard let typeValue = notification.userInfo?[
+                AVAudioSessionInterruptionTypeKey
+            ] as? UInt,
+                  AVAudioSession.InterruptionType(rawValue: typeValue)
+                    == .began else { return }
+            // 在通知回调内解析载荷，主 Actor 边界只处理控制器，不传递非 Sendable 的 Notification。
+            MainActor.assumeIsolated { self?.handleCaptureInterruption() }
         }
         routeObserver = NotificationCenter.default.addObserver(
             forName: AVAudioSession.routeChangeNotification,
             object: audioSession.notificationObject,
             queue: .main
         ) { [weak self] notification in
-            MainActor.assumeIsolated {
-                guard let reasonValue = notification.userInfo?[
-                    AVAudioSessionRouteChangeReasonKey
-                ] as? UInt,
-                      AVAudioSession.RouteChangeReason(rawValue: reasonValue)
-                        == .oldDeviceUnavailable else { return }
-                self?.pausePlayback()
-            }
+            guard let reasonValue = notification.userInfo?[
+                AVAudioSessionRouteChangeReasonKey
+            ] as? UInt,
+                  AVAudioSession.RouteChangeReason(rawValue: reasonValue)
+                    == .oldDeviceUnavailable else { return }
+            MainActor.assumeIsolated { self?.pausePlayback() }
         }
         backgroundObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didEnterBackgroundNotification,

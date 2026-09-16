@@ -106,6 +106,8 @@ final class ContentConfigurationView: QuickLayoutContentView {
     previewContent(ContentConfigurationModel.mockData[1])
 }
 
+/// 在主 Actor 创建预览界面及其 UIKit 视图。
+@MainActor
 private func previewContent(
     _ model: ContentConfigurationModel
 ) -> QuickLayoutHostingController {

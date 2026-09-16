@@ -377,7 +377,8 @@ private final class LoggingChildViewController: UIViewController, UIKitLocalizat
         fatalError("init(coder:) has not been implemented")
     }
 
-    deinit {
+    /// 在主 Actor 释放控制器时记录生命周期，保持日志回调的 UI 隔离约束。
+    isolated deinit {
         log("deinit")
     }
 

@@ -47,6 +47,7 @@ enum PasteSource {
 }
 
 /// 令 UIKit 先按剪贴板顺序组合结果，再在目标选区一次性插入有序内容；不等待文件导入。
+@MainActor
 final class PasteCoordinator: NSObject, UITextPasteDelegate {
     /// 标记纯文本粘贴结果所属操作版本的富文本属性键。
     private static let generationKey = NSAttributedString.Key("imessage.paste.generation")
@@ -57,8 +58,8 @@ final class PasteCoordinator: NSObject, UITextPasteDelegate {
         /// 粘贴开始时的完整文本，用于判断选区快照是否仍适用。
         let text: String
     }
-    /// 在 UIKit 有序粘贴结果中暂存附件来源与操作身份的占位附件。
-    private final class Token: NSTextAttachment {
+    /// 在 UIKit 有序粘贴结果中暂存来源与身份；不操作视图，沿用 NSTextAttachment 的非隔离约定。
+    nonisolated private final class Token: NSTextAttachment {
         /// 此占位符对应的原始粘贴来源。
         let source: PasteSource
         /// 占位符所属的粘贴版本，用于过滤已失效操作。

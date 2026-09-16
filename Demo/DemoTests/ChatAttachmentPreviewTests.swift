@@ -124,7 +124,10 @@ struct ChatAttachmentPreviewTests {
         let page = AttachmentPreviewPage(frame: CGRect(x: 0, y: 0, width: 402, height: 874))
         let first = AVPlayer(), second = AVPlayer()
         var changes = 0
-        let observer = page.playerLayer.observe(\.player, options: [.new]) { _, _ in changes += 1 }
+        let observer = page.playerLayer.observe(\.player, options: [.new]) { _, _ in
+            // 本测试只在主 Actor 同步绑定播放器，KVO 计数沿用同一隔离边界。
+            MainActor.assumeIsolated { changes += 1 }
+        }
         defer { observer.invalidate() }
         for _ in 0..<30 { page.bind(player: first) }
         #expect(changes == 1)

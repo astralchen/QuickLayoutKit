@@ -10,6 +10,7 @@ import UniformTypeIdentifiers
 
 /// 编辑器保存值模型和稳定身份；文件由文档控制器管理，与录音状态无关。
 @available(iOS 17.0, *)
+@MainActor
 final class TextAttachment: NSTextAttachment {
     /// 标记编辑器自动生成附件分隔符的富文本属性键。
     static let separatorKey = NSAttributedString.Key("imessage.attachment.generatedSeparator")
@@ -38,9 +39,14 @@ final class TextAttachment: NSTextAttachment {
     /// 不支持从归档创建 `TextAttachment`。
     ///
     /// 此初始化方法始终返回 `nil`。
-    required init?(coder: NSCoder) { return nil }
-    /// 指示此附件始终使用视图提供者进行呈现的布尔值。
-    override var usesTextAttachmentView: Bool { true }
+    nonisolated required init?(coder: NSCoder) { return nil }
+    /// 必须使用文档草稿创建附件，禁止继承基类的原始数据初始化入口。
+    @available(*, unavailable, message: "使用 init(draft:) 创建文档附件")
+    nonisolated override init(data contentData: Data?, ofType uti: String?) {
+        fatalError("使用 init(draft:) 创建文档附件")
+    }
+    /// 指示此附件始终使用视图提供者；常量查询沿用基类的非隔离接口。
+    nonisolated override var usesTextAttachmentView: Bool { true }
 
     /// 根据动态字体行高返回文件卡片所需高度，最小值为 84 点。
     static func height(for traits: UITraitCollection) -> CGFloat {
@@ -50,8 +56,8 @@ final class TextAttachment: NSTextAttachment {
             + AttachmentCardStyle.textSpacing) + 24)
     }
 
-    /// 为当前文本位置创建附件视图提供者，并启用边界跟踪。
-    override func viewProvider(for parentView: UIView?, location: any NSTextLocation, textContainer: NSTextContainer?) -> NSTextAttachmentViewProvider? {
+    /// 按 TextKit 的非隔离接口创建提供者；实际视图创建和测量在提供者的主 Actor 边界执行。
+    nonisolated override func viewProvider(for parentView: UIView?, location: any NSTextLocation, textContainer: NSTextContainer?) -> NSTextAttachmentViewProvider? {
         let provider = AttachmentProvider(
             textAttachment: self, parentView: parentView,
             textLayoutManager: textContainer?.textLayoutManager, location: location
@@ -125,26 +131,35 @@ final class TextAttachment: NSTextAttachment {
 
 /// 将编辑器专用卡片装入独立宿主视图的 TextKit 附件提供者。
 @available(iOS 17.0, *)
+@MainActor
 private final class AttachmentProvider: NSTextAttachmentViewProvider {
     /// 获取当前编辑器的缓存卡片，并装入此提供者独占的宿主视图。
     ///
     /// 旧提供者释放宿主时不会移除已经转交给新宿主的卡片。
-    override func loadView() {
-        guard let attachment = textAttachment as? TextAttachment else { return }
-        // 每个 provider 独占宿主，旧 provider 卸载时不会移除已交给新宿主的卡片。
-        let card = attachment.card(for: textLayoutManager)
-        let host = UIView(frame: card.bounds)
-        card.frame = host.bounds
-        card.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        host.addSubview(card)
-        view = host
+    nonisolated override func loadView() {
+        // SDK 将提供者标为不可 Sendable；此引用仅在同步 Actor 检查内使用，不传给异步任务。
+        nonisolated(unsafe) let provider = self
+        MainActor.assumeIsolated {
+            guard let attachment = provider.textAttachment as? TextAttachment else { return }
+            // UITextView 主 Actor 布局中的同步回调，避免异步跳转打乱 TextKit 布局顺序。
+            let card = attachment.card(for: provider.textLayoutManager)
+            let host = UIView(frame: card.bounds)
+            card.frame = host.bounds
+            card.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            host.addSubview(card)
+            provider.view = host
+        }
     }
-    /// 按建议行宽测量实际卡片，并返回从零点开始的附件布局边界。
-    override func attachmentBounds(for attributes: [NSAttributedString.Key: Any], location: any NSTextLocation, textContainer: NSTextContainer?, proposedLineFragment: CGRect, position: CGPoint) -> CGRect {
-        guard let attachment = textAttachment as? TextAttachment else { return .zero }
-        return CGRect(origin: .zero, size: attachment.preferredSize(
-            maximumWidth: max(1, proposedLineFragment.width), layoutManager: textLayoutManager
-        ))
+    /// UITextView 在主 Actor 同步测量卡片；非隔离覆盖入口检查调用方的 Actor 约束。
+    nonisolated override func attachmentBounds(for attributes: [NSAttributedString.Key: Any], location: any NSTextLocation, textContainer: NSTextContainer?, proposedLineFragment: CGRect, position: CGPoint) -> CGRect {
+        // 保留同步 TextKit 布局契约，动态确认主 Actor 后才读取提供者和测量 UIKit 视图。
+        nonisolated(unsafe) let provider = self
+        return MainActor.assumeIsolated {
+            guard let attachment = provider.textAttachment as? TextAttachment else { return .zero }
+            return CGRect(origin: .zero, size: attachment.preferredSize(
+                maximumWidth: max(1, proposedLineFragment.width), layoutManager: provider.textLayoutManager
+            ))
+        }
     }
 }
 

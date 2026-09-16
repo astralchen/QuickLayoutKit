@@ -61,13 +61,14 @@ nonisolated enum MediaImportProcessor {
                 seconds: min(0.1, duration.seconds / 2),
                 preferredTimescale: 600
             )
-            let result = try await withTaskCancellationHandler {
-                try await generator.image(at: posterTime)
+            let request = PosterGeneration(generator: generator)
+            let image = try await withTaskCancellationHandler {
+                try await request.image(at: posterTime)
             } onCancel: {
-                generator.cancelAllCGImageGeneration()
+                Task { await request.cancel() }
             }
             try Task.checkCancellation()
-            try writeJPEG(result.image, to: thumbnailURL)
+            try writeJPEG(image, to: thumbnailURL)
             return ImportedMetadata(
                 pixelSize: transformedSize,
                 kind: .video(duration: duration.seconds),
@@ -128,5 +129,37 @@ nonisolated enum MediaImportProcessor {
         guard CGImageDestinationFinalize(destination) else {
             throw CocoaError(.fileWriteUnknown)
         }
+    }
+}
+
+/// 独占非 Sendable 的视频截图器，串行处理启动和取消；实际 SDK 回调返回后才结束等待。
+@available(iOS 16.0, *)
+private actor PosterGeneration {
+    /// 从创建方转移所有权，外部不再访问同一个截图器。
+    private let generator: AVAssetImageGenerator
+    /// 取消可能先于图像请求进入 Actor，记录后禁止迟到启动。
+    private var isCancelled = false
+
+    /// 接收已完成配置的截图器，保留原有资产和尺寸设置。
+    init(generator: sending AVAssetImageGenerator) {
+        self.generator = generator
+    }
+
+    /// 等待唯一图像请求；取消后仍等待 SDK 回调，避免后台解码尚未退出就释放导入槽。
+    func image(at time: CMTime) async throws -> CGImage {
+        try Task.checkCancellation()
+        guard !isCancelled else { throw CancellationError() }
+        return try await withCheckedThrowingContinuation { continuation in
+            generator.generateCGImageAsynchronously(for: time) { image, _, error in
+                if let image { continuation.resume(returning: image) }
+                else { continuation.resume(throwing: error ?? CocoaError(.fileReadCorruptFile)) }
+            }
+        }
+    }
+
+    /// 在同一 Actor 中取消当前请求；由 SDK 的完成回调恢复图像等待。
+    func cancel() {
+        isCancelled = true
+        generator.cancelAllCGImageGeneration()
     }
 }

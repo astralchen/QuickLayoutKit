@@ -22,7 +22,7 @@ extension AudioController {
             return
         }
         let target = PlaybackTarget.preview(attachment.id)
-        if playbackTarget == target, isPlaying || playbackTask != nil {
+        if playbackTarget == target, isPlaying || playbackTask.isRunning {
             pausePlayback()
         } else if playbackTarget == target, player != nil {
             resumePlayback()
@@ -47,7 +47,7 @@ extension AudioController {
             id: messageID,
             attachmentID: attachment.id
         )
-        if playbackTarget == target, player?.isPlaying == true || playbackTask != nil {
+        if playbackTarget == target, player?.isPlaying == true || playbackTask.isRunning {
             pausePlayback()
         } else if playbackTarget == target, player != nil {
             resumePlayback()
@@ -70,25 +70,23 @@ extension AudioController {
         }
         playbackTarget = target
         playbackCoordinator.acquire(owner: playbackOwner) { [weak self] in self?.stopAll() }
-        let generation = playbackGeneration
-        playbackTask = Task { [weak self] in
-            guard let self, !Task.isCancelled else { return }
-            do {
-                try await configurePlaybackSession()
-                guard playbackGeneration == generation, !Task.isCancelled else { return }
-                let player = try await AudioPreparation.player(at: attachment.fileURL)
-                guard playbackGeneration == generation, !Task.isCancelled else { player.stop(); return }
-                player.delegate = self
-                guard player.play() else { throw CocoaError(.fileReadUnknown) }
-                self.player = player
-                playbackTask = nil
-                publishPlayback(isPlaying: true, progress: 0)
-                startPlaybackTimer()
-            } catch {
-                guard playbackGeneration == generation, !Task.isCancelled else { return }
-                stopPlayback()
-                if !(error is CancellationError) { failureDidOccur?(.playbackFailed) }
-            }
+        playbackTask.run { [weak self] operation in
+            guard let self else { return }
+            try await configurePlaybackSession()
+            try operation.checkCancellation()
+            let player = try await AudioPreparation.player(at: attachment.fileURL)
+            // 即使准备操作不响应取消，迟到创建的播放器也必须停止。
+            do { try operation.checkCancellation() }
+            catch { player.stop(); throw error }
+            player.delegate = self
+            guard player.play() else { throw CocoaError(.fileReadUnknown) }
+            self.player = player
+            publishPlayback(isPlaying: true, progress: 0)
+            try operation.checkCancellation()
+            startPlaybackTimer()
+        } onError: { [weak self] _ in
+            self?.stopPlayback()
+            self?.failureDidOccur?(.playbackFailed)
         }
     }
 
@@ -98,37 +96,32 @@ extension AudioController {
         guard validatePlaybackFile(previousPlayer), let url = previousPlayer.url else { return }
         cancelPendingPlayback()
         playbackCoordinator.acquire(owner: playbackOwner) { [weak self] in self?.stopAll() }
-        let generation = playbackGeneration
         let position = previousPlayer.currentTime
-        playbackTask = Task { [weak self] in
-            guard let self, !Task.isCancelled else { return }
-            do {
-                try await configurePlaybackSession()
-                guard playbackGeneration == generation, !Task.isCancelled else { return }
-                let player = try await AudioPreparation.player(at: url)
-                guard playbackGeneration == generation, self.player === previousPlayer,
-                      !Task.isCancelled else { player.stop(); return }
-                previousPlayer.stop()
-                player.delegate = self
-                player.currentTime = position
-                guard player.play() else { throw CocoaError(.fileReadUnknown) }
-                self.player = player
-                playbackTask = nil
-                publishPlayback(isPlaying: true, progress: player.duration > 0 ? player.currentTime / player.duration : 0)
-                startPlaybackTimer()
-            } catch {
-                guard playbackGeneration == generation, !Task.isCancelled else { return }
-                stopPlayback()
-                if !(error is CancellationError) { failureDidOccur?(.playbackFailed) }
-            }
+        playbackTask.run { [weak self] operation in
+            guard let self else { return }
+            try await configurePlaybackSession()
+            try operation.checkCancellation()
+            let player = try await AudioPreparation.player(at: url)
+            do { try operation.checkCancellation() }
+            catch { player.stop(); throw error }
+            guard self.player === previousPlayer else { player.stop(); return }
+            previousPlayer.stop()
+            player.delegate = self
+            player.currentTime = position
+            guard player.play() else { throw CocoaError(.fileReadUnknown) }
+            self.player = player
+            publishPlayback(isPlaying: true, progress: player.duration > 0 ? player.currentTime / player.duration : 0)
+            try operation.checkCancellation()
+            startPlaybackTimer()
+        } onError: { [weak self] _ in
+            self?.stopPlayback()
+            self?.failureDidOccur?(.playbackFailed)
         }
     }
 
     /// 使等待会话的播放任务失效；系统层已入队操作由会话队列负责有序收尾。
     private func cancelPendingPlayback() {
-        playbackGeneration += 1
-        playbackTask?.cancel()
-        playbackTask = nil
+        playbackTask.cancel()
     }
 
     /// 替换播放计时器，以 50 毫秒间隔在主运行循环发布进度。

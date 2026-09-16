@@ -40,7 +40,7 @@ final class SpeechRecognitionService: SpeechTranscribing {
     /// 调用方显式选择的语音后端；为 `nil` 时根据系统能力自动选择。
     private let requestedBackend: SpeechBackend?
     /// 标识当前启动请求，使停止或重新启动前的异步工作失效。
-    private var generation: UUID?
+    private let recognitionScope = OperationScope()
     /// 向识别请求或分析器提供麦克风输入的音频引擎。
     private var audioEngine: AVAudioEngine?
     /// 兼容后端当前接收音频缓冲区的识别请求。
@@ -78,18 +78,17 @@ final class SpeechRecognitionService: SpeechTranscribing {
     ) async throws {
         stop()
         try Task.checkCancellation()
-        let generation = UUID()
-        self.generation = generation
+        let operation = recognitionScope.begin()
         var didStart = false
         defer {
-            if !didStart, self.generation == generation { stop() }
+            if !didStart, operation.isCurrent { stop() }
         }
         let backend = requestedBackend ?? .speechAnalyzer
 
         if backend == .speechAnalyzer {
             do {
                 try await startModern(
-                    generation: generation,
+                    operation: operation,
                     locale: locale,
                     result: result,
                     failure: failure
@@ -99,7 +98,7 @@ final class SpeechRecognitionService: SpeechTranscribing {
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
-                try checkActive(generation)
+                try operation.checkCancellation()
                 guard SpeechConfiguration.fallbackBackend(
                     afterFailureOf: backend,
                     wasExplicitlyRequested: requestedBackend != nil
@@ -108,7 +107,7 @@ final class SpeechRecognitionService: SpeechTranscribing {
                 }
                 releaseResources()
                 try startLegacy(
-                    generation: generation,
+                    operation: operation,
                     locale: locale,
                     result: result,
                     failure: failure
@@ -118,7 +117,7 @@ final class SpeechRecognitionService: SpeechTranscribing {
             }
         }
         try startLegacy(
-            generation: generation,
+            operation: operation,
             locale: locale,
             result: result,
             failure: failure
@@ -128,7 +127,7 @@ final class SpeechRecognitionService: SpeechTranscribing {
 
     /// 停止音频输入并取消两种后端的任务，清空累计识别文本。
     func stop() {
-        generation = nil
+        recognitionScope.invalidate()
         releaseResources()
     }
 
@@ -159,7 +158,7 @@ final class SpeechRecognitionService: SpeechTranscribing {
 
     /// 准备语言资源与现代分析器，将麦克风缓冲区输入识别流程并发布文本更新。
     private func startModern(
-        generation: UUID,
+        operation: OperationScope.Token,
         locale: Locale,
         result: @escaping @MainActor (String, Bool) -> Void,
         failure: @escaping @MainActor () -> Void
@@ -169,7 +168,7 @@ final class SpeechRecognitionService: SpeechTranscribing {
         ) else {
             throw CocoaError(.featureUnsupported)
         }
-        try checkActive(generation)
+        try operation.checkCancellation()
         let transcriber = SpeechTranscriber(
             locale: supportedLocale,
             preset: .progressiveTranscription
@@ -179,10 +178,10 @@ final class SpeechRecognitionService: SpeechTranscribing {
         ) ? "" : " "
         let installationRequest = try await AssetInventory
             .assetInstallationRequest(supporting: [transcriber])
-        try checkActive(generation)
+        try operation.checkCancellation()
         if let installationRequest {
             try await installationRequest.downloadAndInstall()
-            try checkActive(generation)
+            try operation.checkCancellation()
         }
 
         let engine = AVAudioEngine()
@@ -194,7 +193,7 @@ final class SpeechRecognitionService: SpeechTranscribing {
             ) else {
             throw CocoaError(.featureUnsupported)
         }
-        try checkActive(generation)
+        try operation.checkCancellation()
         // 格式选择期间路由可能变化；直接挂在输入节点的 tap 必须匹配硬件采样率。
         let currentFormat = try validatedInputFormat(of: engine)
         try SpeechInputFormat.validate(analyzerFormat)
@@ -221,7 +220,7 @@ final class SpeechRecognitionService: SpeechTranscribing {
         resultsTask = Task {
             do {
                 for try await transcription in transcriber.results {
-                    guard !Task.isCancelled, self.generation == generation else { return }
+                    guard !Task.isCancelled, operation.isCurrent else { return }
                     let text = String(transcription.text.characters)
                     if transcription.isFinal {
                         stableModernTranscript = joinedTranscript(
@@ -243,7 +242,7 @@ final class SpeechRecognitionService: SpeechTranscribing {
             } catch is CancellationError {
                 return
             } catch {
-                guard self.generation == generation else { return }
+                guard operation.isCurrent else { return }
                 failure()
             }
         }
@@ -253,7 +252,7 @@ final class SpeechRecognitionService: SpeechTranscribing {
             } catch is CancellationError {
                 return
             } catch {
-                guard self.generation == generation else { return }
+                guard operation.isCurrent else { return }
                 failure()
             }
         }
@@ -261,12 +260,12 @@ final class SpeechRecognitionService: SpeechTranscribing {
 
     /// 创建兼容识别器和麦克风缓冲区请求，并发布部分与最终识别结果。
     private func startLegacy(
-        generation: UUID,
+        operation: OperationScope.Token,
         locale: Locale,
         result: @escaping @MainActor (String, Bool) -> Void,
         failure: @escaping @MainActor () -> Void
     ) throws {
-        try checkActive(generation)
+        try operation.checkCancellation()
         let engine = AVAudioEngine()
         let format = try validatedInputFormat(of: engine)
         guard let recognizer = SFSpeechRecognizer(locale: locale),
@@ -289,19 +288,19 @@ final class SpeechRecognitionService: SpeechTranscribing {
         }
         recognitionRequest = request
         audioEngine = engine
-        recognitionTask = recognizer.recognitionTask(with: request) { [weak self]
+        recognitionTask = recognizer.recognitionTask(with: request) {
             recognitionResult,
             error in
             if let recognitionResult {
                 let text = recognitionResult.bestTranscription.formattedString
                 Task { @MainActor in
-                    guard self?.generation == generation else { return }
+                    guard operation.isCurrent else { return }
                     result(text, recognitionResult.isFinal)
                 }
             }
             if error != nil {
                 Task { @MainActor in
-                    guard self?.generation == generation else { return }
+                    guard operation.isCurrent else { return }
                     failure()
                 }
             }
@@ -317,12 +316,6 @@ final class SpeechRecognitionService: SpeechTranscribing {
         let format = input.outputFormat(forBus: 0)
         try SpeechInputFormat.validate(format)
         return format
-    }
-
-    /// 在异步准备后确认调用方未取消，且本次启动仍拥有识别服务。
-    private func checkActive(_ generation: UUID) throws {
-        try Task.checkCancellation()
-        guard self.generation == generation else { throw CancellationError() }
     }
 
     /// 按当前语言的分隔规则拼接已确认文本和当前片段。

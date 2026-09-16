@@ -15,6 +15,8 @@ struct ContentConfigurationModel {
 }
 
 
+/// 示例展示数据依赖当前语言，由主 Actor 构建；值模型本身保持非隔离。
+@MainActor
 extension ContentConfigurationModel {
 
     static var mockData: [ContentConfigurationModel] {

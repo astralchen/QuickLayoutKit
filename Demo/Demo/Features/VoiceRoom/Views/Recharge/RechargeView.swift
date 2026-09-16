@@ -59,7 +59,8 @@ final class RechargeView: QuickLayoutView {
         configureViews()
     }
 
-    deinit {
+    /// 在主执行器上停止显示刷新，避免释放时跨隔离访问 UIKit 资源。
+    isolated deinit {
         balanceDisplayLink?.invalidate()
     }
 

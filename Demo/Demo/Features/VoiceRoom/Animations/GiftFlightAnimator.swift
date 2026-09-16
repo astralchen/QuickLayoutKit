@@ -28,6 +28,7 @@ final class GiftFlightAnimator {
 
     func start(
         gift: Gift,
+        style: GiftEffectStyle? = nil,
         quantity: Int,
         from startPoint: CGPoint,
         to endPoint: CGPoint,
@@ -40,6 +41,7 @@ final class GiftFlightAnimator {
             completion()
             return
         }
+        let style = style ?? gift.effectStyle
         self.completion = completion
         overlayView.frame = containerView.bounds
         overlayView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -47,7 +49,7 @@ final class GiftFlightAnimator {
 
         let color = VoiceRoomTheme.giftColor(at: gift.themeIndex)
         let giftDiameter: CGFloat
-        switch gift.effectStyle {
+        switch style {
         case .trail:
             giftDiameter = 54
         case .burst:
@@ -64,7 +66,7 @@ final class GiftFlightAnimator {
         giftView.center = startPoint
 
         if showsCelebration
-            && gift.effectStyle == .celebration
+            && style == .celebration
             && !UIAccessibility.isReduceMotionEnabled {
             playCelebrationBanner(gift: gift, color: color, delay: delay)
         }
@@ -82,6 +84,7 @@ final class GiftFlightAnimator {
             from: startPoint,
             to: endPoint,
             gift: gift,
+            style: style,
             color: color,
             delay: delay,
             arrival: arrival
@@ -189,6 +192,7 @@ final class GiftFlightAnimator {
         from startPoint: CGPoint,
         to endPoint: CGPoint,
         gift: Gift,
+        style: GiftEffectStyle,
         color: UIColor,
         delay: TimeInterval,
         arrival: @escaping () -> Void
@@ -197,7 +201,7 @@ final class GiftFlightAnimator {
         let beginTime = CACurrentMediaTime() + 0.04 + delay
         let duration: CFTimeInterval
         let sparkleCount: Int
-        switch gift.effectStyle {
+        switch style {
         case .trail:
             duration = 0.78
             sparkleCount = 3
@@ -234,19 +238,19 @@ final class GiftFlightAnimator {
         let workItem = DispatchWorkItem { [weak self] in
             guard let self else { return }
             arrival()
-            if gift.effectStyle != .trail {
+            if style != .trail {
                 self.playBurst(
                     at: endPoint,
                     color: color,
-                    style: gift.effectStyle
+                    style: style
                 )
             }
             UIImpactFeedbackGenerator(
-                style: gift.effectStyle == .celebration ? .heavy : .light
+                style: style == .celebration ? .heavy : .light
             ).impactOccurred()
-            let exitDuration: TimeInterval = gift.effectStyle == .celebration
+            let exitDuration: TimeInterval = style == .celebration
                 ? 0.46
-                : (gift.effectStyle == .burst ? 0.32 : 0.20)
+                : (style == .burst ? 0.32 : 0.20)
             UIView.animate(
                 withDuration: exitDuration,
                 delay: 0,
@@ -408,7 +412,7 @@ final class GiftFlightAnimator {
         let titleLabel = UILabel()
         titleLabel.text = Localization.text(
             "liveRoom.gift.celebration",
-            Localization.text(gift.titleKey)
+            gift.localizedTitle
         )
         titleLabel.textColor = .white
         titleLabel.font = .systemFont(ofSize: 17, weight: .bold)

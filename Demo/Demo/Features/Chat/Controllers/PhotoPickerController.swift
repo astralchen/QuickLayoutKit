@@ -18,6 +18,7 @@ final class PhotoPickerController: NSObject,
     UISheetPresentationControllerDelegate {
 
     /// 持有单次媒体导入资源和进度的可变草稿条目。
+    @MainActor
     final class DraftEntry {
         /// 导入占位与最终媒体项目共享的稳定标识符。
         let id: UUID

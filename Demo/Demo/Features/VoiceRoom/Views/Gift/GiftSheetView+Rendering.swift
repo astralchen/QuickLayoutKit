@@ -141,7 +141,7 @@ extension GiftSheetView {
                 .multipliedReportingOverflow(by: selectedGiftQuantity)
             giftSummaryLabel.text = Localization.text(
                 "liveRoom.gift.summary",
-                Localization.text(selectedGift.titleKey),
+                selectedGift.localizedTitle,
                 giftValueOverflow ? Int.max : giftValue
             )
         }

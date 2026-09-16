@@ -10,6 +10,8 @@
 		4C4B00032FD0000000000003 /* ListKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4C4B00022FD0000000000002 /* ListKit */; };
 		7714E9A22EFE2AB100F8BC60 /* QuickLayoutKit in Frameworks */ = {isa = PBXBuildFile; productRef = 7714E9A12EFE2AB100F8BC60 /* QuickLayoutKit */; };
 		77BB26A63040283A001C1ED9 /* AppLocalization in Frameworks */ = {isa = PBXBuildFile; productRef = 77BB26A53040283A001C1ED9 /* AppLocalization */; };
+		AB1500000000000000000013 /* VAPView in Frameworks */ = {isa = PBXBuildFile; productRef = AB1500000000000000000012 /* VAPView */; };
+		AB1500000000000000000023 /* SVGAView in Frameworks */ = {isa = PBXBuildFile; productRef = AB1500000000000000000022 /* SVGAView */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -72,6 +74,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AB1500000000000000000013 /* VAPView in Frameworks */,
+				AB1500000000000000000023 /* SVGAView in Frameworks */,
 				4C4B00032FD0000000000003 /* ListKit in Frameworks */,
 				77BB26A63040283A001C1ED9 /* AppLocalization in Frameworks */,
 				7714E9A22EFE2AB100F8BC60 /* QuickLayoutKit in Frameworks */,
@@ -135,6 +139,8 @@
 			);
 			name = Demo;
 			packageProductDependencies = (
+				AB1500000000000000000012 /* VAPView */,
+				AB1500000000000000000022 /* SVGAView */,
 				4C4B00022FD0000000000002 /* ListKit */,
 				7714E9A12EFE2AB100F8BC60 /* QuickLayoutKit */,
 				77BB26A53040283A001C1ED9 /* AppLocalization */,
@@ -224,6 +230,8 @@
 			mainGroup = 7714E9632EFE2A9100F8BC60;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				AB1500000000000000000021 /* XCRemoteSwiftPackageReference "SVGAView" */,
+				AB1500000000000000000011 /* XCRemoteSwiftPackageReference "VAPView" */,
 				4C4B00012FD0000000000001 /* XCRemoteSwiftPackageReference "ListKit" */,
 				7714E9A02EFE2AB100F8BC60 /* XCLocalSwiftPackageReference ".." */,
 				77BB26A430402839001C1ED9 /* XCRemoteSwiftPackageReference "AppLocalization" */,
@@ -331,10 +339,10 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -368,10 +376,10 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -439,6 +447,7 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
 		};
@@ -497,6 +506,7 @@
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -508,7 +518,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sondra.DemoTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -516,7 +526,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Demo.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Demo";
 			};
@@ -529,7 +539,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sondra.DemoTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -537,7 +547,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Demo.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Demo";
 			};
@@ -549,7 +559,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sondra.DemoUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -557,7 +567,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = Demo;
 			};
@@ -569,7 +579,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sondra.DemoUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -577,7 +587,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = Demo;
 			};
@@ -648,6 +658,22 @@
 				kind = branch;
 			};
 		};
+		AB1500000000000000000011 /* XCRemoteSwiftPackageReference "VAPView" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/astralchen/VAPView.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+		AB1500000000000000000021 /* XCRemoteSwiftPackageReference "SVGAView" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/astralchen/SVGAView.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -664,6 +690,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 77BB26A430402839001C1ED9 /* XCRemoteSwiftPackageReference "AppLocalization" */;
 			productName = AppLocalization;
+		};
+		AB1500000000000000000012 /* VAPView */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB1500000000000000000011 /* XCRemoteSwiftPackageReference "VAPView" */;
+			productName = VAPView;
+		};
+		AB1500000000000000000022 /* SVGAView */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB1500000000000000000021 /* XCRemoteSwiftPackageReference "SVGAView" */;
+			productName = SVGAView;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

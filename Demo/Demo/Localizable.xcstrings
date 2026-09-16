@@ -6418,6 +6418,29 @@
         }
       }
     },
+    "liveRoom.gift.category.multiple" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تأثيرات متعددة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multi-effect"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "多特效"
+          }
+        }
+      }
+    },
     "liveRoom.gift.category.party" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6483,6 +6506,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "浪漫"
+          }
+        }
+      }
+    },
+    "liveRoom.gift.category.svga" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SVGA"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SVGA"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SVGA"
+          }
+        }
+      }
+    },
+    "liveRoom.gift.category.vap" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VAP"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VAP"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VAP"
           }
         }
       }
@@ -6667,6 +6736,75 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "烟花"
+          }
+        }
+      }
+    },
+    "liveRoom.gift.item.flowerDuet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تناغم الأزهار"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Floral Harmony"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "花漾三重奏"
+          }
+        }
+      }
+    },
+    "liveRoom.gift.item.flowerJourney" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نزهة بين الزهور"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flower Journey"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "花下与君游"
+          }
+        }
+      }
+    },
+    "liveRoom.gift.item.flowerBouquet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "باقة زهور لطيفة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lovely Bouquet"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "萌萌花束"
           }
         }
       }

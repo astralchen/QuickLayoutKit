@@ -233,7 +233,7 @@ struct ChatAudioLifecycleTests {
         defer { fixture.clean() }
         fixture.play()
         #expect(await eventually { session.pending.count == 1 })
-        let task = fixture.media.playbackTask
+        let task = fixture.media.playbackTask.currentTask
         fixture.media.stopAll()
         #expect(session.deactivationCount == 1)
         session.completeFirst()
@@ -254,11 +254,11 @@ struct ChatAudioLifecycleTests {
         fixture.media.failureDidOccur = { _ in failures += 1 }
         fixture.play()
         #expect(await eventually { session.pending.count == 1 })
-        let oldTask = fixture.media.playbackTask
+        let oldTask = fixture.media.playbackTask.currentTask
         fixture.media.stopPlayback()
         fixture.play()
         #expect(await eventually { session.pending.count == 2 })
-        let newTask = fixture.media.playbackTask
+        let newTask = fixture.media.playbackTask.currentTask
         session.completeFirst(error: CocoaError(.fileReadUnknown))
         await oldTask?.value
         #expect(fixture.media.ownsAudioSession)
@@ -385,10 +385,11 @@ private final class Fixture {
     let store = PageAttachmentStore()
     let audio: AudioAttachment
     let media: AudioController
-    let model = ChatViewModel(localizer: Localizer { key, _ in key }, clock: Date.init,
-                                     sleeper: { _ in try await Task.sleep(for: .seconds(3600)) })
+    let model: ChatViewModel
 
     init(audioSession: AudioSessionControlling? = nil) throws {
+        model = ChatViewModel(localizer: Localizer { key, _ in key }, clock: Date.init,
+                              sleeper: { _ in try await Task.sleep(for: .seconds(3600)) })
         let url = store.makeFileURL(prefix: "lifecycle", pathExtension: "caf")
         let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1))
         let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 160_000))

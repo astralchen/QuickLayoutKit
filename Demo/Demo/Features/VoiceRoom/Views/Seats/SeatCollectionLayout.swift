@@ -111,6 +111,7 @@ final class SeatCollectionLayout: UICollectionViewLayout {
 }
 
 /// 将业务布局家族解析为 CollectionView 可直接消费的绝对 Frame。
+@MainActor
 enum SeatCollectionGeometry {
 
     static func configuration(

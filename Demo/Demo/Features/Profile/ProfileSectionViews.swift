@@ -561,6 +561,8 @@ private final class ProfileChipView: ProfileSectionView {
     }
 }
 
+/// 在主 Actor 配置个人页分组标题的 UIKit 属性。
+@MainActor
 private func configureProfileSectionTitle(_ label: UILabel) {
     label.font = .preferredFont(forTextStyle: .headline)
     label.adjustsFontForContentSizeCategory = true

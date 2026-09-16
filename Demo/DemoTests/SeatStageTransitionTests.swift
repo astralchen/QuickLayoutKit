@@ -516,6 +516,8 @@ private func expectRowsCentered(
     #expect(abs((minX + maxX) / 2 - availableWidth / 2) < 0.5)
 }
 
+/// 在主 Actor 完成集合布局后读取测试目标位置。
+@MainActor
 private func collectionFrame(
     at item: Int,
     in collectionView: UICollectionView

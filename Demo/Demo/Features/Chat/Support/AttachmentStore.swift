@@ -103,8 +103,8 @@ final class PageAttachmentStore: AttachmentStoring {
         )
     }
 
-    /// 在存储释放时删除页面附件目录及残留临时文件。
-    deinit {
+    /// 在所属主 Actor 上释放存储，使用同一文件管理器删除页面目录及残留临时文件。
+    isolated deinit {
         try? fileManager.removeItem(at: directoryURL)
     }
 

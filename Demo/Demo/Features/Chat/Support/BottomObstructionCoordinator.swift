@@ -16,6 +16,7 @@ import UIKit
 @MainActor
 final class BottomObstructionCoordinator {
     /// 显示链接持有代理，代理弱引用协调器，避免定时回调反向延长页面生命周期。
+    @MainActor
     private final class DisplayLinkProxy {
         /// 接收显示链接回调的协调器；弱引用避免循环持有。
         weak var owner: BottomObstructionCoordinator?

@@ -8,8 +8,8 @@ final class AttachmentThumbnailStripCell: UICollectionViewCell {
     let imageView = UIImageView()
     /// 当前绑定的附件索引。
     private(set) var itemIndex: Int?
-    /// 当前配置代次，拒绝旧任务回写。
-    private var generation = UUID()
+    /// 当前加载操作的有效期，拒绝旧请求回写。
+    private let loadingScope = OperationScope()
     /// Cell 不拥有加载器，其生命周期由缩略图条管理。
     private weak var loader: MediaImageLoader?
     /// 当前消费者的取消句柄。
@@ -45,7 +45,6 @@ final class AttachmentThumbnailStripCell: UICollectionViewCell {
     /// 配置身份、占位图及辅助功能，加载仅在可见阶段启动。
     func configure(item: AttachmentPreviewItem, index: Int, count: Int, loader: MediaImageLoader, scale: CGFloat) {
         cancelLoading()
-        generation = UUID()
         self.item = item
         itemIndex = index
         self.loader = loader
@@ -58,9 +57,9 @@ final class AttachmentThumbnailStripCell: UICollectionViewCell {
     /// 可见或重新显示时恢复加载；同一配置只允许一个消费者。
     func loadIfNeeded() {
         guard request == nil, !didFinishLoading, let url = item?.thumbnailURL, let loader else { return }
-        let token = generation
+        let operation = loadingScope.begin()
         request = loader.load(url: url, pixels: pixels) { [weak self] image in
-            guard let self, generation == token else { return }
+            guard let self, operation.isCurrent else { return }
             request = nil
             didFinishLoading = true
             if let image { imageView.image = image }
@@ -68,7 +67,7 @@ final class AttachmentThumbnailStripCell: UICollectionViewCell {
     }
     /// 离屏或隐藏时使旧回写失效并释放像素，重新显示时从共享缓存恢复。
     func cancelLoading() {
-        generation = UUID()
+        loadingScope.invalidate()
         loader?.cancel(request)
         request = nil
         didFinishLoading = false
@@ -135,6 +134,7 @@ final class AttachmentThumbnailStripView: QuickLayoutView, UICollectionViewDataS
     /// 动画的起点、终点和开始时间。
     private var animation: (from: CGFloat, to: CGFloat, start: CFTimeInterval)?
     /// CADisplayLink 使用弱代理，避免引用环。
+    @MainActor
     private final class DisplayTarget: NSObject {
         /// 不拥有缩略图视图。
         weak var owner: AttachmentThumbnailStripView?
