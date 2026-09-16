@@ -218,8 +218,10 @@ extension AudioController {
 extension AudioController {
     /// 在音频解码失败时转回主 Actor 清理播放，并报告错误。
     nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: (any Error)?) {
+        // 仅保留引用用于身份比较，避免对象释放后地址复用；不通过此引用读写播放器状态。
+        nonisolated(unsafe) let callbackPlayer = player
         Task { @MainActor [weak self] in
-            guard let self, self.player === player else { return }
+            guard let self, self.player === callbackPlayer else { return }
             self.stopPlayback()
             self.failureDidOccur?(.playbackFailed)
         }
@@ -230,8 +232,10 @@ extension AudioController {
         _ player: AVAudioPlayer,
         successfully flag: Bool
     ) {
+        // 仅保留引用用于身份比较，播放器的所有状态操作仍通过主 Actor 上的 self.player 完成。
+        nonisolated(unsafe) let callbackPlayer = player
         Task { @MainActor [weak self] in
-            guard let self, self.player === player else { return }
+            guard let self, self.player === callbackPlayer else { return }
             self.publishPlayback(isPlaying: false, progress: 0)
             self.playbackTimer?.invalidate()
             self.playbackTimer = nil

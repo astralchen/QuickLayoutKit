@@ -1,4 +1,4 @@
-// swift-tools-version: 6.2
+// swift-tools-version: 6.3
 // swift-tools-version 声明构建此软件包所需的最低 Swift 版本。
 
 import PackageDescription

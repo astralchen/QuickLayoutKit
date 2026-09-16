@@ -52,6 +52,8 @@ final class SystemAudioSessionController: AudioSessionControlling {
     /// 同步入队异步停用请求，确保下一位所有者的激活一定排在其后。
     func deactivate() {
         operations.enqueue { [session] in
+            // Xcode 27 / Swift 6.4 才提供这些异步 API；运行时检查无法屏蔽旧 SDK 缺失的符号。
+            #if compiler(>=6.4)
             if #available(iOS 27.0, *) {
                 guard try await session.deactivate(options: .notifyOthersOnDeactivation) else {
                     throw CocoaError(.featureUnsupported)
@@ -59,6 +61,9 @@ final class SystemAudioSessionController: AudioSessionControlling {
             } else {
                 try session.setActive(false, options: .notifyOthersOnDeactivation)
             }
+            #else
+            try session.setActive(false, options: .notifyOthersOnDeactivation)
+            #endif
         }
     }
 
@@ -68,11 +73,15 @@ final class SystemAudioSessionController: AudioSessionControlling {
         try Task.checkCancellation()
         let task = operations.enqueue { [session] in
             try session.setCategory(category, mode: mode, options: options)
+            #if compiler(>=6.4)
             if #available(iOS 27.0, *) {
                 guard try await session.activate() else { throw CocoaError(.featureUnsupported) }
             } else {
                 try session.setActive(true)
             }
+            #else
+            try session.setActive(true)
+            #endif
         }
         // 已入队的系统操作必须收尾；调用方停止时会立即在队列后方安排停用。
         try await task.value

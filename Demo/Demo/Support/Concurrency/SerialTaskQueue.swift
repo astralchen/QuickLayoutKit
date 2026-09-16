@@ -116,7 +116,7 @@ final class SerialTaskQueue {
                 try await permit.wait()
                 try Task.checkCancellation()
                 return try await operation()
-            } onCancel: {
+            } onCancel: { [weak self] in
                 Task { @MainActor [weak self] in
                     self?.cancelWaiting(executionID)
                     permit.resolve(.failure(CancellationError()))
