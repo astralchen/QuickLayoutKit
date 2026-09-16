@@ -24,6 +24,7 @@ final class SeatView: QuickLayoutView {
     private var assignment: SeatAssignment?
     private var slotPresentation: SeatSlotPresentation?
     private var sizeClass = SeatSizeClass.regular
+    private var lastPKWidth: CGFloat?
 
     /// 自定义 Collection Layout 使用的确定性麦位尺寸。
     ///
@@ -34,6 +35,9 @@ final class SeatView: QuickLayoutView {
         sizeClass: SeatSizeClass,
         width: CGFloat
     ) -> CGSize {
+        if styleID == .pkHost || styleID == .pkGuest {
+            return CGSize(width: width, height: RoomPKSeatMetrics(styleID: styleID, width: width, sizeClass: sizeClass).height)
+        }
         let usesLargePresentation = styleID == .emphasizedHost
         let avatarDiameter: CGFloat
         switch (usesLargePresentation, sizeClass) {
@@ -83,11 +87,20 @@ final class SeatView: QuickLayoutView {
 
     var seatDidSelect: ((SeatAssignment) -> Void)?
 
+    private var isPK: Bool {
+        slotPresentation?.styleID == .pkHost || slotPresentation?.styleID == .pkGuest
+    }
+
+    private var pkMetrics: RoomPKSeatMetrics {
+        RoomPKSeatMetrics(styleID: slotPresentation?.styleID ?? .pkGuest, width: bounds.width, sizeClass: sizeClass)
+    }
+
     private var usesLargeSeatPresentation: Bool {
         slotPresentation?.styleID == .emphasizedHost
     }
 
     private var avatarDiameter: CGFloat {
+        if isPK { return pkMetrics.avatarDiameter }
         switch (usesLargeSeatPresentation, sizeClass) {
         case (true, .compact):
             return 74
@@ -105,11 +118,11 @@ final class SeatView: QuickLayoutView {
     }
 
     private var microphoneDiameter: CGFloat {
-        sizeClass == .expanded ? 28 : 22
+        isPK ? pkMetrics.microphoneDiameter : (sizeClass == .expanded ? 28 : 22)
     }
 
     private var microphoneIconDiameter: CGFloat {
-        sizeClass == .expanded ? 14 : 11
+        isPK ? pkMetrics.microphoneDiameter * 0.55 : (sizeClass == .expanded ? 14 : 11)
     }
 
     private var avatarContentScale: CGFloat {
@@ -127,6 +140,39 @@ final class SeatView: QuickLayoutView {
     }
 
     override var body: Layout {
+        if isPK { pkBody } else { standardBody }
+    }
+
+    @LayoutBuilder
+    private var pkBody: Layout {
+        VStack(spacing: pkMetrics.spacing) {
+            ZStack(alignment: .bottomTrailing) {
+                ZStack {
+                    haloView.resizable().frame(width: avatarDiameter + pkMetrics.haloInset, height: avatarDiameter + pkMetrics.haloInset)
+                    avatarBackgroundView.resizable().frame(width: avatarDiameter, height: avatarDiameter)
+                    avatarImageView.resizable().scaledToFit()
+                        .frame(width: avatarDiameter * avatarContentScale, height: avatarDiameter * avatarContentScale)
+                }
+                ZStack {
+                    microphoneBackgroundView.resizable()
+                    microphoneImageView.resizable().scaledToFit()
+                        .frame(width: microphoneIconDiameter, height: microphoneIconDiameter)
+                    speakingIndicatorView.resizable()
+                        .frame(width: microphoneIconDiameter, height: microphoneIconDiameter)
+                }
+                .frame(width: microphoneDiameter, height: microphoneDiameter)
+            }
+            scoreLabel.resizable(axis: .horizontal)
+                .frame(width: avatarDiameter, height: pkMetrics.scoreHeight)
+                .background { scoreBackgroundView }
+            if pkMetrics.isHost {
+                nameLabel.resizable(axis: .horizontal).frame(height: pkMetrics.nameHeight)
+            }
+        }
+    }
+
+    @LayoutBuilder
+    private var standardBody: Layout {
         VStack(
             spacing: sizeClass == .compact
                 ? 2
@@ -179,15 +225,31 @@ final class SeatView: QuickLayoutView {
             }
 
             scoreLabel
-                .padding(.horizontal, sizeClass == .expanded ? 9 : 7)
+                .resizable(axis: .horizontal)
+                .padding(.horizontal, sizeClass == .expanded ? 9 : 5)
                 .padding(.vertical, sizeClass == .expanded ? 4 : 3)
+                .frame(width: avatarDiameter)
                 .background { scoreBackgroundView }
             nameLabel
         }
     }
 
     override func layoutSubviews() {
+        if isPK {
+            if lastPKWidth != bounds.width {
+                lastPKWidth = bounds.width
+                setNeedsQuickLayout()
+            }
+            haloView.layer.cornerRadius = (avatarDiameter + pkMetrics.haloInset) / 2
+            avatarBackgroundView.layer.cornerRadius = avatarDiameter / 2
+            avatarImageView.layer.cornerRadius = avatarImageIDCornerRadius
+            microphoneBackgroundView.layer.cornerRadius = microphoneDiameter / 2
+        }
         super.layoutSubviews()
+        scoreBackgroundView.layer.cornerRadius = min(
+            scoreBackgroundView.bounds.width,
+            scoreBackgroundView.bounds.height
+        ) / 2
         interactionButton.frame = bounds
         bringSubviewToFront(interactionButton)
     }
@@ -232,9 +294,15 @@ final class SeatView: QuickLayoutView {
         speakingIndicatorView.accessibilityIdentifier =
             "liveRoom.seat.waveform.\(slotPresentation.position.rawValue)"
         let score = assignment?.score ?? 0
-        scoreLabel.text = score > 0
-            ? Localization.text("liveRoom.seat.score", score)
-            : Localization.text("liveRoom.seat.available")
+        if isPK {
+            scoreLabel.text = assignment?.isOccupied == true
+                ? Self.pkScoreText(score)
+                : Localization.text("liveRoom.userCard.guestSeat", slotPresentation.position.rawValue)
+        } else {
+            scoreLabel.text = assignment?.isOccupied == true
+                ? Localization.text("liveRoom.seat.score", score)
+                : Localization.text("liveRoom.seat.available")
+        }
         if let occupantNameKey = assignment?.occupantNameKey {
             nameLabel.text = Localization.text(occupantNameKey)
         } else {
@@ -246,7 +314,17 @@ final class SeatView: QuickLayoutView {
         accessibilityValue = Localization.text(
             isMuted ? "liveRoom.seat.muted" : "liveRoom.seat.speaking"
         )
-        let position = slotPresentation.position.rawValue
+        let position = isPK
+            ? "\(slotPresentation.roomSide == .current ? "current" : "opponent").\(slotPresentation.position.rawValue)"
+            : String(slotPresentation.position.rawValue)
+        if isPK {
+            accessibilityLabel = Localization.text(
+                "liveRoom.pk.seatDescription",
+                Localization.text(slotPresentation.roomSide == .current ? "liveRoom.pk.current" : "liveRoom.pk.opponent"),
+                slotPresentation.position.rawValue
+            ) + "，" + (nameLabel.text ?? "")
+        }
+        speakingIndicatorView.accessibilityIdentifier = "liveRoom.seat.waveform.\(position)"
         accessibilityIdentifier = "liveRoom.seat.\(position)"
         scoreLabel.accessibilityIdentifier = "liveRoom.seat.score.\(position)"
         nameLabel.accessibilityIdentifier = "liveRoom.seat.name.\(position)"
@@ -254,7 +332,7 @@ final class SeatView: QuickLayoutView {
             == .showUserCard
         interactionButton.accessibilityIdentifier =
             "liveRoom.seat.button.\(position)"
-        interactionButton.accessibilityLabel = nameLabel.text
+        interactionButton.accessibilityLabel = accessibilityLabel
         interactionButton.accessibilityValue = accessibilityValue
         applyVisualStyle()
         setNeedsQuickLayout()
@@ -422,6 +500,9 @@ final class SeatView: QuickLayoutView {
         microphoneImageView.contentMode = .scaleAspectFit
         speakingIndicatorView.isHidden = true
 
+        scoreLabel.numberOfLines = 1
+        scoreLabel.adjustsFontSizeToFitWidth = true
+        scoreLabel.minimumScaleFactor = 0.7
         scoreLabel.textColor = .white
         scoreLabel.textAlignment = .center
         scoreBackgroundView.backgroundColor = UIColor.black.withAlphaComponent(0.42)
@@ -431,6 +512,14 @@ final class SeatView: QuickLayoutView {
         nameLabel.adjustsFontSizeToFitWidth = true
         nameLabel.minimumScaleFactor = 0.72
         configureTypography()
+    }
+
+    private static func pkScoreText(_ score: Int) -> String {
+        if score >= 10_000 {
+            let precision = score >= 10_000_000 ? 0 : (score >= 1_000_000 ? 1 : 2)
+            return Localization.text("liveRoom.pk.score.tenThousands", String(format: "%.*f", precision, Double(score) / 10_000))
+        }
+        return String(score)
     }
 
     private func didTapSeat() {
@@ -460,6 +549,11 @@ final class SeatView: QuickLayoutView {
     }
 
     private func configureTypography() {
+        if isPK {
+            scoreLabel.font = .monospacedDigitSystemFont(ofSize: pkMetrics.scoreFontSize, weight: .semibold)
+            nameLabel.font = .systemFont(ofSize: pkMetrics.nameFontSize, weight: .semibold)
+            return
+        }
         let scoreFontSize: CGFloat
         let nameFontSize: CGFloat
         switch (usesLargeSeatPresentation, sizeClass) {
@@ -480,9 +574,6 @@ final class SeatView: QuickLayoutView {
             ofSize: scoreFontSize,
             weight: .semibold
         )
-        scoreBackgroundView.layer.cornerRadius = usesLargeSeatPresentation
-            ? 10
-            : 8
         nameLabel.font = .systemFont(
             ofSize: nameFontSize,
             weight: usesLargeSeatPresentation ? .semibold : .medium

@@ -309,7 +309,10 @@ extension DemoTests {
             }
         )
         #expect(moreButton.showsMenuAsPrimaryAction)
-        #expect(moreButton.menu?.children.count == 2)
+        #expect(moreButton.menu?.children.count == 3)
+        #expect(moreButton.menu?.children.contains {
+            ($0 as? UIAction)?.title == Localization.text("liveRoom.layout.pk")
+        } == true)
         let stageView = try #require(
             viewController.view.allSubviews(of: UIView.self).first {
                 $0.accessibilityIdentifier == "liveRoom.seat.stage"

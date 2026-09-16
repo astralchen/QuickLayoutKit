@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Scheme LastUpgradeVersion="2630" version="1.3">
+   <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES" buildArchitectures="Automatic">
+      <BuildActionEntries>
+         <BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">
+            <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="7714E96B2EFE2A9100F8BC60" BuildableName="Demo.app" BlueprintName="Demo" ReferencedContainer="container:Demo.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+      </BuildActionEntries>
+   </BuildAction>
+   <TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.DebuggerFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="YES">
+      <Testables>
+         <TestableReference skipped="NO" parallelizable="NO" useTestSelectionWhitelist="YES">
+            <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="7714E9812EFE2A9300F8BC60" BuildableName="DemoTests.xctest" BlueprintName="DemoTests" ReferencedContainer="container:Demo.xcodeproj" />
+            <SelectedTests>
+               <Test Identifier="RoomPKTests" />
+               <Test Identifier="SeatStageTransitionTests" />
+               <Test Identifier="DemoTests/voiceRoomMessageButtonSendsScrollsAndRemovesComposer()" />
+               <Test Identifier="DemoTests/voiceRoomActionBarUsesSafeAreaOrViewBottomWithoutExtraSpacing()" />
+               <Test Identifier="DemoTests/voiceRoomKeyboardDismissPaddingTracksActionBarLayoutChanges()" />
+               <Test Identifier="DemoTests/voiceRoomActionBarIgnoresFloatingKeyboard()" />
+               <Test Identifier="DemoTests/voiceRoomGiftFlowSelectsOccupiedRecipientAndCompletesFlight()" />
+               <Test Identifier="DemoTests/voiceRoomGiftCategoriesStayVisibleAndCenterAfterRepeatedDirectionChanges()" />
+               <Test Identifier="DemoTests/voiceRoomGiftQuantityMenuUpdatesCostBalanceAndLayout()" />
+               <Test Identifier="DemoTests/voiceRoomGiftSheetMotionMovesFullyBelowContainer()" />
+               <Test Identifier="DemoTests/voiceRoomGiftSheetFitsIPhoneSEAndCurrentFiveSeatState()" />
+               <Test Identifier="DemoTests/voiceRoomGiftRecipientListScrollsWhenUsersExceedViewport()" />
+               <Test Identifier="DemoTests/voiceRoomGiftSheetAcceptsExternalRecipientSelection()" />
+               <Test Identifier="DemoTests/voiceRoomGiftGridExpandsColumnsInsideIPadContainer()" />
+               <Test Identifier="DemoTests/voiceRoomGiftGridUsesFiveColumnsInsideMediumContainer()" />
+               <Test Identifier="DemoTests/voiceRoomOccupiedSeatPresentsUserCardAndEmptySeatDoesNot()" />
+               <Test Identifier="DemoTests/voiceRoomFollowButtonShowsRequestingState()" />
+               <Test Identifier="DemoTests/voiceRoomAudienceButtonPresentsAdaptiveSheet()" />
+               <Test Identifier="DemoTests/voiceRoomAudienceItemPushesUserProfile()" />
+               <Test Identifier="DemoTests/voiceRoomAvatarPushesInformationController()" />
+               <Test Identifier="DemoTests/voiceRoomKeepsSystemBackButtonAfterSwitchingToArabic()" />
+               <Test Identifier="DemoTests/voiceRoomRechargeViewModelCommitsConfirmedTransaction()" />
+               <Test Identifier="DemoTests/voiceRoomRechargeBalanceCardPreservesCompleteTextLines()" />
+               <Test Identifier="DemoTests/voiceRoomRechargePackageGridAdaptsToContainerAndPackageCount()" />
+               <Test Identifier="DemoTests/voiceRoomSeatLayoutsExpandOnIPadWidth()" />
+               <Test Identifier="DemoTests/voiceRoomPublicChatMessagesFillAvailableWidthOnIPad()" />
+               <Test Identifier="DemoTests/voiceRoomNineSeatSecondRowKeepsTextAtIdealSize()" />
+               <Test Identifier="DemoTests/voiceRoomSeatNamesSeparateOccupantsFromVacantSlots()" />
+               <Test Identifier="DemoTests/voiceRoomFiveSeatLayoutUsesLargeHostAndFitsNarrowScreen()" />
+               <Test Identifier="DemoTests/voiceRoomViewModelOwnsMessageGiftAndBalanceBusinessState()" />
+               <Test Identifier="DemoTests/voiceRoomFollowRequestCommitsOnlyAfterSuccess()" />
+               <Test Identifier="DemoTests/voiceRoomAudienceViewModelNormalizesServerSnapshot()" />
+               <Test Identifier="DemoTests/voiceRoomGiftSheetViewModelKeepsSelectionAndSendRules()" />
+               <Test Identifier="DemoTests/voiceRoomGiftRecipientsUpdateByStableUserID()" />
+               <Test Identifier="DemoTests/voiceRoomStageSnapshotsDriveBusinessLayouts()" />
+               <Test Identifier="DemoTests/voiceRoomInitialIndividualSnapshotCanRestorePartyFixture()" />
+               <Test Identifier="DemoTests/voiceRoomSeatMetricsRespondToWidthAndHeight()" />
+               <Test Identifier="DemoTests/voiceRoomResolverMapsBusinessModeAndZeroBasedPositions()" />
+               <Test Identifier="DemoTests/voiceRoomViewModelRejectsStaleAndUnsupportedSnapshots()" />
+               <Test Identifier="DemoTests/voiceRoomBackendSnapshotStreamDrivesSeatUsers()" />
+               <Test Identifier="DemoTests/voiceRoomResolverRejectsDuplicateAndInvalidPositions()" />
+               <Test Identifier="DemoTests/voiceRoomResolverRejectsInvalidOccupantAndVacancyData()" />
+            </SelectedTests>
+         </TestableReference>
+         <TestableReference skipped="NO" parallelizable="NO" useTestSelectionWhitelist="YES">
+            <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="7714E98B2EFE2A9300F8BC60" BuildableName="DemoUITests.xctest" BlueprintName="DemoUITests" ReferencedContainer="container:Demo.xcodeproj" />
+            <SelectedTests>
+               <Test Identifier="RoomPKUITests" />
+            </SelectedTests>
+         </TestableReference>
+      </Testables>
+   </TestAction>
+   <LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.DebuggerFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES" debugServiceExtension="internal" allowLocationSimulation="YES">
+      <BuildableProductRunnable runnableDebuggingMode="0">
+         <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="7714E96B2EFE2A9100F8BC60" BuildableName="Demo.app" BlueprintName="Demo" ReferencedContainer="container:Demo.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </LaunchAction>
+   <ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" savedToolIdentifier="" useCustomWorkingDirectory="NO" debugDocumentVersioning="YES">
+      <BuildableProductRunnable runnableDebuggingMode="0">
+         <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="7714E96B2EFE2A9100F8BC60" BuildableName="Demo.app" BlueprintName="Demo" ReferencedContainer="container:Demo.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </ProfileAction>
+   <AnalyzeAction buildConfiguration="Debug">
+   </AnalyzeAction>
+   <ArchiveAction buildConfiguration="Release" revealArchiveInOrganizer="YES">
+   </ArchiveAction>
+</Scheme>

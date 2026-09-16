@@ -78,13 +78,21 @@ final class SeatUserCardView: TranslucentCardView {
         .padding(20)
     }
 
-    func configure(seat: SeatAssignment) {
+    func configure(seat: SeatAssignment, showsRoom: Bool = false) {
         let color = VoiceRoomTheme.seatColor(at: seat.themeIndex)
         titleLabel.text = Localization.text("liveRoom.userCard.title")
         nameLabel.text = Localization.text(seat.nameKey)
-        seatLabel.text = seat.id == 0
-            ? Localization.text("liveRoom.userCard.hostSeat")
-            : Localization.text("liveRoom.userCard.guestSeat", seat.id)
+        if showsRoom {
+            seatLabel.text = Localization.text(
+                "liveRoom.pk.seatDescription",
+                Localization.text(seat.roomSide == .current ? "liveRoom.pk.current" : "liveRoom.pk.opponent"),
+                seat.position.rawValue
+            )
+        } else {
+            seatLabel.text = seat.id == 0
+                ? Localization.text("liveRoom.userCard.hostSeat")
+                : Localization.text("liveRoom.userCard.guestSeat", seat.id)
+        }
         scoreLabel.text = Localization.text(
             "liveRoom.seat.score",
             seat.score

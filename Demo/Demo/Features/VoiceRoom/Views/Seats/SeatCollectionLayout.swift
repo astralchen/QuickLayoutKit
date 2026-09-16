@@ -141,14 +141,16 @@ enum SeatCollectionGeometry {
                 availableWidth: availableWidth
             )
         case .pk:
-            // 未注册的 PK 布局会在 Resolver 层被拒绝；这里不降级成其他房型。
-            logicalFrames = [:]
+            let geometry = RoomPKGeometry(width: availableWidth, sizeClass: metrics.sizeClass)
+            logicalFrames = Dictionary(uniqueKeysWithValues: items.map { item in
+                (item.id, geometry.frame(side: item.slot.roomSide, position: item.slot.position.rawValue))
+            })
         }
 
         let states = Dictionary(
             uniqueKeysWithValues: logicalFrames.map { itemID, frame in
                 let resolvedFrame: CGRect
-                if direction == .rightToLeft {
+                if direction == .rightToLeft && presentation.layoutID != .roomPKNine {
                     resolvedFrame = CGRect(
                         x: availableWidth - frame.maxX,
                         y: frame.minY,

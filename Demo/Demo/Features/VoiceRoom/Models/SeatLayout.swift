@@ -12,6 +12,7 @@ import Foundation
 struct SeatLayoutID: Hashable, Sendable, RawRepresentable {
     let rawValue: String
 
+    static let roomPKNine = Self(rawValue: "pk.room.nine")
     static let partyNine = Self(rawValue: "party.nine")
     static let individualAudience = Self(rawValue: "individual.audience")
 }
@@ -43,6 +44,8 @@ enum SeatRole: Equatable, Sendable {
 ///
 /// View 根据 Token 和当前设备环境解析像素，不允许服务端直接控制尺寸和颜色。
 enum SeatVisualStyleID: Equatable, Sendable {
+    case pkHost
+    case pkGuest
     case standardHost
     case emphasizedHost
     case standardGuest
@@ -70,6 +73,8 @@ struct SeatSlotDefinition: Equatable, Sendable {
     let role: SeatRole
     let styleID: SeatVisualStyleID
     let visibility: SeatSlotVisibility
+    var roomSide: SeatRoomSide = .current
+    var address: SeatAddress { SeatAddress(roomSide: roomSide, position: position) }
 }
 
 /// 客户端受控的布局定义。
@@ -89,6 +94,8 @@ struct SeatSlotPresentation: Equatable, Sendable {
     let styleID: SeatVisualStyleID
     let isVisible: Bool
     let interaction: SeatInteraction
+    var roomSide: SeatRoomSide = .current
+    var address: SeatAddress { SeatAddress(roomSide: roomSide, position: position) }
 }
 
 /// ViewModel 提交给舞台 View 的纯业务 Presentation。
@@ -146,9 +153,29 @@ enum SeatLayoutCatalog {
         decorations: []
     )
 
+    static let roomPKNine = SeatLayoutDefinition(
+        id: .roomPKNine,
+        layoutFamily: .pk(styleID: "room.nine"),
+        capacity: 18,
+        slots: SeatRoomSide.allCases.flatMap { side in
+            (0..<9).map { index in
+                SeatSlotDefinition(
+                    slotID: .roomPK(side, position: index),
+                    position: SeatPosition(rawValue: index),
+                    role: index == 0 ? .host : .guest(index: index),
+                    styleID: index == 0 ? .pkHost : .pkGuest,
+                    visibility: .always,
+                    roomSide: side
+                )
+            }
+        },
+        decorations: [RoomStageDecoration(id: "room.pk")]
+    )
+
     static let supportedLayoutIDs: Set<SeatLayoutID> = [
         .partyNine,
         .individualAudience,
+        .roomPKNine,
     ]
 }
 
@@ -201,7 +228,8 @@ enum SeatLayoutResolver {
             return .failure(.duplicateUserID)
         }
         let positions = snapshot.assignments.map(\.position)
-        guard Set(positions).count == positions.count else {
+        let addresses = snapshot.assignments.map(\.address)
+        guard Set(addresses).count == addresses.count else {
             return .failure(.duplicatePosition)
         }
         guard positions.allSatisfy({ $0.rawValue >= 0 }) else {
@@ -219,6 +247,9 @@ enum SeatLayoutResolver {
             variant = snapshot.audienceSeatState == .enabled
                 ? .expanded
                 : .collapsed
+        case .pk(styleID: "room.nine"):
+            definition = SeatLayoutCatalog.roomPKNine
+            variant = .standard
         case .pk, .unsupported:
             // 未注册布局家族的业务模式不能进入 View 层，调用方应保留最后有效状态。
             return .failure(.unsupportedBusinessMode)
@@ -226,17 +257,20 @@ enum SeatLayoutResolver {
 
         guard snapshot.assignments.count <= definition.capacity,
             positions.allSatisfy({
-                $0.rawValue < definition.capacity
+                $0.rawValue < (definition.id == .roomPKNine ? 9 : definition.capacity)
             })
         else { return .failure(.capacityExceeded) }
 
+        guard snapshot.assignments.allSatisfy({
+            definition.id == .roomPKNine || $0.roomSide == .current
+        }) else { return .failure(.slotPositionMismatch) }
         let assignmentsByPosition = Dictionary(
             uniqueKeysWithValues: snapshot.assignments.map {
-                ($0.position, $0)
+                ($0.address, $0)
             }
         )
         guard definition.slots.allSatisfy({ slot in
-            guard let assignment = assignmentsByPosition[slot.position]
+            guard let assignment = assignmentsByPosition[slot.address]
             else { return true }
             return assignment.slotID == slot.slotID
         }) else { return .failure(.slotPositionMismatch) }
@@ -244,7 +278,7 @@ enum SeatLayoutResolver {
             let isVisible = slot.visibility == .always
                 || variant == .expanded
             // 后台数组顺序不参与布局；零基 position 决定 assignment 对应的 Slot。
-            let assignment = assignmentsByPosition[slot.position]
+            let assignment = assignmentsByPosition[slot.address]
             return SeatSlotPresentation(
                 slotID: slot.slotID,
                 position: slot.position,
@@ -254,7 +288,8 @@ enum SeatLayoutResolver {
                 isVisible: isVisible,
                 interaction: assignment?.isOccupied == true
                     ? .showUserCard
-                    : .none
+                    : .none,
+                roomSide: slot.roomSide
             )
         }
         return .success(

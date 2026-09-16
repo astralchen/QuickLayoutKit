@@ -54,7 +54,7 @@ final class VoiceRoomViewModel {
         }
 
         var visibleRecipients: [SeatAssignment] {
-            displayedSeats.filter { $0.occupant != nil }
+            displayedSeats.filter { $0.roomSide == .current && $0.occupant != nil }
         }
     }
 
@@ -189,7 +189,9 @@ final class VoiceRoomViewModel {
         switch roomMode {
         case .individual:
             return individualAssignments
-        case .party, .pk, .unsupported:
+        case .pk:
+            return partyAssignments + RoomPKFixtures.opponentAssignments
+        case .party, .unsupported:
             return partyAssignments
         }
     }
@@ -425,6 +427,13 @@ final class VoiceRoomViewModel {
     func performBusinessCommand(_ command: RoomCommand) async
         -> Bool {
         guard state.pendingRoomCommand == nil else { return false }
+        switch command {
+        case let .switchRoomType(mode) where mode == state.snapshot.roomMode:
+            return true
+        case let .startPK(styleID) where state.snapshot.roomMode == .pk(styleID: styleID):
+            return true
+        default: break
+        }
         updatePendingBusinessCommand(command)
         do {
             let snapshot = try await roomCommandHandler.send(command)
@@ -509,7 +518,8 @@ final class VoiceRoomViewModel {
             request.recipients.allSatisfy({ recipient in
                 guard let userID = recipient.userID else { return false }
                 // 发送瞬间再次解析最新 assignment，拒绝已经离麦或被隐藏的收礼人。
-                return currentRecipients[userID]?.seatID == recipient.seatID
+                return recipient.roomSide == .current
+                    && currentRecipients[userID]?.seatID == recipient.seatID
             })
         else { return nil }
 

@@ -62,7 +62,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
         )
 
     var displayedSeatCount: Int {
-        renderedState?.displayedSeats.count ?? 0
+        renderedState?.stagePresentation.visibleSlots.count ?? 0
     }
 
     var giftBalance: Int { viewModel.giftBalance }
@@ -335,6 +335,8 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
 
     var usesCompactPageLayout: Bool {
         view.bounds.height < 780
+            || (viewModel.state.stagePresentation.layoutID == .roomPKNine
+                && isShowingMessageComposer)
             || traitCollection.preferredContentSizeCategory
                 .isAccessibilityCategory
     }
@@ -468,5 +470,9 @@ private func makeVoiceRoomControllerPreview(
         roomMode: .individual,
         audienceSeatState: .enabled
     )
+}
+@available(iOS 17.0, *)
+#Preview("直播间 · 厅 PK") {
+    makeVoiceRoomControllerPreview(roomMode: .pk(styleID: "room.nine"), audienceSeatState: .enabled)
 }
 #endif

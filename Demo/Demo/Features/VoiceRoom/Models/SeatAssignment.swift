@@ -7,6 +7,23 @@
 
 import Foundation
 
+/// 麦位所属的房间；编号始终是房内 0 起始的位置。
+nonisolated enum SeatRoomSide: Int, CaseIterable, Sendable {
+    case current
+    case opponent
+}
+
+nonisolated struct SeatAddress: Hashable, Comparable, Sendable {
+    let roomSide: SeatRoomSide
+    let position: SeatPosition
+
+    static func < (lhs: Self, rhs: Self) -> Bool {
+        lhs.roomSide.rawValue == rhs.roomSide.rawValue
+            ? lhs.position < rhs.position
+            : lhs.roomSide.rawValue < rhs.roomSide.rawValue
+    }
+}
+
 /// 服务端音频麦位的稳定标识。
 ///
 /// 麦位标识不等同于布局位置；用户从一个布局切换到另一个布局时，服务端麦位
@@ -23,6 +40,11 @@ nonisolated struct SeatSlotID: Hashable, Sendable, RawRepresentable {
     let rawValue: String
 
     static let host = Self(rawValue: "host")
+
+    static func roomPK(_ side: SeatRoomSide, position: Int) -> Self {
+        if side == .current { return position == 0 ? .host : .audience(position) }
+        return Self(rawValue: "opponent.\(position)")
+    }
 
     static func audience(_ index: Int) -> Self {
         Self(rawValue: "audience.\(index)")
@@ -98,6 +120,9 @@ nonisolated struct SeatAssignment: Equatable, Sendable {
     let occupant: SeatOccupant?
     let audioState: SeatAudioState
     let score: Int
+    let roomSide: SeatRoomSide
+
+    var address: SeatAddress { SeatAddress(roomSide: roomSide, position: position) }
 
     var userID: RoomUserID? { occupant?.userID }
     var isOccupied: Bool { occupant != nil }
@@ -131,8 +156,10 @@ nonisolated struct SeatAssignment: Equatable, Sendable {
         position: SeatPosition,
         occupant: SeatOccupant?,
         audioState: SeatAudioState,
-        score: Int
+        score: Int,
+        roomSide: SeatRoomSide = .current
     ) {
+        self.roomSide = roomSide
         self.seatID = seatID
         self.slotID = slotID
         self.position = position
@@ -154,6 +181,7 @@ nonisolated struct SeatAssignment: Equatable, Sendable {
         isMuted: Bool,
         isOccupied: Bool
     ) {
+        roomSide = .current
         seatID = SeatID(rawValue: "seat.\(id)")
         slotID = id == 0 ? .host : .audience(id)
         position = SeatPosition(rawValue: id)

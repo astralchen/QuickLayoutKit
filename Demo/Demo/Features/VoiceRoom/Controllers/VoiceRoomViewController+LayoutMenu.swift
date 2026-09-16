@@ -74,11 +74,12 @@ extension VoiceRoomViewController {
         if capabilities.contains(.startPK) {
             children.append(
                 UIAction(
-                    title: Localization.text("liveRoom.business.pk.start"),
+                    title: Localization.text("liveRoom.layout.pk"),
                     image: UIImage(systemName: "bolt.horizontal.circle.fill"),
-                    attributes: isExecuting ? .disabled : []
+                    attributes: isExecuting ? .disabled : [],
+                    state: state.snapshot.roomMode == .pk(styleID: "room.nine") ? .on : .off
                 ) { [weak self] _ in
-                    self?.submitBusinessCommand(.startPK(styleID: "default"))
+                    self?.submitBusinessCommand(.startPK(styleID: "room.nine"))
                 }
             )
         }

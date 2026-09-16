@@ -14,11 +14,13 @@ final class SeatUserCardViewController:
 
     let seatID: Int
 
+    private let showsRoom: Bool
     private let seat: SeatAssignment
     private let dismissButton = QuickLayoutButton(frame: .zero)
     private let cardView = SeatUserCardView()
 
-    init(seat: SeatAssignment) {
+    init(seat: SeatAssignment, showsRoom: Bool = false) {
+        self.showsRoom = showsRoom
         self.seat = seat
         seatID = seat.id
         super.init(nibName: nil, bundle: nil)
@@ -50,7 +52,7 @@ final class SeatUserCardViewController:
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
         dismissButton.accessibilityLabel = Localization.text("common.close")
-        cardView.configure(seat: seat)
+        cardView.configure(seat: seat, showsRoom: showsRoom)
     }
 
     override var body: Layout {

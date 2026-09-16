@@ -34,11 +34,11 @@ nonisolated enum RoomCapability: Hashable, Sendable {
     ) -> Set<Self> {
         switch roomMode {
         case .party:
-            return [.switchRoomType]
+            return [.switchRoomType, .startPK]
         case .individual:
-            return [.switchRoomType, .toggleAudienceSeats]
+            return [.switchRoomType, .toggleAudienceSeats, .startPK]
         case .pk:
-            return [.endPK]
+            return [.switchRoomType, .startPK, .endPK]
         case .unsupported:
             return []
         }
@@ -99,6 +99,7 @@ actor MockRoomCommandHandler:
     RoomCommandHandling {
 
     private var snapshot: RoomStageSnapshot
+    private var snapshotBeforePK: RoomStageSnapshot?
     private let partyAssignments: [SeatAssignment]
     private let individualAssignments: [SeatAssignment]
 
@@ -116,12 +117,15 @@ actor MockRoomCommandHandler:
         -> RoomStageSnapshot {
         let nextMode: RoomMode
         let nextAudienceState: AudienceSeatState
+        let nextAssignments: [SeatAssignment]
 
         switch command {
         case let .switchRoomType(mode):
             guard mode == .party || mode == .individual else {
                 throw RoomCommandError.unsupported
             }
+            snapshotBeforePK = nil
+            nextAssignments = mode == .individual ? individualAssignments : partyAssignments
             nextMode = mode
             nextAudienceState = mode == .individual
                 ? .disabled
@@ -130,19 +134,25 @@ actor MockRoomCommandHandler:
             guard snapshot.roomMode == .individual else {
                 throw RoomCommandError.unsupported
             }
+            nextAssignments = snapshot.assignments
             nextMode = snapshot.roomMode
             nextAudienceState = isEnabled ? .enabled : .disabled
-        case .startPK:
-            // 首期只保留 PK 命令边界，未注册布局家族前不生成不可渲染快照。
-            throw RoomCommandError.unsupported
-        case .endPK:
-            nextMode = .party
+        case let .startPK(styleID):
+            guard styleID == "room.nine" else { throw RoomCommandError.unsupported }
+            if snapshot.roomMode == .pk(styleID: styleID) { return snapshot }
+            snapshotBeforePK = snapshot
+            nextMode = .pk(styleID: styleID)
             nextAudienceState = .enabled
+            // 保留本房现有阵容。个播进入时 5–8 号麦由 Resolver 补为空位。
+            nextAssignments = snapshot.assignments + RoomPKFixtures.opponentAssignments
+        case .endPK:
+            guard case .pk = snapshot.roomMode else { throw RoomCommandError.unsupported }
+            nextMode = snapshotBeforePK?.roomMode ?? .party
+            nextAudienceState = snapshotBeforePK?.audienceSeatState ?? .enabled
+            nextAssignments = snapshotBeforePK?.assignments
+                ?? snapshot.assignments.filter { $0.roomSide == .current }
+            snapshotBeforePK = nil
         }
-
-        let nextAssignments = nextMode == .individual
-            ? individualAssignments
-            : partyAssignments
         snapshot = RoomStageSnapshot(
             revision: snapshot.revision + 1,
             roomMode: nextMode,

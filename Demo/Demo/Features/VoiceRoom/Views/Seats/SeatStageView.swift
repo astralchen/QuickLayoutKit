@@ -28,6 +28,15 @@ final class SeatStageView: TranslucentCardView {
         category: "VoiceRoomSeatStageView"
     )
 
+    private lazy var pkDecoration = LazyView { [unowned self] in
+        let view = RoomPKDecorationView()
+        view.sizeClass = layoutMetrics.sizeClass
+        view.alpha = pkDecorationAlpha
+        return view
+    }
+    private var pkDecorationAlpha: CGFloat = 1 {
+        didSet { pkDecoration.ifLoaded?.alpha = pkDecorationAlpha }
+    }
     private let seatLayout = SeatCollectionLayout()
     private lazy var collectionView = UICollectionView(
         frame: .zero,
@@ -64,6 +73,11 @@ final class SeatStageView: TranslucentCardView {
     /// 测试与页面诊断使用；舞台本身仍不允许滚动。
     var seatCollectionView: UICollectionView { collectionView }
 
+    private var showsPKDecoration: Bool {
+        currentPresentation?.layoutID == .roomPKNine
+            || pendingTransition?.destinationPresentation.layoutID == .roomPKNine
+    }
+
     var transitioningUserIDs: Set<RoomUserID> {
         guard let pendingTransition else { return [] }
         return Set(
@@ -86,6 +100,7 @@ final class SeatStageView: TranslucentCardView {
 
     override func layoutSubviews() {
         updateLayoutEnvironmentIfNeeded()
+        pkDecoration.ifLoaded?.sizeClass = layoutMetrics.sizeClass
         super.layoutSubviews()
         collectionView.collectionViewLayout.invalidateLayout()
         collectionView.layoutIfNeeded()
@@ -93,11 +108,15 @@ final class SeatStageView: TranslucentCardView {
 
     @LayoutBuilder
     override var body: Layout {
-        collectionView
-            .resizable(axis: .horizontal)
-            .frame(height: collectionHeight)
-            .padding(.horizontal, layoutMetrics.stageHorizontalPadding)
-            .padding(.vertical, layoutMetrics.stageVerticalPadding)
+        ZStack {
+            collectionView.resizable()
+            if showsPKDecoration {
+                pkDecoration.loadIfNeeded().resizable()
+            }
+        }
+        .frame(height: collectionHeight)
+        .padding(.horizontal, layoutMetrics.stageHorizontalPadding)
+        .padding(.vertical, layoutMetrics.stageVerticalPadding)
     }
 
     @discardableResult
@@ -216,12 +235,14 @@ final class SeatStageView: TranslucentCardView {
             cell.prepareTransition(to: item, metrics: layoutMetrics)
         }
 
+        pkDecorationAlpha = sourcePresentation.layoutID == .roomPKNine ? 1 : 0
         pendingTransition = PendingTransition(
             destinationPresentation: presentation,
             destinationItems: destinationItems,
             destinationConfiguration: destinationConfiguration,
             destinationUnionConfiguration: destinationUnion
         )
+        setNeedsQuickLayout()
         updateCollectionHeight(
             destinationConfiguration.contentSize.height,
             notify: true
@@ -234,6 +255,7 @@ final class SeatStageView: TranslucentCardView {
     /// 在外层 `UIViewPropertyAnimator` 的动画闭包中提交目标布局。
     func animatePreparedTransition() {
         guard let pendingTransition else { return }
+        pkDecorationAlpha = pendingTransition.destinationPresentation.layoutID == .roomPKNine ? 1 : 0
         seatLayout.apply(pendingTransition.destinationUnionConfiguration)
         collectionView.layoutIfNeeded()
         collectionView.visibleCells
@@ -255,6 +277,7 @@ final class SeatStageView: TranslucentCardView {
         seatLayout.apply(pendingTransition.destinationConfiguration)
         collectionDataSource.applySnapshot(itemIDs: currentItems.map(\.id))
         self.pendingTransition = nil
+        setNeedsQuickLayout()
         setSeatInteractionEnabled(true)
         accessibilityElementsHidden = false
         updateAccessibilityElements()
@@ -321,6 +344,8 @@ final class SeatStageView: TranslucentCardView {
     }
 
     private func commit(presentation: SeatStagePresentation) {
+        pkDecoration.ifLoaded?.reloadLocalizedContent()
+        pkDecorationAlpha = 1
         let items = makeItems(for: presentation)
         let configuration = makeConfiguration(
             presentation: presentation,
@@ -347,7 +372,7 @@ final class SeatStageView: TranslucentCardView {
         for presentation: SeatStagePresentation
     ) -> [SeatCollectionItem] {
         presentation.visibleSlots
-            .sorted { $0.position < $1.position }
+            .sorted { $0.address < $1.address }
             .map(SeatCollectionItem.init)
     }
 
@@ -495,5 +520,9 @@ private func makeSeatStagePreview(
         mode: .individual,
         audienceState: .enabled
     )
+}
+@available(iOS 17.0, *)
+#Preview("厅 PK 双房舞台") {
+    makeSeatStagePreview(mode: .pk(styleID: "room.nine"), audienceState: .enabled)
 }
 #endif

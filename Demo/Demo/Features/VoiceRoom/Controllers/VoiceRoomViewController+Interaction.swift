@@ -113,7 +113,7 @@ extension VoiceRoomViewController {
             giftSheetViewController == nil
         else { return }
         present(
-            SeatUserCardViewController(seat: seat),
+            SeatUserCardViewController(seat: seat, showsRoom: viewModel.state.stagePresentation.layoutID == .roomPKNine),
             animated: true
         )
     }

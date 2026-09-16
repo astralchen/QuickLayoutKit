@@ -209,9 +209,12 @@ enum VoiceRoomPreviewData {
         audienceSeatState: AudienceSeatState = .enabled,
         balance: Int = 88_888
     ) -> VoiceRoomViewModel {
-        let assignments = roomMode == .individual
-            ? VoiceRoomViewModel.individualAssignments
-            : seats
+        let assignments: [SeatAssignment]
+        switch roomMode {
+        case .individual: assignments = VoiceRoomViewModel.individualAssignments
+        case .pk: assignments = seats + RoomPKFixtures.opponentAssignments
+        default: assignments = seats
+        }
         let snapshot = VoiceRoomViewModel.makeDefaultStageSnapshot(
             roomMode: roomMode,
             audienceSeatState: audienceSeatState,

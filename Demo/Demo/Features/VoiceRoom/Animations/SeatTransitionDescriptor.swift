@@ -38,13 +38,14 @@ struct SeatTransitionDescriptor: Equatable {
             variant = presentation.variant
             layoutFamily = presentation.layoutFamily
             slots = presentation.visibleSlots
-                .sorted { $0.position < $1.position }
+                .sorted { $0.address < $1.address }
                 .map { Slot($0) }
         }
     }
 
     private struct Slot: Equatable {
         let slotID: SeatSlotID
+        let roomSide: SeatRoomSide
         let position: SeatPosition
         let role: SeatRole
         let styleID: SeatVisualStyleID
@@ -52,6 +53,7 @@ struct SeatTransitionDescriptor: Equatable {
 
         init(_ presentation: SeatSlotPresentation) {
             slotID = presentation.slotID
+            roomSide = presentation.roomSide
             position = presentation.position
             role = presentation.role
             styleID = presentation.styleID
