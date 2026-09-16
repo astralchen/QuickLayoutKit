@@ -1,4 +1,5 @@
 import AppLocalization
+import QuickLayoutKit
 import Testing
 import UIKit
 @testable import Demo
@@ -34,6 +35,111 @@ struct RoomPKTests {
         assignments[1] = SeatAssignment(seatID: original.seatID, slotID: original.slotID,
             position: host.position, occupant: original.occupant, audioState: original.audioState, score: original.score)
         #expect(SeatLayoutResolver.resolve(snapshot: snapshot(assignments: assignments)) == .failure(.duplicatePosition))
+    }
+
+    @Test func exclusiveSeatsPreservePartyVacancyAndRefreshAfterOccupancy() throws {
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
+        let party = try SeatLayoutResolver.resolve(
+            snapshot: VoiceRoomViewModel.makeDefaultStageSnapshot()
+        ).get()
+        let partySlot = try #require(party.slots.first { $0.position.rawValue == 8 })
+        #expect(partySlot.role == .exclusive)
+        #expect(partySlot.styleID == .exclusive)
+        let partyView = SeatView(frame: CGRect(x: 0, y: 0, width: 74, height: 110))
+        partyView.configure(presentation: partySlot)
+        partyView.layoutIfNeeded()
+        let partyName = try #require(partyView.allSubviews(of: UILabel.self).first {
+            $0.accessibilityIdentifier == "liveRoom.seat.name.8"
+        })
+        let partyAvatar = try #require(partyView.allSubviews(of: UIImageView.self).first {
+            $0.accessibilityIdentifier == "liveRoom.seat.avatar.8"
+        })
+        #expect(partyName.text == "专属座")
+
+        for side in SeatRoomSide.allCases {
+            let sideName = side == .current ? "current" : "opponent"
+            let view = SeatView(frame: CGRect(x: 0, y: 0, width: 40, height: 70))
+            let vacant = try #require(snapshot().assignments.first {
+                $0.roomSide == side && $0.position.rawValue == 8
+            })
+            let occupied = SeatAssignment(
+                seatID: vacant.seatID, slotID: vacant.slotID, position: vacant.position,
+                occupant: SeatOccupant(userID: .init(rawValue: "exclusive.\(sideName)"),
+                    nameKey: "liveRoom.user.party.1", avatarImageID: .eight,
+                    symbolName: "person.fill", themeIndex: 8),
+                audioState: .active, score: 0, roomSide: side
+            )
+            // 同一个 View 依次经历有空麦记录、上麦、缺失记录、恢复空麦记录。
+            for assignment in [Optional(vacant), Optional(occupied), nil, Optional(vacant)] {
+                let assignments = snapshot().assignments.filter { $0.address != vacant.address }
+                    + [assignment].compactMap { $0 }
+                let presentation = try SeatLayoutResolver.resolve(snapshot: snapshot(assignments: assignments)).get()
+                let slot = try #require(presentation.slots.first { $0.address == vacant.address })
+                #expect(slot.role == .exclusive)
+                #expect(slot.styleID == .pkGuest)
+                view.configure(presentation: slot)
+                view.layoutIfNeeded()
+                let score = try #require(view.allSubviews(of: UILabel.self).first {
+                    $0.accessibilityIdentifier == "liveRoom.seat.score.\(sideName).8"
+                })
+                let avatar = try #require(view.allSubviews(of: UIImageView.self).first {
+                    $0.accessibilityIdentifier == "liveRoom.seat.avatar.\(sideName).8"
+                })
+                let button = try #require(view.allSubviews(of: QuickLayoutButton.self).first {
+                    $0.accessibilityIdentifier == "liveRoom.seat.button.\(sideName).8"
+                })
+                let isOccupied = assignment?.isOccupied == true
+                #expect(score.text == (isOccupied ? "0" : partyName.text))
+                #expect(avatar.image == (isOccupied ? occupied.avatarImage : partyAvatar.image))
+                #expect(button.isEnabled == isOccupied)
+                let expectedName = isOccupied ? Localization.text("liveRoom.user.party.1") : "专属座"
+                #expect(view.accessibilityLabel?.contains(expectedName) == true)
+            }
+        }
+    }
+
+    @Test func vacantSeatContentIsSharedAcrossRoomLayoutsAndMissingAssignments() throws {
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
+        for mode in [RoomMode.party, .individual, .pk(styleID: "room.nine")] {
+            let emptySnapshot = VoiceRoomViewModel.makeDefaultStageSnapshot(
+                roomMode: mode, audienceSeatState: .enabled, assignments: []
+            )
+            let missing = try SeatLayoutResolver.resolve(snapshot: emptySnapshot).get()
+            let vacantAssignments = missing.slots.map { slot in
+                SeatAssignment(seatID: .init(rawValue: "empty.\(slot.slotID.rawValue)"),
+                    slotID: slot.slotID, position: slot.position, occupant: nil,
+                    audioState: .unavailable, score: 0, roomSide: slot.roomSide)
+            }
+            let explicitSnapshot = VoiceRoomViewModel.makeDefaultStageSnapshot(
+                roomMode: mode, audienceSeatState: .enabled, assignments: vacantAssignments
+            )
+            let explicit = try SeatLayoutResolver.resolve(snapshot: explicitSnapshot).get()
+            for (missingSlot, explicitSlot) in zip(missing.slots, explicit.slots) {
+                let position = missingSlot.position.rawValue
+                let expectedName = position == 0
+                    ? Localization.text("liveRoom.userCard.hostSeat")
+                    : (position == 8 ? "专属座" : Localization.text("liveRoom.userCard.guestSeat", position))
+                let expectedImage = UIImage(systemName: position == 8 ? "sofa.fill" : "person.crop.circle")
+                let missingContent = SeatDisplayContent(presentation: missingSlot)
+                let explicitContent = SeatDisplayContent(presentation: explicitSlot)
+                #expect(missingContent.name == expectedName)
+                #expect(explicitContent.name == expectedName)
+                #expect(missingContent.avatarImage == expectedImage)
+                #expect(explicitContent.avatarImage == expectedImage)
+                #expect(missingContent.scoreText == explicitContent.scoreText)
+                #expect(missingContent.scoreText == (mode == .pk(styleID: "room.nine")
+                    ? expectedName : Localization.text("liveRoom.seat.available")))
+                #expect(missingSlot.interaction == .none && explicitSlot.interaction == .none)
+            }
+        }
+        // 稳定 ID 是不透明标识，不能靠解析字符串尾部确定专属座或主题色。
+        let opaqueSeat = SeatAssignment(seatID: .init(rawValue: "audio-entity"),
+            slotID: .init(rawValue: "opaque-slot"), position: .init(rawValue: 8),
+            occupant: nil, audioState: .unavailable, score: 0)
+        #expect(opaqueSeat.symbolName == "sofa.fill")
+        #expect(opaqueSeat.themeIndex == 8)
     }
 
     @Test func rejectsForeignRoomInSingleRoomAndInvalidPKSnapshots() throws {
@@ -263,7 +369,7 @@ struct RoomPKTests {
             #expect(label.text == "\(side == .current ? "本房" : "对方") · 1 号麦")
             if side == .opponent {
                 let view = SeatView(frame: CGRect(x: 0, y: 0, width: 40, height: 70))
-                view.configure(assignment: seat, presentation: slot)
+                view.configure(presentation: slot)
                 view.layoutIfNeeded()
                 let score = try #require(view.allSubviews(of: UILabel.self).first { $0.accessibilityIdentifier == "liveRoom.seat.score.opponent.1" })
                 #expect(score.text == "0")

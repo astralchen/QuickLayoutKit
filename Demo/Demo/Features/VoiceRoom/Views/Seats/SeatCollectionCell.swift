@@ -150,10 +150,7 @@ final class SeatCollectionCell: QuickLayoutCollectionViewCell {
         metrics: SeatLayoutMetrics
     ) {
         seatView.setSizeClass(metrics.sizeClass)
-        seatView.configure(
-            assignment: item.slot.assignment,
-            presentation: item.slot
-        )
+        seatView.configure(presentation: item.slot)
     }
 
     private func configureSelection(for seatView: SeatView) {
@@ -217,9 +214,7 @@ private func makeSeatCollectionCellPreview(
         slotID: seat.slotID,
         position: seat.position,
         assignment: seat.isOccupied ? seat : nil,
-        role: seat.position.rawValue == 0
-            ? .host
-            : .guest(index: seat.position.rawValue),
+        role: .roomSeat(at: seat.position),
         styleID: styleID,
         isVisible: true,
         interaction: seat.isOccupied ? .showUserCard : .none

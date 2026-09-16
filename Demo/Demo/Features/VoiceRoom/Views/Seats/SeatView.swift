@@ -35,7 +35,7 @@ final class SeatView: QuickLayoutView {
         sizeClass: SeatSizeClass,
         width: CGFloat
     ) -> CGSize {
-        if styleID == .pkHost || styleID == .pkGuest {
+        if styleID.isPK {
             return CGSize(width: width, height: RoomPKSeatMetrics(styleID: styleID, width: width, sizeClass: sizeClass).height)
         }
         let usesLargePresentation = styleID == .emphasizedHost
@@ -88,7 +88,7 @@ final class SeatView: QuickLayoutView {
     var seatDidSelect: ((SeatAssignment) -> Void)?
 
     private var isPK: Bool {
-        slotPresentation?.styleID == .pkHost || slotPresentation?.styleID == .pkGuest
+        slotPresentation?.styleID.isPK == true
     }
 
     private var pkMetrics: RoomPKSeatMetrics {
@@ -258,10 +258,9 @@ final class SeatView: QuickLayoutView {
     ///
     /// 用户头像、昵称和音频状态只读取 assignment；尺寸、空麦样式和交互由客户端
     /// Slot Presentation 决定。
-    func configure(
-        assignment: SeatAssignment?,
-        presentation slotPresentation: SeatSlotPresentation
-    ) {
+    func configure(presentation slotPresentation: SeatSlotPresentation) {
+        let assignment = slotPresentation.assignment
+        let content = SeatDisplayContent(presentation: slotPresentation)
         self.assignment = assignment
         self.slotPresentation = slotPresentation
         let themeIndex = assignment?.themeIndex
@@ -270,7 +269,7 @@ final class SeatView: QuickLayoutView {
         haloView.layer.borderColor = color.withAlphaComponent(0.85).cgColor
         haloView.layer.shadowColor = color.cgColor
         avatarBackgroundView.backgroundColor = color.withAlphaComponent(0.22)
-        avatarImageView.image = assignment?.avatarImage
+        avatarImageView.image = content.avatarImage
         avatarImageView.tintColor = color
         let usesPhotoAvatar = assignment?.avatarImageID != nil
         avatarImageView.contentMode = usesPhotoAvatar
@@ -293,23 +292,8 @@ final class SeatView: QuickLayoutView {
         speakingIndicatorView.setAnimating(showsSpeakingIndicator)
         speakingIndicatorView.accessibilityIdentifier =
             "liveRoom.seat.waveform.\(slotPresentation.position.rawValue)"
-        let score = assignment?.score ?? 0
-        if isPK {
-            scoreLabel.text = assignment?.isOccupied == true
-                ? Self.pkScoreText(score)
-                : Localization.text("liveRoom.userCard.guestSeat", slotPresentation.position.rawValue)
-        } else {
-            scoreLabel.text = assignment?.isOccupied == true
-                ? Localization.text("liveRoom.seat.score", score)
-                : Localization.text("liveRoom.seat.available")
-        }
-        if let occupantNameKey = assignment?.occupantNameKey {
-            nameLabel.text = Localization.text(occupantNameKey)
-        } else {
-            nameLabel.text = emptySeatName(
-                for: slotPresentation.position.rawValue
-            )
-        }
+        scoreLabel.text = content.scoreText
+        nameLabel.text = content.name
         accessibilityLabel = nameLabel.text
         accessibilityValue = Localization.text(
             isMuted ? "liveRoom.seat.muted" : "liveRoom.seat.speaking"
@@ -326,6 +310,7 @@ final class SeatView: QuickLayoutView {
         }
         speakingIndicatorView.accessibilityIdentifier = "liveRoom.seat.waveform.\(position)"
         accessibilityIdentifier = "liveRoom.seat.\(position)"
+        avatarImageView.accessibilityIdentifier = "liveRoom.seat.avatar.\(position)"
         scoreLabel.accessibilityIdentifier = "liveRoom.seat.score.\(position)"
         nameLabel.accessibilityIdentifier = "liveRoom.seat.name.\(position)"
         interactionButton.isEnabled = slotPresentation.interaction
@@ -514,14 +499,6 @@ final class SeatView: QuickLayoutView {
         configureTypography()
     }
 
-    private static func pkScoreText(_ score: Int) -> String {
-        if score >= 10_000 {
-            let precision = score >= 10_000_000 ? 0 : (score >= 1_000_000 ? 1 : 2)
-            return Localization.text("liveRoom.pk.score.tenThousands", String(format: "%.*f", precision, Double(score) / 10_000))
-        }
-        return String(score)
-    }
-
     private func didTapSeat() {
         guard let assignment, assignment.isOccupied else { return }
         seatDidSelect?(assignment)
@@ -529,23 +506,6 @@ final class SeatView: QuickLayoutView {
 
     private var avatarImageIDCornerRadius: CGFloat {
         assignment?.avatarImageID == nil ? 0 : avatarDiameter / 2
-    }
-
-    /// 空麦文案只描述 Slot，不复用任何用户昵称 key。
-    private func emptySeatName(for position: Int) -> String {
-        switch position {
-        case 0:
-            return Localization.text("liveRoom.userCard.hostSeat")
-        case 8:
-            return Localization.text("liveRoom.seat.eight")
-        case 1...7:
-            return Localization.text(
-                "liveRoom.userCard.guestSeat",
-                position
-            )
-        default:
-            return Localization.text("liveRoom.seat.available")
-        }
     }
 
     private func configureTypography() {
@@ -590,14 +550,11 @@ private func makeSeatViewPreview(
 ) -> UIViewController {
     let view = SeatView(frame: .zero)
     view.configure(
-        assignment: seat,
         presentation: SeatSlotPresentation(
             slotID: seat.slotID,
             position: seat.position,
             assignment: seat,
-            role: seat.position.rawValue == 0 ? .host : .guest(
-                index: seat.position.rawValue
-            ),
+            role: .roomSeat(at: seat.position),
             styleID: styleID,
             isVisible: true,
             interaction: seat.isOccupied ? .showUserCard : .none

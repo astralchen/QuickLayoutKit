@@ -24,7 +24,7 @@
 9. `seatID` 标识服务端音频实体，`slotID` 标识布局语义位置，`userID` 标识用户；送礼选择和跨布局动画必须使用 `userID`，不能混用三种身份。
 10. 业务命令不乐观写入布局。客户端等待后台返回更高 `revision` 的合法快照后，才提交新的舞台 Presentation。
 11. 头像业务数据只保存 `AvatarImageID`，不把 `UIImage` 放入 Sendable 快照；Support 层统一解析 Asset Catalog，资源缺失或空麦时回退 SF Symbol。
-12. 用户昵称 key 只属于 `SeatOccupant`；空麦文案由 Slot 的角色和位置生成，禁止复用用户昵称 key。
+12. 用户昵称 key 只属于 `SeatOccupant`；角色统一由 `SeatRole.roomSeat(at:)` 映射，空麦内容统一由 `SeatDisplayContent` 按角色生成。禁止复用用户昵称 key、解析 `slotID` 字符串，或在各房型 View 内重复判断 8 号麦。
 13. Demo 的派对房与个播房使用两套确定性阵容；只有主播共享 `userID`，玩法切换不得裁剪并复用同一用户数组。
 14. 观众身份与麦上用户统一使用 `RoomUserID`；观众的在麦状态从最新快照中本房的 assignment 派生，使用零基 `SeatAddress`，展示时才转换为一基编号。已打开的观众列表和资料页随快照同步。
 15. 业务命令的等待状态由请求自身持有，普通快照不能清除。成功响应经过版本与结构校验后，即使已被推送提交或被更新的推送覆盖，也视为已确认，且不回退舞台。
@@ -47,6 +47,27 @@
 - `SeatCollectionGeometry` 根据已校验的 Presentation、客户端布局家族、Metrics 与 RTL 方向生成绝对 Frame，自定义 Layout 不读取 ViewModel。
 - 房型切换、上下麦和换麦直接动画真实 Cell 的 Frame、透明度与内容；不创建截图、镜像麦位或专用转场 Overlay。
 - 快速连续切换时，取消旧几何动画并无动画提交最新合法快照，避免反向续播过期房型；仅分数、音频状态等数据变化时只刷新 Cell，不中断当前场景动画。
+
+## 麦位显示规则
+
+派对房、个播房和厅 PK 共用以下内容来源；厅 PK 的本房和对方使用相同规则。
+
+| 职责 | 唯一入口 | 规则 |
+| --- | --- | --- |
+| 房内角色 | `SeatRole.roomSeat(at:)` | 位置 0 为 `.host`，8 为 `.exclusive`，其余为 `.guest(index:)`；仅对当前布局包含的位置生效 |
+| 空麦图标 | `SeatRole.emptySeatSymbolName` | 专属座使用 `sofa.fill`，其他角色使用 `person.crop.circle` |
+| 空麦名称 | `SeatRole.localizedSeatName` | 主持麦使用 `liveRoom.userCard.hostSeat`，专属座使用 `liveRoom.seat.eight`（中文“专属座”），普通客麦使用 `liveRoom.userCard.guestSeat` 和位置编号 |
+| 用户及空麦内容 | `SeatDisplayContent(presentation:)` | 统一解析昵称、头像和分数/状态文案；有用户读取 assignment，无用户读取 Slot 角色 |
+| 视图配置 | `SeatView.configure(presentation:)` | 只接收一份 Presentation，从其中读取 assignment，避免两份参数不一致；正式 Cell 和 Preview 共用此入口 |
+
+- `role` 表示业务身份，`styleID` 表示视觉尺寸。PK 的 8 号麦为 `.exclusive` 角色，但仍使用 `.pkGuest` 的尺寸；不能用 `.pkGuest` 推断它是普通麦位。
+- 缺失 assignment 与 `occupant == nil` 的空麦记录必须显示相同的图标和名称，且不可打开用户卡片。`SeatAssignment` 的空麦 Symbol 回退也复用角色规则，不解析稳定 ID。
+- 有人时，头像和昵称来自 `SeatOccupant`，分数来自 assignment；0 分仍按有人显示。用户下麦、Cell 复用和房型切换后必须恢复对应角色的空麦内容。
+- 普通房型在分数区域显示积分或“待上麦”，名称另占一行；PK 在分数区域显示紧凑积分或共用的空麦名称，客麦不另占昵称行。PK 空置主持麦也复用主持麦名称，8 号麦显示“专属座”。
+- PK 分数缩写集中在 `SeatDisplayContent`；几何、头像大小、间距和可见行仍由 `SeatVisualStyleID`、`SeatView` 与 Metrics 管理。
+- 新增房型应复用上述入口；新增特殊麦位时集中修改角色映射、角色图标/名称与回归用例，不在 View、fixture 或 Preview 中添加另一套编号判断。
+
+相关回归：`RoomPKTests.vacantSeatContentIsSharedAcrossRoomLayoutsAndMissingAssignments` 覆盖三种房型的显式空麦与缺失记录；`exclusiveSeatsPreservePartyVacancyAndRefreshAfterOccupancy` 覆盖两侧专属座上下麦及复用；`RoomPKUITests.testExclusiveSeatVacancyMatchesPartyRoom` 验证 PK 与派对房实际显示。
 
 ## 命名
 

@@ -131,23 +131,14 @@ nonisolated struct SeatAssignment: Equatable, Sendable {
     var nameKey: String { occupantNameKey ?? "liveRoom.seat.available" }
     var avatarImageID: AvatarImageID? { occupant?.avatarImageID }
     var symbolName: String {
-        occupant?.symbolName ?? emptySeatSymbolName
+        occupant?.symbolName ?? SeatRole.roomSeat(at: position).emptySeatSymbolName
     }
-    var themeIndex: Int { occupant?.themeIndex ?? slotIndex }
+    var themeIndex: Int { occupant?.themeIndex ?? position.rawValue }
 
     /// 现有 Demo 测试使用的麦位序号。
     ///
     /// 业务关联必须使用强类型 ID；该属性只负责保留界面文案和测试可读性。
     var id: Int { position.rawValue }
-
-    private var slotIndex: Int {
-        if slotID == .host { return 0 }
-        return Int(slotID.rawValue.split(separator: ".").last ?? "0") ?? 0
-    }
-
-    private var emptySeatSymbolName: String {
-        slotIndex == 8 ? "sofa.fill" : "person.crop.circle"
-    }
 
     /// 使用服务端稳定 ID 创建麦位绑定。
     init(
@@ -200,4 +191,3 @@ nonisolated struct SeatAssignment: Equatable, Sendable {
         self.score = max(0, score)
     }
 }
-

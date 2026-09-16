@@ -2,6 +2,25 @@ import XCTest
 
 final class RoomPKUITests: XCTestCase {
     @MainActor
+    func testExclusiveSeatVacancyMatchesPartyRoom() throws {
+        let app = launchRoomPK()
+        for side in ["current", "opponent"] {
+            let caption = app.staticTexts["liveRoom.seat.score.\(side).8"]
+            XCTAssertTrue(caption.waitForExistence(timeout: 3))
+            XCTAssertEqual(caption.label, "专属座")
+            XCTAssertFalse(app.buttons["liveRoom.seat.button.\(side).8"].isEnabled)
+            XCTAssertEqual(app.staticTexts["liveRoom.seat.score.\(side).5"].label, "5 号麦")
+        }
+        capture(app, "厅PK-两侧8号专属座")
+        app.buttons["liveRoom.more.button"].tap()
+        app.buttons["结束 PK"].tap()
+        let partyName = app.staticTexts["liveRoom.seat.name.8"]
+        XCTAssertTrue(partyName.waitForExistence(timeout: 5))
+        XCTAssertEqual(partyName.label, "专属座")
+        capture(app, "派对房-8号专属座")
+    }
+
+    @MainActor
     func testMenuCardsLocalGiftsAndExit() throws {
         let app = launchRoomPK()
         let more = app.buttons["liveRoom.more.button"]

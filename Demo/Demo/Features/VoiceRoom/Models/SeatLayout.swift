@@ -32,12 +32,25 @@ enum SeatLayoutVariant: Equatable, Sendable {
 }
 
 /// Slot 在业务布局中的语义角色。
-enum SeatRole: Equatable, Sendable {
+nonisolated enum SeatRole: Equatable, Sendable {
     case host
     case guest(index: Int)
     case exclusive
     case pkLeading
     case pkTrailing
+
+    /// 房内角色只按协议位置映射，房型、左右侧和 slotID 文本不参与判断。
+    static func roomSeat(at position: SeatPosition) -> Self {
+        switch position.rawValue {
+        case 0: .host
+        case 8: .exclusive
+        default: .guest(index: position.rawValue)
+        }
+    }
+
+    var emptySeatSymbolName: String {
+        self == .exclusive ? "sofa.fill" : "person.crop.circle"
+    }
 }
 
 /// 麦位视图使用的语义视觉 Token。
@@ -50,6 +63,8 @@ enum SeatVisualStyleID: Equatable, Sendable {
     case emphasizedHost
     case standardGuest
     case exclusive
+
+    var isPK: Bool { self == .pkHost || self == .pkGuest }
 }
 
 enum SeatSlotVisibility: Equatable, Sendable {
@@ -124,13 +139,15 @@ enum SeatLayoutCatalog {
         layoutFamily: .partyGrid,
         capacity: 9,
         slots: (0..<9).map { index in
-            SeatSlotDefinition(
+            let position = SeatPosition(rawValue: index)
+            let role = SeatRole.roomSeat(at: position)
+            return SeatSlotDefinition(
                 slotID: index == 0 ? .host : .audience(index),
-                position: SeatPosition(rawValue: index),
-                role: index == 0 ? .host : .guest(index: index),
+                position: position,
+                role: role,
                 styleID: index == 0
                     ? .standardHost
-                    : (index == 8 ? .exclusive : .standardGuest),
+                    : (role == .exclusive ? .exclusive : .standardGuest),
                 visibility: .always
             )
         },
@@ -145,7 +162,7 @@ enum SeatLayoutCatalog {
             SeatSlotDefinition(
                 slotID: index == 0 ? .host : .audience(index),
                 position: SeatPosition(rawValue: index),
-                role: index == 0 ? .host : .guest(index: index),
+                role: .roomSeat(at: SeatPosition(rawValue: index)),
                 styleID: index == 0 ? .emphasizedHost : .standardGuest,
                 visibility: index == 0 ? .always : .whenExpanded
             )
@@ -162,7 +179,7 @@ enum SeatLayoutCatalog {
                 SeatSlotDefinition(
                     slotID: .roomPK(side, position: index),
                     position: SeatPosition(rawValue: index),
-                    role: index == 0 ? .host : .guest(index: index),
+                    role: .roomSeat(at: SeatPosition(rawValue: index)),
                     styleID: index == 0 ? .pkHost : .pkGuest,
                     visibility: .always,
                     roomSide: side
