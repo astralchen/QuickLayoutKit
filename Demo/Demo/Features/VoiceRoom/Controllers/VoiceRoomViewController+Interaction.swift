@@ -87,7 +87,9 @@ extension VoiceRoomViewController {
                 presentedViewController == nil
             else { return }
 
-            let viewModel = AudienceProfileViewModel(member: member)
+            let currentMember = self.viewModel.state.audienceMembers.first { $0.id == member.id }
+                ?? member
+            let viewModel = AudienceProfileViewModel(member: currentMember)
             navigationController.pushViewController(
                 AudienceProfileViewController(viewModel: viewModel),
                 animated: true

@@ -14,9 +14,14 @@ final class AudienceProfileViewModel {
         let member: AudienceMember
     }
 
-    let state: State
+    private(set) var state: State
 
     init(member: AudienceMember) {
+        state = State(member: member)
+    }
+
+    func update(member: AudienceMember) {
+        guard member.id == state.member.id else { return }
         state = State(member: member)
     }
 }

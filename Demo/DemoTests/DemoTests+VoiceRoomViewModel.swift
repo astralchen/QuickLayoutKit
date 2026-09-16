@@ -84,7 +84,7 @@ extension DemoTests {
     @Test func voiceRoomAudienceViewModelNormalizesServerSnapshot() {
         let members = [
             AudienceMember(
-                id: 8,
+                id: RoomUserID(rawValue: "8"),
                 displayName: "收听用户",
                 avatarImageID: .two,
                 themeIndex: 2,
@@ -92,15 +92,15 @@ extension DemoTests {
                 presence: .listening
             ),
             AudienceMember(
-                id: 2,
+                id: RoomUserID(rawValue: "2"),
                 displayName: "麦上用户",
                 avatarImageID: .host,
                 themeIndex: 0,
                 contributionScore: 100,
-                presence: .onMicrophone(seatNumber: 1)
+                presence: .onMicrophone(address: SeatAddress(roomSide: .current, position: .init(rawValue: 0)))
             ),
             AudienceMember(
-                id: 2,
+                id: RoomUserID(rawValue: "2"),
                 displayName: "重复用户",
                 avatarImageID: .one,
                 themeIndex: 1,
@@ -115,7 +115,7 @@ extension DemoTests {
         )
 
         #expect(viewModel.state.totalCount == 2)
-        #expect(viewModel.state.members.map(\.id) == [2, 8])
+        #expect(viewModel.state.members.map(\.id.rawValue) == ["2", "8"])
     }
 
     @Test func voiceRoomGiftSheetViewModelKeepsSelectionAndSendRules() throws {

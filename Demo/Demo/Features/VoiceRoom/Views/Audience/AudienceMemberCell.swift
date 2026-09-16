@@ -64,10 +64,10 @@ final class AudienceMemberCell: QuickLayoutCollectionViewCell {
         avatarImageView.image = member.avatarImage
         nameLabel.text = member.displayName
         switch member.presence {
-        case let .onMicrophone(seatNumber):
+        case let .onMicrophone(address):
             presenceLabel.text = Localization.text(
                 "liveRoom.audience.onMicrophone",
-                seatNumber
+                address.position.rawValue + 1
             )
             presenceLabel.textColor = .systemGreen
         case .listening:
@@ -87,7 +87,7 @@ final class AudienceMemberCell: QuickLayoutCollectionViewCell {
         ]
         .compactMap { $0 }
         .joined(separator: ", ")
-        accessibilityIdentifier = "liveRoom.audience.member.\(member.id)"
+        accessibilityIdentifier = "liveRoom.audience.member.\(member.id.rawValue)"
         accessibilityHint = Localization.text(
             "liveRoom.audience.profile.openHint"
         )

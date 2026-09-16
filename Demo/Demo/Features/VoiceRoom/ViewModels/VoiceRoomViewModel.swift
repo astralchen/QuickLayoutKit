@@ -190,7 +190,8 @@ final class VoiceRoomViewModel {
         case .individual:
             return individualAssignments
         case .pk:
-            return partyAssignments + RoomPKFixtures.opponentAssignments
+            return RoomPKFixtures.currentAssignments(from: partyAssignments)
+                + RoomPKFixtures.opponentAssignments
         case .party, .unsupported:
             return partyAssignments
         }
@@ -257,7 +258,7 @@ final class VoiceRoomViewModel {
     private static let defaultAudienceMembers: [AudienceMember] = {
         let names = [
             "星河", "喜茶", "奈雪", "可可", "沐橙", "小满",
-            "阿澈", "团子", "月见", "青禾", "南风", "晚柠",
+            "阿澈", "小满", "阿澈", "团子", "月见", "晚柠",
             "桃桃", "小鹿", "云朵", "栗子", "安安", "初夏",
         ]
         let avatarImageIDs = AvatarImageID.fixtures
@@ -266,16 +267,17 @@ final class VoiceRoomViewModel {
             16_660, 13_140, 9_900, 8_880, 7_770, 6_660,
             5_200, 3_880, 2_660, 1_880, 1_314, 520,
         ]
+        let fixtureOccupants = partyAssignments.compactMap(\.occupant)
+            + individualAssignments.dropFirst().compactMap(\.occupant)
         return names.indices.map { index in
-            AudienceMember(
-                id: index,
+            let occupant = index < fixtureOccupants.count ? fixtureOccupants[index] : nil
+            return AudienceMember(
+                id: occupant?.userID ?? RoomUserID(rawValue: "audience.user.\(index)"),
                 displayName: names[index],
-                avatarImageID: avatarImageIDs[index % avatarImageIDs.count],
-                themeIndex: index % 9,
+                avatarImageID: occupant?.avatarImageID ?? avatarImageIDs[index % avatarImageIDs.count],
+                themeIndex: occupant?.themeIndex ?? index % 9,
                 contributionScore: contributions[index],
-                presence: index < 5
-                    ? .onMicrophone(seatNumber: index + 1)
-                    : .listening
+                presence: .listening
             )
         }
     }()
@@ -343,7 +345,9 @@ final class VoiceRoomViewModel {
                 max(0, audienceCount),
                 resolvedAudienceMembers.count
             ),
-            audienceMembers: resolvedAudienceMembers,
+            audienceMembers: resolvedAudienceMembers.map {
+                $0.resolvingPresence(in: initialSnapshot.assignments)
+            },
             isFollowing: isFollowing,
             pendingFollowingState: nil
         )
@@ -409,8 +413,7 @@ final class VoiceRoomViewModel {
         case let .success(presentation):
             commit(
                 snapshot: snapshot,
-                presentation: presentation,
-                pendingRoomCommand: nil
+                presentation: presentation
             )
             return true
         case let .failure(error):
@@ -434,19 +437,25 @@ final class VoiceRoomViewModel {
             return true
         default: break
         }
+        let startingRevision = state.snapshot.revision
         updatePendingBusinessCommand(command)
+        // 单个请求持有等待状态直到响应结束；推送不能释放此串行入口。
+        defer { updatePendingBusinessCommand(nil) }
         do {
             let snapshot = try await roomCommandHandler.send(command)
-            guard consumeStageSnapshot(snapshot) else {
-                updatePendingBusinessCommand(nil)
-                return false
+            guard snapshot.revision > startingRevision,
+                case .success = SeatLayoutResolver.resolve(snapshot: snapshot)
+            else { return false }
+            // 成功响应可能已通过推送应用，甚至被更新的推送覆盖。
+            // 命令确认与是否需要提交舞台分开，既不误报失败也不回退状态。
+            if snapshot.revision > state.snapshot.revision {
+                consumeStageSnapshot(snapshot)
             }
             return true
         } catch {
             Self.logger.error(
                 "Business command failed: \(String(describing: error), privacy: .public)"
             )
-            updatePendingBusinessCommand(nil)
             return false
         }
     }
@@ -512,6 +521,8 @@ final class VoiceRoomViewModel {
             ),
             request.gift.price >= 0,
             !request.recipients.isEmpty,
+            Set(request.recipients.compactMap(\.userID)).count
+                == request.recipients.count,
             request.totalCost >= 0,
             expectedCost == request.totalCost,
             request.totalCost <= giftBalance,
@@ -553,15 +564,16 @@ final class VoiceRoomViewModel {
 
     private func commit(
         snapshot: RoomStageSnapshot,
-        presentation: SeatStagePresentation,
-        pendingRoomCommand: RoomCommand?
+        presentation: SeatStagePresentation
     ) {
         state = State(
             snapshot: snapshot,
             stagePresentation: presentation,
-            pendingRoomCommand: pendingRoomCommand,
+            pendingRoomCommand: state.pendingRoomCommand,
             audienceCount: state.audienceCount,
-            audienceMembers: state.audienceMembers,
+            audienceMembers: state.audienceMembers.map {
+                $0.resolvingPresence(in: snapshot.assignments)
+            },
             isFollowing: state.isFollowing,
             pendingFollowingState: state.pendingFollowingState
         )

@@ -19,7 +19,7 @@ final class AudienceProfileViewController:
 
     let viewModel: AudienceProfileViewModel
 
-    var memberID: Int { viewModel.state.member.id }
+    var memberID: RoomUserID { viewModel.state.member.id }
     var displayName: String { viewModel.state.member.displayName }
     var profileScrollView: UIScrollView { profileView.scrollView }
 
@@ -32,6 +32,11 @@ final class AudienceProfileViewController:
 
     required init?(coder: NSCoder) {
         return nil
+    }
+
+    func update(member: AudienceMember) {
+        viewModel.update(member: member)
+        if isViewLoaded { reloadLocalizedContent() }
     }
 
     override func viewDidLoad() {
@@ -57,7 +62,7 @@ final class AudienceProfileViewController:
                 memberIDTitle: Localization.text(
                     "liveRoom.audience.profile.memberID"
                 ),
-                memberID: String(member.id),
+                memberID: member.id.rawValue,
                 contributionTitle: Localization.text(
                     "liveRoom.audience.profile.contribution.title"
                 ),
@@ -95,10 +100,10 @@ final class AudienceProfileViewController:
         _ presence: AudienceMember.Presence
     ) -> String {
         switch presence {
-        case let .onMicrophone(seatNumber):
+        case let .onMicrophone(address):
             return Localization.text(
                 "liveRoom.audience.onMicrophone",
-                seatNumber
+                address.position.rawValue + 1
             )
         case .listening:
             return Localization.text("liveRoom.audience.listening")

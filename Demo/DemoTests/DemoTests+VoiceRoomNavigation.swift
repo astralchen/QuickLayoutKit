@@ -359,6 +359,17 @@ extension DemoTests {
             sheetViewController.audienceCollectionView
                 .contentInsetAdjustmentBehavior == .always
         )
+        #expect(viewModel.consumeStageSnapshot(
+            VoiceRoomViewModel.makeDefaultStageSnapshot(revision: 2, assignments: [])
+        ))
+        #expect(sheetViewController.viewModel.state.members.allSatisfy {
+            $0.presence == .listening
+        })
+        try #require(await waitForCondition {
+            sheetViewController.audienceCollectionView.visibleCells
+                .flatMap { $0.allSubviews(of: UILabel.self) }
+                .contains { $0.text == Localization.text("liveRoom.audience.listening") }
+        })
     }
 
     @Test func voiceRoomAudienceItemPushesUserProfile() async throws {
@@ -460,7 +471,14 @@ extension DemoTests {
                     == "liveRoom.audience.profile.memberID"
             }
         )
-        #expect(memberIDLabel.text == String(selectedMember.id))
+        #expect(memberIDLabel.text == selectedMember.id.rawValue)
+        #expect(viewModel.consumeStageSnapshot(
+            VoiceRoomViewModel.makeDefaultStageSnapshot(revision: 2, assignments: [])
+        ))
+        #expect(profileViewController.viewModel.state.member.presence == .listening)
+        #expect(profileViewController.view.allSubviews(of: UILabel.self).contains {
+            $0.text == Localization.text("liveRoom.audience.listening")
+        })
 
         Localization.setLocale(identifier: "ar")
         profileViewController.applyLocalization(

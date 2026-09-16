@@ -176,7 +176,7 @@ enum VoiceRoomPreviewData {
     static let audienceMembers: [AudienceMember] = (0..<12).map {
         index in
         AudienceMember(
-            id: index,
+            id: RoomUserID(rawValue: "preview.user.\(index)"),
             displayName: "预览用户 \(index + 1)",
             avatarImageID: AvatarImageID.fixtures[
                 index % AvatarImageID.fixtures.count
@@ -184,7 +184,7 @@ enum VoiceRoomPreviewData {
             themeIndex: index % 9,
             contributionScore: 12_800 - index * 520,
             presence: index < 3
-                ? .onMicrophone(seatNumber: index + 1)
+                ? .onMicrophone(address: SeatAddress(roomSide: .current, position: .init(rawValue: index)))
                 : .listening
         )
     }

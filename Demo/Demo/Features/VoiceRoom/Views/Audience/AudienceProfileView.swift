@@ -279,7 +279,7 @@ private func makeAudienceProfileViewPreview() -> UIViewController {
             presence: "2 号麦",
             detailsTitle: "用户资料",
             memberIDTitle: "用户 ID",
-            memberID: String(member.id),
+            memberID: member.id.rawValue,
             contributionTitle: "贡献值",
             contribution: "⭐ 12,280",
             aboutTitle: "个人简介",

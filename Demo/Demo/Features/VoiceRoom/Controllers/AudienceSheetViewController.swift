@@ -38,6 +38,11 @@ final class AudienceSheetViewController:
         return nil
     }
 
+    func update(totalCount: Int, members: [AudienceMember]) {
+        viewModel.update(totalCount: totalCount, members: members)
+        if isViewLoaded { reloadLocalizedContent() }
+    }
+
     override func viewDidLoad() {
         configureAudienceList()
         super.viewDidLoad()
@@ -173,8 +178,8 @@ final class AudienceSheetViewController:
 private extension AudienceMember.Presence {
     var refreshIdentifier: String {
         switch self {
-        case let .onMicrophone(seatNumber):
-            return "microphone-\(seatNumber)"
+        case let .onMicrophone(address):
+            return "microphone-\(address.roomSide.rawValue)-\(address.position.rawValue)"
         case .listening:
             return "listening"
         }

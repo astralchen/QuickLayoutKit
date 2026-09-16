@@ -414,6 +414,17 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
             self.view.layoutIfNeeded()
         }
         giftSheetViewController?.updateRecipients(state.visibleRecipients)
+        if previousState?.audienceMembers != state.audienceMembers
+            || previousState?.audienceCount != state.audienceCount {
+            audienceSheetViewController?.update(
+                totalCount: state.audienceCount,
+                members: state.audienceMembers
+            )
+            if let profile = pushedAudienceProfileViewController,
+                let member = state.audienceMembers.first(where: { $0.id == profile.memberID }) {
+                profile.update(member: member)
+            }
+        }
         actionBarView.setMoreMenu(makeSeatLayoutMenu(for: state))
     }
 

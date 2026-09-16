@@ -143,8 +143,10 @@ actor MockRoomCommandHandler:
             snapshotBeforePK = snapshot
             nextMode = .pk(styleID: styleID)
             nextAudienceState = .enabled
-            // 保留本房现有阵容。个播进入时 5–8 号麦由 Resolver 补为空位。
-            nextAssignments = snapshot.assignments + RoomPKFixtures.opponentAssignments
+            // 保留本房用户与麦位绑定，仅为 PK 配置独立头像。
+            // 个播进入时 5–8 号麦由 Resolver 补为空位。
+            nextAssignments = RoomPKFixtures.currentAssignments(from: snapshot.assignments)
+                + RoomPKFixtures.opponentAssignments
         case .endPK:
             guard case .pk = snapshot.roomMode else { throw RoomCommandError.unsupported }
             nextMode = snapshotBeforePK?.roomMode ?? .party

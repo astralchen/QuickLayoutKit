@@ -15,10 +15,18 @@ final class AudienceSheetViewModel {
         let members: [AudienceMember]
     }
 
-    let state: State
+    private(set) var state: State
 
     init(totalCount: Int, members: [AudienceMember]) {
-        var memberIDs = Set<Int>()
+        state = Self.makeState(totalCount: totalCount, members: members)
+    }
+
+    func update(totalCount: Int, members: [AudienceMember]) {
+        state = Self.makeState(totalCount: totalCount, members: members)
+    }
+
+    private static func makeState(totalCount: Int, members: [AudienceMember]) -> State {
+        var memberIDs = Set<RoomUserID>()
         // 服务端分页合并可能产生重复用户；展示层只接收稳定、去重后的快照。
         let uniqueMembers = members.filter { memberIDs.insert($0.id).inserted }
         let sortedMembers = uniqueMembers.sorted { lhs, rhs in
@@ -31,10 +39,10 @@ final class AudienceSheetViewModel {
                 if lhs.contributionScore != rhs.contributionScore {
                     return lhs.contributionScore > rhs.contributionScore
                 }
-                return lhs.id < rhs.id
+                return lhs.id.rawValue < rhs.id.rawValue
             }
         }
-        state = State(
+        return State(
             // 总人数不能小于当前已经加载出来的用户数。
             totalCount: max(max(0, totalCount), sortedMembers.count),
             members: sortedMembers

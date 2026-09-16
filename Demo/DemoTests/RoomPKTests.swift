@@ -65,7 +65,17 @@ struct RoomPKTests {
             let vm = VoiceRoomViewModel(stageSnapshot: initial)
             #expect(await vm.performBusinessCommand(.startPK(styleID: "room.nine")))
             #expect(vm.state.stagePresentation.visibleSlots.count == 18)
-            #expect(vm.state.snapshot.assignments.filter { $0.roomSide == .current } == initial.assignments)
+            let current = vm.state.snapshot.assignments.filter { $0.roomSide == .current }
+            #expect(current.map(\.seatID) == initial.assignments.map(\.seatID))
+            #expect(current.map(\.userID) == initial.assignments.map(\.userID))
+            #expect(current.map(\.address) == initial.assignments.map(\.address))
+            #expect(current.map(\.audioState) == initial.assignments.map(\.audioState))
+            #expect(current.map(\.score) == initial.assignments.map(\.score))
+            let occupied = vm.state.snapshot.assignments.filter(\.isOccupied)
+            let avatars = occupied.compactMap(\.avatarImageID)
+            #expect(avatars.count == occupied.count)
+            #expect(Set(avatars).count == occupied.count)
+            #expect(avatars.allSatisfy { UIImage(named: $0.rawValue) != nil })
             let revision = vm.state.snapshot.revision
             #expect(await vm.performBusinessCommand(.startPK(styleID: "room.nine")))
             #expect(vm.state.snapshot.revision == revision)
