@@ -14,6 +14,104 @@ import UIKit
 @Suite(.serialized)
 struct SeatStageTransitionTests {
 
+    @Test func layoutConfigurationReplacesCachedAttributesBeforePrepare() throws {
+        let layout = SeatCollectionLayout()
+        let collectionView = SeatLayoutCountTestCollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.snapshotCounts = [18]
+        let source = makeLayoutTestConfiguration(count: 18)
+        layout.apply(source)
+        layout.prepare()
+        #expect(layout.layoutAttributesForElements(in: .infinite)?.count == 18)
+
+        // 模拟转场收尾：配置先收敛，UIKit 尚未再次调用 prepare()。
+        let destination = SeatCollectionLayoutConfiguration(
+            itemIDs: Array(source.itemIDs.prefix(9).reversed()),
+            states: source.states,
+            contentSize: source.contentSize
+        )
+        layout.apply(destination)
+        let attributes = try #require(layout.layoutAttributesForElements(in: .infinite))
+        #expect(attributes.count == 9)
+        #expect(layout.layoutAttributesForItem(at: IndexPath(item: 9, section: 0)) == nil)
+        let first = try #require(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0)))
+        #expect(first.frame == source.states[source.itemIDs[8]]?.frame)
+        withExtendedLifetime(collectionView) {}
+    }
+
+    @Test func layoutQueriesRespectSnapshotCountsBetweenPrepareCalls() throws {
+        let layout = SeatCollectionLayout()
+        let collectionView = SeatLayoutCountTestCollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.snapshotCounts = [18]
+        layout.apply(makeLayoutTestConfiguration(count: 18))
+        layout.prepare()
+
+        // 配置/缓存仍是并集时，当前 Snapshot 的合法范围也必须约束查询结果。
+        for count in [9, 5, 1, 0, 18] {
+            collectionView.snapshotCounts = [count]
+            let attributes = try #require(layout.layoutAttributesForElements(in: .infinite))
+            #expect(Set(attributes.map(\.indexPath)) == Set((0..<count).map {
+                IndexPath(item: $0, section: 0)
+            }))
+            for item in 0..<18 {
+                #expect((layout.layoutAttributesForItem(at: IndexPath(item: item, section: 0)) != nil)
+                    == (item < count))
+            }
+        }
+        collectionView.snapshotCounts = []
+        #expect(layout.layoutAttributesForElements(in: .infinite)?.isEmpty == true)
+        #expect(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0)) == nil)
+        withExtendedLifetime(collectionView) {}
+    }
+
+    @Test func roomModeTransitionsKeepOnlyCurrentSnapshotAttributes() throws {
+        let controller = UIViewController()
+        let stage = SeatStageView(frame: CGRect(x: 0, y: 0, width: 360, height: 450))
+        controller.view.addSubview(stage)
+        let window = try makeTransitionTestWindow(
+            rootViewController: controller,
+            size: CGSize(width: 390, height: 844)
+        )
+        defer { window.isHidden = true }
+        let modes: [(RoomMode, AudienceSeatState, Int)] = [
+            (.pk(styleID: "room.nine"), .enabled, 18),
+            (.party, .enabled, 9),
+            (.individual, .enabled, 5),
+            (.individual, .disabled, 1),
+            (.pk(styleID: "room.nine"), .enabled, 18),
+            (.party, .enabled, 9)
+        ]
+        for (offset, entry) in modes.enumerated() {
+            let destination = try presentation(for: VoiceRoomViewModel.makeDefaultStageSnapshot(
+                roomMode: entry.0,
+                audienceSeatState: entry.1
+            ))
+            if offset == 0 {
+                stage.apply(presentation: destination)
+            } else {
+                #expect(stage.prepareTransition(to: destination))
+                stage.animatePreparedTransition()
+                let collection = stage.seatCollectionView
+                let attributes = try #require(collection.collectionViewLayout.layoutAttributesForElements(in: .infinite))
+                #expect(attributes.allSatisfy {
+                    $0.indexPath.section == 0 && $0.indexPath.item < collection.numberOfItems(inSection: 0)
+                })
+                stage.completePreparedTransition()
+            }
+            stage.layoutIfNeeded()
+            let collection = stage.seatCollectionView
+            let layout = collection.collectionViewLayout
+            #expect(collection.numberOfItems(inSection: 0) == entry.2)
+            let attributes = try #require(layout.layoutAttributesForElements(in: .infinite))
+            #expect(Set(attributes.map(\.indexPath)) == Set((0..<entry.2).map {
+                IndexPath(item: $0, section: 0)
+            }))
+            #expect(attributes.allSatisfy { $0.alpha == 1 && $0.transform == .identity })
+            #expect(layout.layoutAttributesForItem(at: IndexPath(item: entry.2, section: 0)) == nil)
+            let hostID = try #require(VoiceRoomViewModel.hostAssignment.userID)
+            #expect(stage.giftTargetPoint(forUserID: hostID, in: controller.view) != nil)
+        }
+    }
+
     @Test func collectionItemIdentitySeparatesUsersFromVacancies() throws {
         let resolvedPresentation = try presentation(
             for: VoiceRoomViewModel.makeDefaultStageSnapshot()
@@ -594,4 +692,33 @@ private func pointLiesBetween(
 
 private func distance(_ first: CGPoint, _ second: CGPoint) -> CGFloat {
     hypot(first.x - second.x, first.y - second.y)
+}
+
+/// 控制 UIKit 当前可见的 Snapshot 数量，精确覆盖 prepare() 之间的查询窗口。
+@MainActor
+private final class SeatLayoutCountTestCollectionView: UICollectionView {
+    var snapshotCounts: [Int] = []
+
+    override var numberOfSections: Int { snapshotCounts.count }
+
+    override func numberOfItems(inSection section: Int) -> Int {
+        snapshotCounts[section]
+    }
+}
+
+@MainActor
+private func makeLayoutTestConfiguration(count: Int) -> SeatCollectionLayoutConfiguration {
+    let itemIDs = (0..<count).map { SeatCollectionItemID.user(.init(rawValue: "layout-test-\($0)")) }
+    let states = Dictionary(uniqueKeysWithValues: itemIDs.enumerated().map { index, itemID in
+        (itemID, SeatCollectionLayoutState(
+            frame: CGRect(x: index * 40, y: 0, width: 30, height: 50),
+            alpha: index >= 9 ? 0 : 1,
+            transform: index >= 9 ? CGAffineTransform(scaleX: 0.86, y: 0.86) : .identity
+        ))
+    })
+    return SeatCollectionLayoutConfiguration(
+        itemIDs: itemIDs,
+        states: states,
+        contentSize: CGSize(width: count * 40, height: 50)
+    )
 }

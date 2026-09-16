@@ -72,11 +72,13 @@ final class SeatCollectionLayout: UICollectionViewLayout {
     func apply(_ configuration: SeatCollectionLayoutConfiguration) {
         guard self.configuration != configuration else { return }
         self.configuration = configuration
+        // Snapshot 更新期间 UIKit 可能在下一次 prepare() 前查询布局。
+        // 配置与缓存必须同步切换，避免返回旧并集的索引或旧身份对应的 Frame。
+        rebuildAttributes()
         invalidateLayout()
     }
 
-    override func prepare() {
-        super.prepare()
+    private func rebuildAttributes() {
         attributesByIndexPath.removeAll(keepingCapacity: true)
         for (index, itemID) in configuration.itemIDs.enumerated() {
             guard let state = configuration.states[itemID] else { continue }
@@ -93,13 +95,27 @@ final class SeatCollectionLayout: UICollectionViewLayout {
     override func layoutAttributesForElements(
         in rect: CGRect
     ) -> [UICollectionViewLayoutAttributes]? {
-        attributesByIndexPath.values.filter { $0.frame.intersects(rect) }
+        let itemCount = currentItemCount
+        return attributesByIndexPath.values.filter {
+            $0.indexPath.item < itemCount && $0.frame.intersects(rect)
+        }
     }
 
     override func layoutAttributesForItem(
         at indexPath: IndexPath
     ) -> UICollectionViewLayoutAttributes? {
-        attributesByIndexPath[indexPath]
+        guard indexPath.section == 0,
+            indexPath.item >= 0,
+            indexPath.item < currentItemCount
+        else { return nil }
+        return attributesByIndexPath[indexPath]
+    }
+
+    // 配置和 Diffable Snapshot 分两步提交；缓存即使是最新配置，也只能向 UIKit
+    // 返回当前 Snapshot 中存在的索引。不要在建缓存时裁剪，否则扩展后会缺失麦位。
+    private var currentItemCount: Int {
+        guard let collectionView, collectionView.numberOfSections > 0 else { return 0 }
+        return collectionView.numberOfItems(inSection: 0)
     }
 
     override func shouldInvalidateLayout(
