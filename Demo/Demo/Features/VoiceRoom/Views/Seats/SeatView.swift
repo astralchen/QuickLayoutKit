@@ -10,26 +10,46 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
+/// 根据单个麦位展示状态呈现头像、音频状态、积分和名称的视图。
 final class SeatView: QuickLayoutView {
+    /// 当前主体周围的光晕装饰视图。
     private let haloView = UIView()
+    /// 提供头像底色和圆角的背景视图。
     private let avatarBackgroundView = UIView()
+    /// 显示用户头像或备用图标的图像视图。
     private let avatarImageView = UIImageView()
+    /// 麦克风状态图标后方的圆形背景。
     private let microphoneBackgroundView = UIView()
+    /// 显示麦克风可用或静音状态的图像视图。
     private let microphoneImageView = UIImageView()
+    /// 以波形条显示当前音频活动状态的视图。
     private let speakingIndicatorView = SpeakingIndicatorView()
+    /// 显示用户积分或空麦状态的标签。
     private let scoreLabel = UILabel()
+    /// 积分或空麦状态文字后方的背景。
     private let scoreBackgroundView = UIView()
+    /// 显示用户昵称或空麦名称的标签。
     private let nameLabel = UILabel()
+    /// 覆盖麦位并转发用户选择的透明按钮。
     private let interactionButton = QuickLayoutButton(frame: .zero)
+    /// 此位置绑定的麦位数据；缺失记录时为 `nil`。
     private var assignment: SeatAssignment?
+    /// 当前视图正在显示的完整麦位展示状态。
     private var slotPresentation: SeatSlotPresentation?
+    /// 当前环境采用的麦位尺寸等级。
     private var sizeClass = SeatSizeClass.regular
+    /// 上次用于 PK 尺寸解析的视图宽度。
     private var lastPKWidth: CGFloat?
 
-    /// 自定义 Collection Layout 使用的确定性麦位尺寸。
+    /// 返回与实际麦位布局规则一致的确定性尺寸。
     ///
-    /// 尺寸与 `body` 使用同一组头像、字体和内边距规则，避免 CollectionView
-    /// self-sizing 反向改变网格列宽并触发布局失效循环。
+    /// 此测量与视图使用相同的头像、字体和内边距规则，防止集合视图自动尺寸计算反向改变网格列宽。
+    ///
+    /// - Parameters:
+    ///   - styleID: 麦位的视觉尺寸样式。
+    ///   - sizeClass: 当前容器采用的尺寸等级。
+    ///   - width: 分配给麦位的宽度，单位为点。
+    /// - Returns: 适合该麦位样式的布局尺寸，单位为点。
     static func fittingSize(
         styleID: SeatVisualStyleID,
         sizeClass: SeatSizeClass,
@@ -85,20 +105,25 @@ final class SeatView: QuickLayoutView {
         )
     }
 
+    /// 用户选择可交互麦位时调用的回调；参数为当前麦位绑定。
     var seatDidSelect: ((SeatAssignment) -> Void)?
 
+    /// 一个布尔值，指示当前样式是否属于 PK 布局。
     private var isPK: Bool {
         slotPresentation?.styleID.isPK == true
     }
 
+    /// 按当前 PK 样式、宽度和尺寸等级计算的麦位参数。
     private var pkMetrics: RoomPKSeatMetrics {
         RoomPKSeatMetrics(styleID: slotPresentation?.styleID ?? .pkGuest, width: bounds.width, sizeClass: sizeClass)
     }
 
+    /// 一个布尔值，指示当前麦位是否采用放大主持麦样式。
     private var usesLargeSeatPresentation: Bool {
         slotPresentation?.styleID == .emphasizedHost
     }
 
+    /// 按当前样式和容器宽度解析的头像直径，单位为点。
     private var avatarDiameter: CGFloat {
         if isPK { return pkMetrics.avatarDiameter }
         switch (usesLargeSeatPresentation, sizeClass) {
@@ -117,32 +142,43 @@ final class SeatView: QuickLayoutView {
         }
     }
 
+    /// 麦克风状态背景的直径，单位为点。
     private var microphoneDiameter: CGFloat {
         isPK ? pkMetrics.microphoneDiameter : (sizeClass == .expanded ? 28 : 22)
     }
 
+    /// 麦克风图标的目标直径，单位为点。
     private var microphoneIconDiameter: CGFloat {
         isPK ? pkMetrics.microphoneDiameter * 0.55 : (sizeClass == .expanded ? 14 : 11)
     }
 
+    /// 头像内容相对背景的缩放比例；备用符号使用较小比例。
     private var avatarContentScale: CGFloat {
         assignment?.avatarImageID == nil ? 0.54 : 1
     }
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         if isPK { pkBody } else { standardBody }
     }
 
+    /// PK 样式下头像、音频标记、积分和主持麦名称的布局。
     @LayoutBuilder
     private var pkBody: Layout {
         VStack(spacing: pkMetrics.spacing) {
@@ -171,6 +207,7 @@ final class SeatView: QuickLayoutView {
         }
     }
 
+    /// 普通房型下头像、音频标记、积分与名称的布局。
     @LayoutBuilder
     private var standardBody: Layout {
         VStack(
@@ -234,6 +271,7 @@ final class SeatView: QuickLayoutView {
         }
     }
 
+    /// 根据实际尺寸更新圆角、命中区域及依赖宽度的 PK 样式。
     override func layoutSubviews() {
         if isPK {
             if lastPKWidth != bounds.width {
@@ -323,6 +361,7 @@ final class SeatView: QuickLayoutView {
         setNeedsQuickLayout()
     }
 
+    /// 返回已布局头像中心在指定视图坐标系中的位置；无有效布局时为 `nil`。
     func giftTargetPoint(in view: UIView) -> CGPoint? {
         guard window != nil, avatarBackgroundView.window != nil else {
             return nil
@@ -443,6 +482,7 @@ final class SeatView: QuickLayoutView {
         }
     }
 
+    /// 更新麦位尺寸等级，并同步字体、视觉样式和布局。
     func setSizeClass(_ sizeClass: SeatSizeClass) {
         guard self.sizeClass != sizeClass else { return }
         self.sizeClass = sizeClass
@@ -454,6 +494,7 @@ final class SeatView: QuickLayoutView {
         setNeedsQuickLayout()
     }
 
+    /// 根据当前样式更新头像裁剪、字体和布局需求。
     private func applyVisualStyle() {
         haloView.layer.cornerRadius = (avatarDiameter + 10) / 2
         avatarBackgroundView.layer.cornerRadius = avatarDiameter / 2
@@ -463,6 +504,7 @@ final class SeatView: QuickLayoutView {
         setNeedsQuickLayout()
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
 
@@ -499,15 +541,18 @@ final class SeatView: QuickLayoutView {
         configureTypography()
     }
 
+    /// 在麦位有人占用时转发用户选择事件。
     private func didTapSeat() {
         guard let assignment, assignment.isOccupied else { return }
         seatDidSelect?(assignment)
     }
 
+    /// 当前头像采用的圆角半径，单位为点。
     private var avatarImageIDCornerRadius: CGFloat {
         assignment?.avatarImageID == nil ? 0 : avatarDiameter / 2
     }
 
+    /// 根据麦位样式和尺寸等级设置积分及名称字体。
     private func configureTypography() {
         if isPK {
             scoreLabel.font = .monospacedDigitSystemFont(ofSize: pkMetrics.scoreFontSize, weight: .semibold)
@@ -542,6 +587,7 @@ final class SeatView: QuickLayoutView {
 }
 
 #if DEBUG
+/// 创建展示指定尺寸与样式的麦位视图的预览控制器。
 @MainActor
 private func makeSeatViewPreview(
     seat: SeatAssignment,

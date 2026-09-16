@@ -15,6 +15,7 @@ import UIKit
 /// UILabel、按钮及卡片层级。
 final class RechargeView: QuickLayoutView {
 
+    /// 组件内容后方的背景视图。
     let backgroundView = QuickLayoutLinearGradientView(
         stops: [
             QuickLayoutGradient.Stop(
@@ -33,27 +34,45 @@ final class RechargeView: QuickLayoutView {
         startPoint: UnitPoint(x: 0.10, y: 0),
         endPoint: UnitPoint(x: 0.92, y: 1)
     )
+    /// 承载内容并处理滚动的视图。
     let scrollView = QuickLayoutScrollView(.vertical)
+    /// 组合余额卡片、充值档位和底部操作的内容容器。
     let contentView = RechargeContentView(frame: .zero)
+    /// 显示充值成功反馈的覆盖视图。
     let successOverlayView = RechargeSuccessView(frame: .zero)
 
+    /// 用户选择充值档位时调用的回调；参数为所选档位。
     var packageDidSelect: ((RechargePackage) -> Void)?
+    /// 用户点击充值按钮时调用的回调。
     var rechargeDidTap: (() -> Void)?
 
+    /// 当前状态标签的显示文案。
     var statusText: String? { contentView.footerView.statusText }
+    /// 一个布尔值，指示充值成功浮层当前是否可见。
     var isSuccessAnimationVisible: Bool { !successOverlayView.isHidden }
+    /// 已启动的充值成功反馈次数，供状态检查使用。
     var successAnimationCount = 0
 
+    /// 驱动余额数字插值的显示刷新连接；停止后为 `nil`。
     var balanceDisplayLink: CADisplayLink?
+    /// 余额数字动画的媒体时间起点，单位为秒。
     var balanceAnimationStartTime: CFTimeInterval = 0
+    /// 余额数字动画的起始金币数。
     var balanceAnimationFrom = 0
+    /// 余额数字动画最终显示的确认金币数。
     var balanceAnimationTo = 0
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
@@ -64,6 +83,7 @@ final class RechargeView: QuickLayoutView {
         balanceDisplayLink?.invalidate()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         ZStack {
             backgroundView
@@ -84,6 +104,7 @@ final class RechargeView: QuickLayoutView {
         }
     }
 
+    /// 绑定档位选择和充值点击回调。
     func bindActions(
         packageDidSelect: @escaping (RechargePackage) -> Void,
         rechargeDidTap: @escaping () -> Void
@@ -92,6 +113,7 @@ final class RechargeView: QuickLayoutView {
         self.rechargeDidTap = rechargeDidTap
     }
 
+    /// 更新余额、充值需求、档位与按钮文案，并按要求保留状态提示。
     func configure(
         balanceCaption: String,
         balanceText: String,
@@ -122,6 +144,7 @@ final class RechargeView: QuickLayoutView {
         setNeedsQuickLayout()
     }
 
+    /// 清除充值结果提示并恢复内容布局。
     func clearStatus() {
         contentView.footerView.setStatus(
             nil,
@@ -129,14 +152,17 @@ final class RechargeView: QuickLayoutView {
         )
     }
 
+    /// 以失败提示颜色显示指定充值状态文案。
     func showFailureStatus(_ text: String) {
         contentView.footerView.setStatus(text, color: .systemPink)
     }
 
+    /// 以成功提示颜色显示指定充值状态文案。
     func showSuccessStatus(_ text: String) {
         contentView.footerView.setStatus(text, color: .systemGreen)
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         accessibilityIdentifier = "liveRoom.recharge.page"
         scrollView.alwaysBounceVertical = false
@@ -159,6 +185,7 @@ final class RechargeView: QuickLayoutView {
 }
 
 #if DEBUG
+/// 创建展示完整充值页面内容的预览控制器。
 @MainActor
 private func makeRechargeViewPreview() -> UIViewController {
     let view = RechargeView(frame: .zero)

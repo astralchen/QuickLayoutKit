@@ -14,20 +14,28 @@ import UIKit
 @MainActor
 final class SeatCollectionDataSource {
 
+    /// 麦位集合视图的数据分区。
     private nonisolated enum Section: Hashable, Sendable {
+        /// 包含全部舞台麦位的唯一分区。
         case seats
     }
 
+    /// 负责内容条目展示和复用的集合视图。
     private let collectionView: UICollectionView
+    /// 维护稳定条目标识与集合单元格映射的差异化数据源。
     private var dataSource: UICollectionViewDiffableDataSource<
         Section,
         SeatCollectionItemID
     >!
+    /// 注册麦位单元格并提供当前数据和尺寸参数的配置器。
     private var cellRegistration: UICollectionView.CellRegistration<
         SeatCollectionCell,
         SeatCollectionItemID
     >!
 
+    /// 将稳定条目数据源连接到指定集合视图。
+    ///
+    /// 条目和尺寸通过提供者在配置单元格时读取；选择事件交由宿主处理。
     init(
         collectionView: UICollectionView,
         itemProvider: @escaping (SeatCollectionItemID)
@@ -62,6 +70,7 @@ final class SeatCollectionDataSource {
         }
     }
 
+    /// 按给定条目顺序提交非动画快照，并可重新配置已有条目。
     func applySnapshot(
         itemIDs: [SeatCollectionItemID],
         reconfigureExisting: Bool = false
@@ -79,6 +88,7 @@ final class SeatCollectionDataSource {
         dataSource.apply(snapshot, animatingDifferences: false)
     }
 
+    /// 返回指定稳定条目当前已实例化的麦位单元格；不可见时可为 `nil`。
     func cell(
         for itemID: SeatCollectionItemID
     ) -> SeatCollectionCell? {

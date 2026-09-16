@@ -3,7 +3,7 @@ import SVGAView
 import UIKit
 import VAPView
 
-/// 将两种播放器的事件统一为一次展示的终态；动画文件仅由库运行时缓存。
+/// 将远程 VAP、SVGA 或减少动态效果展示适配为单次异步播放的对象。
 @MainActor
 final class GiftMainEffectPlayer: GiftEffectPlaying {
     /// 页面拥有容器，播放器不延长页面生命周期。
@@ -18,7 +18,7 @@ final class GiftMainEffectPlayer: GiftEffectPlaying {
     private let playback = GiftPlaybackOperation()
     /// SVGA 自然结束会先发 stopped，再发 finished；延迟判定可区分异常停止。
     private var stoppedEventTask: Task<Void, Never>?
-    /// 查询时机在当前项开始播放时，避免预先下载不可展示的素材。
+    /// 在当前效果开始时查询是否采用静态礼物展示的闭包。
     private let reduceMotionEnabled: @MainActor () -> Bool
 
     /// 创建不触发下载的适配器。
@@ -27,7 +27,15 @@ final class GiftMainEffectPlayer: GiftEffectPlaying {
         self.reduceMotionEnabled = reduceMotionEnabled
     }
 
-    /// 异步等待当前配置，远程 URL 只在此时交给对应库，显式播放一遍。
+    /// 播放一次远程效果，或在减少动态效果开启时展示静态礼物提示。
+    ///
+    /// 素材 URL 在实际播放时交给对应库；自然完成、失败和取消均通过当前播放身份结束等待。
+    ///
+    /// - Parameters:
+    ///   - effect: 本次远程效果配置；常规路径不接受原生效果。
+    ///   - gift: 静态展示所需的礼物图标、名称和配色。
+    ///   - quantity: 静态展示中的赠送份数。
+    /// - Throws: 容器或配置不可用、底层播放失败、提前停止或取消错误。
     func play(effect: GiftEffect, gift: Gift, quantity: Int) async throws {
         try await playback.run { [weak self] completion in
             guard let self, let containerView = self.containerView else {
@@ -75,6 +83,7 @@ final class GiftMainEffectPlayer: GiftEffectPlaying {
             view.loops = 1
             view.clearsAfterStop = true
             view.onEvent = { [weak self, weak view] event in
+                // 异步 SDK 事件可能迟到；只有当前持有的播放器可以改变本次等待结果。
                 guard let self, let view, self.svgaView === view else { return }
                 switch event {
                 case .finished:
@@ -90,10 +99,12 @@ final class GiftMainEffectPlayer: GiftEffectPlaying {
         }
     }
 
-    /// 先撤销回调再停止播放器，避免主动清理被误判为下一项的终态。
+    /// 停止当前播放并清理相关资源，以取消错误结束未完成的等待。
     func stop() { playback.stop() }
 
-    /// 撤销 SDK 监听并释放渲染资源；在恢复异步等待之前同步执行。
+    /// 取消延迟停止判定并释放播放器、事件监听和临时画面。
+    ///
+    /// 当前播放身份已失效后才执行清理，因此底层停止事件不会恢复同一次等待两次。
     private func releaseResources() {
         stoppedEventTask?.cancel()
         stoppedEventTask = nil
@@ -113,6 +124,7 @@ final class GiftMainEffectPlayer: GiftEffectPlaying {
     private func scheduleStoppedEvent(completion: @escaping GiftPlaybackOperation.Completion) {
         stoppedEventTask?.cancel()
         stoppedEventTask = Task {
+            // 自然结束可能依次发送 stopped 和 finished；让同一轮结束事件先完成判定。
             await Task.yield()
             guard !Task.isCancelled else { return }
             completion(.failure(GiftMainEffectPlaybackError.stopped))

@@ -2,25 +2,39 @@ import Foundation
 import OSLog
 import UIKit
 
-/// 统一异步特效播放边界；SDK 回调只留在具体适配器内部。
+/// 为单项礼物效果提供异步播放和同步停止接口。
+///
+/// 所有调用均在主执行器上进行。具体实现负责将底层播放器事件转换为一次播放结果。
 @MainActor
 protocol GiftEffectPlaying: AnyObject {
-    /// 等待一个明确配置的效果完成；任务取消必须停止底层工作并结束等待，返回前清理画面。
+    /// 播放一个明确配置的礼物效果，并等待该效果完成。
+    ///
+    /// 返回或抛出错误前应清理画面。任务取消时，实现必须停止底层工作并结束等待。
+    ///
+    /// - Parameters:
+    ///   - effect: 本次需要执行的单项特效配置。
+    ///   - gift: 用于图标、文案和配色的礼物数据。
+    ///   - quantity: 向每名收礼人赠送的份数。
+    /// - Throws: 播放失败或任务取消时的错误。
     func play(effect: GiftEffect, gift: Gift, quantity: Int) async throws
-    /// 取消加载、播放与事件监听，并移除画面；允许重复调用。
+    /// 同步停止加载、播放及事件监听，并移除当前效果。
+    ///
+    /// 实现必须允许重复调用；若仍有调用等待播放结果，应结束该等待。
     func stop()
 }
 
-/// 将礼物播放行为提交给通用队列；不实现排队、计时或终态去重。
+/// 将每份礼物的完整效果序列提交给串行任务队列的协调器。
+///
+/// 一次赠送占用一个队列任务，组内效果不会与后续赠送交错。播放器创建和清理由播放序列负责。
 @MainActor
 final class GiftMainEffectCoordinator {
     /// 通用调度器只运行调用方提交的闭包，不依赖 Gift 或播放器。
     private let queue = SerialTaskQueue()
-    /// 当前房间是否可接受新的主特效。
+    /// 一个布尔值，指示是否接受新的主特效请求；初始值为 `false`。
     private(set) var isActive = false
-    /// 等待播放的赠送请求数。
+    /// 尚未开始执行的赠送请求数量，不包含当前任务。
     var pendingCount: Int { queue.pendingCount }
-    /// 是否正在加载或播放主特效。
+    /// 一个布尔值，指示队列当前是否仍有任务执行，包括取消后的退出阶段。
     var isPlaying: Bool { queue.isRunning }
     /// 整组实际开始后的协作式超时期限定，不包含排队时间。
     private let timeout: TimeInterval
@@ -31,17 +45,30 @@ final class GiftMainEffectCoordinator {
     /// 展示错误仅用于诊断，不影响已成功的赠送业务。
     private let logger = Logger(subsystem: "Demo.VoiceRoom", category: "GiftPlayback")
 
-    /// 由礼物使用方指定 60 秒超时；其他业务可采用自己的队列和时间策略。
+    /// 创建具有指定超时和播放器工厂的礼物播放协调器。
+    ///
+    /// - Parameters:
+    ///   - timeout: 整组任务实际开始后的协作式超时时长，单位为秒，默认值为 `60`；不含排队时间。
+    ///   - reduceMotionEnabled: 在整组开始时读取的减少动态效果设置；默认读取系统值。
+    ///   - makePlayer: 当前效果实际开始时创建远程或静态展示播放器的工厂。
     init(timeout: TimeInterval = 60, reduceMotionEnabled: @escaping @MainActor () -> Bool = { UIAccessibility.isReduceMotionEnabled }, makePlayer: @escaping @MainActor () -> any GiftEffectPlaying) {
         self.timeout = timeout
         self.makePlayer = makePlayer
         self.reduceMotionEnabled = reduceMotionEnabled
     }
 
-    /// 页面可见时允许新的赠送展示。
+    /// 允许接收后续赠送的主特效请求；不会恢复已取消的请求。
     func activate() { isActive = true }
 
-    /// 提交一份赠送并返回原生任务句柄；页面关闭接收或配置为空时返回 nil。
+    /// 将一份赠送的完整效果序列加入串行队列。
+    ///
+    /// 队列等待时间不计入播放超时。播放失败仅影响展示，不回滚已确认的赠送；取消后须等待当前任务退出才开始后续任务。
+    ///
+    /// - Parameters:
+    ///   - gift: 包含有序特效配置的礼物。
+    ///   - quantity: 向每名收礼人赠送的份数。
+    ///   - makeNativePlayer: 创建原生效果播放器的工厂；包含原生项时应提供。
+    /// - Returns: 可用于等待或取消的任务句柄；未激活或效果列表为空时为 `nil`。
     @discardableResult
     func enqueue(gift: Gift, quantity: Int, makeNativePlayer: (@MainActor () -> any GiftEffectPlaying)? = nil) -> Task<Void, Error>? {
         guard isActive, !gift.effects.isEmpty else { return nil }
@@ -60,7 +87,9 @@ final class GiftMainEffectCoordinator {
         }
     }
 
-    /// 关闭接收并请求取消；播放器退出后才释放执行槽，重新激活不恢复旧请求。
+    /// 停止接收新请求，并取消当前及待执行的任务。
+    ///
+    /// 当前任务实际返回或抛出错误后才释放串行执行槽。此方法可以重复调用。
     func deactivate() {
         isActive = false
         queue.cancelAll()

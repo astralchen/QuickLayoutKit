@@ -14,8 +14,10 @@ import UIKit
 /// 仅重写 UIKit 命中测试，不参与 QuickLayout 测量，避免为了可点击性修改视觉尺寸。
 class MinimumHitTargetButton: QuickLayoutButton {
 
+    /// 按钮响应点击的最小尺寸；默认值为 44 × 44 点。
     var minimumHitTargetSize = CGSize(width: 44, height: 44)
 
+    /// 返回指定点是否位于扩展后的可点击区域内。
     override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
         let horizontalExpansion = max(
             0,
@@ -38,13 +40,21 @@ class MinimumHitTargetButton: QuickLayoutButton {
 /// 分别依赖 `UIButton.Configuration` 产生不一致的测量和禁用态效果。
 final class CapsuleTextButton: MinimumHitTargetButton {
 
+    /// 显示组件主标题的标签。
     private let titleLabel = UILabel()
+    /// 按钮可用时的前景颜色。
     private var enabledForegroundColor: UIColor = .white
+    /// 按钮不可用时的前景颜色。
     private var disabledForegroundColor = UIColor.white.withAlphaComponent(0.62)
+    /// 按钮可用时的背景颜色。
     private var enabledBackgroundColor: UIColor = .clear
+    /// 按钮不可用时的背景颜色。
     private var disabledBackgroundColor = UIColor.white.withAlphaComponent(0.08)
+    /// 按钮可用时的边框颜色。
     private var enabledBorderColor: UIColor = .clear
+    /// 按钮不可用时的边框颜色。
     private var disabledBorderColor = UIColor.white.withAlphaComponent(0.16)
+    /// 按钮文字与边界之间的内容内边距，单位为点。
     private var contentInsets = EdgeInsets(
         top: 6,
         leading: 10,
@@ -52,28 +62,37 @@ final class CapsuleTextButton: MinimumHitTargetButton {
         trailing: 10
     )
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureView()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureView()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         titleLabel
             .fixedSize(axis: .horizontal)
             .padding(contentInsets)
     }
 
+    /// 按布局后的最短边更新胶囊圆角半径。
     override func layoutSubviews() {
         super.layoutSubviews()
         // 胶囊半径依赖最终高度，不能由调用方根据字体和 contentInsets 手工同步。
         layer.cornerRadius = min(bounds.width, bounds.height) / 2
     }
 
+    /// 设置按钮标题、字体、内边距及可用和不可用状态的颜色。
     func configure(
         title: String,
         font: UIFont,
@@ -109,6 +128,7 @@ final class CapsuleTextButton: MinimumHitTargetButton {
         apply(state: buttonState)
     }
 
+    /// 在按钮状态变化时刷新对应的文字、颜色和交互外观。
     override func quickLayoutButtonStateDidChange(
         _ state: QuickLayoutButtonState
     ) {
@@ -116,6 +136,7 @@ final class CapsuleTextButton: MinimumHitTargetButton {
         apply(state: state)
     }
 
+    /// 配置组件的基础样式和交互行为。
     private func configureView() {
         titleLabel.textAlignment = .center
         titleLabel.adjustsFontSizeToFitWidth = true
@@ -124,6 +145,7 @@ final class CapsuleTextButton: MinimumHitTargetButton {
         layer.cornerCurve = .circular
     }
 
+    /// 按按钮可用及高亮状态刷新文字、背景和边框颜色。
     private func apply(state: QuickLayoutButtonState) {
         titleLabel.textColor = state.isEnabled
             ? enabledForegroundColor
@@ -144,23 +166,36 @@ final class CapsuleTextButton: MinimumHitTargetButton {
 /// 直播间通用的 SF Symbol 圆形按钮。
 final class SymbolButton: MinimumHitTargetButton {
 
+    /// 显示组件符号图像的视图。
     private let imageView = UIImageView()
+    /// 符号图像的目标尺寸，单位为点。
     private var symbolSize: CGFloat = 18
+    /// 按钮可用时的图标颜色。
     private var enabledTintColor: UIColor = .white
+    /// 按钮不可用时的图标颜色。
     private var disabledTintColor = UIColor.white.withAlphaComponent(0.58)
+    /// 按钮可用时的背景颜色。
     private var enabledBackgroundColor = UIColor.white.withAlphaComponent(0.14)
+    /// 按钮不可用时的背景颜色。
     private var disabledBackgroundColor = UIColor.white.withAlphaComponent(0.08)
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureView()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureView()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         imageView
             .resizable()
@@ -169,6 +204,7 @@ final class SymbolButton: MinimumHitTargetButton {
             .padding(8)
     }
 
+    /// 根据实际高度更新圆形按钮背景。
     override func layoutSubviews() {
         super.layoutSubviews()
         // 圆形是该组件的结构约束，半径必须以最终布局结果为准，不能由调用方根据
@@ -176,6 +212,7 @@ final class SymbolButton: MinimumHitTargetButton {
         layer.cornerRadius = min(bounds.width, bounds.height) / 2
     }
 
+    /// 设置符号名称、尺寸、字重及前景和背景颜色。
     func configure(
         symbolName: String,
         symbolSize: CGFloat = 18,
@@ -199,6 +236,7 @@ final class SymbolButton: MinimumHitTargetButton {
         apply(state: buttonState)
     }
 
+    /// 在按钮状态变化时刷新对应的文字、颜色和交互外观。
     override func quickLayoutButtonStateDidChange(
         _ state: QuickLayoutButtonState
     ) {
@@ -206,12 +244,14 @@ final class SymbolButton: MinimumHitTargetButton {
         apply(state: state)
     }
 
+    /// 配置组件的基础样式和交互行为。
     private func configureView() {
         imageView.contentMode = .scaleAspectFit
         imageView.isUserInteractionEnabled = false
         layer.cornerCurve = .circular
     }
 
+    /// 根据按钮可用及高亮状态更新图标透明度和颜色。
     private func apply(state: QuickLayoutButtonState) {
         imageView.tintColor = state.isEnabled
             ? enabledTintColor
@@ -229,19 +269,28 @@ final class SymbolButton: MinimumHitTargetButton {
 /// 直播间操作栏的“图标 + 文案”按钮。
 final class IconTitleButton: QuickLayoutButton {
 
+    /// 显示组件符号图像的视图。
     private let imageView = UIImageView()
+    /// 显示组件主标题的标签。
     private let titleLabel = UILabel()
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureView()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureView()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         HStack(spacing: 7) {
             imageView
@@ -255,6 +304,7 @@ final class IconTitleButton: QuickLayoutButton {
         .padding(.vertical, 8)
     }
 
+    /// 设置图标文字按钮的标题与 SF Symbols 图像。
     func configure(title: String, symbolName: String) {
         titleLabel.text = title
         imageView.image = UIImage(systemName: symbolName)
@@ -262,6 +312,7 @@ final class IconTitleButton: QuickLayoutButton {
         setNeedsQuickLayout()
     }
 
+    /// 在按钮状态变化时刷新对应的文字、颜色和交互外观。
     override func quickLayoutButtonStateDidChange(
         _ state: QuickLayoutButtonState
     ) {
@@ -272,6 +323,7 @@ final class IconTitleButton: QuickLayoutButton {
         alpha = state.isPressed ? 0.84 : (state.isEnabled ? 1 : 0.58)
     }
 
+    /// 配置组件的基础样式和交互行为。
     private func configureView() {
         backgroundColor = UIColor.white.withAlphaComponent(0.14)
         layer.cornerRadius = 17.5
@@ -287,6 +339,7 @@ final class IconTitleButton: QuickLayoutButton {
 }
 
 #if DEBUG
+/// 创建展示房间通用按钮组的预览控制器。
 @MainActor
 private func makeButtonViewsPreview() -> UIViewController {
     let messageButton = IconTitleButton(frame: .zero)

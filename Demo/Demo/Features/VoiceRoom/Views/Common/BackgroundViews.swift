@@ -15,23 +15,32 @@ import QuickLayout
 /// 在渐变背景上绘制装饰性星点的房间背景视图。
 final class StarfieldBackgroundView: QuickLayoutLinearGradientView {
 
+    /// 绘制背景星点路径的形状视图。
     private let starsView = QuickLayoutShapeView(frame: .zero)
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureGradient()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureGradient()
     }
 
+    /// 使星点装饰覆盖最新的背景边界。
     override func layoutSubviews() {
         super.layoutSubviews()
         starsView.frame = bounds
     }
 
+    /// 配置房间背景的渐变颜色和星点装饰。
     private func configureGradient() {
         gradient = QuickLayoutGradient(stops: [
             QuickLayoutGradient.Stop(
@@ -89,6 +98,9 @@ final class StarfieldBackgroundView: QuickLayoutLinearGradientView {
 /// 为子视图提供半透明背景和连续圆角的卡片容器。
 class TranslucentCardView: QuickLayoutView {
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
@@ -99,6 +111,9 @@ class TranslucentCardView: QuickLayoutView {
         layer.borderColor = UIColor.white.withAlphaComponent(0.10).cgColor
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
     }

@@ -12,10 +12,14 @@ import UIKit
 /// 充值页滚动内容，按余额、档位和底部操作三个业务层级组装。
 final class RechargeContentView: QuickLayoutView {
 
+    /// 显示当前金币余额和目标余额说明的卡片。
     let balanceCardView = RechargeBalanceCardView(frame: .zero)
+    /// 显示充值档位网格的内容区域。
     let packageSectionView = RechargePackageSectionView(frame: .zero)
+    /// 显示充值状态和确认按钮的底部区域。
     let footerView = RechargeFooterView(frame: .zero)
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         VStack(spacing: 18) {
             balanceCardView
@@ -33,6 +37,7 @@ final class RechargeContentView: QuickLayoutView {
 }
 
 #if DEBUG
+/// 创建展示充值内容区域的预览控制器。
 @MainActor
 private func makeRechargeContentPreview() -> UIViewController {
     let view = RechargeContentView(frame: .zero)

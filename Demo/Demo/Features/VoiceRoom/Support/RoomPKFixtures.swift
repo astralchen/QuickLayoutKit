@@ -27,6 +27,7 @@ nonisolated enum RoomPKFixtures {
         }
     }
 
+    /// 使用独立用户身份和头像资源生成的对方九麦演示阵容。
     static var opponentAssignments: [SeatAssignment] {
         (0..<9).map { index in
             let occupied = index != 5 && index != 8

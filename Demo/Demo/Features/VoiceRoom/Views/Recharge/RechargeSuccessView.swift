@@ -12,26 +12,34 @@ import UIKit
 import QuickLayout
 #endif
 
+/// 呈现充值成功文案、勾选标记和装饰动画的浮层。
 final class RechargeSuccessView: UIView {
 
+    /// 成功提示浮层的模糊背景视图。
     private let blurView = UIVisualEffectView(
         effect: UIBlurEffect(style: .systemUltraThinMaterialDark)
     )
+    /// 当前主体周围的光晕装饰视图。
     private let haloView = QuickLayoutShapeView(
         fillColor: .clear,
         strokeColor: UIColor.systemYellow.withAlphaComponent(0.72),
         strokeStyle: QuickLayoutStrokeStyle(lineWidth: 2),
         path: { rect in UIBezierPath(ovalIn: rect).cgPath }
     )
+    /// 充值成功提示的第二层扩散光晕。
     private let secondaryHaloView = QuickLayoutShapeView(
         fillColor: .clear,
         strokeColor: UIColor.systemYellow.withAlphaComponent(0.42),
         strokeStyle: QuickLayoutStrokeStyle(lineWidth: 1),
         path: { rect in UIBezierPath(ovalIn: rect).cgPath }
     )
+    /// 充值成功勾选标记的圆形背景。
     private let checkmarkBackgroundView = UIView()
+    /// 显示已关注或已选中状态的勾选图标。
     private let checkmarkImageView = UIImageView()
+    /// 显示当前提示正文的标签。
     private let messageLabel = UILabel()
+    /// 围绕成功标记播放扩散动画的星光图像视图。
     private let sparkleImageViews = (0..<8).map { index in
         let imageView = UIImageView(
             image: UIImage(systemName: index.isMultiple(of: 2)
@@ -45,6 +53,9 @@ final class RechargeSuccessView: UIView {
         return imageView
     }
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         isUserInteractionEnabled = false
@@ -105,10 +116,12 @@ final class RechargeSuccessView: UIView {
         addSubview(messageLabel)
     }
 
+    /// 不支持从归档创建此组件，始终返回 `nil`。
     required init?(coder: NSCoder) {
         return nil
     }
 
+    /// 根据当前浮层边界更新模糊背景、光晕及星光的位置。
     override func layoutSubviews() {
         super.layoutSubviews()
         blurView.frame = bounds
@@ -151,10 +164,12 @@ final class RechargeSuccessView: UIView {
         }
     }
 
+    /// 更新充值成功提示文案。
     func configure(message: String) {
         messageLabel.text = message
     }
 
+    /// 移除先前装饰动画并恢复新一轮成功动画的初始状态。
     func prepareForAnimation() {
         layoutIfNeeded()
         haloView.layer.removeAllAnimations()
@@ -180,6 +195,7 @@ final class RechargeSuccessView: UIView {
         }
     }
 
+    /// 播放成功标记、光晕和星光装饰；调用方应先确认允许动态效果。
     func playDecorativeAnimation() {
         playHaloAnimation(on: haloView.layer, delay: 0.05)
         playHaloAnimation(on: secondaryHaloView.layer, delay: 0.18)
@@ -232,6 +248,7 @@ final class RechargeSuccessView: UIView {
         }
     }
 
+    /// 为指定光晕图层添加延迟扩散和淡出动画。
     private func playHaloAnimation(
         on haloLayer: CALayer,
         delay: CFTimeInterval
@@ -256,6 +273,7 @@ final class RechargeSuccessView: UIView {
 }
 
 #if DEBUG
+/// 创建展示充值成功浮层的预览控制器。
 @MainActor
 private func makeRechargeSuccessViewPreview() -> UIViewController {
     let view = RechargeSuccessView()

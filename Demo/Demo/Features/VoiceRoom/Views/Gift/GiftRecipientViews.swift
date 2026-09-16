@@ -10,25 +10,38 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
+/// 显示收礼人头像、名称和选择标记的按钮。
 final class GiftRecipientButton: QuickLayoutButton {
 
+    /// 承载收礼人头像和主题背景的容器。
     private let avatarView = UIView()
+    /// 显示用户头像或备用人物符号的图像视图。
     private let symbolImageView = UIImageView()
+    /// 显示用户昵称或空麦名称的标签。
     private let nameLabel = UILabel()
+    /// 收礼人选中标记的圆形背景。
     private let selectionBadgeView = UIView()
+    /// 收礼人选中标记中的勾选图像。
     private let selectionBadgeImageView = UIImageView()
+    /// 一个布尔值，指示组件是否使用紧凑尺寸参数。
     private var usesCompactMetrics = false
+    /// 一个布尔值，指示头像是否来自图片资源而非备用符号。
     private var usesPhotoAvatar = false
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 不支持从归档创建此组件，始终返回 `nil`。
     required init?(coder: NSCoder) {
         return nil
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         let avatarDiameter: CGFloat = usesCompactMetrics ? 34 : 40
         avatarView.layer.shadowPath = UIBezierPath(
@@ -79,6 +92,7 @@ final class GiftRecipientButton: QuickLayoutButton {
         }
     }
 
+    /// 根据当前收礼人更新头像、名称、选择状态和紧凑尺寸。
     func configure(
         recipient: SeatAssignment,
         isSelected: Bool,
@@ -125,6 +139,7 @@ final class GiftRecipientButton: QuickLayoutButton {
         setNeedsQuickLayout()
     }
 
+    /// 在按钮状态变化时刷新对应的文字、颜色和交互外观。
     override func quickLayoutButtonStateDidChange(
         _ state: QuickLayoutButtonState
     ) {
@@ -134,6 +149,7 @@ final class GiftRecipientButton: QuickLayoutButton {
         alpha = state.isPressed ? 0.82 : (state.isEnabled ? 1 : 0.56)
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         backgroundColor = .clear
         layer.borderWidth = 0
@@ -171,25 +187,34 @@ final class GiftRecipientButton: QuickLayoutButton {
     }
 }
 
+/// 切换全部收礼人选择状态的按钮。
 final class GiftSelectAllButton: QuickLayoutButton {
 
+    /// 显示组件主标题的标签。
     private let titleLabel = UILabel()
+    /// 按钮当前显示的标题文本。
     var displayedTitle: String? { titleLabel.text }
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         titleLabel.textAlignment = .center
         layer.shadowOffset = .zero
     }
 
+    /// 不支持从归档创建此组件，始终返回 `nil`。
     required init?(coder: NSCoder) {
         return nil
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         titleLabel.padding(.horizontal, 8).padding(.vertical, 6)
     }
 
+    /// 更新全选按钮的文案、选择外观和紧凑尺寸。
     func configure(
         isSelected: Bool,
         usesCompactMetrics: Bool
@@ -218,6 +243,7 @@ final class GiftSelectAllButton: QuickLayoutButton {
         setNeedsQuickLayout()
     }
 
+    /// 在按钮状态变化时刷新对应的文字、颜色和交互外观。
     override func quickLayoutButtonStateDidChange(
         _ state: QuickLayoutButtonState
     ) {
@@ -229,8 +255,12 @@ final class GiftSelectAllButton: QuickLayoutButton {
     }
 }
 
+/// 在收礼人滚动区域边缘提供渐隐效果的装饰视图。
 final class GiftRecipientFadeView: QuickLayoutLinearGradientView {
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         isUserInteractionEnabled = false
@@ -255,6 +285,7 @@ final class GiftRecipientFadeView: QuickLayoutLinearGradientView {
         endPoint = .trailing
     }
 
+    /// 不支持从归档创建此组件，始终返回 `nil`。
     required init?(coder: NSCoder) {
         return nil
     }
@@ -262,6 +293,7 @@ final class GiftRecipientFadeView: QuickLayoutLinearGradientView {
 }
 
 #if DEBUG
+/// 创建展示指定选择状态的收礼人按钮的预览控制器。
 @MainActor
 private func makeGiftRecipientPreview(
     selected: Bool
@@ -290,6 +322,7 @@ private func makeGiftRecipientPreview(
     }
 }
 
+/// 创建展示指定选择状态的全选按钮的预览控制器。
 @MainActor
 private func makeGiftSelectAllPreview(
     selected: Bool

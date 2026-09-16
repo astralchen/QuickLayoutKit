@@ -11,6 +11,7 @@ import UIKit
 
 extension VoiceRoomViewController {
 
+    /// 在没有在途关注任务时请求切换关注状态。
     func toggleFollowing() {
         guard followRequestTask == nil else { return }
         followRequestTask = Task { [weak self] in
@@ -20,6 +21,7 @@ extension VoiceRoomViewController {
         }
     }
 
+    /// 创建房间资料页并推入当前导航栈。
     func pushRoomInformation() {
         // 仅允许当前直播间在无弹层时执行一次 push，避免连续点击造成重复页面。
         guard
@@ -42,6 +44,7 @@ extension VoiceRoomViewController {
         )
     }
 
+    /// 使用当前观众状态展示在线观众面板。
     func presentAudienceSheet() {
         guard
             presentedViewController == nil,
@@ -67,6 +70,7 @@ extension VoiceRoomViewController {
         present(viewController, animated: true)
     }
 
+    /// 关闭观众面板后打开所选用户资料页。
     func showAudienceProfile(
         _ member: AudienceMember,
         dismissing sheetViewController: AudienceSheetViewController
@@ -97,6 +101,7 @@ extension VoiceRoomViewController {
         }
     }
 
+    /// 提交公屏消息，成功后刷新消息列表并滚动到最新内容。
     func sendPublicMessage(_ message: String) {
         guard viewModel.sendPublicMessage(message) else { return }
         reloadPublicChat(scrollToLatest: true)
@@ -108,6 +113,7 @@ extension VoiceRoomViewController {
         messagesView.commitPendingScrollToLatest()
     }
 
+    /// 为有效占麦用户展示资料卡，必要时显示 PK 房间侧。
     func presentUserCard(for seat: SeatAssignment) {
         guard
             seat.isOccupied,
@@ -120,6 +126,7 @@ extension VoiceRoomViewController {
         )
     }
 
+    /// 用本地化文案、关注状态和会话消息刷新公屏。
     func reloadPublicChat(scrollToLatest: Bool) {
         let seedMessages = [
             Localization.text("liveRoom.messages.first"),
@@ -158,6 +165,7 @@ extension VoiceRoomViewController {
 
 extension VoiceRoomViewController: UIAdaptivePresentationControllerDelegate {
 
+    /// 在系统交互式关闭面板后清理对应控制器引用。
     func presentationControllerDidDismiss(
         _ presentationController: UIPresentationController
     ) {

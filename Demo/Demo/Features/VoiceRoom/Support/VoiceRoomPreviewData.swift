@@ -7,14 +7,17 @@
 
 #if DEBUG
 
+/// 仅在调试构建中提供的组件预览数据。
 @MainActor
 enum VoiceRoomPreviewData {
 
+    /// 预览使用的固定房间号和主播名称。
     static let roomInformation = RoomInformation(
         roomID: "PREVIEW-9527",
         hostDisplayName: "预览主播"
     )
 
+    /// 用于展示有人、空麦和静音状态的预览麦位列表。
     static let seats: [SeatAssignment] = [
         seat(
             id: 0,
@@ -95,6 +98,7 @@ enum VoiceRoomPreviewData {
         ),
     ]
 
+    /// 用于组件预览的固定礼物目录。
     static let gifts: [Gift] = [
         gift(
             id: "heart",
@@ -162,10 +166,12 @@ enum VoiceRoomPreviewData {
         ),
     ]
 
+    /// 预览麦位列表中有人占用的条目。
     static var occupiedSeats: [SeatAssignment] {
         seats.filter(\.isOccupied)
     }
 
+    /// 预览公屏使用的示例消息。
     static let messages = [
         "小满：今晚的声音也太温柔了 ✨",
         "阿澈：坐等下一首歌 🎵",
@@ -173,6 +179,7 @@ enum VoiceRoomPreviewData {
         "小满：预览数据不会进入生产状态",
     ]
 
+    /// 用于预览在线观众列表和在麦状态的固定数据。
     static let audienceMembers: [AudienceMember] = (0..<12).map {
         index in
         AudienceMember(
@@ -189,21 +196,35 @@ enum VoiceRoomPreviewData {
         )
     }
 
+    /// 观众面板预览的标题文案。
     static let audienceHeaderTitle = "当前在线"
+    /// 观众面板预览的在线人数文案。
     static let audienceHeaderSummary = "1,280 人在线"
+    /// 观众面板预览的补充说明。
     static let audienceHeaderSubtitle = "当前已加载的活跃用户"
 
+    /// 房间资料预览的房间名称。
     static let informationRoomTitle = "预览音乐小屋"
+    /// 房间资料预览的副标题。
     static let informationRoomSubtitle = "唱歌 · 聊天 · Preview 专用数据"
+    /// 房间资料预览的直播状态文案。
     static let informationLiveStatus = "直播中"
+    /// 房间资料预览的详情区域标题。
     static let informationDetailsTitle = "房间资料"
+    /// 房间资料预览的房间号字段标题。
     static let informationRoomIDTitle = "房间号"
+    /// 房间资料预览的主播字段标题。
     static let informationHostTitle = "主播"
+    /// 房间资料预览的在线人数字段标题。
     static let informationAudienceTitle = "在线人数"
+    /// 房间资料预览的在线人数值。
     static let informationAudienceValue = "8,888 人在线"
+    /// 房间资料预览的公告标题。
     static let informationAnnouncementTitle = "直播间公告"
+    /// 房间资料预览的公告正文。
     static let informationAnnouncement = "预览数据不会进入生产状态。"
 
+    /// 创建指定房型、观众席状态和余额的预览房间视图模型。
     static func makeRoomViewModel(
         roomMode: RoomMode = .party,
         audienceSeatState: AudienceSeatState = .enabled,
@@ -234,6 +255,7 @@ enum VoiceRoomPreviewData {
         )
     }
 
+    /// 创建使用固定资料和人数的房间资料预览模型。
     static func makeRoomInformationViewModel()
         -> RoomInformationViewModel {
         RoomInformationViewModel(
@@ -242,6 +264,7 @@ enum VoiceRoomPreviewData {
         )
     }
 
+    /// 根据预览参数创建稳定身份的演示麦位绑定。
     private static func seat(
         id: Int,
         nameKey: String,
@@ -277,6 +300,7 @@ enum VoiceRoomPreviewData {
         )
     }
 
+    /// 根据预览参数创建带原生效果的演示礼物。
     private static func gift(
         id: String,
         titleKey: String,

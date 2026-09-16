@@ -12,6 +12,7 @@ import UIKit
 
 extension GiftSheetView {
 
+    /// 根据当前余额和错误状态更新金币文案及辅助功能描述。
     func updateBalanceLabel() {
         balanceLabel.text = Localization.text(
             showsInsufficientBalancePrompt
@@ -25,6 +26,7 @@ extension GiftSheetView {
         setNeedsQuickLayout()
     }
 
+    /// 根据已选收礼人数和提示状态更新收礼区域标题。
     func updateRecipientStatusLabel() {
         if showsRecipientRequiredPrompt {
             recipientTitleLabel.text = Localization.text(
@@ -62,6 +64,7 @@ extension GiftSheetView {
         }
     }
 
+    /// 同步收礼人、全选、栏目、数量和发送控件，可同时刷新礼物网格。
     func updateButtons(reloadsGifts: Bool = false) {
         for (button, recipient) in zip(recipientButtons, recipients) {
             let isSelected = recipient.userID.map(
@@ -160,6 +163,7 @@ extension GiftSheetView {
         )
     }
 
+    /// 根据当前数量及预设选项重建数量选择菜单。
     func updateQuantityButton() {
         var configuration = UIButton.Configuration.tinted()
         configuration.title = "×\(selectedGiftQuantity)"
@@ -208,6 +212,7 @@ extension GiftSheetView {
         )
     }
 
+    /// 按可用宽度和内容尺寸类别更新礼物网格列数及单元格尺寸。
     func updateGiftGridMetrics() {
         guard
             let layout = giftCollectionView.collectionViewLayout
@@ -246,6 +251,7 @@ extension GiftSheetView {
         layout.invalidateLayout()
     }
 
+    /// 返回当前栏目中可显示的礼物条目数量。
     func collectionView(
         _ collectionView: UICollectionView,
         numberOfItemsInSection section: Int
@@ -253,6 +259,7 @@ extension GiftSheetView {
         visibleGifts.count
     }
 
+    /// 返回配置了当前礼物、选中状态和点击回调的复用单元格。
     func collectionView(
         _ collectionView: UICollectionView,
         cellForItemAt indexPath: IndexPath

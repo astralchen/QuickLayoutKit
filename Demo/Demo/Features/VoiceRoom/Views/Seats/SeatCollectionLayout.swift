@@ -13,14 +13,20 @@ import UIKit
 /// `slotID`，保证每个可见空位都有稳定且互不冲突的身份。服务端 `seatID` 不参与
 /// 视觉动画身份计算。
 nonisolated enum SeatCollectionItemID: Hashable, Sendable {
+    /// 以稳定用户标识维持有人麦位跨布局移动的身份。
     case user(RoomUserID)
+    /// 以稳定布局位置标识维持空麦条目的身份。
     case vacancy(SeatSlotID)
 }
 
+/// 将稳定集合条目标识与一个麦位展示状态绑定的数据项。
 nonisolated struct SeatCollectionItem: Sendable {
+    /// 用于区分当前数据项的稳定标识。
     let id: SeatCollectionItemID
+    /// 此集合条目对应的麦位展示数据。
     let slot: SeatSlotPresentation
 
+    /// 以占麦用户标识或空麦位置标识创建集合条目。
     init(slot: SeatSlotPresentation) {
         self.slot = slot
         if let userID = slot.assignment?.userID {
@@ -33,10 +39,14 @@ nonisolated struct SeatCollectionItem: Sendable {
 
 /// 单个麦位在自定义 Collection Layout 中的完整视觉状态。
 struct SeatCollectionLayoutState: Equatable {
+    /// 条目在集合视图内容坐标系中的矩形，单位为点。
     let frame: CGRect
+    /// 条目显示的不透明度，范围为 `0...1`。
     let alpha: CGFloat
+    /// 应用到条目的二维几何变换。
     let transform: CGAffineTransform
 
+    /// 创建指定矩形的条目几何状态；默认完全不透明且不应用变换。
     init(
         frame: CGRect,
         alpha: CGFloat = 1,
@@ -48,11 +58,16 @@ struct SeatCollectionLayoutState: Equatable {
     }
 }
 
+/// 一次布局提交所需的条目顺序、几何状态和内容尺寸。
 struct SeatCollectionLayoutConfiguration: Equatable {
+    /// 按集合视图显示顺序排列的稳定条目标识。
     let itemIDs: [SeatCollectionItemID]
+    /// 以稳定条目标识索引的几何和透明度状态。
     let states: [SeatCollectionItemID: SeatCollectionLayoutState]
+    /// 整个集合视图内容区域的尺寸，单位为点。
     let contentSize: CGSize
 
+    /// 不包含条目且内容尺寸为零的初始布局配置。
     static let empty = Self(itemIDs: [], states: [:], contentSize: .zero)
 }
 
@@ -62,13 +77,17 @@ struct SeatCollectionLayoutConfiguration: Equatable {
 /// 后台业务。所有 Frame 都由客户端受控的布局家族与 Metrics 计算。
 final class SeatCollectionLayout: UICollectionViewLayout {
 
+    /// 最近一次提交给布局对象的完整几何配置。
     private(set) var configuration = SeatCollectionLayoutConfiguration.empty
+    /// 按索引路径缓存的集合视图布局属性。
     private var attributesByIndexPath: [IndexPath: UICollectionViewLayoutAttributes] = [:]
 
+    /// 当前几何配置声明的内容尺寸，单位为点。
     override var collectionViewContentSize: CGSize {
         configuration.contentSize
     }
 
+    /// 替换几何配置、重建布局属性并使集合视图布局失效。
     func apply(_ configuration: SeatCollectionLayoutConfiguration) {
         guard self.configuration != configuration else { return }
         self.configuration = configuration
@@ -78,6 +97,7 @@ final class SeatCollectionLayout: UICollectionViewLayout {
         invalidateLayout()
     }
 
+    /// 按当前条目顺序生成包含位置、透明度和变换的布局属性缓存。
     private func rebuildAttributes() {
         attributesByIndexPath.removeAll(keepingCapacity: true)
         for (index, itemID) in configuration.itemIDs.enumerated() {
@@ -92,6 +112,7 @@ final class SeatCollectionLayout: UICollectionViewLayout {
         }
     }
 
+    /// 返回与指定内容矩形相交且索引仍有效的条目布局属性。
     override func layoutAttributesForElements(
         in rect: CGRect
     ) -> [UICollectionViewLayoutAttributes]? {
@@ -101,6 +122,7 @@ final class SeatCollectionLayout: UICollectionViewLayout {
         }
     }
 
+    /// 返回指定有效索引路径的布局属性；不存在时为 `nil`。
     override func layoutAttributesForItem(
         at indexPath: IndexPath
     ) -> UICollectionViewLayoutAttributes? {
@@ -113,11 +135,13 @@ final class SeatCollectionLayout: UICollectionViewLayout {
 
     // 配置和 Diffable Snapshot 分两步提交；缓存即使是最新配置，也只能向 UIKit
     // 返回当前 Snapshot 中存在的索引。不要在建缓存时裁剪，否则扩展后会缺失麦位。
+    /// 集合视图当前第一分区中可安全查询的条目数量。
     private var currentItemCount: Int {
         guard let collectionView, collectionView.numberOfSections > 0 else { return 0 }
         return collectionView.numberOfItems(inSection: 0)
     }
 
+    /// 返回容器宽度变化是否超过半点；只有满足该条件时才使布局失效。
     override func shouldInvalidateLayout(
         forBoundsChange newBounds: CGRect
     ) -> Bool {
@@ -130,6 +154,7 @@ final class SeatCollectionLayout: UICollectionViewLayout {
 @MainActor
 enum SeatCollectionGeometry {
 
+    /// 根据舞台数据、尺寸参数、可用宽度和布局方向生成确定性几何配置。
     static func configuration(
         presentation: SeatStagePresentation,
         items: [SeatCollectionItem],
@@ -166,6 +191,7 @@ enum SeatCollectionGeometry {
         let states = Dictionary(
             uniqueKeysWithValues: logicalFrames.map { itemID, frame in
                 let resolvedFrame: CGRect
+                // 普通房型镜像逻辑布局；厅 PK 保持本房在物理左侧，避免交换双方身份位置。
                 if direction == .rightToLeft && presentation.layoutID != .roomPKNine {
                     resolvedFrame = CGRect(
                         x: availableWidth - frame.maxX,
@@ -190,6 +216,7 @@ enum SeatCollectionGeometry {
         )
     }
 
+    /// 返回派对房主持麦与两排观众麦在舞台中的矩形。
     private static func partyFrames(
         presentation: SeatStagePresentation,
         itemsBySlotID: [SeatSlotID: SeatCollectionItem],
@@ -244,6 +271,7 @@ enum SeatCollectionGeometry {
         return frames
     }
 
+    /// 返回个播房放大主持麦及可见观众麦的矩形。
     private static func individualFrames(
         presentation: SeatStagePresentation,
         itemsBySlotID: [SeatSlotID: SeatCollectionItem],

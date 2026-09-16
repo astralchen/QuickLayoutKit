@@ -10,10 +10,13 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
+/// 为公屏输入文字和占位文字提供统一水平内边距的文本框。
 final class RoomMessageTextField: UITextField {
 
+    /// 文本和占位文字两侧的内边距，单位为点。
     private let horizontalTextInset: CGFloat = 14
 
+    /// 返回应用水平内边距后的静态文本绘制区域。
     override func textRect(forBounds bounds: CGRect) -> CGRect {
         super.textRect(forBounds: bounds).insetBy(
             dx: horizontalTextInset,
@@ -21,6 +24,7 @@ final class RoomMessageTextField: UITextField {
         )
     }
 
+    /// 返回应用水平内边距后的编辑区域。
     override func editingRect(forBounds bounds: CGRect) -> CGRect {
         super.editingRect(forBounds: bounds).insetBy(
             dx: horizontalTextInset,
@@ -28,6 +32,7 @@ final class RoomMessageTextField: UITextField {
         )
     }
 
+    /// 返回与正文对齐的占位文字绘制区域。
     override func placeholderRect(forBounds bounds: CGRect) -> CGRect {
         super.placeholderRect(forBounds: bounds).insetBy(
             dx: horizontalTextInset,
@@ -36,23 +41,34 @@ final class RoomMessageTextField: UITextField {
     }
 }
 
+/// 包裹公屏文本框并提供圆角背景的输入容器。
 final class RoomMessageInputView: QuickLayoutView {
 
+    /// 组件背景的圆角半径，单位为点。
     private static let cornerRadius: CGFloat = 8
+    /// 组件布局允许的最小高度，单位为点。
     private static let minimumHeight: CGFloat = 35
 
+    /// 接收公屏消息输入的文本框。
     let textField = RoomMessageTextField()
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureView()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureView()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         // 最小高度属于输入容器自身；标准字号为 35pt，辅助字号需要时仍可自然长高。
         textField
@@ -60,6 +76,7 @@ final class RoomMessageInputView: QuickLayoutView {
             .frame(minHeight: Self.minimumHeight)
     }
 
+    /// 配置组件的基础样式和交互行为。
     private func configureView() {
         accessibilityIdentifier = "liveRoom.message.input.container"
         backgroundColor = UIColor.white.withAlphaComponent(0.12)
@@ -71,22 +88,33 @@ final class RoomMessageInputView: QuickLayoutView {
     }
 }
 
+/// 在常规操作按钮与公屏消息编辑区域之间切换的底部工具栏。
 final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
 
+    /// 进入消息编辑状态的按钮。
     private let messageButton = IconTitleButton(frame: .zero)
+    /// 显示麦克风操作入口的按钮。
     private let microphoneButton = SymbolButton(frame: .zero)
+    /// 打开礼物面板的按钮。
     private let giftButton = SymbolButton(frame: .zero)
     // UIButton 暂时只保留在需要承载 UIMenu 的入口；QuickLayoutButton 不代理菜单 API。
+    /// 展示房间业务菜单的按钮。
     private let moreButton = UIButton(type: .system)
+    /// 公屏消息编辑区域的输入容器。
     private let messageInputView = RoomMessageInputView()
+    /// 维护文本输入本地化及布局方向的绑定。
     private lazy var inputBinding = Localization.reusableContext.makeTextInputBinding(to: messageTextField)
+    /// 提交当前选择或输入内容的按钮。
     private let sendButton = CapsuleTextButton(frame: .zero)
+    /// 取消当前消息编辑的按钮。
     private let cancelButton = SymbolButton(frame: .zero)
 
+    /// 公屏消息输入容器中的实际文本框。
     private var messageTextField: RoomMessageTextField {
         messageInputView.textField
     }
 
+    /// 根据当前内容环境解析的操作控件高度，单位为点。
     private var controlHeight: CGFloat {
         guard traitCollection.preferredContentSizeCategory
             .isAccessibilityCategory
@@ -97,20 +125,30 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
         )
     }
 
+    /// 提交非空消息时调用的回调；参数为规范化后的消息文本。
     var messageDidSend: ((String) -> Void)?
+    /// 用户点击礼物入口时调用的回调。
     var giftDidTap: (() -> Void)?
+    /// 一个布尔值，指示底部操作栏是否显示消息编辑区域。
     private(set) var isShowingMessageComposer = false
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     @LayoutBuilder
     override var body: Layout {
         if isShowingMessageComposer {
@@ -139,12 +177,14 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
         }
     }
 
+    /// 常规状态下消息入口的布局。
     private var messageLayout: Layout {
         messageButton
             .resizable()
             .frame(height: controlHeight)
     }
 
+    /// 麦克风、礼物和更多圆形按钮的布局。
     private var roundButtonsLayout: Layout {
         HStack(spacing: 9) {
             microphoneButton.resizable().frame(
@@ -162,6 +202,7 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
         }
     }
 
+    /// 更新操作按钮文案、输入占位文字及辅助功能描述。
     func configure(
         message: String,
         microphone: String,
@@ -203,10 +244,12 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
         cancelButton.accessibilityLabel = cancel
     }
 
+    /// 设置更多按钮展示的房间业务菜单。
     func setMoreMenu(_ menu: UIMenu) {
         moreButton.menu = menu
     }
 
+    /// 返回礼物飞行起点在指定视图坐标系中的位置；视图不可用时为 `nil`。
     func giftAnimationOrigin(in view: UIView) -> CGPoint? {
         guard giftButton.window != nil else { return nil }
         return giftButton.convert(
@@ -215,6 +258,7 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
         )
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         accessibilityIdentifier = "liveRoom.actionBar"
         messageButton.accessibilityIdentifier = "liveRoom.message.button"
@@ -270,11 +314,13 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
         cancelButton.action = { [weak self] in self?.cancelMessage() }
     }
 
+    /// 视图进入窗口后刷新文本输入的本地化绑定。
     override func didMoveToWindow() {
         super.didMoveToWindow()
         if window != nil { inputBinding.refresh() }
     }
 
+    /// 显示消息编辑区域并请求文本框成为第一响应者。
     private func showMessageComposer() {
         guard !isShowingMessageComposer else { return }
         isShowingMessageComposer = true
@@ -285,6 +331,7 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
         messageTextField.becomeFirstResponder()
     }
 
+    /// 提交规范化后的非空消息并退出编辑状态。
     private func sendMessage() {
         let message = normalizedMessageText
         guard !message.isEmpty else { return }
@@ -295,18 +342,22 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
         handler?(message)
     }
 
+    /// 在文本变化时更新发送按钮的可用状态。
     @objc private func messageTextDidChange() {
         updateSendButtonState()
     }
 
+    /// 取消当前消息编辑并恢复常规操作栏。
     private func cancelMessage() {
         dismissMessageComposer()
     }
 
+    /// 结束消息编辑并通知宿主打开礼物面板。
     private func showGiftSheet() {
         giftDidTap?()
     }
 
+    /// 结束文本输入并恢复常规操作按钮布局。
     private func dismissMessageComposer() {
         messageTextField.text = nil
         inputBinding.refresh()
@@ -317,23 +368,27 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
         setNeedsQuickLayout()
     }
 
+    /// 响应键盘发送动作，提交当前消息。
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         guard sendButton.isEnabled else { return false }
         sendMessage()
         return false
     }
 
+    /// 去除首尾空白与换行后的当前输入文本。
     private var normalizedMessageText: String {
         messageTextField.text?.trimmingCharacters(
             in: .whitespacesAndNewlines
         ) ?? ""
     }
 
+    /// 根据当前输入是否包含非空文本更新发送按钮。
     private func updateSendButtonState() {
         // 输入内容必须包含非空白字符；按钮和键盘 Return 键共用这条发送规则。
         sendButton.isEnabled = !normalizedMessageText.isEmpty
     }
 
+    /// 为圆形工具按钮设置指定符号和统一样式。
     private func configureRoundButton(_ button: UIButton, symbolName: String) {
         var configuration = UIButton.Configuration.filled()
         configuration.image = UIImage(systemName: symbolName)
@@ -343,6 +398,7 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
         button.configuration = configuration
     }
 
+    /// 同步编辑状态对应的控件可见性、布局和辅助功能状态。
     private func updateComposerAppearance() {
         if isShowingMessageComposer {
             // 输入条会悬浮到键盘上方，使用近不透明背景保证与麦位内容清晰分层。
@@ -368,6 +424,7 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
 }
 
 #if DEBUG
+/// 创建展示公屏消息文本框的预览控制器。
 @MainActor
 private func makeRoomMessageTextFieldPreview() -> UIViewController {
     let view = RoomMessageTextField()
@@ -384,6 +441,7 @@ private func makeRoomMessageTextFieldPreview() -> UIViewController {
     }
 }
 
+/// 创建展示公屏输入容器的预览控制器。
 @MainActor
 private func makeRoomMessageInputViewPreview() -> UIViewController {
     let view = RoomMessageInputView()
@@ -404,6 +462,7 @@ private func makeRoomMessageInputViewPreview() -> UIViewController {
     }
 }
 
+/// 创建展示房间底部操作栏的预览控制器。
 @MainActor
 private func makeRoomActionBarPreview() -> UIViewController {
     let view = RoomActionBarView()

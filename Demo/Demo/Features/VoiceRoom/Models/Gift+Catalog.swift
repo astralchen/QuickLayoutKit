@@ -9,6 +9,7 @@ import Foundation
 
 extension Gift {
 
+    /// 按展示顺序排列的内置、远程和组合礼物目录。
     static let catalog = [
         Gift(
             id: "heart",

@@ -10,30 +10,48 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
+/// 展示占麦用户头像、身份、积分和麦克风状态的资料卡片。
 final class SeatUserCardView: TranslucentCardView {
 
+    /// 请求关闭当前资料卡的按钮。
     let closeButton = SymbolButton(frame: .zero)
 
+    /// 显示组件主标题的标签。
     private let titleLabel = UILabel()
+    /// 提供头像底色和圆角的背景视图。
     private let avatarBackgroundView = UIView()
+    /// 显示用户头像或备用图标的图像视图。
     private let avatarImageView = UIImageView()
+    /// 显示用户昵称或空麦名称的标签。
     private let nameLabel = UILabel()
+    /// 显示麦位角色、编号或所属房间的标签。
     private let seatLabel = UILabel()
+    /// 显示用户积分或空麦状态的标签。
     private let scoreLabel = UILabel()
+    /// 显示麦克风可用或静音状态的图像视图。
     private let microphoneImageView = UIImageView()
+    /// 显示麦克风状态的文本标签。
     private let microphoneLabel = UILabel()
+    /// 资料卡头像内容的目标边长，单位为点。
     private var avatarContentSize: CGFloat = 52
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
@@ -78,6 +96,7 @@ final class SeatUserCardView: TranslucentCardView {
         .padding(20)
     }
 
+    /// 根据指定麦位更新用户资料、音频状态和可选的 PK 房间侧说明。
     func configure(seat: SeatAssignment, showsRoom: Bool = false) {
         let color = VoiceRoomTheme.seatColor(at: seat.themeIndex)
         titleLabel.text = Localization.text("liveRoom.userCard.title")
@@ -118,6 +137,7 @@ final class SeatUserCardView: TranslucentCardView {
         setNeedsQuickLayout()
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         accessibilityIdentifier = "liveRoom.userCard.container"
         backgroundColor = UIColor(
@@ -185,6 +205,7 @@ final class SeatUserCardView: TranslucentCardView {
 }
 
 #if DEBUG
+/// 创建展示麦位用户资料卡的预览控制器。
 @MainActor
 private func makeSeatUserCardViewPreview() -> UIViewController {
     let view = SeatUserCardView()

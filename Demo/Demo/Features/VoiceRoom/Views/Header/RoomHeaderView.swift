@@ -10,29 +10,44 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
+/// 展示房间头像、标题和在线人数入口的页头视图。
 final class RoomHeaderView: TranslucentCardView {
 
+    /// 打开房间资料页的头像按钮。
     private let roomAvatarButton = SymbolButton(frame: .zero)
+    /// 显示组件主标题的标签。
     private let titleLabel = UILabel()
+    /// 显示标题补充说明的标签。
     private let subtitleLabel = UILabel()
+    /// 显示在线人数并打开观众面板的按钮。
     private let audienceButton = CapsuleTextButton(frame: .zero)
+    /// 提示页头可查看更多信息的装饰图标。
     private let moreImageView = UIImageView(
         image: UIImage(systemName: "ellipsis")
     )
 
+    /// 用户点击在线人数入口时调用的回调。
     var audienceDidTap: (() -> Void)?
+    /// 用户点击房间头像入口时调用的回调。
     var roomAvatarDidTap: (() -> Void)?
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 11) {
@@ -58,12 +73,14 @@ final class RoomHeaderView: TranslucentCardView {
         }
     }
 
+    /// 页头房间头像入口的布局。
     private var avatarLayout: Layout {
         roomAvatarButton
             .resizable()
             .frame(width: 46, height: 46)
     }
 
+    /// 页头主标题与副标题的布局。
     private var titleLayout: Layout {
         VStack(alignment: .leading, spacing: 3) {
             titleLabel
@@ -72,12 +89,14 @@ final class RoomHeaderView: TranslucentCardView {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// 页头在线人数入口的布局。
     private var audienceLayout: Layout {
         audienceButton
             .fixedSize(axis: .horizontal)
             .fixedSize(axis: .vertical)
     }
 
+    /// 页头更多信息指示图标的布局。
     private var moreLayout: Layout {
         moreImageView
             .resizable()
@@ -85,6 +104,7 @@ final class RoomHeaderView: TranslucentCardView {
             .frame(width: 22, height: 22)
     }
 
+    /// 更新房间文案、在线人数和各导航入口的辅助功能说明。
     func configure(
         roomTitle: String,
         roomSubtitle: String,
@@ -113,6 +133,7 @@ final class RoomHeaderView: TranslucentCardView {
         setNeedsQuickLayout()
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         roomAvatarButton.configure(
             symbolName: "music.mic.circle.fill",
@@ -151,6 +172,7 @@ final class RoomHeaderView: TranslucentCardView {
 }
 
 #if DEBUG
+/// 创建展示房间页头的预览控制器。
 @MainActor
 private func makeRoomHeaderViewPreview() -> UIViewController {
     let view = RoomHeaderView()

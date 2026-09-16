@@ -1,5 +1,6 @@
 /// PK 对方使用独立的生成头像；数组位置与零基麦位位置一致。
 nonisolated extension AvatarImageID {
+    /// 按对方麦位位置排列的 PK 演示头像资源。
     static let pkOpponentFixtures: [Self?] = [
         Self(rawValue: "VoiceRoomPKAvatarHost"),
         Self(rawValue: "VoiceRoomPKAvatarOne"),

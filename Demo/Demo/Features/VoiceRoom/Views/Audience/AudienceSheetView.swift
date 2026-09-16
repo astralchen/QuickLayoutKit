@@ -9,8 +9,10 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
+/// 组合观众面板页头与观众集合列表的内容视图。
 final class AudienceSheetView: QuickLayoutView {
 
+    /// 负责内容条目展示和复用的集合视图。
     let collectionView: UICollectionView = {
         UICollectionView(
             frame: .zero,
@@ -18,6 +20,7 @@ final class AudienceSheetView: QuickLayoutView {
         )
     }()
 
+    /// 组件内容后方的背景视图。
     private let backgroundView = QuickLayoutLinearGradientView(
         stops: [
             QuickLayoutGradient.Stop(
@@ -32,18 +35,26 @@ final class AudienceSheetView: QuickLayoutView {
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
+    /// 面板顶部的标题和摘要视图。
     private let headerView = AudienceSheetHeaderView()
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         ZStack {
             // 背景覆盖完整 Sheet，内容再分别处理顶部与底部安全区域。
@@ -64,6 +75,7 @@ final class AudienceSheetView: QuickLayoutView {
         }
     }
 
+    /// 更新观众列表页头显示的标题和人数信息。
     func configure(title: String, summary: String, subtitle: String) {
         headerView.configure(
             title: title,
@@ -72,6 +84,7 @@ final class AudienceSheetView: QuickLayoutView {
         )
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
         accessibilityIdentifier = "liveRoom.audience.sheet"

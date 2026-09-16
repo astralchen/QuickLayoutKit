@@ -11,6 +11,7 @@ import UIKit
 
 extension GiftSheetView {
 
+    /// 切换指定用户的收礼选择并通知宿主最新选择列表。
     func selectRecipient(_ recipient: SeatAssignment) {
         guard
             let userID = recipient.userID,
@@ -21,6 +22,7 @@ extension GiftSheetView {
         UISelectionFeedbackGenerator().selectionChanged()
     }
 
+    /// 切换当前用户列表的全选状态并刷新按钮及选择回调。
     func toggleAllRecipients() {
         viewModel.toggleAllRecipients()
         updateButtons()
@@ -28,6 +30,7 @@ extension GiftSheetView {
         UISelectionFeedbackGenerator().selectionChanged()
     }
 
+    /// 更新礼物选择，并在选择发生变化时刷新面板及通知宿主。
     func selectGift(_ gift: Gift) {
         guard viewModel.selectGift(id: gift.id) else { return }
         updateButtons(reloadsGifts: true)
@@ -35,6 +38,7 @@ extension GiftSheetView {
         UISelectionFeedbackGenerator().selectionChanged()
     }
 
+    /// 尝试选择指定赠送数量，并返回是否被当前预设接受。
     @discardableResult
     func setSelectedGiftQuantity(_ quantity: Int) -> Bool {
         guard viewModel.selectGiftQuantity(quantity) else { return false }
@@ -42,11 +46,13 @@ extension GiftSheetView {
         return true
     }
 
+    /// 更新赠送数量并刷新数量按钮和发送信息。
     func selectGiftQuantity(_ quantity: Int) {
         guard setSelectedGiftQuantity(quantity) else { return }
         UISelectionFeedbackGenerator().selectionChanged()
     }
 
+    /// 切换礼物栏目，刷新网格并安排所选栏目滚动到可见中心。
     func selectCategory(_ category: GiftCategory) {
         guard selectedCategory != category else { return }
         // ViewModel 负责维持“当前礼物必须属于当前栏目”的状态不变量。
@@ -63,6 +69,7 @@ extension GiftSheetView {
         UISelectionFeedbackGenerator().selectionChanged()
     }
 
+    /// 在栏目布局可用时完成待处理的居中滚动，并限制滚动边界。
     func centerPendingGiftCategoryIfNeeded() {
         guard
             let category = categoryPendingCentering,
@@ -105,6 +112,7 @@ extension GiftSheetView {
         )
     }
 
+    /// 返回栏目按钮在栏目滚动内容坐标系中的矩形。
     func giftCategoryButtonContentFrame(
         _ button: CapsuleTextButton
     ) -> CGRect {
@@ -112,6 +120,7 @@ extension GiftSheetView {
         button.convert(button.bounds, to: categoryCarouselScrollView)
     }
 
+    /// 校验当前选择并提交发送回调，成功后应用业务层确认的余额。
     func sendSelectedGift() {
         let request: GiftSendRequest
         switch viewModel.makeSendDecision() {
@@ -147,6 +156,7 @@ extension GiftSheetView {
         )
     }
 
+    /// 返回礼物飞行起点在指定视图坐标系中的位置；视图不可用时为 `nil`。
     func giftAnimationOrigin(in view: UIView) -> CGPoint? {
         guard sendButton.window != nil else { return nil }
         return sendButton.convert(
@@ -155,10 +165,12 @@ extension GiftSheetView {
         )
     }
 
+    /// 按收礼人列表顺序解析出的已选麦位绑定。
     var selectedRecipients: [SeatAssignment] {
         viewModel.selectedRecipients
     }
 
+    /// 将零基麦位位置转换为当前用户标识后更新收礼人选择。
     func setSelectedRecipientSeatIDs(_ seatIDs: Set<Int>) {
         let userIDs = Set(recipients.compactMap { recipient in
             seatIDs.contains(recipient.position.rawValue)
@@ -168,12 +180,14 @@ extension GiftSheetView {
         setSelectedRecipientUserIDs(userIDs)
     }
 
+    /// 按稳定用户标识更新收礼人选择并同步面板显示。
     func setSelectedRecipientUserIDs(_ userIDs: Set<RoomUserID>) {
         viewModel.setSelectedRecipientUserIDs(userIDs)
         updateButtons()
         recipientDidSelect?(selectedRecipients)
     }
 
+    /// 显示收礼人选择提示，并提供触觉、播报及就地动画反馈。
     func showRecipientRequiredPrompt() {
         updateRecipientStatusLabel()
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
@@ -216,10 +230,12 @@ extension GiftSheetView {
         }
     }
 
+    /// 清除选择收礼人的提示状态。
     func clearRecipientRequiredPrompt() {
         viewModel.clearRecipientRequiredPrompt()
     }
 
+    /// 显示余额错误反馈，并将所需余额交给宿主处理充值导航。
     func showInsufficientBalancePrompt(requiredBalance: Int) {
         updateBalanceLabel()
         UINotificationFeedbackGenerator().notificationOccurred(.error)
@@ -252,6 +268,7 @@ extension GiftSheetView {
         }
     }
 
+    /// 清除余额不足的提示状态。
     func clearInsufficientBalancePrompt() {
         viewModel.clearInsufficientBalancePrompt()
     }

@@ -13,7 +13,13 @@ final class GiftNativeEffectPlayer: GiftEffectPlaying {
     /// 保存实际渲染入口，不提前查询坐标或创建动画。
     init(start: @escaping Start) { self.start = start }
 
-    /// 等待本次所有收礼人的原生到达动画；不复制或修改礼物配置列表。
+    /// 播放一个原生效果并等待其全部收礼人动画结束。
+    ///
+    /// - Parameters:
+    ///   - effect: 必须为原生效果的配置。
+    ///   - gift: 本次赠送的礼物。
+    ///   - quantity: 向每名收礼人赠送的份数。
+    /// - Throws: 非原生配置产生的不可用错误、渲染失败或任务取消错误。
     func play(effect: GiftEffect, gift: Gift, quantity: Int) async throws {
         guard case .native(let style) = effect else { throw GiftMainEffectPlaybackError.unavailable }
         try await playback.run { [start] completion in start(style, gift, quantity, completion) }

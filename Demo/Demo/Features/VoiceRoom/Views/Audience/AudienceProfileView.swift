@@ -9,53 +9,92 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
+/// 呈现观众头像、身份信息和简介的资料页视图。
 final class AudienceProfileView: QuickLayoutView {
 
+    /// 一次刷新所需的完整显示内容。
     struct Content {
+        /// 界面显示的用户昵称。
         let displayName: String
+        /// 内容中使用的用户头像图像。
         let avatarImage: UIImage?
+        /// 辅助功能读取头像时使用的描述。
         let avatarAccessibilityLabel: String
+        /// 已经本地化的用户参与状态文案。
         let presence: String
+        /// 详细资料区域的标题。
         let detailsTitle: String
+        /// 用户标识字段的标题。
         let memberIDTitle: String
+        /// 用于资料页显示的用户标识字符串。
         let memberID: String
+        /// 贡献积分字段的标题。
         let contributionTitle: String
+        /// 已格式化的贡献积分文案。
         let contribution: String
+        /// 用户简介区域的标题。
         let aboutTitle: String
+        /// 用户简介正文。
         let about: String
+        /// 当前内容使用的主题颜色。
         let themeColor: UIColor
     }
 
+    /// 承载内容并处理滚动的视图。
     let scrollView = QuickLayoutScrollView(.vertical)
 
+    /// 页面使用的星点渐变背景视图。
     private let backdropView = StarfieldBackgroundView()
+    /// 页头主要信息区域的卡片背景。
     private let heroCardView = TranslucentCardView()
+    /// 详细资料区域的卡片背景。
     private let detailsCardView = TranslucentCardView()
+    /// 用户简介区域的卡片背景。
     private let aboutCardView = TranslucentCardView()
+    /// 提供头像底色和圆角的背景视图。
     private let avatarBackgroundView = UIView()
+    /// 显示用户头像或备用图标的图像视图。
     private let avatarImageView = UIImageView()
+    /// 显示用户昵称的标签。
     private let displayNameLabel = UILabel()
+    /// 显示用户在麦或收听状态的标签。
     private let presenceLabel = UILabel()
+    /// 参与状态标签的背景视图。
     private let presenceBackgroundView = UIView()
+    /// 显示详细资料区域标题的标签。
     private let detailsTitleLabel = UILabel()
+    /// 显示用户标识字段标题的标签。
     private let memberIDTitleLabel = UILabel()
+    /// 显示用户标识值的标签。
     private let memberIDValueLabel = UILabel()
+    /// 显示贡献积分字段标题的标签。
     private let contributionTitleLabel = UILabel()
+    /// 显示已格式化贡献积分的标签。
     private let contributionValueLabel = UILabel()
+    /// 分隔相邻内容区域的细线视图。
     private let dividerView = UIView()
+    /// 显示用户简介标题的标签。
     private let aboutTitleLabel = UILabel()
+    /// 显示用户简介正文的标签。
     private let aboutLabel = UILabel()
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         ZStack {
             backdropView
@@ -78,6 +117,7 @@ final class AudienceProfileView: QuickLayoutView {
         }
     }
 
+    /// 组合页头图像、标题和状态的卡片布局。
     private var heroCard: Layout {
         VStack(spacing: 12) {
             ZStack {
@@ -104,6 +144,7 @@ final class AudienceProfileView: QuickLayoutView {
         .background { heroCardView }
     }
 
+    /// 组合资料标题和各字段行的卡片布局。
     private var detailsCard: Layout {
         VStack(alignment: .leading, spacing: 0) {
             detailsTitleLabel
@@ -126,6 +167,7 @@ final class AudienceProfileView: QuickLayoutView {
         .background { detailsCardView }
     }
 
+    /// 组合简介标题与正文的卡片布局。
     private var aboutCard: Layout {
         VStack(alignment: .leading, spacing: 9) {
             aboutTitleLabel.resizable(axis: .horizontal)
@@ -135,6 +177,7 @@ final class AudienceProfileView: QuickLayoutView {
         .background { aboutCardView }
     }
 
+    /// 返回由字段标题和值组成的一行资料布局。
     private func detailRow(title: UILabel, value: UILabel) -> Layout {
         HStack(alignment: .center, spacing: 16) {
             title.fixedSize(axis: .horizontal)
@@ -144,6 +187,7 @@ final class AudienceProfileView: QuickLayoutView {
         .padding(.vertical, 12)
     }
 
+    /// 应用完整资料内容，并刷新对应文本、头像和主题色。
     func configure(content: Content) {
         displayNameLabel.text = content.displayName
         avatarImageView.image = content.avatarImage
@@ -167,6 +211,7 @@ final class AudienceProfileView: QuickLayoutView {
         setNeedsQuickLayout()
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
         accessibilityIdentifier = "liveRoom.audience.profile.view"
@@ -235,6 +280,7 @@ final class AudienceProfileView: QuickLayoutView {
             "liveRoom.audience.profile.about"
     }
 
+    /// 为资料字段标题设置统一字体和次要文本颜色。
     private func configureDetailTitleLabel(_ label: UILabel) {
         configureLabel(
             label,
@@ -243,6 +289,7 @@ final class AudienceProfileView: QuickLayoutView {
         )
     }
 
+    /// 为资料字段值设置字体、颜色及显示优先级。
     private func configureDetailValueLabel(_ label: UILabel) {
         configureLabel(
             label,
@@ -253,6 +300,7 @@ final class AudienceProfileView: QuickLayoutView {
         label.lineBreakMode = .byTruncatingMiddle
     }
 
+    /// 应用指定字体、颜色和对齐方式的标签样式。
     private func configureLabel(
         _ label: UILabel,
         font: UIFont,
@@ -267,6 +315,7 @@ final class AudienceProfileView: QuickLayoutView {
 }
 
 #if DEBUG
+/// 创建展示观众资料视图的预览控制器。
 @MainActor
 private func makeAudienceProfileViewPreview() -> UIViewController {
     let member = VoiceRoomPreviewData.audienceMembers[1]

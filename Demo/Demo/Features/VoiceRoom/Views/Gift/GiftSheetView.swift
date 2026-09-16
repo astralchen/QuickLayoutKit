@@ -10,16 +10,23 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
+/// 呈现收礼人、礼物目录和发送选项的面板内容视图。
 final class GiftSheetView:
     QuickLayoutView,
     UICollectionViewDataSource {
 
+    /// 收礼选择变化后的回调；参数为当前已选麦位绑定列表。
     var recipientDidSelect: (([SeatAssignment]) -> Void)?
+    /// 礼物选择变化后的回调；参数为新选中的礼物。
     var giftDidSelect: ((Gift) -> Void)?
+    /// 提交已选礼物的同步业务回调；返回确认余额，失败时返回 `nil`。
     var sendDidTap: ((GiftSendRequest) -> Int?)?
+    /// 余额不足时的回调；参数依次为所需余额和当前余额。
     var insufficientBalanceDidOccur: ((Int, Int) -> Void)?
 
+    /// 提供当前页面业务状态并处理用户操作的视图模型。
     let viewModel: GiftSheetViewModel
+    /// 面板内容后方的渐变背景。
     let backgroundGradientView = QuickLayoutLinearGradientView(
         stops: [
             QuickLayoutGradient.Stop(
@@ -35,22 +42,31 @@ final class GiftSheetView:
         startPoint: UnitPoint(x: 0.08, y: 0),
         endPoint: UnitPoint(x: 0.90, y: 0.72)
     )
+    /// 显示收礼选择摘要或提示的标签。
     let recipientTitleLabel = UILabel()
+    /// 显示当前礼物目录摘要的标签。
     let giftSummaryLabel = UILabel()
+    /// 与当前收礼列表对应的选择按钮。
     var recipientButtons: [GiftRecipientButton]
+    /// 横向排列收礼人按钮的滚动容器。
     let recipientCarouselScrollView = QuickLayoutScrollView(
         .horizontal,
         showsIndicators: false
     )
+    /// 覆盖收礼列表边缘以提示横向滚动的渐隐视图。
     let recipientFadeView = GiftRecipientFadeView(frame: .zero)
+    /// 切换当前全部收礼人选择状态的按钮。
     let selectAllButton = GiftSelectAllButton(frame: .zero)
+    /// 按栏目枚举顺序创建的礼物栏目按钮。
     let categoryButtons = GiftCategory.allCases.map { _ in
         CapsuleTextButton(frame: .zero)
     }
+    /// 横向排列礼物栏目按钮的滚动容器。
     let categoryCarouselScrollView = QuickLayoutScrollView(
         .horizontal,
         showsIndicators: false
     )
+    /// 显示当前栏目礼物网格的集合视图。
     let giftCollectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
         layout.scrollDirection = .vertical
@@ -60,48 +76,75 @@ final class GiftSheetView:
         )
         return collectionView
     }()
+    /// 显示当前金币余额或余额不足提示的标签。
     let balanceLabel = UILabel()
+    /// 展示当前数量并弹出预设数量菜单的按钮。
     let quantityButton = UIButton(type: .system)
+    /// 提交当前选择或输入内容的按钮。
     let sendButton = CapsuleTextButton(frame: .zero)
+    /// 等待布局完成后滚动居中的栏目；没有请求时为 `nil`。
     var categoryPendingCentering: GiftCategory? = .all
+    /// 一个布尔值，指示组件是否使用紧凑尺寸参数。
     var usesCompactMetrics = false
 
+    /// 当前可用的收礼麦位数据。
     var recipients: [SeatAssignment] { viewModel.recipients }
+    /// 按目录顺序排列的可选礼物。
     var gifts: [Gift] { viewModel.gifts }
+    /// 视图模型提供的可选赠送数量。
     var giftQuantityOptions: [GiftQuantityOption] {
         viewModel.quantityOptions
     }
+    /// 已选择收礼人的稳定用户标识集合。
     var selectedRecipientUserIDs: Set<RoomUserID> {
         viewModel.selectedRecipientUserIDs
     }
+    /// 兼容调试接口的零基麦位位置集合，不表示用户标识。
     var selectedRecipientIDs: Set<Int> {
         viewModel.selectedRecipientPositions
     }
+    /// 当前选中礼物的稳定标识；未选择时为 `nil`。
     var selectedGiftID: String? { viewModel.selectedGiftID }
+    /// 每名收礼人的赠送份数；初始值为 `1`。
     var selectedGiftQuantity: Int { viewModel.selectedGiftQuantity }
+    /// 业务层确认后供礼物面板使用的金币余额。
     var giftBalance: Int { viewModel.giftBalance }
+    /// 当前选中的礼物栏目；初始值为全部礼物。
     var selectedCategory: GiftCategory { viewModel.selectedCategory }
+    /// 一个布尔值，指示是否显示选择收礼人的提示；初始值为 `false`。
     var showsRecipientRequiredPrompt: Bool {
         viewModel.showsRecipientRequiredPrompt
     }
+    /// 一个布尔值，指示是否显示余额不足提示；初始值为 `false`。
     var showsInsufficientBalancePrompt: Bool {
         viewModel.showsInsufficientBalancePrompt
     }
 
+    /// 礼物网格使用的滚动视图。
     var giftScrollView: UIScrollView { giftCollectionView }
+    /// 收礼人列表使用的水平滚动视图。
     var recipientScrollView: UIScrollView { recipientCarouselScrollView }
+    /// 供宿主访问的礼物栏目滚动视图。
     var categoryScrollView: UIScrollView { categoryCarouselScrollView }
+    /// 当前礼物网格每行的列数。
     var giftColumnCount = 4
+    /// 当前栏目筛选后的礼物数量。
     var visibleGiftCount: Int { visibleGifts.count }
+    /// 当前选中栏目的稳定标识。
     var selectedGiftCategoryID: String { selectedCategory.id }
+    /// 可选赠送数量的整数列表。
     var giftQuantityValues: [Int] { giftQuantityOptions.map(\.value) }
+    /// 当前显示的收礼人状态或选择提示文案。
     var recipientStatusText: String? { recipientTitleLabel.text }
+    /// 当前显示的余额状态或余额不足提示文案。
     var balanceStatusText: String? { balanceLabel.text }
 
+    /// 当前栏目筛选后可见的礼物列表。
     var visibleGifts: [Gift] {
         viewModel.visibleGifts
     }
 
+    /// 使用收礼列表、礼物目录、初始选择与余额创建礼物面板内容。
     init(
         recipients: [SeatAssignment],
         gifts: [Gift],
@@ -122,6 +165,7 @@ final class GiftSheetView:
         configureViews()
     }
 
+    /// 使用收礼列表、礼物目录、初始选择与余额创建礼物面板内容。
     convenience init(
         recipients: [SeatAssignment],
         gifts: [Gift],
@@ -141,10 +185,12 @@ final class GiftSheetView:
         )
     }
 
+    /// 不支持从归档创建此组件，始终返回 `nil`。
     required init?(coder: NSCoder) {
         return nil
     }
 
+    /// 在布局完成后更新网格尺寸并处理待居中的礼物栏目。
     override func layoutSubviews() {
         let shouldUseCompactMetrics = bounds.width > 0 && bounds.width < 350
         if usesCompactMetrics != shouldUseCompactMetrics {
@@ -159,6 +205,7 @@ final class GiftSheetView:
         centerPendingGiftCategoryIfNeeded()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         VStack(alignment: .leading, spacing: usesCompactMetrics ? 8 : 11) {
             recipientTitleLabel
@@ -249,6 +296,7 @@ final class GiftSheetView:
         .background { backgroundGradientView }
     }
 
+    /// 根据当前语言刷新显示文案和辅助功能描述。
     func reloadLocalizedContent() {
         recipientTitleLabel.text = Localization.text(
             "liveRoom.gift.recipient.title"
@@ -258,6 +306,7 @@ final class GiftSheetView:
         setNeedsQuickLayout()
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     func configureViews() {
         quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
         accessibilityIdentifier = "liveRoom.gift.sheet"
@@ -377,6 +426,7 @@ final class GiftSheetView:
         reloadLocalizedContent()
     }
 
+    /// 同步最新收礼人列表，重建对应按钮并保留仍有效的用户选择。
     func updateRecipients(_ recipients: [SeatAssignment]) {
         viewModel.updateRecipients(recipients)
         recipientButtons = recipients.map { _ in
@@ -387,6 +437,7 @@ final class GiftSheetView:
         setNeedsQuickLayout()
     }
 
+    /// 为收礼人按钮绑定点击行为，并设置列表所需的视图属性。
     private func configureRecipientButtons() {
         for (button, recipient) in zip(recipientButtons, recipients) {
             button.accessibilityIdentifier =
@@ -399,6 +450,7 @@ final class GiftSheetView:
 }
 
 #if DEBUG
+/// 创建展示礼物面板内容的预览控制器。
 @MainActor
 private func makeGiftSheetViewPreview() -> UIViewController {
     var balance = 88_888

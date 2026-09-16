@@ -12,40 +12,59 @@ import UIKit
 /// 充值档位区域，负责标题、档位网格及档位点击转发。
 final class RechargePackageSectionView: QuickLayoutView {
 
+    /// 充值档位网格共用的尺寸与间距常量。
     private enum Metrics {
+        /// 单个充值档位允许的最小宽度，单位为点。
         static let minimumPackageWidth: CGFloat = 96
+        /// 相邻列之间的水平间距，单位为点。
         static let horizontalSpacing: CGFloat = 10
+        /// 相邻行之间的垂直间距，单位为点。
         static let verticalSpacing: CGFloat = 10
+        /// 常规内容尺寸下的充值档位高度，单位为点。
         static let packageHeight: CGFloat = 88
+        /// 辅助功能大字体下的充值档位高度，单位为点。
         static let accessibilityPackageHeight: CGFloat = 104
     }
 
+    /// 显示组件主标题的标签。
     let titleLabel = UILabel()
+    /// 按档位顺序排列的充值选择按钮。
     private(set) var packageButtons: [RechargePackageButton] = []
+    /// 最近一次按容器宽度解析出的网格列数。
     private var resolvedColumnsPerRow = 1
 
+    /// 用户选择充值档位时调用的回调；参数为所选档位。
     var packageDidSelect: ((RechargePackage) -> Void)?
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
     }
 
+    /// 先按建议宽度解析网格列数，再返回档位区域的合适尺寸。
     override func sizeThatFits(_ size: CGSize) -> CGSize {
         resolveColumns(for: size.width)
         return super.sizeThatFits(size)
     }
 
+    /// 在实际宽度变化后重新解析充值网格列数。
     override func layoutSubviews() {
         resolveColumns(for: bounds.width)
         super.layoutSubviews()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         VStack(spacing: 18) {
             titleLabel
@@ -56,6 +75,7 @@ final class RechargePackageSectionView: QuickLayoutView {
         }
     }
 
+    /// 按当前列数和内容尺寸类别生成的充值档位网格布局。
     @LayoutBuilder
     private var packageGrid: Layout {
         if traitCollection.preferredContentSizeCategory.isAccessibilityCategory {
@@ -92,6 +112,7 @@ final class RechargePackageSectionView: QuickLayoutView {
         }
     }
 
+    /// 更新区域标题、档位按钮内容和当前选择。
     func configure(
         title: String,
         packages: [RechargePackage],
@@ -113,6 +134,7 @@ final class RechargePackageSectionView: QuickLayoutView {
         setNeedsQuickLayout()
     }
 
+    /// 按当前列数分组的充值档位按钮行。
     private var packageButtonRows: [[RechargePackageButton]] {
         stride(
             from: packageButtons.startIndex,
@@ -127,10 +149,12 @@ final class RechargePackageSectionView: QuickLayoutView {
         }
     }
 
+    /// 当前网格实际采用的列数。
     private var columnsPerRow: Int {
         resolvedColumnsPerRow
     }
 
+    /// 根据容器宽度、最小档位宽度和字体环境更新网格列数。
     private func resolveColumns(for containerWidth: CGFloat) {
         guard containerWidth.isFinite, containerWidth > 0 else {
             resolvedColumnsPerRow = 1
@@ -151,6 +175,7 @@ final class RechargePackageSectionView: QuickLayoutView {
         )
     }
 
+    /// 使可复用的档位按钮数量与当前目录条目数一致。
     private func updatePackageButtonCount(_ count: Int) {
         if packageButtons.count < count {
             packageButtons.append(contentsOf: (packageButtons.count..<count).map {
@@ -162,6 +187,7 @@ final class RechargePackageSectionView: QuickLayoutView {
         }
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         titleLabel.font = .preferredFont(forTextStyle: .headline)
         titleLabel.textColor = .white
@@ -170,6 +196,7 @@ final class RechargePackageSectionView: QuickLayoutView {
 }
 
 #if DEBUG
+/// 创建展示充值档位网格的预览控制器。
 @MainActor
 private func makeRechargePackageSectionPreview() -> UIViewController {
     let packages = RechargePackage.catalog

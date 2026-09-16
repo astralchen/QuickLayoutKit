@@ -7,13 +7,19 @@
 
 import Foundation
 
+/// 原生礼物动画的视觉样式。
 enum GiftEffectStyle: Int, Equatable, Sendable {
+    /// 沿飞行轨迹显示拖尾。
     case trail
+    /// 礼物抵达后显示粒子爆发效果。
     case burst
+    /// 使用更大规模的庆典效果。
     case celebration
 }
 
+/// 礼物面板用于筛选目录的栏目。
 enum GiftCategory: CaseIterable {
+    /// 显示目录中的全部礼物。
     case all
     /// 使用远程 VAP 主特效的礼物栏目。
     case vap
@@ -21,13 +27,20 @@ enum GiftCategory: CaseIterable {
     case svga
     /// 同一次赠送包含多个按顺序播放的主特效。
     case multiple
+    /// 显示单价不超过 520 金币的热门礼物。
     case popular
+    /// 显示浪漫主题礼物。
     case romantic
+    /// 显示派对主题礼物。
     case party
+    /// 显示采用爆发样式的互动礼物。
     case interactive
+    /// 显示采用庆典样式的豪华礼物。
     case luxury
+    /// 显示单价不低于 1,888 金币的收藏栏目礼物。
     case collection
 
+    /// 标题使用的本地化资源键。
     var titleKey: String {
         switch self {
         case .all:
@@ -53,6 +66,7 @@ enum GiftCategory: CaseIterable {
         }
     }
 
+    /// 不随界面语言变化的栏目标识。
     var id: String {
         switch self {
         case .all:
@@ -78,6 +92,7 @@ enum GiftCategory: CaseIterable {
         }
     }
 
+    /// 返回指定礼物是否属于此栏目。
     func includes(_ gift: Gift) -> Bool {
         switch self {
         case .all:
@@ -107,12 +122,19 @@ enum GiftCategory: CaseIterable {
     }
 }
 
+/// 可赠送礼物的身份、单价、显示资源和特效配置。
 struct Gift: Equatable, Sendable {
+    /// 不随排序、语言或素材地址变化的礼物标识。
     let id: String
+    /// 标题使用的本地化资源键。
     let titleKey: String
+    /// 显示图标使用的 SF Symbols 名称。
     let symbolName: String
+    /// 每份礼物赠送给一名用户时消耗的金币数。
     let price: Int
+    /// 从主题调色板选取颜色的索引。
     let themeIndex: Int
+    /// 礼物图标和原生动画使用的视觉样式。
     var effectStyle: GiftEffectStyle
 
     /// 按配置顺序各播放一次的统一特效列表，可混合原生、VAP 和 SVGA。
@@ -137,10 +159,14 @@ struct Gift: Equatable, Sendable {
 
 }
 
+/// 可选择的单个收礼人赠送数量及其显示名称。
 struct GiftQuantityOption: Equatable, Sendable {
+    /// 每名收礼人接收的礼物份数。
     let value: Int
+    /// 标题使用的本地化资源键。
     let titleKey: String
 
+    /// 按面板显示顺序排列的预设赠送数量。
     static let presets = [
         GiftQuantityOption(
             value: 1,
@@ -173,16 +199,26 @@ struct GiftQuantityOption: Equatable, Sendable {
     ]
 }
 
+/// 等待房间业务层校验并扣款的一次赠送请求。
 struct GiftSendRequest {
+    /// 本次赠送或展示的礼物。
     let gift: Gift
+    /// 请求声明的收礼麦位列表；提交时必须校验用户唯一且仍为本房可见用户。
     let recipients: [SeatAssignment]
+    /// 向每名收礼人赠送的礼物份数。
     let quantity: Int
+    /// 请求声明的总金币数；提交时仍需重新计算并校验。
     let totalCost: Int
 }
 
 extension Gift {
 
-    /// 使用溢出安全乘法计算一次赠送的总成本。
+    /// 计算向指定人数赠送指定份数礼物的总金币数。
+    ///
+    /// - Parameters:
+    ///   - quantity: 每名收礼人的礼物份数。
+    ///   - recipientCount: 收礼人数。
+    /// - Returns: 总金币数及溢出标记；输入不合法或任一次乘法溢出时，不应使用计算结果扣款。
     func totalCost(
         quantity: Int,
         recipientCount: Int

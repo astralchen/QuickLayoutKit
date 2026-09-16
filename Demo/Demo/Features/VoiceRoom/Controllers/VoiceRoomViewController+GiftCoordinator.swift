@@ -11,6 +11,7 @@ import UIKit
 
 extension VoiceRoomViewController {
 
+    /// 展示礼物面板，并用当前本房收礼人解析初始用户选择。
     func presentGiftSheet(
         initiallySelectedRecipientUserIDs: [RoomUserID] = []
     ) {
@@ -64,6 +65,7 @@ extension VoiceRoomViewController {
         )
     }
 
+    /// 关闭指定礼物子控制器，清理 containment，并在结束后执行回调。
     func closeGiftSheet(
         _ giftSheet: GiftSheetViewController,
         completion: (() -> Void)? = nil
@@ -88,6 +90,7 @@ extension VoiceRoomViewController {
         }
     }
 
+    /// 展示当前余额与所需余额的提示，并提供前往充值页的操作。
     func presentRechargePrompt(
         requiredBalance: Int,
         currentBalance: Int
@@ -152,6 +155,7 @@ extension VoiceRoomViewController {
         }
     }
 
+    /// 创建并导航到满足目标余额所需的充值页面。
     func showRechargePage(requiredBalance: Int) {
         let rechargeViewController = RechargeViewController(
             currentBalance: giftBalance,
@@ -175,6 +179,7 @@ extension VoiceRoomViewController {
         }
     }
 
+    /// 为一次已确认赠送记录收礼目标，并按配置安排礼物特效。
     func deliver(
         gift: Gift,
         to recipients: [SeatAssignment],
@@ -250,6 +255,7 @@ extension VoiceRoomViewController {
             return {}
         }
         var isCancelled = false
+        // 启动回调可能同步完成；等全部收礼人都登记后，才能判定整项效果已结束。
         var isStarting = true
         var remaining = 0
         var animators: [GiftFlightAnimator] = []
@@ -308,6 +314,7 @@ extension VoiceRoomViewController {
         isStarting = false
         if remaining == 0 { completion(animators.isEmpty ? .failure(GiftMainEffectPlaybackError.unavailable) : .success(())) }
         return { [weak self] in
+            // 先禁止到达和业务完成通知，再逐一取消；动画器的清理回调仍可移除登记。
             isCancelled = true
             for animator in animators {
                 animator.cancel()
@@ -316,6 +323,7 @@ extension VoiceRoomViewController {
         }
     }
 
+    /// 交由视图模型校验扣款，成功后触发赠送展示并返回确认余额。
     func processGiftSendRequest(
         _ request: GiftSendRequest
     ) -> Int? {
@@ -330,6 +338,7 @@ extension VoiceRoomViewController {
         return updatedBalance
     }
 
+    /// 将已确认赠送的礼物、数量和收礼人信息发布为辅助功能播报。
     func announceGift(
         _ gift: Gift,
         quantity: Int,

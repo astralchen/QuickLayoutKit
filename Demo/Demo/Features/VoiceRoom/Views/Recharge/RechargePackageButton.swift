@@ -10,20 +10,28 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
+/// 显示充值金币数、赠送说明和选中状态的档位按钮。
 final class RechargePackageButton: QuickLayoutButton {
 
+    /// 显示充值档位基础金币数的标签。
     private let amountLabel = UILabel()
+    /// 显示档位赠送金币或标准档位说明的标签。
     private let detailLabel = UILabel()
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 不支持从归档创建此组件，始终返回 `nil`。
     required init?(coder: NSCoder) {
         return nil
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         VStack(spacing: 4) {
             amountLabel
@@ -37,6 +45,7 @@ final class RechargePackageButton: QuickLayoutButton {
         .padding(.vertical, 10)
     }
 
+    /// 应用充值档位数据，并更新选中边框与辅助功能状态。
     func configure(
         package: RechargePackage,
         isSelected: Bool
@@ -71,6 +80,7 @@ final class RechargePackageButton: QuickLayoutButton {
         setNeedsQuickLayout()
     }
 
+    /// 在按钮状态变化时刷新对应的文字、颜色和交互外观。
     override func quickLayoutButtonStateDidChange(
         _ state: QuickLayoutButtonState
     ) {
@@ -81,6 +91,7 @@ final class RechargePackageButton: QuickLayoutButton {
         alpha = state.isPressed ? 0.84 : (state.isEnabled ? 1 : 0.56)
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         clipsToBounds = true
         layer.cornerRadius = 16
@@ -102,6 +113,7 @@ final class RechargePackageButton: QuickLayoutButton {
 }
 
 #if DEBUG
+/// 创建展示充值档位按钮的预览控制器。
 @MainActor
 private func makeRechargePackageButtonPreview() -> UIViewController {
     let button = RechargePackageButton(frame: .zero)

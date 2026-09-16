@@ -14,6 +14,10 @@ import OSLog
 /// 避免按钮先乐观切换后又因失败回滚造成闪烁。
 @MainActor
 protocol FollowRequestHandling: AnyObject {
+    /// 提交目标关注状态，并在接口确认后结束等待。
+    ///
+    /// - Parameter isFollowing: 请求设置的关注状态。
+    /// - Throws: 请求失败或等待取消时抛出的错误。
     func updateFollowing(_ isFollowing: Bool) async throws
 }
 
@@ -21,17 +25,26 @@ protocol FollowRequestHandling: AnyObject {
 @MainActor
 final class MockFollowRequestHandler: FollowRequestHandling {
 
+    /// 模拟关注请求的等待时长，单位为纳秒。
     private let delayNanoseconds: UInt64
 
+    /// 创建具有指定模拟延迟的关注接口；默认延迟为 600 毫秒。
+    ///
+    /// - Parameter delayNanoseconds: 模拟网络等待时间，单位为纳秒。
     init(delayNanoseconds: UInt64 = 600_000_000) {
         self.delayNanoseconds = delayNanoseconds
     }
 
+    /// 通过可取消的延迟模拟关注请求成功。
+    ///
+    /// - Parameter isFollowing: 调用方请求的目标状态；模拟器不持久化该值。
+    /// - Throws: 等待期间任务取消时抛出的 `CancellationError`。
     func updateFollowing(_ isFollowing: Bool) async throws {
         try await Task.sleep(nanoseconds: delayNanoseconds)
     }
 }
 
+/// 管理直播间快照、业务命令、关注状态和会话余额。
 @MainActor
 final class VoiceRoomViewModel {
 
@@ -40,26 +53,36 @@ final class VoiceRoomViewModel {
     /// 麦位用户、音频状态和业务模式全部来自 `snapshot`。View 不得补充、替换
     /// 或按麦位数量推断后台数据。
     struct State: Equatable {
+        /// 最近一次通过版本和结构校验的服务端舞台快照。
         let snapshot: RoomStageSnapshot
+        /// 由已确认快照解析的舞台展示数据。
         let stagePresentation: SeatStagePresentation
+        /// 正在等待确认的业务命令；没有请求时为 `nil`。
         let pendingRoomCommand: RoomCommand?
+        /// 房间当前显示的在线人数。
         let audienceCount: Int
+        /// 已加载并根据当前快照更新在麦状态的观众列表。
         let audienceMembers: [AudienceMember]
+        /// 一个布尔值，指示当前用户是否已关注房间。
         let isFollowing: Bool
         /// 非空时表示关注接口正在提交该目标状态。
         let pendingFollowingState: Bool?
 
+        /// 当前舞台可见位置中的麦位绑定。
         var displayedSeats: [SeatAssignment] {
             stagePresentation.visibleAssignments
         }
 
+        /// 当前可见且有人占用的本房麦位；不包含 PK 对方用户。
         var visibleRecipients: [SeatAssignment] {
             displayedSeats.filter { $0.roomSide == .current && $0.occupant != nil }
         }
     }
 
+    /// 接收完整房间状态的回调类型。
     typealias StateHandler = (State) -> Void
 
+    /// 记录当前组件诊断信息的日志记录器。
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "QuickLayoutKit.Demo",
         category: "VoiceRoomStage"
@@ -183,6 +206,7 @@ final class VoiceRoomViewModel {
         ),
     ]
 
+    /// 返回指定房间模式的确定性演示阵容。
     static func fixtureAssignments(
         for roomMode: RoomMode
     ) -> [SeatAssignment] {
@@ -197,6 +221,7 @@ final class VoiceRoomViewModel {
         }
     }
 
+    /// 使用指定业务状态创建演示快照；未提供阵容时按房型选择固定数据。
     static func makeDefaultStageSnapshot(
         revision: Int64 = 1,
         roomMode: RoomMode = .party,
@@ -216,6 +241,7 @@ final class VoiceRoomViewModel {
         )
     }
 
+    /// 使用稳定用户身份创建一个有人占用的演示麦位。
     private static func occupiedAssignment(
         position: Int,
         userID: String,
@@ -242,6 +268,7 @@ final class VoiceRoomViewModel {
         )
     }
 
+    /// 创建音频不可用、积分为零的演示空麦。
     private static func vacantAssignment(
         position: Int
     ) -> SeatAssignment {
@@ -255,6 +282,7 @@ final class VoiceRoomViewModel {
         )
     }
 
+    /// 与演示阵容共享用户身份的默认观众列表。
     private static let defaultAudienceMembers: [AudienceMember] = {
         let names = [
             "星河", "喜茶", "奈雪", "可可", "沐橙", "小满",
@@ -282,20 +310,31 @@ final class VoiceRoomViewModel {
         }
     }()
 
+    /// 接收后续状态变更的绑定回调；再次绑定会替换原回调。
     private var stateHandler: StateHandler?
+    /// 负责提交房间业务命令并返回确认快照的接口。
     private let roomCommandHandler: any RoomCommandHandling
+    /// 负责提交关注状态的接口。
     private let followRequestHandler: any FollowRequestHandling
+    /// 提供持续舞台快照的接口；为 `nil` 时不创建订阅。
     private let stageSnapshotProvider: (any RoomStageSnapshotProviding)?
+    /// 当前舞台快照消费任务；停止订阅后为 `nil`。
     private var stageSnapshotTask: Task<Void, Never>?
 
+    /// 房间号和主播名称等基础资料。
     let roomInformation: RoomInformation
 
     /// 直播间会话余额由 ViewModel 统一持有，控制器只负责页面导航与动画协调。
     private(set) var giftBalance: Int
+    /// 本次会话中已通过空白校验的公屏消息。
     private(set) var sentPublicMessages: [String] = []
 
+    /// 最近一次提交的界面状态。
     private(set) var state: State
 
+    /// 创建语音房会话并校验初始舞台快照。
+    ///
+    /// 初始快照无效时回退到内置派对九麦状态。未注入的命令和关注接口使用演示实现；未提供快照源时不订阅持续更新。
     init(
         initialGiftBalance: Int = 12_800,
         stageSnapshot: RoomStageSnapshot? = nil,
@@ -362,14 +401,17 @@ final class VoiceRoomViewModel {
         self.stageSnapshotProvider = stageSnapshotProvider
     }
 
+    /// 取消舞台快照订阅，结束对服务端数据流的消费。
     deinit {
         stageSnapshotTask?.cancel()
     }
 
+    /// 设置会话金币余额；负值按零处理。
     func configureGiftBalance(_ balance: Int) {
         giftBalance = max(0, balance)
     }
 
+    /// 替换状态回调，并立即同步发送当前完整状态。
     func bind(stateDidChange: @escaping StateHandler) {
         stateHandler = stateDidChange
         stateDidChange(state)
@@ -393,14 +435,18 @@ final class VoiceRoomViewModel {
         }
     }
 
+    /// 取消当前快照订阅并清除任务引用，允许稍后重新订阅。
     func stopObservingStageSnapshots() {
         stageSnapshotTask?.cancel()
         stageSnapshotTask = nil
     }
 
-    /// 消费服务端推送的舞台快照。
+    /// 校验并提交版本更新的服务端舞台快照。
     ///
-    /// - Returns: 快照通过 revision 和布局校验并已提交时返回 `true`。
+    /// 过期版本或无效结构会被拒绝，并保留最后一个有效舞台。成功提交不会清除正在等待响应的业务命令。
+    ///
+    /// - Parameter snapshot: 服务端推送的完整快照。
+    /// - Returns: 快照通过版本与布局校验并已提交时为 `true`；否则为 `false`。
     @discardableResult
     func consumeStageSnapshot(_ snapshot: RoomStageSnapshot) -> Bool {
         guard snapshot.revision > state.snapshot.revision else {
@@ -425,7 +471,12 @@ final class VoiceRoomViewModel {
         }
     }
 
-    /// 提交服务端业务命令，并等待新快照确认后再更新舞台。
+    /// 提交房间业务命令，并等待有效的确认快照。
+    ///
+    /// 已有请求时拒绝新的命令。确认版本必须高于请求开始时的版本；若该响应已经被推送应用或被更新推送覆盖，仍确认成功，但不会回退舞台。
+    ///
+    /// - Parameter command: 请求执行的房间业务操作。
+    /// - Returns: 命令已确认，或所请求房型与当前模式相同时为 `true`；请求被拒绝或处理失败时为 `false`。
     @discardableResult
     func performBusinessCommand(_ command: RoomCommand) async
         -> Bool {
@@ -460,6 +511,9 @@ final class VoiceRoomViewModel {
         }
     }
 
+    /// 去除首尾空白后保存公屏消息。
+    ///
+    /// - Returns: 消息非空并已保存时为 `true`；纯空白消息返回 `false`。
     @discardableResult
     func sendPublicMessage(_ message: String) -> Bool {
         let trimmedMessage = message.trimmingCharacters(
@@ -470,10 +524,11 @@ final class VoiceRoomViewModel {
         return true
     }
 
-    /// 请求切换当前用户对直播间的关注状态。
+    /// 请求切换当前用户对房间的关注状态。
     ///
-    /// 请求开始时只发布目标状态供 UI 展示加载态；接口成功后才提交
-    /// `isFollowing`。失败或任务取消会清除加载态并保留请求前状态。
+    /// 请求期间只发布目标状态供 UI 展示加载态；接口成功后提交最终状态。接口抛出错误时清除等待状态并保留已确认状态。
+    ///
+    /// - Returns: 接口成功确认时为 `true`；已有在途请求或接口抛出错误时为 `false`。
     @discardableResult
     func toggleFollowing() async -> Bool {
         guard state.pendingFollowingState == nil else { return false }
@@ -501,7 +556,12 @@ final class VoiceRoomViewModel {
         }
     }
 
-    /// 校验赠送请求并原子扣款；UI 动画只能在该方法成功后执行。
+    /// 校验一次赠送请求并原子扣除会话金币。
+    ///
+    /// 校验数量预设、总价、整数溢出、用户唯一性和最新本房可见麦位。只有成功返回后才能播放赠送效果。
+    ///
+    /// - Parameter request: 礼物面板形成的待确认请求。
+    /// - Returns: 扣款后的金币余额；任何校验失败时为 `nil`，且不改变余额。
     func processGiftSendRequest(_ request: GiftSendRequest) -> Int? {
         let (expectedCost, overflow) = request.gift.totalCost(
             quantity: request.quantity,
@@ -513,6 +573,7 @@ final class VoiceRoomViewModel {
             }
         )
 
+        // 此处是扣款边界：重新校验面板请求，不能信任打开面板时保存的余额和收礼快照。
         guard
             !overflow,
             request.quantity > 0,
@@ -538,7 +599,10 @@ final class VoiceRoomViewModel {
         return giftBalance
     }
 
-    /// 充值结果同样由 ViewModel 原子入账，避免多个页面分别维护余额副本。
+    /// 将正数金币增量原子计入当前会话余额。
+    ///
+    /// - Parameter amount: 已确认入账的金币数，必须大于零。
+    /// - Returns: 入账后的余额；增量非正数或整数加法溢出时为 `nil`，且不改变余额。
     func recharge(by amount: Int) -> Int? {
         let (updatedBalance, overflow) = giftBalance
             .addingReportingOverflow(amount)
@@ -547,6 +611,7 @@ final class VoiceRoomViewModel {
         return giftBalance
     }
 
+    /// 更新业务命令等待状态，并向绑定方发布完整房间状态。
     private func updatePendingBusinessCommand(
         _ pendingRoomCommand: RoomCommand?
     ) {
@@ -562,6 +627,7 @@ final class VoiceRoomViewModel {
         stateHandler?(state)
     }
 
+    /// 提交已校验的快照和展示数据，同步观众在麦状态并保留在途命令。
     private func commit(
         snapshot: RoomStageSnapshot,
         presentation: SeatStagePresentation
@@ -580,6 +646,7 @@ final class VoiceRoomViewModel {
         stateHandler?(state)
     }
 
+    /// 更新已确认和待确认的关注状态，并通知绑定方刷新界面。
     private func updateFollowingState(
         isFollowing: Bool,
         pendingFollowingState: Bool?

@@ -11,6 +11,7 @@ import UIKit
 
 extension RechargeView {
 
+    /// 显示确认入账后的成功反馈，并将余额从旧值动画过渡到新值。
     func playSuccessAnimation(
         from previousBalance: Int,
         to updatedBalance: Int,
@@ -32,6 +33,7 @@ extension RechargeView {
         balanceCardView.backgroundView.layer.removeAllAnimations()
         rechargeButton.layer.removeAllAnimations()
 
+        // 减少动态效果或关闭动画时直接显示确认余额，不创建计数动画或成功浮层。
         guard UIView.areAnimationsEnabled,
             !UIAccessibility.isReduceMotionEnabled
         else {
@@ -114,6 +116,7 @@ extension RechargeView {
         }
     }
 
+    /// 记录余额插值起止值并启动显示刷新回调。
     private func startBalanceCountAnimation(from: Int, to: Int) {
         balanceAnimationFrom = from
         balanceAnimationTo = to
@@ -129,6 +132,7 @@ extension RechargeView {
         displayLink.add(to: .main, forMode: .common)
     }
 
+    /// 按显示刷新时间插值更新余额文案，达到终点后停止刷新。
     @objc private func updateBalanceCountAnimation(
         _ displayLink: CADisplayLink
     ) {
@@ -146,6 +150,7 @@ extension RechargeView {
         )
         guard progress >= 1 else { return }
         displayLink.invalidate()
+        // 仅清空结束的这条刷新连接，避免迟到回调清除后来启动的动画引用。
         if balanceDisplayLink === displayLink {
             balanceDisplayLink = nil
         }

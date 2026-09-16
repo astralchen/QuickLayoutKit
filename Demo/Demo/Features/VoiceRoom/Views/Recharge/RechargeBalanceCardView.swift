@@ -15,21 +15,32 @@ import UIKit
 /// 不足时把文字裁切成非完整行。
 final class RechargeBalanceCardView: QuickLayoutView {
 
+    /// 组件内容后方的背景视图。
     let backgroundView = UIView()
+    /// 显示余额说明标题的标签。
     let captionLabel = UILabel()
+    /// 显示当前字段值的标签。
     let valueLabel = UILabel()
+    /// 显示目标余额或充值需求说明的标签。
     let requirementLabel = UILabel()
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         VStack(alignment: .leading, spacing: 9) {
             captionLabel
@@ -42,6 +53,7 @@ final class RechargeBalanceCardView: QuickLayoutView {
         .fixedSize(axis: .vertical)
     }
 
+    /// 更新余额标题、余额值和当前充值需求说明。
     func configure(
         caption: String,
         balance: String,
@@ -53,11 +65,13 @@ final class RechargeBalanceCardView: QuickLayoutView {
         setNeedsQuickLayout()
     }
 
+    /// 更新余额数字文案并使相关布局重新测量。
     func updateBalance(_ text: String) {
         valueLabel.text = text
         setNeedsQuickLayout()
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         accessibilityIdentifier = "liveRoom.recharge.balanceCard"
 
@@ -89,6 +103,7 @@ final class RechargeBalanceCardView: QuickLayoutView {
 }
 
 #if DEBUG
+/// 创建展示充值余额卡片的预览控制器。
 @MainActor
 private func makeRechargeBalanceCardPreview() -> UIViewController {
     let view = RechargeBalanceCardView(frame: .zero)

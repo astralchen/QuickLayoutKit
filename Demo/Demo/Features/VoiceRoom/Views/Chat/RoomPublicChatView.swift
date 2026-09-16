@@ -10,32 +10,49 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
+/// 显示房间公屏消息及关注状态的可滚动内容视图。
 final class RoomPublicChatView: TranslucentCardView {
 
+    /// 承载内容并处理滚动的视图。
     let scrollView = QuickLayoutScrollView()
+    /// 显示组件主标题的标签。
     private let titleLabel = UILabel()
+    /// 切换并显示房间关注状态的按钮。
     private let followButton = FollowButton(frame: .zero)
+    /// 按消息顺序排列的公屏文本标签。
     private var messageLabels: [UILabel] = []
+    /// 一个布尔值，指示下一次有效布局后是否需要滚动到最新消息。
     private var shouldScrollToLatest = false
+    /// 滚动请求的递增代次，用于排除过期回调。
     private var scrollRequestGeneration = 0
+    /// 已安排执行的滚动请求代次；没有排队请求时为 `nil`。
     private var scheduledScrollGeneration: Int?
 
+    /// 用户点击关注按钮时调用的回调。
     var followDidTap: (() -> Void)?
 
+    /// 当前列表最后一条消息的文案；没有消息时为 `nil`。
     var latestMessage: String? {
         messageLabels.last?.text
     }
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
@@ -67,6 +84,7 @@ final class RoomPublicChatView: TranslucentCardView {
         }
     }
 
+    /// 在内容布局后尝试执行当前有效的滚动到最新消息请求。
     override func layoutSubviews() {
         super.layoutSubviews()
         guard shouldScrollToLatest else { return }
@@ -97,6 +115,7 @@ final class RoomPublicChatView: TranslucentCardView {
         }
     }
 
+    /// 根据布局后的内容尺寸滚动到最后一条消息。
     private func scrollToLatest() {
         scrollView.layoutIfNeeded()
         let bottomOffset = max(
@@ -111,6 +130,7 @@ final class RoomPublicChatView: TranslucentCardView {
         )
     }
 
+    /// 更新公屏标题、关注状态与消息列表，并记录是否需要滚动到底部。
     func configure(
         title: String,
         follow: String,
@@ -147,6 +167,7 @@ final class RoomPublicChatView: TranslucentCardView {
         setNeedsQuickLayout()
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         accessibilityIdentifier = "liveRoom.publicChat.container"
         scrollView.backgroundColor = .clear
@@ -168,6 +189,7 @@ final class RoomPublicChatView: TranslucentCardView {
 
     }
 
+    /// 创建符合公屏字体、颜色和多行显示规则的消息标签。
     private func makeMessageLabel() -> UILabel {
         let label = UILabel()
         label.font = .preferredFont(forTextStyle: .subheadline)
@@ -185,26 +207,38 @@ final class RoomPublicChatView: TranslucentCardView {
 /// 区分“可关注”与“已完成”状态，同时保留再次点击取消关注的按钮语义。
 final class FollowButton: MinimumHitTargetButton {
 
+    /// 显示已关注或已选中状态的勾选图标。
     private let checkmarkImageView = UIImageView(
         image: UIImage(systemName: "checkmark")
     )
+    /// 显示请求正在进行的活动指示器。
     private let activityIndicatorView = UIActivityIndicatorView(
         style: .medium
     )
+    /// 显示组件主标题的标签。
     private let titleLabel = UILabel()
+    /// 一个布尔值，指示当前用户是否已关注房间。
     private var isFollowing = false
+    /// 一个布尔值，指示当前操作是否正在等待业务确认。
     private var isRequesting = false
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         HStack(spacing: 5) {
             if isRequesting {
@@ -225,11 +259,13 @@ final class FollowButton: MinimumHitTargetButton {
         .padding(.vertical, 5)
     }
 
+    /// 根据按钮实际高度更新胶囊形圆角。
     override func layoutSubviews() {
         super.layoutSubviews()
         layer.cornerRadius = min(bounds.width, bounds.height) / 2
     }
 
+    /// 更新关注文案、已关注标记和请求加载状态。
     func configure(
         title: String,
         isFollowing: Bool,
@@ -270,6 +306,7 @@ final class FollowButton: MinimumHitTargetButton {
         apply(state: buttonState)
     }
 
+    /// 在按钮状态变化时刷新对应的文字、颜色和交互外观。
     override func quickLayoutButtonStateDidChange(
         _ state: QuickLayoutButtonState
     ) {
@@ -277,6 +314,7 @@ final class FollowButton: MinimumHitTargetButton {
         apply(state: state)
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
         layer.cornerCurve = .circular
@@ -296,6 +334,7 @@ final class FollowButton: MinimumHitTargetButton {
             "liveRoom.follow.activityIndicator"
     }
 
+    /// 根据按钮高亮及可用状态更新关注按钮外观。
     private func apply(state: QuickLayoutButtonState) {
         transform = state.isPressed
             ? CGAffineTransform(scaleX: 0.96, y: 0.96)
@@ -307,6 +346,7 @@ final class FollowButton: MinimumHitTargetButton {
 }
 
 #if DEBUG
+/// 创建展示指定关注状态的房间公屏的预览控制器。
 @MainActor
 private func makeRoomPublicChatViewPreview(
     title: String,

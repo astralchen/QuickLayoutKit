@@ -103,6 +103,7 @@ extension VoiceRoomViewController {
         )
     }
 
+    /// 异步提交房间业务命令，并由已确认状态驱动后续舞台更新。
     func submitBusinessCommand(_ command: RoomCommand) {
         Task { @MainActor [weak self] in
             guard let self else { return }

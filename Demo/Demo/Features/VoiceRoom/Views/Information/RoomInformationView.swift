@@ -9,56 +9,89 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
+/// 组合房间概览、详细资料和公告卡片的页面内容视图。
 final class RoomInformationView: QuickLayoutView {
 
+    /// 一次刷新所需的完整显示内容。
     struct Content {
 
+        /// 房间概览卡片所需的显示文案。
         struct Profile {
+            /// 房间的显示标题。
             let roomTitle: String
+            /// 房间标题下的补充说明。
             let roomSubtitle: String
+            /// 辅助功能读取头像时使用的描述。
             let avatarAccessibilityLabel: String
+            /// 房间直播状态的显示文案。
             let liveStatus: String
         }
 
+        /// 一个资料字段的标题和值。
         struct Detail {
+            /// 当前区域或字段的显示标题。
             let title: String
+            /// 当前字段的显示值。
             let value: String
         }
 
+        /// 房间号、主播和在线人数字段的完整内容。
         struct Details {
+            /// 当前区域或字段的显示标题。
             let title: String
+            /// 房间号字段的标题与显示值。
             let roomID: Detail
+            /// 主播字段的标题与显示值。
             let host: Detail
+            /// 在线人数字段的标题与显示值。
             let audience: Detail
         }
 
+        /// 公告区域的标题与正文。
         struct Announcement {
+            /// 当前区域或字段的显示标题。
             let title: String
+            /// 当前字段的显示值。
             let value: String
         }
 
+        /// 房间概览卡片的显示内容。
         let profile: Profile
+        /// 房间详细资料卡片的显示内容。
         let details: Details
+        /// 房间公告卡片的显示内容。
         let announcement: Announcement
     }
 
+    /// 承载内容并处理滚动的视图。
     let scrollView = QuickLayoutScrollView(.vertical)
 
+    /// 页面使用的星点渐变背景视图。
     private let backdropView = StarfieldBackgroundView()
+    /// 显示房间名称、说明和直播状态的概览卡片。
     private let profileCardView = RoomInformationProfileCardView()
+    /// 详细资料区域的卡片背景。
     private let detailsCardView = RoomInformationDetailsCardView()
+    /// 显示房间公告标题和正文的卡片。
     private let announcementCardView = RoomInformationAnnouncementCardView()
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         ZStack {
             backdropView
@@ -82,6 +115,7 @@ final class RoomInformationView: QuickLayoutView {
         }
     }
 
+    /// 将完整房间内容分别应用到概览、资料和公告卡片。
     func configure(content: Content) {
         profileCardView.configure(content: content.profile)
         detailsCardView.configure(content: content.details)
@@ -89,6 +123,7 @@ final class RoomInformationView: QuickLayoutView {
         setNeedsQuickLayout()
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
         accessibilityIdentifier = "liveRoom.information.view"
@@ -104,27 +139,42 @@ final class RoomInformationView: QuickLayoutView {
 /// 主播资料卡独立维护自身子视图，页面容器不感知其内部实现。
 private final class RoomInformationProfileCardView: QuickLayoutView {
 
+    /// 显示占麦用户资料的卡片内容视图。
     private let cardView = TranslucentCardView()
+    /// 提供头像底色和圆角的背景视图。
     private let avatarBackgroundView = UIView()
+    /// 显示用户头像或备用图标的图像视图。
     private let avatarImageView = UIImageView(
         image: UIImage(systemName: "music.mic.circle.fill")
     )
+    /// 显示房间名称的标签。
     private let roomTitleLabel = UILabel()
+    /// 显示房间副标题的标签。
     private let roomSubtitleLabel = UILabel()
+    /// 表示直播状态的圆点装饰。
     private let statusDotView = UIView()
+    /// 显示直播状态文案的标签。
     private let liveStatusLabel = UILabel()
+    /// 直播状态文字与圆点后方的背景。
     private let statusBackgroundView = UIView()
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         VStack(spacing: 10) {
             ZStack {
@@ -154,6 +204,7 @@ private final class RoomInformationProfileCardView: QuickLayoutView {
         .background { cardView }
     }
 
+    /// 更新房间概览标题、副标题和直播状态。
     func configure(content: RoomInformationView.Content.Profile) {
         roomTitleLabel.text = content.roomTitle
         roomSubtitleLabel.text = content.roomSubtitle
@@ -162,6 +213,7 @@ private final class RoomInformationProfileCardView: QuickLayoutView {
         setNeedsQuickLayout()
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
 
@@ -206,30 +258,44 @@ private final class RoomInformationProfileCardView: QuickLayoutView {
 /// 详情卡只负责组合语义行，避免页面持有成组的标题、值与分隔线属性。
 private final class RoomInformationDetailsCardView: QuickLayoutView {
 
+    /// 显示占麦用户资料的卡片内容视图。
     private let cardView = TranslucentCardView()
+    /// 显示组件主标题的标签。
     private let titleLabel = UILabel()
+    /// 显示房间号字段的资料行。
     private let roomIDRowView = RoomInformationDetailRowView(
         valueAccessibilityIdentifier: "liveRoom.information.roomID"
     )
+    /// 显示主播字段的资料行。
     private let hostRowView = RoomInformationDetailRowView(
         valueAccessibilityIdentifier: "liveRoom.information.host"
     )
+    /// 显示在线人数字段的资料行。
     private let audienceRowView = RoomInformationDetailRowView(
         valueAccessibilityIdentifier: "liveRoom.information.audience"
     )
+    /// 分隔第一行与第二行资料的细线视图。
     private let firstDividerView = UIView()
+    /// 分隔第二行与第三行资料的细线视图。
     private let secondDividerView = UIView()
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         VStack(alignment: .leading, spacing: 0) {
             titleLabel
@@ -251,6 +317,7 @@ private final class RoomInformationDetailsCardView: QuickLayoutView {
         .background { cardView }
     }
 
+    /// 更新资料卡片标题及房间号、主播和在线人数三行内容。
     func configure(content: RoomInformationView.Content.Details) {
         titleLabel.text = content.title
         roomIDRowView.configure(
@@ -268,6 +335,7 @@ private final class RoomInformationDetailsCardView: QuickLayoutView {
         setNeedsQuickLayout()
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
         titleLabel.configureVoiceRoomInformation(
@@ -280,22 +348,30 @@ private final class RoomInformationDetailsCardView: QuickLayoutView {
     }
 }
 
+/// 以一致间距和对齐方式展示一组资料标题和值的行视图。
 private final class RoomInformationDetailRowView: QuickLayoutView {
 
+    /// 显示组件主标题的标签。
     private let titleLabel = UILabel()
+    /// 显示当前字段值的标签。
     private let valueLabel = UILabel()
 
+    /// 创建资料行，并为字段值设置指定的辅助功能标识。
     init(valueAccessibilityIdentifier: String) {
         super.init(frame: .zero)
         valueLabel.accessibilityIdentifier = valueAccessibilityIdentifier
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         HStack(alignment: .center, spacing: 16) {
             titleLabel.fixedSize(axis: .horizontal)
@@ -305,12 +381,14 @@ private final class RoomInformationDetailRowView: QuickLayoutView {
         .padding(.vertical, 12)
     }
 
+    /// 更新该资料行的标题和值。
     func configure(title: String, value: String) {
         titleLabel.text = title
         valueLabel.text = value
         setNeedsQuickLayout()
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
         titleLabel.configureVoiceRoomInformation(
@@ -326,22 +404,33 @@ private final class RoomInformationDetailRowView: QuickLayoutView {
     }
 }
 
+/// 展示房间公告标题和多行正文的卡片视图。
 private final class RoomInformationAnnouncementCardView: QuickLayoutView {
 
+    /// 显示占麦用户资料的卡片内容视图。
     private let cardView = TranslucentCardView()
+    /// 显示组件主标题的标签。
     private let titleLabel = UILabel()
+    /// 显示房间公告正文的标签。
     private let announcementLabel = UILabel()
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         VStack(alignment: .leading, spacing: 9) {
             titleLabel.resizable(axis: .horizontal)
@@ -351,12 +440,14 @@ private final class RoomInformationAnnouncementCardView: QuickLayoutView {
         .background { cardView }
     }
 
+    /// 更新公告标题和正文。
     func configure(content: RoomInformationView.Content.Announcement) {
         titleLabel.text = content.title
         announcementLabel.text = content.value
         setNeedsQuickLayout()
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
         titleLabel.configureVoiceRoomInformation(
@@ -375,6 +466,7 @@ private final class RoomInformationAnnouncementCardView: QuickLayoutView {
 
 private extension UILabel {
 
+    /// 应用房间资料标签共用的字体、颜色、对齐和多行显示设置。
     func configureVoiceRoomInformation(
         font: UIFont,
         color: UIColor,
@@ -388,6 +480,7 @@ private extension UILabel {
 }
 
 #if DEBUG
+/// 创建展示房间资料内容的预览控制器。
 @MainActor
 private func makeRoomInformationViewPreview() -> UIViewController {
     let informationView = RoomInformationView()

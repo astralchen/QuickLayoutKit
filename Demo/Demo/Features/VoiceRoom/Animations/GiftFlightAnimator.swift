@@ -8,24 +8,50 @@
 import AppLocalization
 import UIKit
 
+/// 呈现从赠礼起点飞向单个收礼人的原生礼物动画。
 @MainActor
 final class GiftFlightAnimator {
 
+    /// 此飞行动画实例的唯一标识，用于登记和移除活动动画。
     let id = UUID()
 
+    /// 承载动画的外部容器；弱引用不延长页面生命周期。
     private weak var containerView: UIView?
+    /// 承载临时动画内容的透明覆盖视图。
     private let overlayView = UIView()
+    /// 容纳礼物图标和数量的动画视图。
     private let giftView = UIView()
+    /// 显示礼物符号的图像视图。
     private let giftImageView = UIImageView()
+    /// 显示赠送数量的文本标签。
     private let quantityLabel = UILabel()
+    /// 当前动画完成后的回调；清理后释放。
     private var completion: (() -> Void)?
+    /// 延迟结束动画的工作项，取消时同步撤销。
     private var completionWorkItem: DispatchWorkItem?
 
+    /// 创建在指定容器中展示单个收礼人飞行动画的对象。
+    ///
+    /// - Parameter containerView: 动画坐标所属的容器；动画器仅弱引用此视图。
     init(containerView: UIView) {
         self.containerView = containerView
         configureViews()
     }
 
+    /// 配置礼物并开始从起点到收礼人的飞行动画。
+    ///
+    /// 起点与终点使用容器视图坐标。减少动态效果开启时采用淡入淡出展示。
+    ///
+    /// - Parameters:
+    ///   - gift: 本次显示的礼物。
+    ///   - style: 原生效果样式；为 `nil` 时使用礼物的默认样式。
+    ///   - quantity: 向此收礼人赠送的份数。
+    ///   - startPoint: 容器坐标中的飞行起点。
+    ///   - endPoint: 容器坐标中的目标位置。
+    ///   - delay: 开始展示前的延迟，单位为秒。
+    ///   - showsCelebration: 是否同时展示庆典横幅。
+    ///   - arrival: 礼物抵达时执行的回调。
+    ///   - completion: 动画结束并清理后执行的回调。
     func start(
         gift: Gift,
         style: GiftEffectStyle? = nil,
@@ -91,6 +117,7 @@ final class GiftFlightAnimator {
         )
     }
 
+    /// 撤销待执行的完成工作项、移除覆盖视图，并执行完成清理回调。
     func cancel() {
         completionWorkItem?.cancel()
         completionWorkItem = nil
@@ -99,6 +126,7 @@ final class GiftFlightAnimator {
         finish()
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         overlayView.isUserInteractionEnabled = false
         overlayView.isAccessibilityElement = false
@@ -133,6 +161,7 @@ final class GiftFlightAnimator {
         overlayView.addSubview(giftView)
     }
 
+    /// 设置赠送数量文案，并根据礼物直径调整数量标签位置。
     private func configureQuantityLabel(
         _ quantity: Int,
         giftDiameter: CGFloat
@@ -152,6 +181,7 @@ final class GiftFlightAnimator {
         )
     }
 
+    /// 以淡入淡出方式在目标位置展示礼物，并在抵达时通知调用方。
     private func playReducedMotion(
         to endPoint: CGPoint,
         delay: TimeInterval,
@@ -188,6 +218,7 @@ final class GiftFlightAnimator {
         )
     }
 
+    /// 创建礼物飞行、拖尾和抵达粒子动画。
     private func playFlight(
         from startPoint: CGPoint,
         to endPoint: CGPoint,
@@ -275,6 +306,7 @@ final class GiftFlightAnimator {
         )
     }
 
+    /// 返回连接起点与终点的弧形贝塞尔路径；坐标属于动画容器。
     private func flightPath(from startPoint: CGPoint, to endPoint: CGPoint) -> CGPath {
         let deltaX = endPoint.x - startPoint.x
         let deltaY = endPoint.y - startPoint.y
@@ -295,6 +327,7 @@ final class GiftFlightAnimator {
         return path.cgPath
     }
 
+    /// 为礼物或拖尾视图添加位置、缩放、旋转及透明度动画。
     private func addFlightAnimations(
         to view: UIView,
         path: CGPath,
@@ -332,6 +365,7 @@ final class GiftFlightAnimator {
         view.layer.add(group, forKey: "liveRoom.gift.flight")
     }
 
+    /// 创建指定颜色的拖尾粒子视图。
     private func makeSparkle(color: UIColor, index: Int) -> UIView {
         let diameter = CGFloat(6 + (index % 4) * 3)
         let sparkle = UIView(
@@ -345,6 +379,7 @@ final class GiftFlightAnimator {
         return sparkle
     }
 
+    /// 在礼物抵达位置生成与效果样式对应的扩散粒子。
     private func playBurst(
         at point: CGPoint,
         color: UIColor,
@@ -376,6 +411,7 @@ final class GiftFlightAnimator {
         }
     }
 
+    /// 在容器顶部显示礼物名称和庆典图标的横幅动画。
     private func playCelebrationBanner(
         gift: Gift,
         color: UIColor,
@@ -472,6 +508,7 @@ final class GiftFlightAnimator {
         }
     }
 
+    /// 取出并清空完成回调后调用一次，避免重复终态重复通知。
     private func finish() {
         completionWorkItem = nil
         let completion = completion

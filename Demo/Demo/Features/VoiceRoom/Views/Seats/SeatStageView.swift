@@ -16,32 +16,43 @@ import UIKit
 /// Item 与客户端布局家族；具体 Frame 由 `SeatCollectionGeometry` 计算。
 final class SeatStageView: TranslucentCardView {
 
+    /// 一次尚未提交完成的舞台目标数据及过渡几何。
     private struct PendingTransition {
+        /// 转场完成后提交的目标舞台展示状态。
         let destinationPresentation: SeatStagePresentation
+        /// 转场完成后保留的目标集合条目。
         let destinationItems: [SeatCollectionItem]
+        /// 仅包含目标条目的最终布局配置。
         let destinationConfiguration: SeatCollectionLayoutConfiguration
+        /// 包含源与目标条目并集的动画终点配置。
         let destinationUnionConfiguration: SeatCollectionLayoutConfiguration
     }
 
+    /// 记录当前组件诊断信息的日志记录器。
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "QuickLayoutKit.Demo",
         category: "VoiceRoomSeatStageView"
     )
 
+    /// 按需创建的 PK 房间标记装饰视图。
     private lazy var pkDecoration = LazyView { [unowned self] in
         let view = RoomPKDecorationView()
         view.sizeClass = layoutMetrics.sizeClass
         view.alpha = pkDecorationAlpha
         return view
     }
+    /// PK 装饰的不透明度；转场时与舞台状态同步更新。
     private var pkDecorationAlpha: CGFloat = 1 {
         didSet { pkDecoration.ifLoaded?.alpha = pkDecorationAlpha }
     }
+    /// 为真实麦位单元格提供绝对几何位置的集合布局。
     private let seatLayout = SeatCollectionLayout()
+    /// 负责内容条目展示和复用的集合视图。
     private lazy var collectionView = UICollectionView(
         frame: .zero,
         collectionViewLayout: seatLayout
     )
+    /// 管理舞台条目标识、快照和单元格配置的数据源。
     private lazy var collectionDataSource = SeatCollectionDataSource(
         collectionView: collectionView,
         itemProvider: { [weak self] itemID in
@@ -55,29 +66,42 @@ final class SeatStageView: TranslucentCardView {
         }
     )
 
+    /// 最近一次完成提交的舞台展示状态。
     private var currentPresentation: SeatStagePresentation?
+    /// 最近一次完成提交的可见麦位条目。
     private var currentItems: [SeatCollectionItem] = []
+    /// 以稳定条目标识索引的当前及转场目标数据。
     private var itemsByID: [
         SeatCollectionItemID: SeatCollectionItem
     ] = [:]
+    /// 尚未完成的舞台转场；没有转场时为 `nil`。
     private var pendingTransition: PendingTransition?
+    /// 根据当前舞台容器解析的尺寸与间距参数。
     private var layoutMetrics = SeatLayoutMetrics.regular
+    /// 一个布尔值，指示外层页面是否要求采用紧凑高度布局。
     private var prefersCompactHeight = false
+    /// 向外层布局报告的麦位集合高度，单位为点。
     private var collectionHeight: CGFloat = 0
+    /// 上次几何解析采用的容器宽度，用于避免重复计算。
     private var lastLayoutWidth: CGFloat?
+    /// 上次几何解析采用的界面布局方向。
     private var lastLayoutDirection: UIUserInterfaceLayoutDirection?
 
+    /// 舞台高度或布局参数变化后请求宿主重新布局的回调。
     var layoutMetricsDidChange: (() -> Void)?
+    /// 用户选择可交互麦位时调用的回调；参数为当前麦位绑定。
     var seatDidSelect: ((SeatAssignment) -> Void)?
 
     /// 测试与页面诊断使用；舞台本身仍不允许滚动。
     var seatCollectionView: UICollectionView { collectionView }
 
+    /// 一个布尔值，指示当前舞台或转场目标是否需要显示 PK 装饰。
     private var showsPKDecoration: Bool {
         currentPresentation?.layoutID == .roomPKNine
             || pendingTransition?.destinationPresentation.layoutID == .roomPKNine
     }
 
+    /// 待完成转场的目标条目中包含的用户标识集合；没有转场时为空。
     var transitioningUserIDs: Set<RoomUserID> {
         guard let pendingTransition else { return [] }
         return Set(
@@ -88,16 +112,23 @@ final class SeatStageView: TranslucentCardView {
         )
     }
 
+    /// 使用指定初始矩形创建视图并配置初始外观。
+    ///
+    /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureViews()
     }
 
+    /// 从给定解码器初始化视图。
+    ///
+    /// - Parameter coder: 包含视图归档数据的解码器。
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureViews()
     }
 
+    /// 在舞台布局完成后检查容器环境并刷新集合布局。
     override func layoutSubviews() {
         updateLayoutEnvironmentIfNeeded()
         pkDecoration.ifLoaded?.sizeClass = layoutMetrics.sizeClass
@@ -106,6 +137,7 @@ final class SeatStageView: TranslucentCardView {
         collectionView.layoutIfNeeded()
     }
 
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     @LayoutBuilder
     override var body: Layout {
         ZStack {
@@ -119,6 +151,9 @@ final class SeatStageView: TranslucentCardView {
         .padding(.vertical, layoutMetrics.stageVerticalPadding)
     }
 
+    /// 更新紧凑高度偏好并重新解析几何。
+    ///
+    /// - Returns: 偏好发生变化时为 `true`；无需更新时为 `false`。
     @discardableResult
     func setCompactPresentation(_ prefersCompactHeight: Bool) -> Bool {
         guard self.prefersCompactHeight != prefersCompactHeight else {
@@ -172,10 +207,12 @@ final class SeatStageView: TranslucentCardView {
         )
     }
 
-    /// 为场景级 Coordinator 准备一段真实 Cell 的几何过渡。
+    /// 准备真实麦位单元格的几何和内容转场。
     ///
-    /// 准备阶段会安装 source/destination Item 并集，但 Collection Layout 仍停在
-    /// source Frame；同时舞台向 QuickLayout 报告目标高度，供 Controller 测量终点。
+    /// 准备阶段安装源与目标条目的并集，位置仍保持在起点，同时向外层报告目标高度以测量终点。宿主随后调用 `animatePreparedTransition()`，并在结束时调用 `completePreparedTransition()`。
+    ///
+    /// - Parameter presentation: 已经布局解析器校验的目标舞台。
+    /// - Returns: 已准备可播放的转场时为 `true`；首次提交直接显示目标并返回 `false`。
     @discardableResult
     func prepareTransition(
         to presentation: SeatStagePresentation
@@ -204,6 +241,7 @@ final class SeatStageView: TranslucentCardView {
         let destinationByID = Dictionary(
             uniqueKeysWithValues: destinationItems.map { ($0.id, $0) }
         )
+        // 过渡期间保留即将移除的真实 Cell，让离场与进场共享同一条动画时间线。
         let unionIDs = destinationItems.map(\.id) + sourceItems.map(\.id).filter {
             destinationByID[$0] == nil
         }
@@ -294,6 +332,7 @@ final class SeatStageView: TranslucentCardView {
         }
     }
 
+    /// 统一设置麦位集合视图是否接受用户操作。
     func setSeatInteractionEnabled(_ isEnabled: Bool) {
         collectionView.isUserInteractionEnabled = isEnabled
     }
@@ -313,6 +352,7 @@ final class SeatStageView: TranslucentCardView {
         return cell.giftTargetPoint(in: view)
     }
 
+    /// 在指定用户当前可见的麦位上播放抵达反馈；用户已不可见时跳过。
     func playGiftArrival(
         forUserID userID: RoomUserID,
         gift: Gift,
@@ -329,6 +369,7 @@ final class SeatStageView: TranslucentCardView {
         cell.playGiftArrival(gift: gift, color: color, style: style)
     }
 
+    /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
         accessibilityIdentifier = "liveRoom.seat.stage"
         collectionView.backgroundColor = .clear
@@ -343,6 +384,7 @@ final class SeatStageView: TranslucentCardView {
         _ = collectionDataSource
     }
 
+    /// 提交完整舞台数据、几何配置和非动画集合快照，并刷新辅助功能顺序。
     private func commit(presentation: SeatStagePresentation) {
         pkDecoration.ifLoaded?.reloadLocalizedContent()
         pkDecorationAlpha = 1
@@ -368,6 +410,7 @@ final class SeatStageView: TranslucentCardView {
         updateAccessibilityElements()
     }
 
+    /// 将当前可见麦位转换为使用稳定用户或空位标识的集合条目。
     private func makeItems(
         for presentation: SeatStagePresentation
     ) -> [SeatCollectionItem] {
@@ -376,6 +419,7 @@ final class SeatStageView: TranslucentCardView {
             .map(SeatCollectionItem.init)
     }
 
+    /// 结合当前尺寸参数、容器宽度和布局方向计算舞台几何配置。
     private func makeConfiguration(
         presentation: SeatStagePresentation,
         items: [SeatCollectionItem]
@@ -393,6 +437,7 @@ final class SeatStageView: TranslucentCardView {
         )
     }
 
+    /// 合并源与目标条目几何，为仅在另一端存在的条目提供透明缩小状态。
     private func unionConfiguration(
         itemIDs: [SeatCollectionItemID],
         primary: SeatCollectionLayoutConfiguration,
@@ -404,6 +449,7 @@ final class SeatStageView: TranslucentCardView {
         for itemID in itemIDs {
             if let state = primary.states[itemID] {
                 states[itemID] = state
+            // 仅在另一端存在的条目保留几何位置，以透明和缩小状态参与入场或离场。
             } else if let fallback = secondary.states[itemID] {
                 states[itemID] = SeatCollectionLayoutState(
                     frame: fallback.frame,
@@ -419,6 +465,7 @@ final class SeatStageView: TranslucentCardView {
         )
     }
 
+    /// 在宽度、方向或尺寸参数变化时结束旧转场并重新提交布局。
     private func updateLayoutEnvironmentIfNeeded(force: Bool = false) {
         let layoutWidth = bounds.width
         let resolvedMetrics = SeatLayoutMetrics.resolve(
@@ -457,7 +504,9 @@ final class SeatStageView: TranslucentCardView {
         setNeedsQuickLayout()
     }
 
+    /// 在高度变化超过半点时更新舞台布局，并按需通知宿主。
     private func updateCollectionHeight(_ height: CGFloat, notify: Bool) {
+        // 忽略亚像素测量抖动，避免宿主布局和集合高度相互触发无效刷新。
         guard abs(collectionHeight - height) > 0.5 else { return }
         collectionHeight = height
         setNeedsQuickLayout()
@@ -466,6 +515,7 @@ final class SeatStageView: TranslucentCardView {
         }
     }
 
+    /// 按舞台条目顺序重建辅助功能可访问的单元格列表。
     private func updateAccessibilityElements() {
         collectionView.layoutIfNeeded()
         accessibilityElements = currentItems.compactMap { item in
@@ -475,6 +525,7 @@ final class SeatStageView: TranslucentCardView {
 }
 
 #if DEBUG
+/// 创建展示指定房型和观众席状态的麦位舞台的预览控制器。
 @MainActor
 private func makeSeatStagePreview(
     mode: RoomMode,
