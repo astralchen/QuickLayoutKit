@@ -508,7 +508,8 @@ struct ChatMediaTests {
     }
 
     /// 导入中与追加媒体时保持发送入口，只有全部就绪才可发送，清空后恢复听写。
-    @Test func composerKeepsSendButtonThroughoutMediaImport() throws {
+    @Test(arguments: [false, true])
+    func composerKeepsSendButtonThroughoutMediaImport(hasExistingText: Bool) throws {
         guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 2)
         defer { fixture.remove() }
@@ -517,6 +518,10 @@ struct ChatMediaTests {
         defer { window.isHidden = true }
         let composer = ComposerView(frame: CGRect(x: 0, y: 100, width: 402, height: 60))
         host.view.addSubview(composer)
+        if hasExistingText {
+            composer.textView.text = "Caption"
+            composer.textViewDidChange(composer.textView)
+        }
         var actions: [ComposerAction] = []
         composer.actionRequested = { actions.append($0); return false }
         let ready = fixture.group.items.map {
@@ -538,12 +543,16 @@ struct ChatMediaTests {
             composer.applyMediaDraft(items.isEmpty ? nil : .init(groupID: fixture.group.id, items: items))
             composer.frame.size.height = composer.intrinsicContentSize.height
             composer.layoutIfNeeded()
-            #expect(visible(composer.sendButton) == !items.isEmpty)
-            #expect(visible(composer.dictationButton) == items.isEmpty)
-            #expect(composer.sendButton.isEnabled == canSend)
+            let showsSend = !items.isEmpty || !composer.textView.text.isEmpty
+            #expect(visible(composer.sendButton) == showsSend)
+            #expect(visible(composer.dictationButton) == !showsSend)
+            #expect(composer.sendButton.isEnabled)
+            #expect(composer.sendButton.tintColor == .systemBlue)
+            #expect(composer.sendButton.isUserInteractionEnabled == canSend)
+            #expect(composer.sendButton.accessibilityTraits.contains(.notEnabled) == !canSend)
             #expect(!composer.textView.isFirstResponder)
         }
-        check([], canSend: false)
+        check([], canSend: hasExistingText)
         check([importing[0]], canSend: false)
         composer.sendButton.sendActions(for: .touchUpInside)
         #expect(actions.isEmpty)
@@ -552,7 +561,11 @@ struct ChatMediaTests {
         composer.sendButton.sendActions(for: .touchUpInside)
         #expect(actions.isEmpty)
         check(ready, canSend: true)
+        composer.sendButton.sendActions(for: .touchUpInside)
+        #expect(actions.count == 1)
         check([ready[0]], canSend: true)
+        composer.textView.text = nil
+        composer.textViewDidChange(composer.textView)
         check([], canSend: false)
     }
 

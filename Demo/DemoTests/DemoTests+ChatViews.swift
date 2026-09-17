@@ -17,7 +17,7 @@ extension DemoTests {
         composer.configure(strings: ConversationPreviewData.composerStrings)
         composer.layoutIfNeeded()
 
-        #expect(!composer.sendButton.isEnabled)
+        #expect(!composer.sendButton.isUserInteractionEnabled)
         #expect(!composer.placeholderLabel.isHidden)
         #expect(composer.attachmentButton.menu?.children.count == 4)
         #expect(
@@ -82,7 +82,7 @@ extension DemoTests {
         composer.sendButton.sendActions(for: .touchUpInside)
         #expect(sentText == "one\ntwo\nthree\nfour\nfive\nsix\nseven")
         #expect(composer.textView.text.isEmpty)
-        #expect(!composer.sendButton.isEnabled)
+        #expect(!composer.sendButton.isUserInteractionEnabled)
         #expect(!composer.placeholderLabel.isHidden)
 
         composer.applyLayoutDirection(.rightToLeft)

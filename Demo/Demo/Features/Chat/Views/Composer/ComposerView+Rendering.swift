@@ -219,7 +219,16 @@ extension ComposerView {
         placeholderLabel.isHidden = isShowingRecordingUnavailableHint
             || !(textView.text ?? "").isEmpty
         recordingUnavailableLabel.isHidden = !isShowingRecordingUnavailableHint
-        sendButton.isEnabled = !isShowingRecordingUnavailableHint && hasSendableContent
+        let canSend = !isShowingRecordingUnavailableHint && hasSendableContent
+        // 导入进度只改变发送权限，不切换系统玻璃按钮的灰色/蓝色外观。
+        // 隐藏期间也保留蓝色，首次出现与追加媒体都不会先闪过禁用色。
+        sendButton.isEnabled = !isShowingRecordingUnavailableHint
+        sendButton.isUserInteractionEnabled = canSend
+        if canSend {
+            sendButton.accessibilityTraits.remove(.notEnabled)
+        } else {
+            sendButton.accessibilityTraits.insert(.notEnabled)
+        }
         sendButton.accessibilityHint = nil
         audioSendButton.isEnabled = canSendAudioDraft
         attachmentButton.isEnabled = !isShowingRecordingUnavailableHint
