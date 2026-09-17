@@ -543,6 +543,165 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         }
     }
 
+    /// 真实资源混排与键盘显示状态下，删除到空的高度变化及 RTL 外观。
+    @MainActor func testMediaDraftQuickLayoutAndCollapse() {
+        for locale in ["zh-Hans", "ar"] {
+            let app = chat(fixture: "resources-draft", locale: locale, extra: ["-imessage-preview-draft"])
+            let send = app.buttons["imessage.composer.send"]
+            expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: send)
+            waitForExpectations(timeout: 20)
+            let text = app.textViews["imessage.composer.text"]
+            text.tap()
+            text.typeText("Draft")
+            XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+            capture(app, "草稿-QuickLayout-键盘-\(locale)")
+            let composer = app.otherElements["imessage.composer"]
+            let before = composer.frame.height
+            let remove = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "imessage.composer.media.remove."))
+            for _ in 0..<3 {
+                let visible = remove.allElementsBoundByIndex.first(where: \.isHittable)
+                XCTAssertNotNil(visible)
+                visible?.tap()
+            }
+            XCTAssertTrue(remove.firstMatch.waitForNonExistence(timeout: 5))
+            XCTAssertLessThan(composer.frame.height, before - 100)
+            XCTAssertTrue(app.keyboards.firstMatch.exists)
+            capture(app, "草稿-清空后-\(locale)")
+            app.terminate()
+        }
+    }
+
+    /// 从系统照片面板真实连续选图，覆盖首次展开、追加与清空。
+    @MainActor func testMediaDraftSelectionAnimationFromPhotoSheet() {
+        let app = chat(fixture: "empty")
+        app.buttons["imessage.composer.attachment"].tap()
+        app.buttons["照片"].tap()
+        let grabber = app.buttons["表单控制柄"]
+        XCTAssertTrue(grabber.waitForExistence(timeout: 10))
+        let panelY = grabber.frame.midY
+        let preview = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "imessage.composer.media.preview."))
+        let remove = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "imessage.composer.media.remove."))
+        let send = app.buttons["imessage.composer.send"]
+        // Photos 扩展的 AX frame 是面板内坐标；先从真实宿主 frame 映射到屏幕。
+        // 不假设列数，系统可按设备和版本显示三列或五列。
+        let photos = app.images.matching(identifier: "PXGGridLayout-Info")
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "照片"))
+        XCTAssertTrue(photos.firstMatch.waitForExistence(timeout: 5))
+        let sheet = app.otherElements.allElementsBoundByIndex.first {
+            let frame = $0.frame
+            return frame.minY > grabber.frame.minY && frame.minY < grabber.frame.maxY
+                && frame.width < app.frame.width && frame.width > app.frame.width * 0.8 && frame.height > 200
+        }
+        XCTAssertNotNil(sheet)
+        guard let sheet else { return }
+        for column in 0..<3 {
+            let photo = photos.element(boundBy: column)
+            XCTAssertTrue(photo.exists)
+            let frame = photo.frame
+            let scale = sheet.frame.width / app.frame.width
+            let center = CGPoint(x: frame.midX, y: frame.midY)
+            let screenPoint = sheet.frame.contains(center) ? center : CGPoint(
+                x: sheet.frame.minX + frame.midX * scale,
+                y: sheet.frame.minY + frame.midY * scale
+            )
+            app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(
+                dx: screenPoint.x, dy: screenPoint.y
+            )).tap()
+            XCTAssertTrue(preview.firstMatch.waitForExistence(timeout: 15))
+            expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: send)
+            waitForExpectations(timeout: 20)
+            XCTAssertEqual(grabber.frame.midY, panelY, accuracy: 1)
+            capture(app, "草稿-系统选择第\(column + 1)张")
+        }
+        let source = preview.allElementsBoundByIndex.first(where: \.isHittable)
+        XCTAssertNotNil(source)
+        source?.tap()
+        XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 10))
+        app.buttons["imessage.media.preview.close"].tap()
+        XCTAssertTrue(grabber.waitForExistence(timeout: 5))
+        for _ in 0..<3 {
+            let visible = remove.allElementsBoundByIndex.first(where: \.isHittable)
+            XCTAssertNotNil(visible)
+            visible?.tap()
+        }
+        XCTAssertTrue(remove.firstMatch.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(grabber.frame.midY, panelY, accuracy: 1)
+        capture(app, "草稿-清空后保留照片面板")
+    }
+
+    @MainActor func testDeselectingLastPhotoInPickerCollapsesDraft() {
+        let app = chat(fixture: "empty")
+        app.buttons["imessage.composer.attachment"].tap()
+        app.buttons["照片"].tap()
+        let grabber = app.buttons["表单控制柄"]
+        XCTAssertTrue(grabber.waitForExistence(timeout: 10))
+        let panelY = grabber.frame.midY
+        let photo = app.images.matching(identifier: "PXGGridLayout-Info")
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "照片")).firstMatch
+        XCTAssertTrue(photo.waitForExistence(timeout: 10))
+        let frame = photo.frame
+        let sheet = app.otherElements.allElementsBoundByIndex.first {
+            let f = $0.frame
+            return f.minY > grabber.frame.minY && f.minY < grabber.frame.maxY
+                && f.width < app.frame.width && f.width > app.frame.width * 0.8 && f.height > 200
+        }
+        XCTAssertNotNil(sheet)
+        guard let sheet else { return }
+        let center = CGPoint(x: frame.midX, y: frame.midY)
+        let scale = sheet.frame.width / app.frame.width
+        let point = sheet.frame.contains(center) ? center : CGPoint(
+            x: sheet.frame.minX + frame.midX * scale, y: sheet.frame.minY + frame.midY * scale)
+        let coordinate = app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: point.x, dy: point.y))
+        let preview = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "imessage.composer.media.preview.")).firstMatch
+        let remove = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "imessage.composer.media.remove.")).firstMatch
+        // 同一网格项目再次点击取消勾选，不使用输入栏的删除按钮。
+        let microphone = app.buttons["imessage.composer.dictation"]
+        XCTAssertTrue(microphone.waitForExistence(timeout: 5))
+        let actionCenterY = microphone.frame.midY
+        for _ in 0..<2 {
+            coordinate.tap()
+            XCTAssertTrue(preview.waitForExistence(timeout: 15))
+            XCTAssertEqual(app.buttons["imessage.composer.send"].frame.midY, actionCenterY, accuracy: 1)
+            coordinate.tap()
+            XCTAssertTrue(preview.waitForNonExistence(timeout: 5))
+            XCTAssertTrue(remove.waitForNonExistence(timeout: 5))
+            XCTAssertFalse(app.buttons["imessage.composer.send"].exists)
+            XCTAssertTrue(microphone.waitForExistence(timeout: 5))
+            XCTAssertEqual(microphone.frame.midY, actionCenterY, accuracy: 1)
+            XCTAssertEqual(grabber.frame.midY, panelY, accuracy: 1)
+        }
+        capture(app, "照片面板-反选最后一张后输入栏收起")
+    }
+
+    @MainActor func testLandscapeVideoDraftInitialSize() {
+        let app = chat(fixture: "empty")
+        app.buttons["imessage.composer.attachment"].tap()
+        app.buttons["照片"].tap()
+        let grabber = app.buttons["表单控制柄"]
+        XCTAssertTrue(grabber.waitForExistence(timeout: 10))
+        let videos = app.images.matching(identifier: "PXGGridLayout-Info")
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "视频"))
+        XCTAssertTrue(videos.firstMatch.waitForExistence(timeout: 10))
+        let frame = videos.firstMatch.frame
+        let sheet = app.otherElements.allElementsBoundByIndex.first {
+            let f = $0.frame
+            return f.minY > grabber.frame.minY && f.minY < grabber.frame.maxY
+                && f.width < app.frame.width && f.width > app.frame.width * 0.8 && f.height > 200
+        }
+        XCTAssertNotNil(sheet)
+        guard let sheet else { return }
+        let center = CGPoint(x: frame.midX, y: frame.midY)
+        let scale = sheet.frame.width / app.frame.width
+        let point = sheet.frame.contains(center) ? center : CGPoint(x: sheet.frame.minX + frame.midX * scale,
+                                                                    y: sheet.frame.minY + frame.midY * scale)
+        app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: point.x, dy: point.y)).tap()
+        let preview = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "imessage.composer.media.preview.")).firstMatch
+        XCTAssertTrue(preview.waitForExistence(timeout: 20))
+        XCTAssertGreaterThan(preview.frame.width, preview.frame.height)
+        capture(app, "横向视频-首张选择")
+    }
+
     /// 在真实系统开关开启时验证预览，并在任何退出路径恢复测试前的设置。
     @MainActor func testSystemReducedMotionAndTransparency() throws {
         // XCTest 的立即中止会绕过 Swift defer；保留失败记录并让设置恢复代码执行。
@@ -656,6 +815,19 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         capture(app, "系统减少动态效果与降低透明度")
         app.buttons["imessage.media.preview.close"].tap()
         XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForNonExistence(timeout: 5))
+        app.terminate()
+        let draftApp = chat(fixture: "stack2", extra: ["-imessage-preview-draft"])
+        let remove = draftApp.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "imessage.composer.media.remove."))
+        XCTAssertTrue(remove.firstMatch.waitForExistence(timeout: 5))
+        capture(draftApp, "草稿-减少动态效果")
+        for _ in 0..<2 {
+            let visible = remove.allElementsBoundByIndex.first(where: \.isHittable)
+            XCTAssertNotNil(visible)
+            visible?.tap()
+        }
+        XCTAssertTrue(remove.firstMatch.waitForNonExistence(timeout: 5))
+        capture(draftApp, "草稿-减少动态效果-清空")
+        draftApp.terminate()
     }
 
     @MainActor func testLargeTextDocumentClearsGlassHeader() {

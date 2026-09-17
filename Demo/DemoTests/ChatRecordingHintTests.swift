@@ -166,7 +166,9 @@ struct ChatRecordingHintTests {
         layout(composer)
         #expect(composer.intrinsicContentSize.height == 60)
         #expect(!composer.sendButton.isEnabled)
-        #expect(composer.mediaDraftStripView.superview == nil)
+        // 草稿容器持续挂载，以零高度裁剪隐藏，恢复时才有连续的旧几何。
+        #expect(composer.mediaDraftStripView.bounds.height == 0)
+        #expect(composer.mediaDraftStripView.clipsToBounds)
         var actions: [ComposerAction] = []
         composer.actionRequested = { actions.append($0); return false }
         composer.mediaDraftStripView.removeRequested?(items[0].id)

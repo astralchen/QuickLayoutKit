@@ -8,6 +8,17 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
+/// 底部操作容器保留按钮原有的扩展命中区域，不受新增容器边界裁剪。
+final class ComposerActionContainer: QuickLayoutView {
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        guard isUserInteractionEnabled, !isHidden, alpha > 0.01 else { return false }
+        return super.point(inside: point, with: event) || subviews.contains { child in
+            child.isUserInteractionEnabled && !child.isHidden && child.alpha > 0.01
+                && child.point(inside: child.convert(point, from: self), with: event)
+        }
+    }
+}
+
 /// 保持设计尺寸并把实际命中区域扩展到最小触控尺寸的按钮。
 ///
 /// 视觉尺寸可以小于 44 点；命中测试会围绕按钮中心对称扩展，但不会改变

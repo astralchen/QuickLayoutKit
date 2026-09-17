@@ -11,10 +11,10 @@ import UIKit
 /// 照片和内联附件共用的删除按钮。按 iPhone 16 Pro @3x 参考图，
 /// 圆形视觉直径为 18 点；照片默认右上内缩 4 点，大圆角附件卡片可增加留白。
 /// 44 点控件区域向卡片内部延伸，不随视觉边距变化。
-final class DraftRemoveButton: UIButton {
+final class DraftRemoveButton: QuickLayoutButton {
     /// 删除符号相对卡片边缘的视觉内缩量，单位为点。
     var visualInset: CGFloat = 4 {
-        didSet { setNeedsLayout() }
+        didSet { setNeedsQuickLayout() }
     }
     /// 承载删除符号的圆形背景视图。
     private let circleView = UIView()
@@ -34,8 +34,7 @@ final class DraftRemoveButton: UIButton {
         circleView.isUserInteractionEnabled = false
         crossView.tintColor = .white
         crossView.contentMode = .scaleAspectFit
-        circleView.addSubview(crossView)
-        addSubview(circleView)
+        crossView.isUserInteractionEnabled = false
     }
 
     /// 不支持从归档创建 `DraftRemoveButton`。
@@ -50,12 +49,22 @@ final class DraftRemoveButton: UIButton {
         didSet { circleView.alpha = isHighlighted ? 0.6 : 1 }
     }
 
-    /// 根据当前边界更新 `DraftRemoveButton` 的子视图布局与图层几何。
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        circleView.frame = CGRect(
-            x: bounds.maxX - visualInset - 18, y: visualInset, width: 18, height: 18
-        )
-        crossView.frame = circleView.bounds.insetBy(dx: 4, dy: 4)
+    /// 延续共用删除控件的 touchUpInside 入口，VoiceOver 与触摸使用同一事件。
+    override func accessibilityActivate() -> Bool {
+        guard isEnabled else { return false }
+        sendActions(for: .touchUpInside)
+        return true
+    }
+
+    /// 保留 44 点命中区域；18 点视觉圆形随 leading/trailing 自动适配 RTL。
+    override var body: Layout {
+        ZStack {
+            circleView.resizable()
+            crossView.resizable().padding(4)
+        }
+        .frame(width: 18, height: 18)
+        .padding(.trailing, visualInset)
+        .padding(.top, visualInset)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
     }
 }

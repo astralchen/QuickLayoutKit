@@ -67,6 +67,6 @@ extension ComposerView {
         setNeedsQuickLayout()
         invalidateIntrinsicContentSize()
         superview?.setNeedsLayout()
-        heightDidChange?()
+        heightDidChange?(.immediate)
     }
 }

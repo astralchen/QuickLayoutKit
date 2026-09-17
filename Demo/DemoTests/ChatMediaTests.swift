@@ -7,6 +7,7 @@
 
 import CoreGraphics
 import Foundation
+import PhotosUI
 import Testing
 import UIKit
 import QuickLayoutKit
@@ -16,6 +17,349 @@ import QuickLayoutKit
 @MainActor
 @Suite(.serialized, .enabled(if: ChatTestAvailability.isSupported))
 struct ChatMediaTests {
+    @Test func draftVideoDurationKeepsContrastBackgroundWithQuickLayout() throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 1, videoIndices: [0])
+        defer { fixture.remove() }
+        let item = fixture.group.items[0]
+        let strip = MediaDraftStripView(frame: CGRect(x: 0, y: 100, width: 240, height: 156))
+        let window = try makeDraftTestWindow()
+        defer { window.isHidden = true }
+        window.rootViewController!.view.addSubview(strip)
+        strip.configure(.init(groupID: fixture.group.id, items: [.init(id: item.id, assetIdentifier: nil, content: .ready(item))]), strings: mediaStrings, animated: false)
+        strip.layoutIfNeeded()
+        let card = try #require(strip.previewSource(id: item.id))
+        card.layoutIfNeeded()
+        let background = try #require(card.subviews.first(where: { $0.layer.cornerRadius == 5 }))
+        let label = try #require(background.subviews.compactMap { $0 as? UILabel }.first)
+        #expect(background.backgroundColor == UIColor.black.withAlphaComponent(0.65))
+        #expect(background.bounds.width == label.bounds.width + 8)
+        #expect(background.bounds.height == label.bounds.height + 4)
+        #expect(background.bounds.contains(label.frame))
+    }
+
+    /// 首张、批量追加、重新选择都使用稳定身份；更新完成后仅最新选择留在快照中。
+    @Test func draftCollectionCoalescesImportDeleteAndReorder() async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 3)
+        defer { fixture.remove() }
+        let items = fixture.group.items.map { MediaDraftItemPresentation(id: $0.id, assetIdentifier: $0.assetIdentifier, content: .ready($0)) }
+        let strip = MediaDraftStripView(frame: CGRect(x: 0, y: 100, width: 240, height: 156))
+        let window = try makeDraftTestWindow()
+        defer { window.isHidden = true }
+        window.rootViewController!.view.addSubview(strip)
+        strip.configure(.init(groupID: fixture.group.id, items: [items[0]]), strings: mediaStrings, animated: false)
+        strip.layoutIfNeeded()
+        let source = try #require(strip.previewSource(id: items[0].id))
+        let remove = try #require(source.subviews.compactMap { $0 as? DraftRemoveButton }.first)
+        var removed: [UUID] = []
+        strip.removeRequested = { removed.append($0) }
+        strip.configure(.init(groupID: fixture.group.id, items: items), strings: mediaStrings)
+        strip.configure(.init(groupID: fixture.group.id, items: [items[2], items[1]]), strings: mediaStrings)
+        remove.sendActions(for: .touchUpInside)
+        #expect(removed.isEmpty)
+        #expect(strip.previewSource(id: items[0].id) == nil)
+        try await settleDraft(strip, ids: [items[2].id, items[1].id])
+        #expect(strip.renderedItemFrames.count == 2)
+        #expect(strip.previewSource(id: items[0].id) == nil)
+        strip.configure(nil, strings: mediaStrings)
+        try await settleDraft(strip, ids: [])
+        #expect(strip.renderedItemFrames.isEmpty)
+    }
+
+    @Test func draftReadyUpdateKeepsCellAndVisibleAnchor() async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 6, pixelSizes: Array(repeating: CGSize(width: 1600, height: 900), count: 6))
+        defer { fixture.remove() }
+        var items = fixture.group.items.map { MediaDraftItemPresentation(id: $0.id, assetIdentifier: $0.assetIdentifier, content: .importing) }
+        let strip = MediaDraftStripView(frame: CGRect(x: 0, y: 100, width: 240, height: 156))
+        let window = try makeDraftTestWindow()
+        defer { window.isHidden = true }
+        window.rootViewController!.view.addSubview(strip)
+        strip.configure(.init(groupID: fixture.group.id, items: items), strings: mediaStrings, animated: false)
+        strip.layoutIfNeeded()
+        strip.collectionView.setContentOffset(CGPoint(x: 172, y: 0), animated: false)
+        strip.collectionView.layoutIfNeeded()
+        let cell = try #require(strip.collectionView.cellForItem(at: IndexPath(item: 2, section: 0)))
+        let screenX = strip.renderedItemFrames[2].minX - strip.collectionView.contentOffset.x
+        items[0] = .init(id: items[0].id, assetIdentifier: items[0].assetIdentifier, content: .ready(fixture.group.items[0]))
+        items[2] = .init(id: items[2].id, assetIdentifier: items[2].assetIdentifier, content: .ready(fixture.group.items[2]))
+        strip.configure(.init(groupID: fixture.group.id, items: items), strings: mediaStrings)
+        try await Task.sleep(for: .milliseconds(40))
+        let intermediateWidth = try #require(cell.layer.presentation()).bounds.width
+        #expect(intermediateWidth > 80 && intermediateWidth < 208)
+        try await settleDraft(strip, ids: items.map(\.id))
+        #expect(strip.collectionView.cellForItem(at: IndexPath(item: 2, section: 0)) === cell)
+        #expect(abs(strip.renderedItemFrames[2].minX - strip.collectionView.contentOffset.x - screenX) < 1)
+        #expect(strip.renderedItemFrames[2].width == 208)
+        #expect(strip.previewSource(id: items[2].id) != nil)
+        #expect(strip.previewSource(id: items[0].id) == nil)
+    }
+
+    @Test(arguments: [false, true])
+    func draftAppendAlwaysRevealsNewestItemAndMirrorsRTL(rtl: Bool) async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 6)
+        defer { fixture.remove() }
+        let items = fixture.group.items.map { MediaDraftItemPresentation(id: $0.id, assetIdentifier: $0.assetIdentifier, content: .ready($0)) }
+        let strip = MediaDraftStripView(frame: CGRect(x: 0, y: 100, width: 240, height: 156))
+        strip.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
+        let window = try makeDraftTestWindow()
+        defer { window.isHidden = true }
+        window.rootViewController!.view.addSubview(strip)
+        strip.configure(.init(groupID: fixture.group.id, items: Array(items.prefix(5))), strings: mediaStrings, animated: false)
+        strip.layoutIfNeeded()
+        let startX = rtl ? strip.collectionView.contentSize.width - 238 : -2
+        strip.collectionView.setContentOffset(CGPoint(x: startX, y: 0), animated: false)
+        strip.configure(.init(groupID: fixture.group.id, items: items), strings: mediaStrings)
+        // 插入还在动画时，布局事务就必须包含完整显示最后新增项的目标几何，
+        // 不得等插入 completion 后才另起一段自动滚动。
+        try await Task.sleep(for: .milliseconds(40))
+        let insertedFrame = try #require(strip.renderedItemFrames.last)
+        #expect(strip.collectionView.bounds.insetBy(dx: -0.5, dy: 0).contains(insertedFrame))
+        try await settleDraft(strip, ids: items.map(\.id))
+        let frames = strip.renderedItemFrames
+        #expect(rtl ? frames[0].minX > frames[1].minX : frames[0].minX < frames[1].minX)
+        let last = try #require(frames.last)
+        #expect(strip.collectionView.bounds.insetBy(dx: -0.5, dy: 0).contains(last))
+        #expect(strip.previewSource(id: items.last!.id) != nil)
+        #expect(strip.previewSource(id: items[0].id) == nil)
+    }
+
+    @Test(arguments: [false, true])
+    func draftImportedLastItemKeepsItsTrailingEdgeVisible(rtl: Bool) async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 3, pixelSizes: Array(repeating: CGSize(width: 1600, height: 900), count: 3))
+        defer { fixture.remove() }
+        var items = fixture.group.items.map { MediaDraftItemPresentation(id: $0.id, assetIdentifier: nil, content: .importing) }
+        let strip = MediaDraftStripView(frame: CGRect(x: 0, y: 100, width: 240, height: 156))
+        strip.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
+        let window = try makeDraftTestWindow()
+        defer { window.isHidden = true }
+        window.rootViewController!.view.addSubview(strip)
+        strip.configure(.init(groupID: fixture.group.id, items: items), strings: mediaStrings, animated: false)
+        strip.layoutIfNeeded()
+        for index in [2, 0, 1] {
+            items[index] = .init(id: items[index].id, assetIdentifier: nil, content: .ready(fixture.group.items[index]))
+            strip.configure(.init(groupID: fixture.group.id, items: items), strings: mediaStrings)
+            try await settleDraft(strip, ids: items.map(\.id))
+            let last = try #require(strip.renderedItemFrames.last)
+            #expect(strip.collectionView.bounds.insetBy(dx: -0.5, dy: 0).contains(last))
+        }
+    }
+
+    @Test(arguments: [CGSize(width: 1920, height: 1080), CGSize(width: 1080, height: 1920)], [false, true])
+    func draftMediaUsesSelectedAspectRatioBeforeImport(size: CGSize, isVideo: Bool) async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 1, videoIndices: isVideo ? [0] : [], pixelSizes: [size])
+        defer { fixture.remove() }
+        let item = fixture.group.items[0]
+        let entry = PhotoPickerController.DraftEntry(id: item.id, assetIdentifier: nil,
+                                                    initialDisplaySize: size, waitsForDisplaySize: true)
+        let strip = MediaDraftStripView(frame: CGRect(x: 0, y: 100, width: 240, height: 156))
+        let window = try makeDraftTestWindow()
+        defer { window.isHidden = true }
+        window.rootViewController!.view.addSubview(strip)
+        strip.configure(.init(groupID: fixture.group.id, items: [entry.presentation]), strings: mediaStrings, animated: false)
+        strip.layoutIfNeeded()
+        let before = try #require(strip.renderedItemFrames.first)
+        #expect(before.size == MediaDraftItemSizing.size(for: size))
+        #expect(entry.presentation.mediaItem == nil)
+        entry.content = .ready(item)
+        strip.configure(.init(groupID: fixture.group.id, items: [entry.presentation]), strings: mediaStrings)
+        try await settleDraft(strip, ids: [item.id])
+        #expect(strip.renderedItemFrames.first == before)
+    }
+
+    @Test func draftVideoWithUnknownInitialSizeSettlesGeometryBeforeShowingImage() async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 1, videoIndices: [0], pixelSizes: [CGSize(width: 1920, height: 1080)])
+        defer { fixture.remove() }
+        let item = fixture.group.items[0]
+        let strip = MediaDraftStripView(frame: CGRect(x: 0, y: 100, width: 240, height: 156))
+        let window = try makeDraftTestWindow()
+        defer { window.isHidden = true }
+        window.rootViewController!.view.addSubview(strip)
+        strip.configure(.init(groupID: fixture.group.id, items: [.init(id: item.id, assetIdentifier: nil, content: .importing)]), strings: mediaStrings, animated: false)
+        strip.layoutIfNeeded()
+        #expect(strip.renderedItemFrames.first?.width == 80)
+        strip.configure(.init(groupID: fixture.group.id, items: [.init(id: item.id, assetIdentifier: nil, content: .ready(item))]), strings: mediaStrings)
+        try await Task.sleep(for: .milliseconds(40))
+        let cell = try #require(strip.collectionView.cellForItem(at: .init(item: 0, section: 0)))
+        #expect(cell.bounds.width == 208)
+        #expect(cell.layer.presentation()?.bounds.width == 208)
+        try await settleDraft(strip, ids: [item.id])
+        #expect(strip.previewSource(id: item.id) != nil)
+        #expect(PhotoPickerController.validDisplaySize(.zero) == nil)
+        #expect(PhotoPickerController.validDisplaySize(CGSize(width: CGFloat.infinity, height: 100)) == nil)
+    }
+
+    @Test(arguments: [false, true])
+    func unknownMediaWaitsForMetadataWithoutLosingBusinessState(isVideo: Bool) async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 1, videoIndices: isVideo ? [0] : [], pixelSizes: [CGSize(width: 1920, height: 1080)])
+        defer { fixture.remove() }
+        let item = fixture.group.items[0]
+        let entry = PhotoPickerController.DraftEntry(id: item.id, assetIdentifier: nil, waitsForDisplaySize: true)
+        let composer = ComposerView(frame: CGRect(x: 0, y: 100, width: 320, height: 60))
+        composer.configure(strings: ConversationPreviewData.composerStrings, mediaStrings: mediaStrings)
+        let window = try makeDraftTestWindow()
+        defer { window.isHidden = true }
+        window.rootViewController!.view.addSubview(composer)
+        let emptyHeight = composer.intrinsicContentSize.height
+        composer.applyMediaDraft(.init(groupID: fixture.group.id, items: [entry.presentation]), animated: false)
+        composer.layoutIfNeeded()
+        #expect(composer.mediaDraft?.items.count == 1)
+        #expect(composer.mediaDraft?.canSend == false)
+        #expect(!composer.hasVisibleMediaDraft)
+        #expect(composer.intrinsicContentSize.height == emptyHeight)
+        #expect(composer.mediaDraftStripView.renderedItemIDs.isEmpty)
+        entry.content = .ready(item)
+        composer.applyMediaDraft(.init(groupID: fixture.group.id, items: [entry.presentation]))
+        composer.frame.size.height = composer.intrinsicContentSize.height
+        composer.setNeedsQuickLayout()
+        composer.layoutIfNeeded()
+        try await settleDraft(composer.mediaDraftStripView, ids: [item.id])
+        #expect(composer.hasVisibleMediaDraft)
+        #expect(composer.mediaDraft?.canSend == true)
+        #expect(composer.mediaDraftStripView.renderedItemFrames.first?.size == CGSize(width: 208, height: 156))
+        composer.applyMediaDraft(nil, animated: false)
+        #expect(composer.mediaDraft == nil)
+        #expect(composer.intrinsicContentSize.height == emptyHeight)
+    }
+
+    @Test(arguments: [false, true])
+    func delayedEarlierVideoKeepsLastSelectedPhotoVisible(rtl: Bool) async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 3, videoIndices: [0], pixelSizes: Array(repeating: CGSize(width: 1920, height: 1080), count: 3))
+        defer { fixture.remove() }
+        let video = fixture.group.items[0]
+        let entry = PhotoPickerController.DraftEntry(id: video.id, assetIdentifier: nil, waitsForDisplaySize: true)
+        let photos = fixture.group.items.dropFirst().map { MediaDraftItemPresentation(id: $0.id, assetIdentifier: nil, content: .ready($0)) }
+        let strip = MediaDraftStripView(frame: CGRect(x: 0, y: 100, width: 240, height: 156))
+        strip.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
+        let window = try makeDraftTestWindow()
+        defer { window.isHidden = true }
+        window.rootViewController!.view.addSubview(strip)
+        strip.configure(.init(groupID: fixture.group.id, items: [entry.presentation] + photos), strings: mediaStrings, animated: false)
+        strip.layoutIfNeeded()
+        entry.content = .ready(video)
+        strip.configure(.init(groupID: fixture.group.id, items: [entry.presentation] + photos), strings: mediaStrings)
+        try await settleDraft(strip, ids: fixture.group.items.map(\.id))
+        #expect(strip.collectionView.bounds.contains(try #require(strip.renderedItemFrames.last)))
+    }
+
+    @Test(arguments: [false, true])
+    func firstDraftRevealsAboveEditorWithoutStretchingCard(rtl: Bool) async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 1, videoIndices: [0], pixelSizes: [CGSize(width: 1920, height: 1080)])
+        defer { fixture.remove() }
+        let item = fixture.group.items[0]
+        let composer = ComposerView(frame: CGRect(x: 0, y: 0, width: 320, height: 60))
+        composer.configure(strings: ConversationPreviewData.composerStrings, mediaStrings: mediaStrings)
+        composer.applyLayoutDirection(rtl ? .rightToLeft : .leftToRight)
+        let window = try makeDraftTestWindow()
+        defer { window.isHidden = true }
+        window.rootViewController!.view.addSubview(composer)
+        composer.frame = CGRect(x: 0, y: 500 - composer.intrinsicContentSize.height,
+                                width: 320, height: composer.intrinsicContentSize.height)
+        composer.layoutIfNeeded()
+        let microphoneRect = composer.dictationButton.convert(composer.dictationButton.bounds, to: window)
+        let initialEditorRect = composer.editorContainer.convert(composer.editorContainer.bounds, to: window)
+        #expect(abs(microphoneRect.midY - initialEditorRect.midY) < 0.5)
+        var animator: UIViewPropertyAnimator?
+        composer.heightDidChange = { _ in
+            // 与页面一样保持输入栏底边，以一份父级动画驱动整个展开。
+            animator = UIViewPropertyAnimator(duration: 0.32, dampingRatio: 1) {
+                composer.frame = CGRect(x: 0, y: 500 - composer.intrinsicContentSize.height,
+                                        width: 320, height: composer.intrinsicContentSize.height)
+                composer.layoutIfNeeded()
+            }
+            animator?.startAnimation()
+        }
+        composer.applyMediaDraft(.init(groupID: fixture.group.id, items: [
+            .init(id: item.id, assetIdentifier: nil, content: .ready(item))
+        ]))
+        try await Task.sleep(for: .milliseconds(80))
+        let strip = composer.mediaDraftStripView
+        let viewport = try #require(strip.layer.presentation())
+        let editor = try #require(composer.editorContainer.layer.presentation())
+        let viewportRect = viewport.convert(viewport.bounds, to: nil)
+        let editorRect = editor.convert(editor.bounds, to: nil)
+        // 淡出的麦克风仍须留在底部；只检查最终 frame 无法发现随玻璃上移的问题。
+        let microphone = try #require(composer.dictationButton.layer.presentation())
+        let microphoneDuringExpansion = microphone.convert(microphone.bounds, to: nil)
+        #expect(abs(microphoneDuringExpansion.midY - microphoneRect.midY) < 1)
+        let send = try #require(composer.sendButton.layer.presentation())
+        let sendDuringExpansion = send.convert(send.bounds, to: nil)
+        #expect(abs(sendDuringExpansion.midY - initialEditorRect.midY) < 1)
+        #expect(strip.clipsToBounds)
+        #expect(viewportRect.maxY <= editorRect.minY + 1)
+        #expect(strip.collectionView.bounds.height == MediaDraftAppearance.itemHeight)
+        #expect(strip.renderedItemFrames.first?.size == CGSize(width: 208, height: 156))
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(strip.bounds.height == MediaDraftAppearance.itemHeight)
+        #expect(strip.collectionView.frame.minY == 0)
+        #expect(strip.collectionView.bounds.contains(try #require(strip.renderedItemFrames.last)))
+        let sendRect = composer.sendButton.convert(composer.sendButton.bounds, to: window)
+        composer.applyMediaDraft(nil)
+        try await Task.sleep(for: .milliseconds(80))
+        let outgoingSend = try #require(composer.sendButton.layer.presentation())
+        #expect(abs(outgoingSend.convert(outgoingSend.bounds, to: nil).midY - sendRect.midY) < 1)
+        let returningMicrophone = try #require(composer.dictationButton.layer.presentation())
+        #expect(abs(returningMicrophone.convert(returningMicrophone.bounds, to: nil).midY - microphoneRect.midY) < 1)
+        try await Task.sleep(for: .milliseconds(300))
+        animator?.stopAnimation(true)
+    }
+
+    @Test func draftCollapsePublishesStateImmediatelyAndCleansInterruptedSnapshot() async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 1)
+        defer { fixture.remove() }
+        let item = fixture.group.items[0]
+        let draft = MediaDraftPresentation(groupID: fixture.group.id, items: [.init(id: item.id, assetIdentifier: nil, content: .ready(item))])
+        let composer = ComposerView(frame: CGRect(x: 0, y: 100, width: 320, height: 220))
+        let window = try makeDraftTestWindow()
+        defer { window.isHidden = true }
+        window.rootViewController!.view.addSubview(composer)
+        var transitions: [ComposerView.HeightChange] = []
+        composer.heightDidChange = { transitions.append($0) }
+        composer.applyMediaDraft(draft, animated: false)
+        composer.layoutIfNeeded()
+        try await Task.sleep(for: .milliseconds(80))
+        composer.applyMediaDraft(nil)
+        #expect(composer.mediaDraft == nil)
+        #expect(!composer.hasSendableContent)
+        let departing = composer.mediaDraftExitSnapshot
+        #expect(departing != nil)
+        composer.applyMediaDraft(draft)
+        #expect(departing?.superview == nil)
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(composer.mediaDraft == draft)
+        #expect(composer.mediaDraftExitSnapshot == nil)
+        #expect(transitions.count == 3)
+        if case .immediate = transitions[0] {} else { Issue.record("Initial restoration must not animate") }
+        if case .mediaDraft = transitions[1] {} else { Issue.record("Visible collapse should animate") }
+    }
+
+    private func makeDraftTestWindow() throws -> UIWindow {
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = UIViewController()
+        window.isHidden = false
+        return window
+    }
+
+    /// 有界等待 collection 更新与最后一次自动滚动结束，不用长时间压力循环。
+    private func settleDraft(_ strip: MediaDraftStripView, ids: [UUID]) async throws {
+        for _ in 0..<60 {
+            strip.layoutIfNeeded()
+            if strip.renderedItemIDs == ids && !strip.isUpdatingPresentation { return }
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        Issue.record("Draft did not settle to the latest snapshot")
+    }
+
     @Test func mediaGroupAndFollowupTextPublishAtomically() throws {
         guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 5, videoIndices: [2])
@@ -215,22 +559,22 @@ struct ChatMediaTests {
     @Test func mediaDraftItemWidthFollowsAttachmentAspectRatioWithinLimits() {
         guard #available(iOS 26.0, *) else { return }
         #expect(
-            MediaDraftLayoutPolicy.itemSize(
+            MediaDraftItemSizing.size(
                 for: CGSize(width: 900, height: 1600)
             ) == CGSize(width: 87.75, height: 156)
         )
         #expect(
-            MediaDraftLayoutPolicy.itemSize(
+            MediaDraftItemSizing.size(
                 for: CGSize(width: 1000, height: 1000)
             ) == CGSize(width: 156, height: 156)
         )
         #expect(
-            MediaDraftLayoutPolicy.itemSize(
+            MediaDraftItemSizing.size(
                 for: CGSize(width: 1600, height: 900)
             ) == CGSize(width: 208, height: 156)
         )
         #expect(
-            MediaDraftLayoutPolicy.itemSize(for: .zero)
+            MediaDraftItemSizing.size(for: .zero)
                 == CGSize(width: 80, height: 156)
         )
     }
@@ -829,6 +1173,61 @@ struct ChatMediaTests {
         #expect(fixture.group.localFileURLs.allSatisfy { FileManager.default.fileExists(atPath: $0.path) })
         store.removeAll()
         #expect(fixture.group.localFileURLs.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+    }
+
+    @Test(arguments: [false, true])
+    func deselectingLastPhotoClearsDraftAndCancelsImport(isImporting: Bool) throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 1)
+        defer { fixture.remove() }
+        let store = PageAttachmentStore()
+        defer { store.removeAll() }
+        let controller = PhotoPickerController(attachmentStore: store)
+        controller.applyPreviewFixture(fixture.group)
+        let entry = try #require(controller.entries.first)
+        let progress = Progress(totalUnitCount: 100)
+        if isImporting {
+            entry.content = .importing
+            entry.progress = progress
+            controller.pendingImports = [.init(provider: NSItemProvider(), entry: entry, generation: controller.generation)]
+        }
+        var configuration = PHPickerConfiguration()
+        configuration.selection = .continuousAndOrdered
+        let picker = PHPickerViewController(configuration: configuration)
+        controller.picker = picker
+        let composer = ComposerView(frame: .zero)
+        let emptyHeight = composer.intrinsicContentSize.height
+        composer.applyMediaDraft(controller.draft, animated: false)
+        var didPublishEmpty = false
+        controller.stateDidChange = { draft in
+            didPublishEmpty = draft == nil
+            composer.applyMediaDraft(draft, animated: false)
+        }
+        controller.picker(picker, didFinishPicking: [])
+        #expect(didPublishEmpty)
+        #expect(controller.entries.isEmpty)
+        #expect(controller.pendingImports.isEmpty)
+        #expect(controller.draftAttachment == nil)
+        #expect(composer.mediaDraft == nil)
+        #expect(composer.intrinsicContentSize.height == emptyHeight)
+        #expect(!composer.hasSendableContent)
+        #expect(controller.picker === picker)
+        if isImporting { #expect(progress.isCancelled) }
+        else { #expect(fixture.group.localFileURLs.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) }) }
+    }
+
+    @Test func dismissedPhotoPickerCannotClearCurrentDraft() throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 1)
+        defer { fixture.remove() }
+        let store = PageAttachmentStore()
+        defer { store.removeAll() }
+        let controller = PhotoPickerController(attachmentStore: store)
+        controller.applyPreviewFixture(fixture.group)
+        let oldPicker = PHPickerViewController(configuration: PHPickerConfiguration())
+        controller.picker = PHPickerViewController(configuration: PHPickerConfiguration())
+        controller.picker(oldPicker, didFinishPicking: [])
+        #expect(controller.draft?.items.map(\.id) == fixture.group.items.map(\.id))
     }
 
     /// 提交消费草稿并保留面板实例与档位，后续丢弃空草稿不能删除已发送原件。

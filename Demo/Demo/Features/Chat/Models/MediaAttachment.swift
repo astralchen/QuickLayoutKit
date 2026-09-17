@@ -121,6 +121,23 @@ nonisolated struct MediaDraftItemPresentation:
     /// 当前项目的导入占位或已就绪内容。
     let content: MediaDraftItemContent
 
+    /// 选择时已知的展示比例；可来自 provider 的点尺寸，不要求是原件像素尺寸。
+    let initialDisplaySize: CGSize?
+    /// 媒体尺寸未知时，保留导入状态，等待正确比例后再插入卡片。
+    let waitsForDisplaySize: Bool
+
+    init(id: UUID, assetIdentifier: String?, content: MediaDraftItemContent,
+         initialDisplaySize: CGSize? = nil, waitsForDisplaySize: Bool = false) {
+        self.id = id
+        self.assetIdentifier = assetIdentifier
+        self.content = content
+        self.initialDisplaySize = initialDisplaySize
+        self.waitsForDisplaySize = waitsForDisplaySize
+    }
+
+    var isReadyForDisplay: Bool { !waitsForDisplaySize || displaySize != nil }
+    var displaySize: CGSize? { mediaItem?.pixelSize ?? initialDisplaySize }
+
     /// 已经导入的媒体项目；仍在导入时为 `nil`。
     var mediaItem: MediaItem? {
         guard case .ready(let item) = content else { return nil }
@@ -134,6 +151,9 @@ nonisolated struct MediaDraftPresentation: Equatable, Sendable {
     let groupID: UUID
     /// 按用户选择顺序排列的媒体草稿项目。
     let items: [MediaDraftItemPresentation]
+
+    var visibleItems: [MediaDraftItemPresentation] { items.filter(\.isReadyForDisplay) }
+    var hasVisibleItems: Bool { items.contains(where: \.isReadyForDisplay) }
 
     /// 指示草稿非空且全部项目已完成导入的布尔值。
     var canSend: Bool {

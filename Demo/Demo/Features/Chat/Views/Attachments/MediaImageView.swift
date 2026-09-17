@@ -28,6 +28,9 @@ final class MediaImageView: UIImageView {
     private var standaloneLoader: MediaImageLoader?
     /// 当前缩略图操作的有效期，拒绝复用后的迟到结果。
     private let thumbnailScope = OperationScope()
+    /// 默认关闭；草稿卡片可在同一文件首次显示时启用短淡入。
+    var thumbnailFadeDuration: TimeInterval = 0
+    private var hasDisplayedThumbnail = false
     /// 由滚动容器传入的实际可见性。
     var isContentActive = true { didSet { if oldValue != isContentActive { updateThumbnail() } } }
 
@@ -40,6 +43,8 @@ final class MediaImageView: UIImageView {
         }
         cancelThumbnail()
         thumbnailURL = url
+        hasDisplayedThumbnail = false
+        layer.removeAnimation(forKey: "thumbnailFade")
         image = placeholder
         setNeedsLayout()
     }
@@ -81,6 +86,7 @@ final class MediaImageView: UIImageView {
     func updateThumbnail() {
         guard window != nil, isContentActive, !isHidden, let thumbnailURL else {
             cancelThumbnail()
+            layer.removeAnimation(forKey: "thumbnailFade")
             if self.thumbnailURL != nil { image = nil }
             return
         }
@@ -99,7 +105,15 @@ final class MediaImageView: UIImageView {
         request = service.load(url: thumbnailURL, size: CGSize(width: key.width, height: key.height), mode: mode) { [weak self] image in
             guard let self, operation.isCurrent else { return }
             request = nil
+            let shouldFade = image != nil && !hasDisplayedThumbnail && thumbnailFadeDuration > 0 && UIView.areAnimationsEnabled
+            if image != nil { hasDisplayedThumbnail = true }
             self.image = image ?? placeholderImage
+            if shouldFade {
+                let fade = CATransition()
+                fade.type = .fade
+                fade.duration = thumbnailFadeDuration
+                layer.add(fade, forKey: "thumbnailFade")
+            }
         }
     }
 

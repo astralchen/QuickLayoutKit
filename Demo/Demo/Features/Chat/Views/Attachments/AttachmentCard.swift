@@ -177,6 +177,8 @@ final class AttachmentCard: QuickLayoutView, UIGestureRecognizerDelegate {
         titleLabel.adjustsFontForContentSizeCategory = true
         detailLabel.adjustsFontForContentSizeCategory = true
         // 20 点卡片圆角需要比照片缩略图更多留白，避免圆形按钮贴住弧线。
+        // 文件卡片的删除入口采用固定物理右侧布局。
+        removeButton.semanticContentAttribute = .forceLeftToRight
         removeButton.visualInset = 8
         removeButton.isHidden = true
         removeButton.isEnabled = false

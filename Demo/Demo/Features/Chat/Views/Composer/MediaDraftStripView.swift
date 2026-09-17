@@ -9,163 +9,307 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
-/// Composer 媒体预览项的尺寸规则。
-///
-/// 设计图固定预览高度，并让宽度跟随附件像素比例。极窄或极宽资源会被限制在
-/// 合理范围，避免删除按钮相互覆盖或单个横图占满整条输入栏。
-nonisolated enum MediaDraftLayoutPolicy {
-    /// 按 iPhone 16 Pro 参考图换算的媒体草稿高度，单位为点。
+/// 草稿外观配置，由输入栏和卡片共享。
+nonisolated enum MediaDraftAppearance {
     static let itemHeight: CGFloat = 156
-    /// 媒体草稿预览项的最小宽度，单位为点。
     static let minimumWidth: CGFloat = 80
-    /// 媒体草稿预览项的最大宽度，单位为点。
     static let maximumWidth: CGFloat = 208
+    static let spacing: CGFloat = 6
+    static let horizontalInset: CGFloat = 2
+}
 
-    /// 按媒体宽高比计算固定高度的草稿尺寸，并限制宽度范围。
-    ///
-    /// 像素尺寸缺失、非有限或非正数时使用最小宽度。
-    static func itemSize(for pixelSize: CGSize?) -> CGSize {
-        guard let pixelSize,
-              pixelSize.width.isFinite,
-              pixelSize.height.isFinite,
-              pixelSize.width > 0,
-              pixelSize.height > 0 else {
-            return CGSize(width: minimumWidth, height: itemHeight)
+/// 媒体像素比例到展示尺寸的转换，不属于 collection layout。
+nonisolated enum MediaDraftItemSizing {
+    static func size(for pixelSize: CGSize?) -> CGSize {
+        let height = MediaDraftAppearance.itemHeight
+        guard let pixelSize, pixelSize.width.isFinite, pixelSize.height.isFinite,
+              pixelSize.width > 0, pixelSize.height > 0 else {
+            return CGSize(width: MediaDraftAppearance.minimumWidth, height: height)
         }
-        let aspectRatio = pixelSize.width / pixelSize.height
-        let width = min(maximumWidth, max(minimumWidth, itemHeight * aspectRatio))
-        return CGSize(width: width, height: itemHeight)
+        let width = min(MediaDraftAppearance.maximumWidth,
+                        max(MediaDraftAppearance.minimumWidth, height * (pixelSize.width / pixelSize.height)))
+        return CGSize(width: width, height: height)
     }
 }
 
-/// 按选择顺序显示可删除媒体草稿的横向滚动视图。
-final class MediaDraftStripView: UIView, UIScrollViewDelegate {
-    /// 媒体草稿条带的布局常量。
-    private enum Metrics {
-        /// 相邻媒体草稿卡片之间的间距，单位为点。
-        static let spacing: CGFloat = 6
-    }
-
-    /// 承载媒体草稿条带的水平滚动容器。
-    let scrollView = UIScrollView()
-    /// 按序排列媒体草稿项目的内容视图。
-    private let contentView = UIView()
-    /// 按稳定身份复用的媒体草稿项目视图。
-    private var itemViews: [UUID: DraftItemView] = [:]
-    /// 当前媒体草稿的本地化文字；尚未配置时为 `nil`。
+/// 按选择顺序显示媒体草稿；QuickLayout 管理容器，collection layout 管理项目几何。
+final class MediaDraftStripView: QuickLayoutView, MediaDraftCollectionViewLayoutDelegate {
+    let draftLayout = MediaDraftCollectionViewLayout()
+    let collectionView: UICollectionView
+    /// 保留滚动容器访问入口，调用者无需依赖 collection view 的实现。
+    var scrollView: UIScrollView { collectionView }
+    private var dataSource: UICollectionViewDiffableDataSource<Int, UUID>!
+    private var displayedItems: [MediaDraftItemPresentation] = []
+    private var latestItems: [MediaDraftItemPresentation] = []
     private var strings: MediaStrings?
+    private var appliedStrings: MediaStrings?
+    private var isApplying = false
+    private var hasPendingUpdate = false
+    private var pendingAnimated = false
+    private var pendingScrollID: UUID?
+    private var itemSizes: [UUID: CGSize] = [:]
+    private var awaitingVideoGeometry: Set<UUID> = []
+    var isUpdatingPresentation: Bool { isApplying || hasPendingUpdate || pendingScrollID != nil }
 
-    /// 用户请求删除草稿项目时调用的闭包，参数为项目身份。
     var removeRequested: ((UUID) -> Void)?
-    /// 请求打开已完成导入的照片草稿。
     var previewRequested: ((UUID) -> Void)?
-    /// 按草稿稳定身份返回当前缩略图来源。
-    func previewSource(id: UUID) -> UIView? { itemViews[id] }
 
-
-    /// 测试和页面级调试用于确认当前有序预览项的实际 frame。
+    /// 全量几何来自 layout，不要求离屏项目实例化。
     var renderedItemFrames: [CGRect] {
-        itemViews.values
-            .sorted(by: { $0.order < $1.order })
-            .map(\.frame)
+        collectionView.layoutIfNeeded()
+        return dataSource.snapshot().itemIdentifiers.indices.compactMap {
+            draftLayout.layoutAttributesForItem(at: IndexPath(item: $0, section: 0))?.frame
+        }
     }
-
-    /// 当前显示动态图片标志的媒体 ID。
+    var renderedItemIDs: [UUID] { dataSource.snapshot().itemIdentifiers }
     var animatedBadgeItemIDs: Set<UUID> {
-        Set(
-            itemViews.compactMap { id, view in
-                view.animatedBadgeView.isHidden ? nil : id
-            }
-        )
+        Set(displayedItems.compactMap { $0.mediaItem?.isAnimatedImage == true ? $0.id : nil })
     }
 
-    /// 使用指定初始边框创建 `MediaDraftStripView`，并配置其子视图和默认外观。
-    ///
-    /// - Parameter frame: 在父视图坐标系中指定的初始边框。
     override init(frame: CGRect) {
+        collectionView = UICollectionView(frame: .zero, collectionViewLayout: draftLayout)
         super.init(frame: frame)
-        scrollView.delegate = self
-        scrollView.showsHorizontalScrollIndicator = false
-        scrollView.alwaysBounceHorizontal = true
-        scrollView.contentInset = UIEdgeInsets(top: 0, left: 2, bottom: 0, right: 2)
-        addSubview(scrollView)
-        scrollView.addSubview(contentView)
+        clipsToBounds = true
+        collectionView.backgroundColor = .clear
+        collectionView.delegate = self
+        collectionView.showsHorizontalScrollIndicator = false
+        collectionView.alwaysBounceHorizontal = true
+        collectionView.contentInsetAdjustmentBehavior = .never
+        collectionView.contentInset = .zero
+        draftLayout.itemSize = MediaDraftItemSizing.size(for: nil)
+        draftLayout.minimumLineSpacing = MediaDraftAppearance.spacing
+        draftLayout.sectionInset = UIEdgeInsets(top: 0, left: MediaDraftAppearance.horizontalInset,
+                                               bottom: 0, right: MediaDraftAppearance.horizontalInset)
+        collectionView.isPrefetchingEnabled = false
+        collectionView.register(DraftCell.self, forCellWithReuseIdentifier: "draft")
+        dataSource = UICollectionViewDiffableDataSource<Int, UUID>(collectionView: collectionView) { [weak self] collection, indexPath, id in
+            guard let self, let strings = appliedStrings,
+                  let order = displayedItems.firstIndex(where: { $0.id == id }),
+                  let cell = collection.dequeueReusableCell(withReuseIdentifier: "draft", for: indexPath) as? DraftCell else { return nil }
+            let item = displayedItems[order]
+            // 新 cell 已由插入/输入栏展开负责入场；只有已有占位的内容回填再淡入。
+            cell.itemView.imageView.thumbnailFadeDuration = cell.representedID == id ? 0.16 : 0
+            cell.representedID = id
+            if awaitingVideoGeometry.contains(id) { cell.itemView.imageView.isContentActive = false }
+            cell.itemView.configure(item, order: order, totalCount: displayedItems.count, strings: strings)
+            cell.itemView.removeRequested = { [weak self] in
+                guard let self, latestItems.contains(where: { $0.id == id }) else { return }
+                removeRequested?(id)
+            }
+            cell.itemView.previewRequested = { [weak self] in
+                guard let self, latestItems.contains(where: { $0.id == id && $0.mediaItem != nil }) else { return }
+                previewRequested?(id)
+            }
+            return cell
+        }
         accessibilityIdentifier = "imessage.composer.mediaStrip"
     }
 
-    /// 不支持从归档创建 `MediaDraftStripView`。
-    ///
-    /// 请使用代码初始化方法创建此对象。
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    // 首张入场时外层从零高度展开，collection 保持完整卡片尺寸并贴住底边。
+    // 裁剪区域随输入栏揭开，卡片不会穿过下方文本行，也不拉伸缩略图。
+    override var body: Layout {
+        collectionView.resizable(axis: .horizontal)
+            .frame(height: MediaDraftAppearance.itemHeight)
+            .frame(maxHeight: .infinity, alignment: .bottom)
     }
 
-    /// 根据当前边界更新 `MediaDraftStripView` 的子视图布局与图层几何。
+    override var semanticContentAttribute: UISemanticContentAttribute {
+        didSet {
+            collectionView.semanticContentAttribute = semanticContentAttribute
+            draftLayout.invalidateGeometry()
+        }
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
-        scrollView.frame = bounds
-        var x: CGFloat = 0
-        for view in itemViews.values.sorted(by: { $0.order < $1.order }) {
-            view.frame = CGRect(origin: CGPoint(x: x, y: 0), size: view.itemSize)
-            x += view.itemSize.width + Metrics.spacing
-        }
-        let width = max(0, x - Metrics.spacing)
-        contentView.frame = CGRect(
-            x: 0,
-            y: 0,
-            width: width,
-            height: MediaDraftLayoutPolicy.itemHeight
-        )
-        scrollView.contentSize = contentView.bounds.size
+        revealPendingItem()
         updateVisibleThumbnails()
     }
 
-    /// 滚动时仅保留可见草稿缩略图。
-    func scrollViewDidScroll(_ scrollView: UIScrollView) { updateVisibleThumbnails() }
-
-    /// 实际可见范围控制读取和像素持有，不预加载整组资源。
-    private func updateVisibleThumbnails() {
-        for view in itemViews.values {
-            view.imageView.isContentActive = view.frame.intersects(scrollView.bounds)
-        }
+    func previewSource(id: UUID) -> UIView? {
+        guard latestItems.contains(where: { $0.id == id && $0.mediaItem != nil }),
+              let index = dataSource.indexPath(for: id),
+              let cell = collectionView.cellForItem(at: index) as? DraftCell,
+              cell.representedID == id, cell.frame.intersects(collectionView.bounds) else { return nil }
+        return cell.itemView
     }
 
-    /// 按草稿身份增删和复用项目视图，应用有序内容及本地化标签。
-    func configure(
-        _ draft: MediaDraftPresentation?,
-        strings: MediaStrings
-    ) {
+    func configure(_ draft: MediaDraftPresentation?, strings: MediaStrings, animated: Bool = true) {
+        latestItems = draft?.visibleItems ?? []
         self.strings = strings
-        let items = draft?.items ?? []
-        let wantedIDs = Set(items.map(\.id))
-        for (id, view) in itemViews where !wantedIDs.contains(id) {
-            view.removeFromSuperview()
-            itemViews.removeValue(forKey: id)
+        pendingAnimated = animated && window != nil && UIView.areAnimationsEnabled && !UIAccessibility.isReduceMotionEnabled
+        hasPendingUpdate = true
+        applyPendingUpdate()
+    }
+
+    /// 一次只应用一个快照；导入期间的中间状态合并，业务动作始终读取最新状态。
+    private func applyPendingUpdate() {
+        guard !isApplying, hasPendingUpdate, let strings else { return }
+        hasPendingUpdate = false
+        let next = latestItems
+        guard next != displayedItems || strings != appliedStrings else {
+            revealPendingItem()
+            return
         }
-        for (order, item) in items.enumerated() {
-            let itemView = itemViews[item.id] ?? DraftItemView()
-            if itemView.superview == nil {
-                contentView.addSubview(itemView)
-                itemViews[item.id] = itemView
-            }
-            itemView.previewRequested = { [weak self] in self?.previewRequested?(item.id) }
-            itemView.order = order
-            itemView.configure(
-                item,
-                order: order,
-                totalCount: items.count,
-                strings: strings
-            )
-            itemView.removeRequested = { [weak self] in
-                self?.removeRequested?(item.id)
-            }
+        let animated = pendingAnimated
+        collectionView.layoutIfNeeded()
+        let old = displayedItems
+        let nextIDs = Set(next.map(\.id))
+        let oldIDs = Set(old.map(\.id))
+        // 较早选择的视频可能晚于后面的照片就绪；插入后仍显示选择顺序的末项。
+        let added = next.contains(where: { !oldIDs.contains($0.id) }) ? next.last?.id : nil
+        // 首个存续可见项目作为锚点，宽度变化或删除前项时保留屏幕坐标。
+        let visibleAnchor = old.enumerated().first { index, item in
+            nextIDs.contains(item.id) && (draftLayout.layoutAttributesForItem(at: IndexPath(item: index, section: 0))?.frame.intersects(collectionView.bounds) == true)
+        }.map { index, item in
+            (id: item.id, x: draftLayout.layoutAttributesForItem(at: IndexPath(item: index, section: 0))!.frame.minX - collectionView.contentOffset.x)
         }
-        isHidden = items.isEmpty
+        let rtl = collectionView.effectiveUserInterfaceLayoutDirection == .rightToLeft
+        let atEnd = rtl
+            ? collectionView.contentOffset.x <= -collectionView.adjustedContentInset.left + 1
+            : collectionView.contentOffset.x >= max(-collectionView.adjustedContentInset.left,
+                collectionView.contentSize.width - collectionView.bounds.width + collectionView.adjustedContentInset.right) - 1
+        let anchor: MediaDraftCollectionViewLayout.Anchor?
+        if let added, let index = next.firstIndex(where: { $0.id == added }) {
+            anchor = .init(indexPath: IndexPath(item: index, section: 0), alignment: .trailing)
+        } else if old.map(\.id) == next.map(\.id), atEnd,
+                  !collectionView.isDragging, !collectionView.isDecelerating, !next.isEmpty {
+            anchor = .init(indexPath: IndexPath(item: next.count - 1, section: 0), alignment: .trailing)
+        } else if let visibleAnchor, let index = next.firstIndex(where: { $0.id == visibleAnchor.id }) {
+            anchor = .init(indexPath: IndexPath(item: index, section: 0), alignment: .screenPosition(visibleAnchor.x))
+        } else {
+            anchor = nil
+        }
+        let nextSizes = Dictionary(uniqueKeysWithValues: next.map {
+            ($0.id, MediaDraftItemSizing.size(for: $0.displaySize))
+        })
+        // 不让首张视频画面在未知比例的窄占位中解码或参与变宽动画。
+        // 已知比例直接用于占位；未知比例先落定最终几何，再激活缩略图。
+        awaitingVideoGeometry = Set(next.compactMap { item in
+            guard let media = item.mediaItem, case .video = media.kind,
+                  let previous = old.first(where: { $0.id == item.id }), previous.mediaItem == nil,
+                  itemSizes[item.id] != nextSizes[item.id] else { return nil }
+            return item.id
+        })
+        let animateWidthChange = animated && awaitingVideoGeometry.isEmpty
+        displayedItems = next
+        let stringsChanged = appliedStrings != strings
+        appliedStrings = strings
+        draftLayout.reducesMotion = UIAccessibility.isReduceMotionEnabled
+        var snapshot = NSDiffableDataSourceSnapshot<Int, UUID>()
+        snapshot.appendSections([0])
+        snapshot.appendItems(next.map(\.id))
+        snapshot.reconfigureItems(next.enumerated().compactMap { index, item in
+            guard let oldIndex = old.firstIndex(where: { $0.id == item.id }) else { return nil }
+            return stringsChanged || old[oldIndex] != item || oldIndex != index || old.count != next.count ? item.id : nil
+        })
+        if let added {
+            pendingScrollID = added
+        } else if let pendingScrollID, !nextIDs.contains(pendingScrollID) {
+            self.pendingScrollID = nil
+        }
+        isApplying = true
+        let completion: () -> Void = { [weak self] in
+            guard let self else { return }
+            isApplying = false
+            collectionView.layoutIfNeeded()
+            if let anchor, let offset = draftLayout.contentOffset(for: anchor) {
+                collectionView.contentOffset = offset
+            }
+            draftLayout.finishUpdates()
+            awaitingVideoGeometry.removeAll()
+            updateVisibleThumbnails()
+            if !hasPendingUpdate { revealPendingItem() }
+            applyPendingUpdate()
+        }
+        if old.map(\.id) == next.map(\.id) {
+            // reconfigureItems 本身不会为自定义 layout 的宽度生成过渡。
+            // 先保留旧几何更新内容，再在独立的布局事务里动画失效尺寸。
+            dataSource.apply(snapshot, animatingDifferences: false) { [weak self] in
+                guard let self else { return }
+                collectionView.layoutIfNeeded()
+                let sizeChanged = itemSizes != nextSizes
+                itemSizes = nextSizes
+                draftLayout.updateAnchor = anchor
+                let changes = { [self] in draftLayout.invalidateMetrics() }
+                if animateWidthChange && sizeChanged {
+                    collectionView.performBatchUpdates(changes) { _ in completion() }
+                } else {
+                    UIView.performWithoutAnimation {
+                        changes()
+                        collectionView.layoutIfNeeded()
+                    }
+                    completion()
+                }
+            }
+        } else {
+            itemSizes = nextSizes
+            draftLayout.updateAnchor = anchor
+            dataSource.apply(snapshot, animatingDifferences: animated, completion: completion)
+        }
         setNeedsLayout()
     }
 
+    private func revealPendingItem() {
+        guard !isApplying, !hasPendingUpdate, collectionView.bounds.width > 0,
+              let id = pendingScrollID, let index = dataSource.indexPath(for: id),
+              let offset = draftLayout.contentOffset(for: .init(indexPath: index, alignment: .trailing)) else { return }
+        pendingScrollID = nil
+        collectionView.setContentOffset(offset, animated: false)
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) { updateVisibleThumbnails() }
+
+    func collectionView(_ collectionView: UICollectionView, layout: MediaDraftCollectionViewLayout,
+                        sizeForItemAt indexPath: IndexPath) -> CGSize {
+        guard let id = dataSource.itemIdentifier(for: indexPath) else { return layout.itemSize }
+        return itemSizes[id] ?? layout.itemSize
+    }
+
+    private func updateVisibleThumbnails() {
+        for case let cell as DraftCell in collectionView.visibleCells {
+            cell.itemView.imageView.isContentActive = cell.frame.intersects(collectionView.bounds)
+                && cell.representedID.map { !awaitingVideoGeometry.contains($0) } == true
+        }
+    }
+
+    func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        guard let cell = cell as? DraftCell else { return }
+        // 首次加入时先排好图片、圆角和角标，避免内部从零尺寸继承父级展开动画。
+        UIView.performWithoutAnimation {
+            cell.setNeedsQuickLayout()
+            cell.quickLayoutIfNeeded()
+            cell.itemView.quickLayoutIfNeeded()
+        }
+        cell.itemView.imageView.isContentActive = cell.frame.intersects(collectionView.bounds)
+            && cell.representedID.map { !awaitingVideoGeometry.contains($0) } == true
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        (cell as? DraftCell)?.itemView.imageView.isContentActive = false
+    }
+
+    private final class DraftCell: QuickLayoutCollectionViewCell {
+        let itemView = DraftItemView()
+        var representedID: UUID?
+        override var quickLayoutDirectionViews: [UIView] { [self, contentView, itemView] }
+        override var body: Layout { itemView.resizable() }
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            itemView.imageView.isContentActive = false
+        }
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+        override func prepareForReuse() {
+            super.prepareForReuse()
+            representedID = nil
+            itemView.reset()
+        }
+    }
+
     /// 显示单个媒体草稿缩略图、导入状态和删除入口的视图。
-    private final class DraftItemView: UIView {
+    private final class DraftItemView: QuickLayoutView {
         /// 显示当前媒体图像的图像视图。
         let imageView = MediaImageView()
         /// 媒体原件尚在导入时显示的活动指示器。
@@ -173,7 +317,9 @@ final class MediaDraftStripView: UIView, UIScrollViewDelegate {
         /// 标示草稿为视频的图像视图。
         let videoBadge = UIImageView()
         /// 视频时长的深色半透明底衬，使白色文字在明亮封面上保持可读。
-        let durationBackgroundView = UIView()
+        lazy var durationBackgroundView = QuickLayoutView { [unowned self] in
+            durationLabel.fixedSize().padding(.horizontal, 4).padding(.vertical, 2)
+        }
         /// 显示视频时长的标签。
         let durationLabel = UILabel()
         /// 动态图像标记的背景容器。
@@ -182,10 +328,6 @@ final class MediaDraftStripView: UIView, UIScrollViewDelegate {
         let animatedBadgeImageView = UIImageView()
         /// 删除当前媒体草稿项目的按钮。
         let removeButton = DraftRemoveButton(frame: .zero)
-        /// 当前项目在选择序列中的零基索引。
-        var order = 0
-        /// 根据媒体宽高比或导入占位计算的项目布局尺寸。
-        var itemSize = MediaDraftLayoutPolicy.itemSize(for: nil)
         /// 用户点击本项目删除按钮时调用的闭包。
         var removeRequested: (() -> Void)?
         /// 已就绪项目的打开动作；导入期间不触发。
@@ -203,29 +345,25 @@ final class MediaDraftStripView: UIView, UIScrollViewDelegate {
             layer.cornerCurve = .continuous
             backgroundColor = .secondarySystemFill
 
+            imageView.thumbnailFadeDuration = 0.16
             imageView.contentMode = .scaleAspectFill
             imageView.clipsToBounds = true
             imageView.isUserInteractionEnabled = true
             imageView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(previewTapped)))
-            addSubview(imageView)
 
             activityIndicator.hidesWhenStopped = true
-            addSubview(activityIndicator)
 
             videoBadge.image = UIImage(systemName: "video.fill")
             videoBadge.tintColor = .white
             videoBadge.contentMode = .scaleAspectFit
-            addSubview(videoBadge)
 
             durationBackgroundView.backgroundColor = UIColor.black.withAlphaComponent(0.65)
             durationBackgroundView.layer.cornerRadius = 5
             durationBackgroundView.layer.cornerCurve = .continuous
             durationBackgroundView.isUserInteractionEnabled = false
-            addSubview(durationBackgroundView)
 
             durationLabel.font = .monospacedDigitSystemFont(ofSize: 13, weight: .regular)
             durationLabel.textColor = .white
-            addSubview(durationLabel)
 
             animatedBadgeView.backgroundColor = .white
             animatedBadgeView.layer.cornerRadius = 13
@@ -239,11 +377,8 @@ final class MediaDraftStripView: UIView, UIScrollViewDelegate {
             )
             animatedBadgeImageView.tintColor = .systemBlue
             animatedBadgeImageView.contentMode = .scaleAspectFit
-            animatedBadgeView.addSubview(animatedBadgeImageView)
-            addSubview(animatedBadgeView)
 
             removeButton.addTarget(self, action: #selector(removeTapped), for: .touchUpInside)
-            addSubview(removeButton)
         }
 
         /// 不支持从归档创建 `DraftItemView`。
@@ -253,21 +388,45 @@ final class MediaDraftStripView: UIView, UIScrollViewDelegate {
             fatalError("init(coder:) has not been implemented")
         }
 
-        /// 根据当前边界更新 `DraftItemView` 的子视图布局与图层几何。
-        override func layoutSubviews() {
-            super.layoutSubviews()
-            imageView.frame = bounds
-            activityIndicator.center = CGPoint(x: bounds.midX, y: bounds.midY)
-            removeButton.frame = CGRect(x: bounds.maxX - 44, y: 0, width: 44, height: 44)
-            animatedBadgeView.frame = CGRect(x: 6, y: 4, width: 26, height: 26)
-            animatedBadgeImageView.frame = animatedBadgeView.bounds.insetBy(dx: 4, dy: 4)
-            videoBadge.frame = CGRect(x: 12, y: bounds.maxY - 24, width: 17, height: 12)
-            durationLabel.sizeToFit()
-            durationLabel.frame.origin = CGPoint(
-                x: bounds.maxX - durationLabel.bounds.width - 8,
-                y: bounds.maxY - durationLabel.bounds.height - 10
-            )
-            durationBackgroundView.frame = durationLabel.frame.insetBy(dx: -4, dy: -2)
+        /// 图片、角标和命中区域全部由 QuickLayout 声明式排版。
+        override var body: Layout {
+            ZStack {
+                imageView.resizable()
+                activityIndicator.frame(width: 20, height: 20)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                removeButton.frame(width: 44, height: 44)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                if !animatedBadgeView.isHidden {
+                    ZStack {
+                        animatedBadgeView.resizable()
+                        animatedBadgeImageView.resizable().padding(4)
+                    }
+                    .frame(width: 26, height: 26)
+                    .padding(.leading, 6).padding(.top, 4)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
+                if !videoBadge.isHidden {
+                    videoBadge.resizable().frame(width: 17, height: 12)
+                        .padding(.leading, 12).padding(.bottom, 12)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    durationBackgroundView.fixedSize()
+                    .padding(.trailing, 4).padding(.bottom, 8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                }
+            }
+        }
+
+        func reset() {
+            alpha = 1
+            imageView.isContentActive = false
+            imageView.setThumbnail(nil)
+            imageView.layer.removeAllAnimations()
+            imageView.isAccessibilityElement = false
+            imageView.accessibilityIdentifier = nil
+            activityIndicator.stopAnimating()
+            removeRequested = nil
+            previewRequested = nil
+            isReady = false
         }
 
         /// 应用媒体导入状态、缩略图、序号及可访问的类型和位置说明。
@@ -277,12 +436,12 @@ final class MediaDraftStripView: UIView, UIScrollViewDelegate {
             totalCount: Int,
             strings: MediaStrings
         ) {
-            self.order = order
+            imageView.isAccessibilityElement = false
+            imageView.accessibilityIdentifier = nil
             videoBadge.isHidden = true
             durationLabel.isHidden = true
             durationBackgroundView.isHidden = true
             animatedBadgeView.isHidden = true
-            itemSize = MediaDraftLayoutPolicy.itemSize(for: nil)
             isReady = false
             switch item.content {
             case .importing:
@@ -297,9 +456,6 @@ final class MediaDraftStripView: UIView, UIScrollViewDelegate {
                 imageView.accessibilityLabel = strings.openPreview
                 activityIndicator.stopAnimating()
                 imageView.setThumbnail(media.thumbnailFileURL)
-                itemSize = MediaDraftLayoutPolicy.itemSize(
-                    for: media.pixelSize
-                )
                 let position = String(
                     format: strings.positionFormat,
                     order + 1,
@@ -324,9 +480,11 @@ final class MediaDraftStripView: UIView, UIScrollViewDelegate {
                     accessibilityLabel = "\(position), \(videoDescription)"
                 }
             }
+            durationBackgroundView.setNeedsQuickLayout()
+            removeButton.accessibilityIdentifier = "imessage.composer.media.remove.\(item.id.uuidString)"
             removeButton.accessibilityLabel = strings.remove
             accessibilityIdentifier = "imessage.composer.media.\(item.id.uuidString)"
-            setNeedsLayout()
+            setNeedsQuickLayout()
         }
 
         /// 将删除按钮事件转发给项目删除回调。

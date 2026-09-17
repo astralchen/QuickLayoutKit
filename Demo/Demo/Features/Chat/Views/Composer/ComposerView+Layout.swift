@@ -92,7 +92,7 @@ extension ComposerView {
         /// 音频预览控件之间的水平间距。
         static let previewHorizontalSpacing: CGFloat = 8
         /// 照片和视频草稿条带的固定高度。
-        static let mediaDraftHeight = MediaDraftLayoutPolicy.itemHeight
+        static let mediaDraftHeight = MediaDraftAppearance.itemHeight
         /// 媒体草稿条带与其余输入内容之间的间距。
         static let mediaDraftSpacing: CGFloat = 8
     }
@@ -121,9 +121,18 @@ extension ComposerView {
         }
     }
 
-    /// 根据草稿是否存在与听写状态选择按钮；导入中保留发送入口，仅禁用发送。
+    /// 容器始终底部对齐，按钮切换不会改变普通输入行的操作容器高度。
     @LayoutBuilder
     var textActionLayout: Layout {
+        textActionContainer
+            .resizable()
+            .frame(width: Metrics.textActionWidth, height: documentActionHeight > 0
+                ? documentActionHeight : max(Metrics.textInputHeight, singleLineInputHeight))
+    }
+
+    /// 根据草稿是否存在与听写状态选择按钮；导入中保留发送入口，仅禁用发送。
+    @LayoutBuilder
+    var textActionContent: Layout {
         switch composerState {
         case .preparingSpeech, .dictating:
             dictationButton
@@ -132,7 +141,7 @@ extension ComposerView {
                     width: Metrics.textActionWidth,
                     height: Metrics.textDictationButtonHeight
                 )
-                .padding(.bottom, Metrics.textDictationBottomPadding)
+                .padding(.bottom, dictationButtonBottomPadding)
         case .idle, .recording, .audioPreview:
             if isShowingRecordingUnavailableHint || mediaDraft != nil || !textAttachments.isEmpty || hasSendableContent {
                 sendButton
@@ -153,7 +162,7 @@ extension ComposerView {
                         width: Metrics.textActionWidth,
                         height: Metrics.textDictationButtonHeight
                     )
-                    .padding(.bottom, Metrics.textDictationBottomPadding)
+                    .padding(.bottom, dictationButtonBottomPadding)
             }
         }
     }
@@ -164,15 +173,25 @@ extension ComposerView {
             return (Metrics.textInputHeight - Metrics.sendButtonHeight) / 2
         }
         if !textAttachments.isEmpty { return Metrics.textSendBottomPadding }
+        return currentInputHeight <= singleLineInputHeight + 0.5
+            ? (currentInputHeight - Metrics.sendButtonHeight) / 2
+            : Metrics.textSendBottomPadding
+    }
+
+    private var dictationButtonBottomPadding: CGFloat {
+        guard textAttachments.isEmpty else { return Metrics.textDictationBottomPadding }
+        return currentInputHeight <= singleLineInputHeight + 0.5
+            ? (currentInputHeight - Metrics.textDictationButtonHeight) / 2
+            : Metrics.textDictationBottomPadding
+    }
+
+    private var singleLineInputHeight: CGFloat {
         let font = textView.font ?? .preferredFont(forTextStyle: .body)
-        let singleLineHeight = max(
+        return max(
             Metrics.textInputHeight,
             ceil(font.lineHeight) + textView.textContainerInset.top
                 + textView.textContainerInset.bottom
         )
-        return currentInputHeight <= singleLineHeight + 0.5
-            ? (currentInputHeight - Metrics.sendButtonHeight) / 2
-            : Metrics.textSendBottomPadding
     }
 
     /// 根据录音、预览、提示及媒体草稿状态解析的内容高度。
@@ -220,7 +239,7 @@ extension ComposerView {
 
     /// 媒体草稿存在时需要额外预留的条带与间距高度。
     private var mediaDraftAdditionalHeight: CGFloat {
-        mediaDraft == nil
+        !hasVisibleMediaDraft
             ? 0
             : Metrics.mediaDraftHeight + Metrics.mediaDraftSpacing + 4
     }
@@ -269,10 +288,11 @@ extension ComposerView {
 
         guard abs(resolvedHeight - currentInputHeight) > 0.5 else { return }
         currentInputHeight = resolvedHeight
+        textActionContainer.setNeedsQuickLayout()
         inputGlassView.setNeedsQuickLayout()
         setNeedsQuickLayout()
         invalidateIntrinsicContentSize()
         superview?.setNeedsLayout()
-        heightDidChange?()
+        heightDidChange?(.immediate)
     }
 }

@@ -31,7 +31,7 @@ extension ComposerView {
         audioSendButton.accessibilityLabel = strings.send
         updateAttachmentMenu()
         updateComposerState()
-        mediaDraftStripView.configure(mediaDraft, strings: self.mediaStrings)
+        mediaDraftStripView.configure(mediaDraft, strings: self.mediaStrings, animated: false)
         refreshTextAttachments()
         if case .audioPreview(_, let isPlaying, _) = composerState {
             audioPlayButton.accessibilityLabel = isPlaying
@@ -41,11 +41,31 @@ extension ComposerView {
     }
 
     /// 应用照片选择器产生的有序媒体草稿。
-    func applyMediaDraft(_ draft: MediaDraftPresentation?) {
+    func applyMediaDraft(_ draft: MediaDraftPresentation?, animated: Bool = true) {
+        let draft = draft?.items.isEmpty == false ? draft : nil
+        let shouldAnimate = animated && window != nil && UIView.areAnimationsEnabled
+            && !UIAccessibility.isReduceMotionEnabled
         let previousLayoutMode = layoutMode
         let previousContentHeight = resolvedContentHeight
+        let isFirstVisibleDraft = !hasVisibleMediaDraft && draft?.hasVisibleItems == true
+        // 先固定旧几何；业务状态立即提交，快照仅负责最后一张的视觉退场。
+        superview?.layoutIfNeeded()
+        if draft != mediaDraft {
+            mediaDraftExitSnapshot?.removeFromSuperview()
+            mediaDraftExitSnapshot = nil
+        }
+        if shouldAnimate, hasVisibleMediaDraft, draft?.hasVisibleItems != true, !mediaDraftStripView.isHidden,
+           let host = superview, let snapshot = mediaDraftStripView.snapshotView(afterScreenUpdates: false) {
+            snapshot.frame = mediaDraftStripView.convert(mediaDraftStripView.bounds, to: host)
+            snapshot.isUserInteractionEnabled = false
+            snapshot.accessibilityElementsHidden = true
+            host.addSubview(snapshot)
+            mediaDraftExitSnapshot = snapshot
+        }
         mediaDraft = draft
-        mediaDraftStripView.configure(draft, strings: mediaStrings)
+        // 首张只随输入栏展开揭示，后续追加才使用 collection 的插入过渡。
+        mediaDraftStripView.configure(draft, strings: mediaStrings,
+                                      animated: shouldAnimate && !isFirstVisibleDraft)
         updateAttachmentMenu()
         updateComposerState()
         inputGlassView.setNeedsQuickLayout()
@@ -55,7 +75,16 @@ extension ComposerView {
         if layoutChanged {
             invalidateIntrinsicContentSize()
             superview?.setNeedsLayout()
-            heightDidChange?()
+            heightDidChange?(shouldAnimate ? .mediaDraft : .immediate)
+        }
+        if let snapshot = mediaDraftExitSnapshot {
+            UIView.animate(withDuration: 0.2, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
+                snapshot.alpha = 0
+                snapshot.transform = CGAffineTransform(scaleX: 0.96, y: 0.96)
+            } completion: { [weak self, weak snapshot] _ in
+                snapshot?.removeFromSuperview()
+                if self?.mediaDraftExitSnapshot === snapshot { self?.mediaDraftExitSnapshot = nil }
+            }
         }
     }
 
@@ -137,7 +166,7 @@ extension ComposerView {
         if contentHeightChanged {
             invalidateIntrinsicContentSize()
             superview?.setNeedsLayout()
-            heightDidChange?()
+            heightDidChange?(.immediate)
         }
     }
 
@@ -148,6 +177,7 @@ extension ComposerView {
         semanticContentAttribute = semanticAttribute
         attachmentGlassView.semanticContentAttribute = semanticAttribute
         inputGlassView.semanticContentAttribute = semanticAttribute
+        textActionContainer.semanticContentAttribute = semanticAttribute
         recordingGlassView.semanticContentAttribute = semanticAttribute
         previewGlassView.semanticContentAttribute = semanticAttribute
         audioCancelGlassView.semanticContentAttribute = semanticAttribute
@@ -215,6 +245,7 @@ extension ComposerView {
         if isShowingRecordingUnavailableHint {
             dictationButton.isEnabled = false
         }
+        textActionContainer.setNeedsQuickLayout()
         inputGlassView.setNeedsQuickLayout()
     }
 }

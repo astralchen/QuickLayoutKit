@@ -47,6 +47,11 @@ extension DemoTests {
         #expect(abs(sendFrame.maxX - 368) < 0.5)
         #expect(abs(sendFrame.maxY - 44) < 0.5)
         #expect(sendFrame.width > sendFrame.height)
+        let expandedHitPoint = composer.sendButton.convert(
+            CGPoint(x: composer.sendButton.bounds.maxX + 2, y: composer.sendButton.bounds.midY),
+            to: composer
+        )
+        #expect(composer.hitTest(expandedHitPoint, with: nil) === composer.sendButton)
 
         composer.textView.text = "one\ntwo\nthree\nfour\nfive\nsix\nseven"
         composer.textViewDidChange(composer.textView)
@@ -64,6 +69,9 @@ extension DemoTests {
         )
         #expect(composer.textView.isScrollEnabled)
         #expect(composer.sendButton.isEnabled)
+        let multilineSendFrame = composer.sendButton.convert(composer.sendButton.bounds, to: composer.inputGlassView)
+        #expect(abs(composer.inputGlassView.bounds.maxY - multilineSendFrame.maxY
+            - ComposerView.Metrics.textSendBottomPadding) < 0.5)
 
         var sentText: String?
         composer.actionRequested = { action in
@@ -135,7 +143,7 @@ extension DemoTests {
         )
 
         var repeatedHeightChangeCount = 0
-        composer.heightDidChange = {
+        composer.heightDidChange = { _ in
             repeatedHeightChangeCount += 1
         }
         composer.applyState(

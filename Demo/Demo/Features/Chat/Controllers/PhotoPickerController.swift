@@ -24,6 +24,8 @@ final class PhotoPickerController: NSObject,
         let id: UUID
         /// 用于同步系统照片选中状态的资源标识符。
         let assetIdentifier: String?
+        let initialDisplaySize: CGSize?
+        let waitsForDisplaySize: Bool
         /// 条目当前的导入占位或已就绪媒体值。
         var content: MediaDraftItemContent = .importing
         /// 系统文件表示加载的可取消进度对象。
@@ -38,9 +40,12 @@ final class PhotoPickerController: NSObject,
         var thumbnailURL: URL?
 
         /// 创建带稳定身份和可选照片资源标识符的导入条目。
-        init(id: UUID = UUID(), assetIdentifier: String?) {
+        init(id: UUID = UUID(), assetIdentifier: String?, initialDisplaySize: CGSize? = nil,
+             waitsForDisplaySize: Bool = false) {
             self.id = id
             self.assetIdentifier = assetIdentifier
+            self.initialDisplaySize = initialDisplaySize
+            self.waitsForDisplaySize = waitsForDisplaySize
         }
 
         /// 供输入栏渲染使用、不持有系统进度对象的条目快照。
@@ -48,7 +53,9 @@ final class PhotoPickerController: NSObject,
             MediaDraftItemPresentation(
                 id: id,
                 assetIdentifier: assetIdentifier,
-                content: content
+                content: content,
+                initialDisplaySize: initialDisplaySize,
+                waitsForDisplaySize: waitsForDisplaySize
             )
         }
     }
@@ -293,14 +300,13 @@ final class PhotoPickerController: NSObject,
         publishDraft()
     }
 
-    /// 将系统连续选择结果应用到草稿；已有草稿时忽略取消产生的空回调。
+    /// 连续选择返回当前完整选择；空数组表示最后一项也已取消勾选。
     func picker(
         _ picker: PHPickerViewController,
         didFinishPicking results: [PHPickerResult]
     ) {
-        // 连续选择已有草稿时，取消回调仍可能返回空数组；保留已有草稿，
-        // 由输入栏的显式移除操作决定是否删除选定内容。
-        guard !results.isEmpty || entries.isEmpty else { return }
+        // 关闭或替换过的面板不得回写当前草稿。
+        guard self.picker === picker else { return }
         apply(results)
     }
 
@@ -319,6 +325,9 @@ final class PhotoPickerController: NSObject,
         )
         var nextEntries: [DraftEntry] = []
         var retainedIDs: Set<UUID> = []
+        // 选中时就批量读取资源元数据，不等待原件复制或缩略图生成。
+        let selectedSizes = Self.selectedAssetSizes(for: results.prefix(MediaGroupAttachment.selectionLimit)
+            .compactMap(\.assetIdentifier).filter { previousByIdentifier[$0] == nil })
 
         for result in results.prefix(MediaGroupAttachment.selectionLimit) {
             if let identifier = result.assetIdentifier,
@@ -327,7 +336,10 @@ final class PhotoPickerController: NSObject,
                 retainedIDs.insert(existing.id)
                 continue
             }
-            let entry = DraftEntry(assetIdentifier: result.assetIdentifier)
+            let initialSize = result.assetIdentifier.flatMap { selectedSizes[$0] }
+                ?? Self.validDisplaySize(result.itemProvider.preferredPresentationSize)
+            let entry = DraftEntry(assetIdentifier: result.assetIdentifier, initialDisplaySize: initialSize,
+                                   waitsForDisplaySize: true)
             nextEntries.append(entry)
             retainedIDs.insert(entry.id)
             pendingImports.append(PendingImport(provider: result.itemProvider, entry: entry, generation: currentGeneration))
@@ -340,6 +352,24 @@ final class PhotoPickerController: NSObject,
         drainImports()
         registerReadyDraftIfPossible()
         publishDraft()
+    }
+
+    private static func selectedAssetSizes(for identifiers: [String]) -> [String: CGSize] {
+        guard !identifiers.isEmpty else { return [:] }
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        guard status == .authorized || status == .limited else { return [:] }
+        var sizes: [String: CGSize] = [:]
+        PHAsset.fetchAssets(withLocalIdentifiers: identifiers, options: nil).enumerateObjects { asset, _, _ in
+            if let size = validDisplaySize(CGSize(width: asset.pixelWidth, height: asset.pixelHeight)) {
+                sizes[asset.localIdentifier] = size
+            }
+        }
+        return sizes
+    }
+
+    static func validDisplaySize(_ size: CGSize) -> CGSize? {
+        guard size.width.isFinite, size.height.isFinite, size.width > 0, size.height > 0 else { return nil }
+        return size
     }
 
     /// 向观察者发布当前有序草稿快照。

@@ -61,7 +61,13 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
     var actionRequested: ((ComposerAction) -> Bool)?
 
     /// 输入栏固有高度发生变化时调用。
-    var heightDidChange: (() -> Void)?
+    var heightDidChange: ((HeightChange) -> Void)?
+    enum HeightChange {
+        case immediate
+        case mediaDraft
+    }
+    /// 清空草稿时短暂保留的纯视觉副本，不参与命中、辅助功能或发送状态。
+    var mediaDraftExitSnapshot: UIView?
 
     /// 文本编辑器取得第一响应者时调用，用于完成照片 Sheet 到键盘的交接。
     var textInputDidBeginEditing: (() -> Void)?
@@ -84,6 +90,7 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
     var composerState: ComposerState = .idle
     /// 当前有序媒体草稿；提示只改变展示，导入结果继续通过 `applyMediaDraft` 更新。
     var mediaDraft: MediaDraftPresentation?
+    var hasVisibleMediaDraft: Bool { mediaDraft?.hasVisibleItems == true }
     /// 媒体草稿及预览操作使用的本地化文字集合。
     var mediaStrings = MediaStrings(
         photo: "Photos",
@@ -157,18 +164,26 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
         }
     }
 
+    /// 持续挂载的底部操作容器，让淡出的旧按钮也跟随底部布局。
+    lazy var textActionContainer = ComposerActionContainer { [unowned self] in
+        textActionContent.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+    }
+
     /// 常规文本输入区域使用的玻璃背景容器。
     lazy var inputGlassView: QuickLayoutVisualEffectView = {
         let effect = UIGlassEffect(style: .regular)
         effect.isInteractive = true
         return QuickLayoutVisualEffectView(effect: effect) { [unowned self] in
             VStack(spacing: 0) {
-                if mediaDraft != nil && !isShowingRecordingUnavailableHint {
-                    mediaDraftStripView
-                        .resizable(axis: .horizontal)
-                        .frame(height: Metrics.mediaDraftHeight)
-                        .padding(.horizontal, 4)
-                        .padding(.top, 4)
+                // 保留零高度的裁剪容器，让首张入场也有真实的旧几何。
+                // 动画中临时挂入固定高度视图会直接盖到下方文本行。
+                mediaDraftStripView
+                    .resizable()
+                    .frame(height: hasVisibleMediaDraft && !isShowingRecordingUnavailableHint
+                        ? Metrics.mediaDraftHeight : 0)
+                    .padding(.horizontal, 4)
+                    .padding(.top, hasVisibleMediaDraft && !isShowingRecordingUnavailableHint ? 4 : 0)
+                if hasVisibleMediaDraft && !isShowingRecordingUnavailableHint {
                     mediaDraftSeparatorView
                         .resizable(axis: .horizontal)
                         .frame(height: hairlineHeight)

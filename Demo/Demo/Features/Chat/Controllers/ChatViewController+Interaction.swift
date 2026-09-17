@@ -76,17 +76,25 @@ extension ChatViewController {
         photoController.pickerDidDismiss = { [weak self] in
             self?.bottomObstructionCoordinator.stopTrackingPicker()
         }
-        composerView.heightDidChange = { [weak self] in
+        composerView.heightDidChange = { [weak self] change in
             guard let self else { return }
             let shouldFollow = conversationView.isNearBottom
             setNeedsQuickLayout()
-            quickLayoutIfNeeded()
-            if shouldFollow {
-                conversationView.scrollToBottom(animated: false)
+            let updates = { [self] in
+                quickLayoutIfNeeded()
+                if shouldFollow { conversationView.scrollToBottom(animated: false) }
+            }
+            switch change {
+            case .immediate:
+                updates()
+            case .mediaDraft:
+                UIView.animate(withDuration: 0.32, delay: 0, usingSpringWithDamping: 1,
+                               initialSpringVelocity: 0,
+                               options: [.beginFromCurrentState, .allowUserInteraction], animations: updates)
             }
         }
         composerView.applyState(audioController.state)
-        composerView.applyMediaDraft(photoController.draft)
+        composerView.applyMediaDraft(photoController.draft, animated: false)
         composerView.textInputDidBeginEditing = { [weak self] in
             guard let self, photoController.isPresented else { return }
             // 先保存交接起点再关闭面板，否则面板向下退出时输入栏也会先下落再随键盘升起。
