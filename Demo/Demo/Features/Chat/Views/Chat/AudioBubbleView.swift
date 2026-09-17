@@ -28,18 +28,44 @@ final class AudioBubbleView: QuickLayoutView {
     let durationLabel = UILabel()
     /// 显示完整音频转写文本的多行标签。
     let transcriptLabel = UILabel()
-    /// 组合气泡主体与尾部的遮罩容器图层。
-    private let bubbleMask = CALayer()
-    /// 绘制圆角气泡主体的遮罩图层。
-    private let bodyMask = CALayer()
-    /// 绘制气泡尾部轮廓的形状遮罩图层。
-    private let tailMask = CAShapeLayer()
+    /// 组合气泡主体与尾部的遮罩容器视图。
+    private let bubbleMask = UIView()
+    /// 绘制连续圆角气泡主体的遮罩视图。
+    private let bodyMask = UIView()
+    /// 使用框架形状视图绘制气泡尾部遮罩。
+    private let tailMask = QuickLayoutShapeView(frame: .zero)
+
+    /// 尾部几何与镜像方向；路径由形状视图根据最新边界生成。
+    private struct TailShape: QuickLayoutShape {
+        let isMirrored: Bool
+
+        func path(in rect: CGRect) -> CGPath {
+            guard rect.width > 0, rect.height > 6 else {
+                return CGMutablePath()
+            }
+            let bottom = rect.height - 6
+            let path = UIBezierPath()
+            path.move(to: CGPoint(x: 2, y: bottom - 18))
+            path.addCurve(to: CGPoint(x: 8, y: rect.height), controlPoint1: CGPoint(x: 5, y: bottom - 9), controlPoint2: CGPoint(x: 14, y: bottom + 1))
+            path.addCurve(to: CGPoint(x: 27, y: bottom), controlPoint1: CGPoint(x: 12, y: bottom + 5), controlPoint2: CGPoint(x: 18, y: bottom))
+            path.close()
+            if isMirrored {
+                path.apply(CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: rect.width, ty: 0))
+            }
+            path.apply(CGAffineTransform(translationX: rect.minX, y: rect.minY))
+            return path.cgPath
+        }
+    }
 
     /// 用户点击音频播放按钮时调用的闭包。
     var playbackRequested: (() -> Void)?
 
     /// 当前气泡显示的音频附件；未配置时为 `nil`。
     private var attachment: AudioAttachment?
+    /// 当前附件是否包含转写文本。
+    private var hasTranscript: Bool {
+        attachment?.transcript != nil
+    }
     /// 当前消息的接收或发出方向，用于确定气泡外观与语义对齐。
     private var direction: MessageDirection = .incoming
 
@@ -51,7 +77,7 @@ final class AudioBubbleView: QuickLayoutView {
                 waveformView.resizable().frame(maxWidth: .infinity).frame(height: 36)
                 durationLabel.fixedSize().padding(.leading, 8)
             }
-            if attachment?.transcript != nil {
+            if hasTranscript {
                 transcriptLabel
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.leading, 10)
@@ -69,12 +95,12 @@ final class AudioBubbleView: QuickLayoutView {
     /// - Parameter frame: 在父视图坐标系中指定的初始边框。
     override init(frame: CGRect) {
         super.init(frame: frame)
-        layer.mask = bubbleMask
-        bodyMask.backgroundColor = UIColor.black.cgColor
-        bodyMask.cornerCurve = .continuous
-        tailMask.fillColor = UIColor.black.cgColor
-        bubbleMask.addSublayer(bodyMask)
-        bubbleMask.addSublayer(tailMask)
+        mask = bubbleMask
+        bodyMask.backgroundColor = .black
+        bodyMask.layer.cornerCurve = .continuous
+        tailMask.fillColor = .black
+        bubbleMask.addSubview(bodyMask)
+        bubbleMask.addSubview(tailMask)
         waveformView.fillsAvailableWidth = true
 
         var configuration = UIButton.Configuration.plain()
@@ -135,7 +161,6 @@ final class AudioBubbleView: QuickLayoutView {
         self.direction = direction
         updateFonts()
         transcriptLabel.text = attachment.transcript
-        transcriptLabel.isHidden = attachment.transcript == nil
         let isCurrent = playback.attachmentID == attachment.id
         let isPlaying = isCurrent && playback.isPlaying
         let progress = isCurrent ? playback.progress : 0
@@ -187,7 +212,6 @@ final class AudioBubbleView: QuickLayoutView {
         waveformView.progress = 0
         durationLabel.text = nil
         transcriptLabel.text = nil
-        transcriptLabel.isHidden = true
         setNeedsQuickLayout()
         playButton.accessibilityLabel = nil
         playButton.accessibilityValue = nil
@@ -218,22 +242,15 @@ final class AudioBubbleView: QuickLayoutView {
         let radius: CGFloat = min(24, min(width, bottom) / 2)
         // 主体保留完整的系统连续圆角。尾巴只补充外轮廓，不切入主体；
         // 两层不透明遮罩以 alpha 合并，避免复合路径的绕向造成交叠区域透白。
-        let path = UIBezierPath()
-        path.move(to: CGPoint(x: 2, y: bottom - 18))
-        path.addCurve(to: CGPoint(x: 8, y: bounds.height), controlPoint1: CGPoint(x: 5, y: bottom - 9), controlPoint2: CGPoint(x: 14, y: bottom + 1))
-        path.addCurve(to: CGPoint(x: 27, y: bottom), controlPoint1: CGPoint(x: 12, y: bottom + 5), controlPoint2: CGPoint(x: 18, y: bottom))
-        path.close()
         let rtl = effectiveUserInterfaceLayoutDirection == .rightToLeft
-        if direction == .outgoing ? !rtl : rtl {
-            path.apply(CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: width, ty: 0))
-        }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         bubbleMask.frame = bounds
         bodyMask.frame = CGRect(x: 0, y: 0, width: width, height: bottom)
-        bodyMask.cornerRadius = radius
-        tailMask.frame = bounds
-        tailMask.path = path.cgPath
+        bodyMask.layer.cornerRadius = radius
+        tailMask.frame = bubbleMask.bounds
+        tailMask.setShape(TailShape(isMirrored: direction == .outgoing ? !rtl : rtl))
+        tailMask.layoutIfNeeded()
         CATransaction.commit()
     }
 

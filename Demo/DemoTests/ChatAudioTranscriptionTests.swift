@@ -193,10 +193,12 @@ struct ChatAudioTranscriptionTests {
                 configure(cell, audio: audio, direction: direction)
                 layout(cell, width: 402)
                 let plainHeight = cell.bounds.height
-                #expect(cell.bubbleView.transcriptLabel.isHidden)
+                #expect(cell.bubbleView.transcriptLabel.superview == nil)
                 audio.transcript = String(repeating: "你好，你吃饭了吗？", count: 12)
                 configure(cell, audio: audio, direction: direction)
                 layout(cell, width: 402)
+                #expect(cell.bubbleView.transcriptLabel.isDescendant(of: cell.bubbleView))
+                #expect(!cell.bubbleView.transcriptLabel.isHidden)
                 #expect(cell.bounds.height > plainHeight + 40)
                 #expect(cell.bubbleView.transcriptLabel.bounds.height > 30)
                 #expect(cell.bubbleView.playButton.bounds.width >= 44)
@@ -208,11 +210,28 @@ struct ChatAudioTranscriptionTests {
                 cell.updatePlayback(.init(messageID: 7, attachmentID: audio.id, isPlaying: true, progress: 0.5), playAccessibilityLabel: "播放", pauseAccessibilityLabel: "暂停")
                 #expect(cell.bubbleView.transcriptLabel.text == audio.transcript)
                 #expect(cell.bubbleView.waveformView.progress == 0.5)
+                var plainAudio = audio
+                plainAudio.transcript = nil
+                configure(cell, audio: plainAudio, direction: direction)
+                layout(cell, width: 402)
+                #expect(cell.bubbleView.transcriptLabel.superview == nil)
+                #expect(abs(cell.bounds.height - plainHeight) < 1)
+                configure(cell, audio: audio, direction: direction)
+                layout(cell, width: 402)
+                #expect(cell.bubbleView.transcriptLabel.isDescendant(of: cell.bubbleView))
                 cell.prepareForReuse()
+                layout(cell, width: 402)
                 #expect(cell.bubbleView.transcriptLabel.text == nil)
+                #expect(cell.bubbleView.transcriptLabel.superview == nil)
                 configure(cell, audio: fixtureAudio(), direction: direction)
                 layout(cell, width: 402)
+                #expect(cell.bubbleView.transcriptLabel.superview == nil)
                 #expect(abs(cell.bounds.height - plainHeight) < 1)
+                configure(cell, audio: audio, direction: direction)
+                layout(cell, width: 402)
+                #expect(cell.bubbleView.transcriptLabel.isDescendant(of: cell.bubbleView))
+                #expect(!cell.bubbleView.transcriptLabel.isHidden)
+                #expect(cell.bubbleView.transcriptLabel.text == audio.transcript)
             }
         }
     }

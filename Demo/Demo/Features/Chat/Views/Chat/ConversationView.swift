@@ -35,7 +35,7 @@ nonisolated enum MessageAction: Equatable, Sendable {
 
 /// 将时间线状态映射为可复用消息单元格，并管理滚动与局部交互的视图。
 @available(iOS 17.0, *)
-final class ConversationView: UIView, UICollectionViewDelegate {
+final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
 
     /// 会话集合视图使用的稳定分区身份。
     nonisolated enum Section: Hashable, Sendable {
@@ -48,6 +48,11 @@ final class ConversationView: UIView, UICollectionViewDelegate {
         frame: .zero,
         collectionViewLayout: UICollectionViewFlowLayout()
     )
+
+    /// 让消息列表随会话容器填满可用空间。
+    override var body: Layout {
+        collectionView.resizable()
+    }
 
     /// 将时间线模型映射到单元格并执行差异更新的 ListKit 适配器。
     private lazy var adapter = CollectionListAdapter<Section>(
@@ -141,7 +146,7 @@ final class ConversationView: UIView, UICollectionViewDelegate {
     /// 使用指定初始边框创建 `ConversationView`，并配置其子视图和默认外观。
     ///
     /// - Parameter frame: 在父视图坐标系中指定的初始边框。
-    override init(frame: CGRect) {
+    override init(frame: CGRect = .zero) {
         super.init(frame: frame)
         configureCollectionView()
         adapter.collectionDelegate = self
@@ -435,14 +440,11 @@ final class ConversationView: UIView, UICollectionViewDelegate {
     /// 配置集合视图的滚动、键盘、辅助功能及组合布局行为。
     private func configureCollectionView() {
         backgroundColor = .systemBackground
-        collectionView.frame = bounds
-        collectionView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         collectionView.backgroundColor = .systemBackground
         collectionView.alwaysBounceVertical = true
         collectionView.keyboardDismissMode = .interactive
         collectionView.contentInsetAdjustmentBehavior = .never
         collectionView.accessibilityIdentifier = "imessage.timeline"
-        addSubview(collectionView)
         collectionView.collectionViewLayout = makeCollectionViewLayout()
     }
 

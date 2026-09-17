@@ -13,7 +13,7 @@ final class BubbleView: QuickLayoutView {
     /// 显示消息正文并支持动态字体的标签。
     let messageLabel = UILabel()
     /// 按消息方向裁剪气泡圆角的形状遮罩。
-    private let maskLayer = CAShapeLayer()
+    private let bubbleMask = QuickLayoutShapeView(frame: .zero)
     /// 当前消息的接收或发出方向，用于确定气泡外观与语义对齐。
     private var direction: MessageDirection = .incoming
 
@@ -33,7 +33,8 @@ final class BubbleView: QuickLayoutView {
         messageLabel.adjustsFontForContentSizeCategory = true
         messageLabel.numberOfLines = 0
         messageLabel.textAlignment = .natural
-        layer.mask = maskLayer
+        bubbleMask.fillColor = .black
+        mask = bubbleMask
         isAccessibilityElement = true
     }
 
@@ -73,27 +74,32 @@ final class BubbleView: QuickLayoutView {
         messageLabel.text = nil
         accessibilityLabel = nil
         backgroundColor = .clear
-        maskLayer.path = nil
+        bubbleMask.shape = nil
+        bubbleMask.layoutIfNeeded()
         setNeedsQuickLayout()
     }
 
     /// 根据当前边界和收发方向更新气泡遮罩路径。
     private func updateBubbleMask() {
         guard bounds.width > 0, bounds.height > 0 else {
-            maskLayer.path = nil
+            bubbleMask.shape = nil
+            bubbleMask.layoutIfNeeded()
             return
         }
         let isRTL = effectiveUserInterfaceLayoutDirection == .rightToLeft
         let compactBottomLeft = direction == .incoming ? !isRTL : isRTL
         let compactBottomRight = !compactBottomLeft
-        maskLayer.frame = bounds
-        maskLayer.path = Self.roundedPath(
-            in: bounds,
-            topLeft: 18,
-            topRight: 18,
-            bottomLeft: compactBottomLeft ? 5 : 18,
-            bottomRight: compactBottomRight ? 5 : 18
-        )
+        bubbleMask.frame = bounds
+        bubbleMask.shape = QuickLayoutAnyShape { rect in
+            Self.roundedPath(
+                in: rect,
+                topLeft: 18,
+                topRight: 18,
+                bottomLeft: compactBottomLeft ? 5 : 18,
+                bottomRight: compactBottomRight ? 5 : 18
+            )
+        }
+        bubbleMask.layoutIfNeeded()
     }
 
     /// 返回分别指定四个圆角半径的闭合矩形路径。
@@ -105,7 +111,7 @@ final class BubbleView: QuickLayoutView {
     ///   - bottomLeft: 左下角半径，单位为点。
     ///   - bottomRight: 右下角半径，单位为点。
     /// - Returns: 用于气泡遮罩的闭合路径。
-    private static func roundedPath(
+    nonisolated private static func roundedPath(
         in rect: CGRect,
         topLeft: CGFloat,
         topRight: CGFloat,
