@@ -23,7 +23,7 @@ extension ChatViewController {
             self?.handleMessageAction(action)
         }
         audioController.stateDidChange = { [weak self] state in
-            self?.composerView.applyState(state)
+            self?.applyAudioComposerState(state)
         }
         audioController.playbackDidChange = { [weak self] playback in
             self?.conversationView.updateAudioPlayback(playback)
@@ -87,6 +87,10 @@ extension ChatViewController {
             switch change {
             case .immediate:
                 updates()
+            case .textInput:
+                UIView.animate(withDuration: 0.22, delay: 0,
+                               options: [.curveEaseInOut, .beginFromCurrentState, .allowUserInteraction],
+                               animations: updates)
             case .mediaDraft:
                 UIView.animate(withDuration: 0.32, delay: 0, usingSpringWithDamping: 1,
                                initialSpringVelocity: 0,
@@ -100,6 +104,33 @@ extension ChatViewController {
             // 先保存交接起点再关闭面板，否则面板向下退出时输入栏也会先下落再随键盘升起。
             bottomObstructionCoordinator.beginKeyboardHandoff()
             photoController.dismissPicker(animated: true)
+        }
+    }
+
+    /// 录音面板切换时统一动画化外观和页面布局；计时与波形更新沿用当前几何。
+    func applyAudioComposerState(_ state: ComposerState) {
+        let changesAudioPanel: Bool
+        switch (composerView.composerState, state) {
+        case (.recording, .recording), (.audioPreview, .audioPreview):
+            changesAudioPanel = false
+        case (_, .recording), (.recording, _), (_, .audioPreview), (.audioPreview, _):
+            changesAudioPanel = true
+        default:
+            changesAudioPanel = false
+        }
+        guard composerView.composerState != state else { return }
+        // 听写开始/结束及转写换行也属于展示事务；录音计量和播放进度不启动动画。
+        if !changesAudioPanel {
+            switch state {
+            case .recording, .audioPreview:
+                composerView.applyState(state)
+                return
+            default:
+                break
+            }
+        }
+        composerView.performPresentationUpdate(duration: changesAudioPanel ? 0.28 : 0.22) { [self] in
+            composerView.applyState(state)
         }
     }
 

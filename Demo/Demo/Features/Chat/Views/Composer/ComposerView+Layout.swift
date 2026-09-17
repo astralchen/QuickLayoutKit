@@ -12,6 +12,56 @@ import UIKit
 @available(iOS 26.0, *)
 extension ComposerView {
 
+    /// 将内容、按钮和最终高度一起提交；嵌套的附件回调只参与当前事务。
+    /// 新操作从当前呈现位置接续，过期完成回调不能隐藏新状态的提示文字。
+    func performPresentationUpdate(duration: TimeInterval = 0.22,
+                                   _ updates: @escaping @MainActor () -> Void) {
+        guard !isUpdatingPresentation else { updates(); return }
+        superview?.layoutIfNeeded()
+        let animated = window != nil && UIView.areAnimationsEnabled
+            && !UIAccessibility.isReduceMotionEnabled
+        if animated {
+            // 隐藏标签先以原 alpha 参与渲染，下一事务才有可插值的透明起点。
+            placeholderLabel.isHidden = false
+            recordingUnavailableLabel.isHidden = false
+        }
+        presentationGeneration += 1
+        let generation = presentationGeneration
+        let changes = { [self] in
+            isUpdatingPresentation = true
+            isAnimatingPresentation = animated
+            updates()
+            isUpdatingPresentation = false
+            isAnimatingPresentation = false
+            if hasPendingPresentationHeightChange {
+                hasPendingPresentationHeightChange = false
+                heightDidChange?(.immediate)
+            }
+            // 单行文字变化也会切换麦克风/发送按钮，不能仅依赖高度回调。
+            quickLayoutIfNeeded()
+            superview?.layoutIfNeeded()
+        }
+        let finish = { [weak self] in
+            guard let self, presentationGeneration == generation else { return }
+            placeholderLabel.isHidden = placeholderLabel.alpha == 0
+            recordingUnavailableLabel.isHidden = recordingUnavailableLabel.alpha == 0
+        }
+        guard animated else { UIView.performWithoutAnimation(changes); finish(); return }
+        UIView.animate(withDuration: duration, delay: 0, usingSpringWithDamping: 1,
+                       initialSpringVelocity: 0,
+                       options: [.beginFromCurrentState, .allowUserInteraction],
+                       animations: changes) { _ in finish() }
+    }
+
+    /// 状态事务内只记录高度失效，待最终内容确定后再通知页面一次。
+    func notifyHeightChange(_ change: HeightChange) {
+        guard !isUpdatingPresentation else {
+            hasPendingPresentationHeightChange = true
+            return
+        }
+        heightDidChange?(change)
+    }
+
     /// 会改变输入栏视图层级或固有高度的展示模式。
     ///
     /// 录音计量和播放进度属于同一模式内的数据更新，不应触发 Composer
@@ -250,7 +300,7 @@ extension ComposerView {
     }
 
     /// 按可用宽度测量文本内容，并在有效高度变化时通知页面更新布局。
-    func updateTextHeight(availableWidth: CGFloat? = nil) {
+    func updateTextHeight(availableWidth: CGFloat? = nil, animated: Bool = false) {
         guard !isShowingRecordingUnavailableHint else { return }
         let font = textView.font ?? .preferredFont(forTextStyle: .body)
         let width = max(1, availableWidth ?? textView.bounds.width)
@@ -293,6 +343,8 @@ extension ComposerView {
         setNeedsQuickLayout()
         invalidateIntrinsicContentSize()
         superview?.setNeedsLayout()
-        heightDidChange?(.immediate)
+        let shouldAnimate = animated && window != nil && !UIAccessibility.isReduceMotionEnabled
+            && UIView.areAnimationsEnabled
+        notifyHeightChange(shouldAnimate ? .textInput : .immediate)
     }
 }

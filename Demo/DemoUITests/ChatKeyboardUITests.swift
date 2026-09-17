@@ -14,6 +14,11 @@ final class ChatKeyboardUITests: XCTestCase {
     }
 
     @MainActor
+    func testMultilineRecordingHintTransitionRestoresKeyboard() throws {
+        try verifyRecordingHint(language: "zh-Hans", audioTitle: "音频", draft: "one\ntwo\nthree\nfour")
+    }
+
+    @MainActor
     func testDraftShowsRecordingHintAndRestoresKeyboard() throws {
         try verifyRecordingHint(language: "zh-Hans", audioTitle: "音频", draft: "draft")
     }

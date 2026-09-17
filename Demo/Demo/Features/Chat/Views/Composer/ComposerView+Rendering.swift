@@ -75,7 +75,7 @@ extension ComposerView {
         if layoutChanged {
             invalidateIntrinsicContentSize()
             superview?.setNeedsLayout()
-            heightDidChange?(shouldAnimate ? .mediaDraft : .immediate)
+            notifyHeightChange(shouldAnimate ? .mediaDraft : .immediate)
         }
         if let snapshot = mediaDraftExitSnapshot {
             UIView.animate(withDuration: 0.2, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
@@ -99,6 +99,7 @@ extension ComposerView {
         }
         let previousLayoutMode = layoutMode
         let previousContentHeight = resolvedContentHeight
+        let previousState = composerState
         composerState = state
         switch state {
         case .idle:
@@ -155,7 +156,11 @@ extension ComposerView {
 
         // 转写文本会改变占位符、可发送状态和文本高度；录音计量及播放进度
         // 只更新现有视图内容，保持媒体胶囊的几何与内边距不变。
-        if layoutModeChanged || layoutMode == .dictating {
+        switch (previousState, state) {
+        case (.recording, .recording), (.audioPreview, .audioPreview):
+            if layoutModeChanged { updateComposerState() }
+        default:
+            // 内联附件会覆盖 layoutMode，但听写按钮与发送权限仍需随状态刷新。
             updateComposerState()
         }
         if layoutModeChanged {
@@ -166,7 +171,7 @@ extension ComposerView {
         if contentHeightChanged {
             invalidateIntrinsicContentSize()
             superview?.setNeedsLayout()
-            heightDidChange?(.immediate)
+            notifyHeightChange(.immediate)
         }
     }
 
@@ -216,9 +221,13 @@ extension ComposerView {
         textView.isInputSuspended = isShowingRecordingUnavailableHint
         textView.accessibilityElementsHidden = isShowingRecordingUnavailableHint
         textView.isAccessibilityElement = !isShowingRecordingUnavailableHint
-        placeholderLabel.isHidden = isShowingRecordingUnavailableHint
-            || !(textView.text ?? "").isEmpty
-        recordingUnavailableLabel.isHidden = !isShowingRecordingUnavailableHint
+        let showsPlaceholder = !isShowingRecordingUnavailableHint && (textView.text ?? "").isEmpty
+        // 先解除隐藏再修改 alpha，UIKit 才能捕获原来的透明起点。
+        placeholderLabel.isHidden = !isAnimatingPresentation && !showsPlaceholder
+        recordingUnavailableLabel.isHidden = !isAnimatingPresentation && !isShowingRecordingUnavailableHint
+        placeholderLabel.alpha = showsPlaceholder ? 1 : 0
+        recordingUnavailableLabel.alpha = isShowingRecordingUnavailableHint ? 1 : 0
+        recordingUnavailableLabel.accessibilityElementsHidden = !isShowingRecordingUnavailableHint
         let canSend = !isShowingRecordingUnavailableHint && hasSendableContent
         // 导入进度只改变发送权限，不切换系统玻璃按钮的灰色/蓝色外观。
         // 隐藏期间也保留蓝色，首次出现与追加媒体都不会先闪过禁用色。

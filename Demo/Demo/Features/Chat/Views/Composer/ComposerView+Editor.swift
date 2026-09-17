@@ -35,54 +35,56 @@ extension ComposerView {
 
     /// 将整批内容替换到当前选区；附件异步更新不会再改变插入位置。
     func insertContents(_ items: [EditorInsertion]) {
-        guard !isShowingRecordingUnavailableHint else { return }
-        let selection = textView.selectedRange
-        guard selection.location != NSNotFound, NSMaxRange(selection) <= textView.textStorage.length else { return }
-        // 结束组合输入可能同步触发编辑回调；必须在注册新附件之前完成，
-        // 否则身份核对会把尚未写入 textStorage 的新卡片当作已删除对象。
-        if textView.markedTextRange != nil { textView.unmarkText() }
-        let content = NSMutableAttributedString(string: "")
-        var preceding = selection.location > 0
-            ? (textView.textStorage.string as NSString).substring(with: NSRange(location: selection.location - 1, length: 1)) : ""
-        for item in items {
-            switch item {
-            case .text(let text):
-                content.append(NSAttributedString(string: text, attributes: [
-                    .font: textView.font ?? UIFont.preferredFont(forTextStyle: .body),
-                    .foregroundColor: UIColor.label,
-                ]))
-                if !text.isEmpty { preceding = String(text.suffix(1)) }
-            case .attachment(let draft):
-                guard textAttachments[draft.id] == nil else { updateDocument(draft); continue }
-                if !preceding.isEmpty, preceding != "\n" { content.append(documentSeparator(draft.id)) }
-                content.append(NSAttributedString(attachment: makeTextAttachment(draft)))
-                content.append(documentSeparator(draft.id))
-                preceding = "\n"
+        performPresentationUpdate { [self] in
+            guard !isShowingRecordingUnavailableHint else { return }
+            let selection = textView.selectedRange
+            guard selection.location != NSNotFound, NSMaxRange(selection) <= textView.textStorage.length else { return }
+            // 结束组合输入可能同步触发编辑回调；必须在注册新附件之前完成，
+            // 否则身份核对会把尚未写入 textStorage 的新卡片当作已删除对象。
+            if textView.markedTextRange != nil { textView.unmarkText() }
+            let content = NSMutableAttributedString(string: "")
+            var preceding = selection.location > 0
+                ? (textView.textStorage.string as NSString).substring(with: NSRange(location: selection.location - 1, length: 1)) : ""
+            for item in items {
+                switch item {
+                case .text(let text):
+                    content.append(NSAttributedString(string: text, attributes: [
+                        .font: textView.font ?? UIFont.preferredFont(forTextStyle: .body),
+                        .foregroundColor: UIColor.label,
+                    ]))
+                    if !text.isEmpty { preceding = String(text.suffix(1)) }
+                case .attachment(let draft):
+                    guard textAttachments[draft.id] == nil else { updateDocument(draft); continue }
+                    if !preceding.isEmpty, preceding != "\n" { content.append(documentSeparator(draft.id)) }
+                    content.append(NSAttributedString(attachment: makeTextAttachment(draft)))
+                    content.append(documentSeparator(draft.id))
+                    preceding = "\n"
+                }
             }
+            guard content.length > 0 else { return }
+            // attributedString 替换和光标更新属于同一事务；UIKit 的中间回调不能
+            // 以尚未完成属性写入的文本判断附件已被删除。
+            guard let start = textView.position(from: textView.beginningOfDocument, offset: selection.location),
+                  let end = textView.position(from: start, offset: selection.length),
+                  let range = textView.textRange(from: start, to: end) else { return }
+            isInsertingContents = true
+            // 先通过 UITextInput 同步替换字符和输入法上下文，再仅写入附件属性。
+            // 直接替换 textStorage 的字符会留下旧的键盘上下文，随后将光标附近
+            // 的附件改写为旧字符（尤其是 UTF-16 多码元字符后的原生混合粘贴）。
+            textView.replace(range, withText: content.string)
+            textView.textStorage.beginEditing()
+            content.enumerateAttributes(in: NSRange(location: 0, length: content.length)) { attributes, range, _ in
+                textView.textStorage.setAttributes(attributes, range: NSRange(location: selection.location + range.location, length: range.length))
+            }
+            textView.textStorage.endEditing()
+            textView.selectedRange = NSRange(location: selection.location + content.length, length: 0)
+            isInsertingContents = false
+            reconcileTextAttachments()
+            resetTypingAttributes()
+            updateTextHeight(animated: true)
+            refreshTextAttachments()
+            refreshRecordingHintLayout()
         }
-        guard content.length > 0 else { return }
-        // attributedString 替换和光标更新属于同一事务；UIKit 的中间回调不能
-        // 以尚未完成属性写入的文本判断附件已被删除。
-        guard let start = textView.position(from: textView.beginningOfDocument, offset: selection.location),
-              let end = textView.position(from: start, offset: selection.length),
-              let range = textView.textRange(from: start, to: end) else { return }
-        isInsertingContents = true
-        // 先通过 UITextInput 同步替换字符和输入法上下文，再仅写入附件属性。
-        // 直接替换 textStorage 的字符会留下旧的键盘上下文，随后将光标附近
-        // 的附件改写为旧字符（尤其是 UTF-16 多码元字符后的原生混合粘贴）。
-        textView.replace(range, withText: content.string)
-        textView.textStorage.beginEditing()
-        content.enumerateAttributes(in: NSRange(location: 0, length: content.length)) { attributes, range, _ in
-            textView.textStorage.setAttributes(attributes, range: NSRange(location: selection.location + range.location, length: range.length))
-        }
-        textView.textStorage.endEditing()
-        textView.selectedRange = NSRange(location: selection.location + content.length, length: 0)
-        isInsertingContents = false
-        reconcileTextAttachments()
-        resetTypingAttributes()
-        updateTextHeight()
-        refreshTextAttachments()
-        refreshRecordingHintLayout()
     }
 
     /// 菜单单项导入和录音移交同样遵循当前光标的替换语义。
@@ -128,8 +130,10 @@ extension ComposerView {
         textAttachments[draft.id] = attachment
         attachment.sizeDidChange = { [weak self, weak attachment] in
             guard let self, let attachment, textAttachments[draft.id] === attachment else { return }
-            updateTextHeight()
-            textView.setNeedsLayout()
+            performPresentationUpdate { [self] in
+                updateTextHeight()
+                textView.setNeedsLayout()
+            }
         }
         attachment.open = { [weak self] in
             guard let self, !isShowingRecordingUnavailableHint else { return }
@@ -200,13 +204,15 @@ extension ComposerView {
     ///   - id: 要移除的附件稳定标识符。
     ///   - notify: 是否向上层发送文档删除动作。
     func removeDocument(_ id: UUID, notify: Bool) {
-        guard let attachment = textAttachments.removeValue(forKey: id) else { return }
-        attachment.open = nil
-        attachment.remove = nil
-        reconcileTextAttachments()
-        if notify { _ = actionRequested?(.removeDocument(id)) }
-        updateTextHeight()
-        refreshRecordingHintLayout()
+        performPresentationUpdate { [self] in
+            guard let attachment = textAttachments.removeValue(forKey: id) else { return }
+            attachment.open = nil
+            attachment.remove = nil
+            reconcileTextAttachments()
+            if notify { _ = actionRequested?(.removeDocument(id)) }
+            updateTextHeight()
+            refreshRecordingHintLayout()
+        }
     }
 
     /// 删除、剪切和撤销核对所有活跃身份；失效对象与重复粘贴不能恢复已删除文件。
@@ -237,12 +243,14 @@ extension ComposerView {
 
     /// 响应文本变化，核对附件身份并更新输入属性、发送状态与输入高度。
     func textViewDidChange(_ textView: UITextView) {
-        guard !isInsertingContents else { return }
-        reconcileTextAttachments()
-        resetTypingAttributes()
-        placeholderLabel.textAlignment = textView.textAlignment
-        updateComposerState()
-        updateTextHeight()
+        performPresentationUpdate { [self] in
+            guard !isInsertingContents else { return }
+            reconcileTextAttachments()
+            resetTypingAttributes()
+            placeholderLabel.textAlignment = textView.textAlignment
+            updateComposerState()
+            updateTextHeight(animated: true)
+        }
     }
 
     /// 将开始编辑事件转发给页面，由页面协调照片面板到键盘的交接。

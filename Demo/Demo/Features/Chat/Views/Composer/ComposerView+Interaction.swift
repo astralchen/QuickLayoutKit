@@ -45,23 +45,25 @@ extension ComposerView {
 
     /// 按草稿内容类型转发发送动作，并在上层受理后清空对应内容。
     @objc func sendButtonDidTap() {
-        guard !isShowingRecordingUnavailableHint, hasSendableContent else { return }
-        let text = plainDraftText
-        let accepted: Bool
-        if !textAttachments.isEmpty {
-            accepted = actionRequested?(.sendDocuments(draftSegments)) == true
-        } else if mediaDraft != nil {
-            accepted = actionRequested?(.sendMediaDraft(text)) == true
-        } else {
-            accepted = actionRequested?(.sendText(text)) == true
+        performPresentationUpdate { [self] in
+            guard !isShowingRecordingUnavailableHint, hasSendableContent else { return }
+            let text = plainDraftText
+            let accepted: Bool
+            if !textAttachments.isEmpty {
+                accepted = actionRequested?(.sendDocuments(draftSegments)) == true
+            } else if mediaDraft != nil {
+                accepted = actionRequested?(.sendMediaDraft(text)) == true
+            } else {
+                accepted = actionRequested?(.sendText(text)) == true
+            }
+            guard accepted else { return }
+            for attachment in textAttachments.values { attachment.open = nil; attachment.remove = nil }
+            textAttachments.removeAll()
+            textView.text = nil
+            resetTypingAttributes()
+            updateComposerState()
+            updateTextHeight(animated: true)
         }
-        guard accepted else { return }
-        for attachment in textAttachments.values { attachment.open = nil; attachment.remove = nil }
-        textAttachments.removeAll()
-        textView.text = nil
-        resetTypingAttributes()
-        updateComposerState()
-        updateTextHeight()
     }
 
     /// 根据当前听写状态转发开始或停止听写动作。

@@ -64,8 +64,15 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
     var heightDidChange: ((HeightChange) -> Void)?
     enum HeightChange {
         case immediate
+        case textInput
         case mediaDraft
     }
+    /// 将一次用户操作内的多次测量合并到同一布局事务。
+    var isUpdatingPresentation = false
+    var isAnimatingPresentation = false
+    var hasPendingPresentationHeightChange = false
+    var presentationGeneration = 0
+
     /// 清空草稿时短暂保留的纯视觉副本，不参与命中、辅助功能或发送状态。
     var mediaDraftExitSnapshot: UIView?
 

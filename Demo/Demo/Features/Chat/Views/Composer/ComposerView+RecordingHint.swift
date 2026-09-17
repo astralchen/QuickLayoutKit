@@ -25,10 +25,12 @@ extension ComposerView {
         }
         retainedTextContentOffset = textView.contentOffset
         pasteCoordinator.invalidate()
-        isShowingRecordingUnavailableHint = true
+        performPresentationUpdate { [self] in
+            isShowingRecordingUnavailableHint = true
+            refreshRecordingHintLayout()
+        }
         recordingHintGeneration += 1
         let generation = recordingHintGeneration
-        refreshRecordingHintLayout()
         UIAccessibility.post(
             notification: .announcement,
             argument: strings.recordingRequiresEmptyDraft
@@ -54,9 +56,11 @@ extension ComposerView {
         recordingHintTask?.cancel()
         recordingHintTask = nil
         guard isShowingRecordingUnavailableHint else { return }
-        isShowingRecordingUnavailableHint = false
-        refreshRecordingHintLayout()
-        updateTextHeight()
+        performPresentationUpdate { [self] in
+            isShowingRecordingUnavailableHint = false
+            updateTextHeight()
+            refreshRecordingHintLayout()
+        }
     }
 
     /// 使用与媒体状态切换相同的高度通知，使页面继续遵守原有滚动规则。
@@ -67,6 +71,6 @@ extension ComposerView {
         setNeedsQuickLayout()
         invalidateIntrinsicContentSize()
         superview?.setNeedsLayout()
-        heightDidChange?(.immediate)
+        notifyHeightChange(.immediate)
     }
 }

@@ -9,6 +9,187 @@ import QuickLayoutKit
 
 extension DemoTests {
 
+    @Test(.enabled(if: ChatTestAvailability.isSupported))
+    func composerSingleLineButtonsCrossfadeAndRapidClearKeepsLatestState() async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let controller = ChatViewController()
+        let window = try makeVisibleTestWindow(rootViewController: controller)
+        defer { window.isHidden = true }
+        try await Task.sleep(for: .milliseconds(100))
+        let composer = controller.composerView
+        let height = composer.bounds.height
+        composer.textView.text = "a"
+        composer.textViewDidChange(composer.textView)
+        try await Task.sleep(for: .milliseconds(50))
+        let opacity = try #require(composer.sendButton.layer.presentation()).opacity
+        #expect(opacity > 0 && opacity < 1)
+        #expect(composer.bounds.height == height)
+        composer.textView.text = ""
+        composer.textViewDidChange(composer.textView)
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(composer.sendButton.superview == nil)
+        #expect(composer.dictationButton.superview != nil)
+        #expect(!composer.placeholderLabel.isHidden)
+        #expect(composer.placeholderLabel.alpha == 1)
+        #expect(composer.bounds.height == height)
+    }
+
+    @Test(.enabled(if: ChatTestAvailability.isSupported))
+    func composerDictationAndInterruptedHintShareContinuousGeometry() async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let controller = ChatViewController()
+        let window = try makeVisibleTestWindow(rootViewController: controller)
+        defer { window.isHidden = true }
+        try await Task.sleep(for: .milliseconds(100))
+        let composer = controller.composerView
+        let original = composer.convert(composer.bounds, to: window)
+        controller.applyAudioComposerState(.dictating(text: "one\ntwo\nthree\nfour"))
+        try await Task.sleep(for: .milliseconds(50))
+        let growing = try #require(composer.layer.presentation())
+        #expect(growing.bounds.height > original.height)
+        #expect(growing.bounds.height < composer.bounds.height)
+        #expect(abs(growing.convert(growing.bounds, to: nil).maxY - original.maxY) < 1)
+        controller.applyAudioComposerState(.idle)
+        try await Task.sleep(for: .milliseconds(300))
+        let expandedHeight = composer.bounds.height
+        #expect(!composer.validateAudioRecordingRequest())
+        try await Task.sleep(for: .milliseconds(50))
+        let shrinking = try #require(composer.layer.presentation())
+        let height = shrinking.bounds.height
+        #expect(height < expandedHeight && height > composer.bounds.height)
+        // 玻璃内容的 UIView.alpha 由 UIKit 合成，底层 layer.opacity 不代表可见透明度。
+        #expect(composer.recordingUnavailableLabel.alpha == 1)
+        #expect(!composer.recordingUnavailableLabel.isHidden)
+        composer.dismissRecordingUnavailableHint()
+        let continued = try #require(composer.layer.presentation()).bounds.height
+        #expect(abs(continued - height) < 3)
+        // 恢复尚未完成再次显示提示，旧 completion 不可隐藏新的提示。
+        #expect(!composer.validateAudioRecordingRequest())
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(!composer.recordingUnavailableLabel.isHidden)
+        #expect(composer.recordingUnavailableLabel.alpha == 1)
+        composer.dismissRecordingUnavailableHint()
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(composer.recordingUnavailableLabel.isHidden)
+        #expect(abs(composer.bounds.height - expandedHeight) < 0.5)
+        #expect(composer.textView.text == "one\ntwo\nthree\nfour")
+    }
+
+    @Test(.enabled(if: ChatTestAvailability.isSupported))
+    func composerDocumentDeletionAnimatesAndBatchesHeightNotifications() async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let controller = ChatViewController()
+        let window = try makeVisibleTestWindow(rootViewController: controller)
+        defer { window.isHidden = true }
+        try await Task.sleep(for: .milliseconds(100))
+        let composer = controller.composerView
+        let draft = DocumentDraft(attachment: .file(.init(id: UUID(), fileURL: URL(fileURLWithPath: "/tmp/transition.pdf"),
+            displayName: "transition.pdf", typeIdentifier: "com.adobe.pdf", byteCount: 42)))
+        let callback = composer.heightDidChange
+        var notifications = 0
+        composer.heightDidChange = { change in notifications += 1; callback?(change) }
+        composer.insertDocument(draft)
+        #expect(notifications == 1)
+        try await Task.sleep(for: .milliseconds(300))
+        let expanded = composer.bounds.height
+        notifications = 0
+        composer.removeDocument(draft.id, notify: false)
+        #expect(notifications == 1)
+        try await Task.sleep(for: .milliseconds(50))
+        let height = try #require(composer.layer.presentation()).bounds.height
+        #expect(height < expanded && height > composer.bounds.height)
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(composer.textAttachments.isEmpty)
+        #expect(composer.sendButton.superview == nil)
+        #expect(composer.dictationButton.superview != nil)
+    }
+
+    @Test(.enabled(if: ChatTestAvailability.isSupported))
+    func composerAudioPanelAnimatesWithoutRestartingForMeterUpdates() async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let controller = ChatViewController()
+        let window = try makeVisibleTestWindow(rootViewController: controller)
+        defer { window.isHidden = true }
+        try await Task.sleep(for: .milliseconds(100))
+        let composer = controller.composerView
+        let original = composer.convert(composer.bounds, to: window)
+        controller.applyAudioComposerState(.recording(elapsed: 0, waveform: [0.1]))
+        try await Task.sleep(for: .milliseconds(50))
+        let during = try #require(composer.layer.presentation())
+        #expect(during.bounds.height > original.height)
+        #expect(during.bounds.height < composer.bounds.height)
+        #expect(abs(during.convert(during.bounds, to: nil).maxY - original.maxY) < 1)
+        // 玻璃的 alpha 由 UIKit 合成；用公开状态确认退出，过渡画面另以录屏验证。
+        #expect(composer.inputGlassView.alpha == 0)
+        let recordOpacity = try #require(composer.recordingGlassView.layer.presentation()).opacity
+        #expect(recordOpacity > 0 && recordOpacity < 1)
+        try await Task.sleep(for: .milliseconds(300))
+        controller.applyAudioComposerState(.recording(elapsed: 1, waveform: [0.3, 0.5]))
+        #expect(composer.layer.animationKeys()?.isEmpty != false)
+        #expect(composer.inputGlassView.layer.animationKeys()?.isEmpty != false)
+
+        let attachment = AudioAttachment(fileURL: URL(fileURLWithPath: "/tmp/animation-preview.m4a"),
+                                         duration: 2, waveform: [0.1, 0.4])
+        controller.applyAudioComposerState(.audioPreview(attachment: attachment, isPlaying: false, progress: 0))
+        try await Task.sleep(for: .milliseconds(50))
+        let previewOpacity = try #require(composer.previewGlassView.layer.presentation()).opacity
+        #expect(previewOpacity > 0 && previewOpacity < 1)
+        controller.applyAudioComposerState(.idle)
+        try await Task.sleep(for: .milliseconds(350))
+        #expect(composer.composerState == .idle)
+        #expect(composer.inputGlassView.alpha == 1)
+        #expect(composer.recordingGlassView.superview == nil)
+        #expect(composer.previewGlassView.superview == nil)
+        #expect(abs(composer.bounds.height - original.height) < 0.5)
+    }
+
+    @Test(.enabled(if: ChatTestAvailability.isSupported))
+    func composerTextHeightAnimatesAndContinuesFromCurrentPosition() async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let controller = ChatViewController()
+        let window = try makeVisibleTestWindow(rootViewController: controller)
+        defer { window.isHidden = true }
+        try await Task.sleep(for: .milliseconds(100))
+        let composer = controller.composerView
+        let original = composer.convert(composer.bounds, to: window)
+        composer.textView.text = "One\nTwo\nThree\nFour"
+        composer.textViewDidChange(composer.textView)
+        let expandedHeight = composer.bounds.height
+        #expect(expandedHeight > original.height + 30)
+        try await Task.sleep(for: .milliseconds(50))
+        let expanding = try #require(composer.layer.presentation())
+        let intermediate = expanding.convert(expanding.bounds, to: nil)
+        #expect(intermediate.height > original.height)
+        #expect(intermediate.height < expandedHeight)
+        #expect(abs(intermediate.maxY - original.maxY) < 1)
+
+        // 动画未完成即删除文字，新的收起动画应接续呈现位置。
+        composer.textView.text = "One"
+        composer.textViewDidChange(composer.textView)
+        let continuing = try #require(composer.layer.presentation())
+        #expect(abs(continuing.bounds.height - intermediate.height) < 3)
+        try await Task.sleep(for: .milliseconds(300))
+        let final = composer.convert(composer.bounds, to: window)
+        #expect(abs(final.height - original.height) < 0.5)
+        #expect(abs(final.maxY - original.maxY) < 0.5)
+    }
+
+    @Test(.enabled(if: ChatTestAvailability.isSupported))
+    func composerTextHeightDoesNotAnimateRestorationOrUnchangedHeight() throws {
+        guard #available(iOS 26.0, *) else { return }
+        let composer = ComposerView(frame: CGRect(x: 0, y: 0, width: 390, height: 60))
+        composer.layoutIfNeeded()
+        var changes: [ComposerView.HeightChange] = []
+        composer.heightDidChange = { changes.append($0) }
+        composer.textView.text = "One\nTwo\nThree"
+        composer.textViewDidChange(composer.textView)
+        #expect(changes.count == 1)
+        if case .immediate = changes[0] {} else { Issue.record("Offscreen restoration must not animate") }
+        composer.textView.text = "Four\nFive\nSix"
+        composer.textViewDidChange(composer.textView)
+        #expect(changes.count == 1)
+    }
+
     @Test(.enabled(if: ChatTestAvailability.isSupported)) func composerGrowsToFiveLinesAndMirrorsDirection() {
         guard #available(iOS 26.0, *) else { return }
         let composer = ComposerView(

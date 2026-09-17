@@ -571,6 +571,67 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         }
     }
 
+    /// 从键盘中的空输入切到真实录音、预览，再取消回文本。
+    @MainActor func testKeyboardToAudioPanelTransition() {
+        let app = chat(fixture: "empty")
+        let text = app.textViews["imessage.composer.text"]
+        text.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        let composer = app.otherElements["imessage.composer"]
+        let original = composer.frame
+        app.buttons["imessage.composer.attachment"].tap()
+        app.buttons["音频"].tap()
+        let stop = app.buttons["imessage.composer.recording.stop"]
+        XCTAssertTrue(stop.waitForExistence(timeout: 15))
+        XCTAssertTrue(app.keyboards.firstMatch.exists)
+        XCTAssertEqual(composer.frame.maxY, original.maxY, accuracy: 1)
+        XCTAssertGreaterThan(composer.frame.height, original.height)
+        capture(app, "键盘-切换录音")
+        stop.tap()
+        let cancel = app.buttons["imessage.composer.audio.cancel"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.keyboards.firstMatch.exists)
+        capture(app, "键盘-录音预览")
+        cancel.tap()
+        XCTAssertTrue(app.buttons["imessage.composer.attachment"].waitForExistence(timeout: 5))
+        XCTAssertEqual(composer.frame.height, original.height, accuracy: 1)
+        XCTAssertEqual(composer.frame.maxY, original.maxY, accuracy: 1)
+        XCTAssertTrue(app.keyboards.firstMatch.exists)
+        capture(app, "键盘-取消录音恢复文本")
+    }
+
+    /// 键盘上方的文本增高、删除回缩及发送清空均保持输入栏底边。
+    @MainActor func testComposerTextHeightChangesWithKeyboard() {
+        let app = chat(fixture: "empty")
+        let text = app.textViews["imessage.composer.text"]
+        text.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        text.typeText("One")
+        let singleLineHeight = text.frame.height
+        let bottom = text.frame.maxY
+        let extraLines = "\nTwo\nThree\nFour"
+        text.typeText(extraLines)
+        XCTAssertGreaterThan(text.frame.height, singleLineHeight + 30)
+        XCTAssertEqual(text.frame.maxY, bottom, accuracy: 1)
+        capture(app, "文字高度-输入四行")
+        text.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: extraLines.count))
+        let collapsed = NSPredicate { _, _ in abs(text.frame.height - singleLineHeight) < 1 }
+        expectation(for: collapsed, evaluatedWith: text)
+        waitForExpectations(timeout: 3)
+        XCTAssertEqual(text.value as? String, "One")
+        XCTAssertEqual(text.frame.height, singleLineHeight, accuracy: 1)
+        XCTAssertEqual(text.frame.maxY, bottom, accuracy: 1)
+        text.typeText(extraLines)
+        app.buttons["imessage.composer.send"].tap()
+        expectation(for: collapsed, evaluatedWith: text)
+        waitForExpectations(timeout: 3)
+        XCTAssertEqual(text.value as? String, "")
+        XCTAssertEqual(text.frame.height, singleLineHeight, accuracy: 1)
+        XCTAssertEqual(text.frame.maxY, bottom, accuracy: 1)
+        XCTAssertTrue(app.keyboards.firstMatch.exists)
+        capture(app, "文字高度-发送后收起")
+    }
+
     /// 从系统照片面板真实连续选图，覆盖首次展开、追加与清空。
     @MainActor func testMediaDraftSelectionAnimationFromPhotoSheet() {
         let app = chat(fixture: "empty")
