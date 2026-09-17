@@ -1685,6 +1685,53 @@ struct ChatMediaTests {
         )
     }
 
+    @Test func mediaQuickLayoutTransitionsPreserveMasksAndVideoOverlays() throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 3, videoIndices: [0])
+        defer { fixture.remove() }
+        let view = MediaMessageView()
+        func configure(_ items: [MediaItem]) {
+            let group = MediaGroupAttachment(id: fixture.group.id, items: items)
+            view.configure(messageID: 8, direction: .outgoing, group: group, frontIndex: 0, strings: mediaStrings)
+            view.frame.size = view.intrinsicContentSize
+            view.layoutIfNeeded()
+            view.cards.forEach { $0.layoutIfNeeded() }
+        }
+
+        configure([fixture.group.items[0]])
+        let video = try #require(view.cards.first)
+        let mask = try #require(video.mask as? QuickLayoutShapeView)
+        #expect(mask.bounds == video.bounds)
+        #expect((mask.layer as? CAShapeLayer)?.path != nil)
+        #expect(video.imageView.frame == video.bounds)
+        #expect(video.playBackground.isDescendant(of: video))
+        #expect(video.playBackground.bounds.size == CGSize(width: 48, height: 48))
+        video.playBackground.layoutIfNeeded()
+        #expect(video.playImageView.superview === video.playBackground.contentView)
+        #expect(video.playImageView.frame == CGRect(x: 15, y: 13, width: 18, height: 22))
+        #expect(view.itemCountLabel.superview == nil)
+        #expect(view.itemCountIcon.superview == nil)
+
+        configure(fixture.group.items)
+        #expect(view.cards.allSatisfy { $0.mask == nil && $0.isDescendant(of: view) })
+        #expect(view.itemCountLabel.isDescendant(of: view))
+        #expect(view.itemCountIcon.isDescendant(of: view))
+
+        configure([fixture.group.items[1]])
+        let image = try #require(view.cards.first)
+        #expect(image.mask === mask)
+        #expect(image.playBackground.superview == nil)
+        #expect(view.itemCountLabel.superview == nil)
+        #expect(view.itemCountIcon.superview == nil)
+
+        view.reset()
+        view.layoutIfNeeded()
+        #expect(view.cards.allSatisfy { $0.superview == nil && $0.mask == nil })
+        #expect(mask.shape == nil)
+        configure([fixture.group.items[0]])
+        #expect(view.cards.first?.playBackground.isDescendant(of: view) == true)
+    }
+
     @Test func mediaGroupTitleMirrorsWithSemanticOuterEdge() throws {
         guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 3)

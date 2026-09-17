@@ -10,7 +10,7 @@ import QuickLayoutKit
 import UIKit
 
 /// 显示单张媒体或可横向切换的媒体堆叠的消息视图。
-final class MediaMessageView: UIView, UIGestureRecognizerDelegate {
+final class MediaMessageView: QuickLayoutView, UIGestureRecognizerDelegate {
     /// 单张媒体气泡与多媒体堆叠共用的布局尺寸。
     enum Metrics {
         /// 单张媒体允许的最大宽度，单位为点。
@@ -40,7 +40,7 @@ final class MediaMessageView: UIView, UIGestureRecognizerDelegate {
     /// 与项目数量配套显示的媒体网格符号。
     let itemCountIcon = UIImageView(image: UIImage(systemName: "square.grid.2x2.fill"))
     /// 裁剪单张媒体气泡轮廓的形状遮罩。
-    let singleMaskLayer = CAShapeLayer()
+    let singleMaskView = QuickLayoutShapeView(frame: .zero)
     /// 用于显示有限媒体窗口的可复用卡片集合。
     var cards: [CardView] = []
     /// 驱动媒体封面切换的水平拖动手势。
@@ -76,6 +76,35 @@ final class MediaMessageView: UIView, UIGestureRecognizerDelegate {
     /// 用户请求预览媒体时调用的闭包，参数为消息身份、媒体组与起始索引。
     var previewRequested: ((Int, MediaGroupAttachment, Int) -> Void)?
 
+    /// 多张媒体才显示数量标题，并启用卡片堆叠布局。
+    var hasMultipleItems: Bool { (group?.items.count ?? 0) > 1 }
+
+    /// 标题与卡片共享宿主坐标；卡片的旋转和拖动仍由交互状态驱动。
+    override var body: Layout {
+        ZStack {
+            if hasMultipleItems {
+                itemCountIcon.resizable()
+                    .frame(width: 18, height: 18)
+                    .position(x: titleOriginX + 9, y: 11)
+                itemCountLabel.resizable()
+                    .frame(width: 90, height: Metrics.titleHeight)
+                    .position(x: titleOriginX + 67, y: Metrics.titleHeight / 2)
+            }
+            for card in cards where !card.isHidden {
+                card.resizable()
+                    .frame(width: card.restingFrame.width, height: card.restingFrame.height)
+                    .position(x: card.restingFrame.midX, y: card.restingFrame.midY)
+            }
+        }
+    }
+
+    /// 数量标题沿消息的物理外侧对齐，保留图标在文字左侧的排列。
+    private var titleOriginX: CGFloat {
+        let isRTL = effectiveUserInterfaceLayoutDirection == .rightToLeft
+        let atRightEdge = direction == .outgoing ? !isRTL : isRTL
+        return atRightEdge ? bounds.width - 112 : 0
+    }
+
     /// 从当前封面生成匹配转场，不包含背后的堆叠卡片。
     var previewSourceView: UIView? {
         guard let group, group.items.indices.contains(frontMediaIndex) else { return nil }
@@ -85,7 +114,7 @@ final class MediaMessageView: UIView, UIGestureRecognizerDelegate {
     /// 使用指定初始边框创建 `MediaMessageView`，并配置其子视图和默认外观。
     ///
     /// - Parameter frame: 在父视图坐标系中指定的初始边框。
-    override init(frame: CGRect) {
+    override init(frame: CGRect = .zero) {
         super.init(frame: frame)
         clipsToBounds = false
         itemCountLabel.font = .preferredFont(forTextStyle: .headline)
@@ -93,8 +122,7 @@ final class MediaMessageView: UIView, UIGestureRecognizerDelegate {
         itemCountLabel.textColor = .systemBlue
         itemCountLabel.textAlignment = .natural
         itemCountIcon.tintColor = .systemBlue
-        addSubview(itemCountIcon)
-        addSubview(itemCountLabel)
+        singleMaskView.fillColor = .black
         panGesture.delegate = self
         addGestureRecognizer(panGesture)
         tapGesture.require(toFail: panGesture)
@@ -116,7 +144,7 @@ final class MediaMessageView: UIView, UIGestureRecognizerDelegate {
 
     /// 标题不随媒体卡片缩放，保存按钮与卡片共用此高度。
     var headerHeight: CGFloat {
-        (group?.items.count ?? 0) > 1 ? Metrics.titleHeight + Metrics.titleSpacing : 0
+        hasMultipleItems ? Metrics.titleHeight + Metrics.titleSpacing : 0
     }
 
     /// 直接响应 stack 分配的宽度，首次测量不依赖 bounds 或历史布局属性。
@@ -132,16 +160,25 @@ final class MediaMessageView: UIView, UIGestureRecognizerDelegate {
 
     /// 根据当前边界更新 `MediaMessageView` 的子视图布局与图层几何。
     override func layoutSubviews() {
-        super.layoutSubviews()
         if laidOutSize != bounds.size || laidOutDirection != effectiveUserInterfaceLayoutDirection {
             invalidateInteraction()
             laidOutSize = bounds.size
             laidOutDirection = effectiveUserInterfaceLayoutDirection
             bindCards()
         }
-        guard !isAnimating else { return }
+        guard !isAnimating else {
+            super.layoutSubviews()
+            return
+        }
         layoutCards()
         applyInteraction()
+    }
+
+    /// 先更新静止几何，再让 QuickLayout 放置卡片；动画收尾也复用此入口。
+    func layoutCards() {
+        updateCardGeometry()
+        super.layoutSubviews()
+        updateSingleMask()
     }
 
     /// 离开窗口时取消尚未确认的拖动，并清理正在收尾的动画。
@@ -181,8 +218,6 @@ final class MediaMessageView: UIView, UIGestureRecognizerDelegate {
         resolvedSize = Self.size(for: group)
         if previousSize != resolvedSize { invalidateIntrinsicContentSize() }
         panGesture.isEnabled = group.items.count > 1
-        itemCountLabel.isHidden = group.items.count == 1
-        itemCountIcon.isHidden = group.items.count == 1
         itemCountLabel.text = String(format: strings.itemsFormat, group.items.count)
         accessibilityValue = String(
             format: strings.positionFormat,
@@ -192,7 +227,7 @@ final class MediaMessageView: UIView, UIGestureRecognizerDelegate {
         accessibilityHint = strings.openPreview
         updateAccessibilityLabel()
         if interaction == nil && !isAnimating { bindCards() }
-        setNeedsLayout()
+        setNeedsQuickLayout()
     }
 
     /// 清空媒体绑定、标题、遮罩和辅助功能状态，并重置全部卡片。
@@ -204,14 +239,14 @@ final class MediaMessageView: UIView, UIGestureRecognizerDelegate {
         frontMediaIndex = 0
         isAnimating = false
         itemCountLabel.text = nil
-        itemCountIcon.isHidden = true
-        itemCountLabel.isHidden = true
-        singleMaskLayer.path = nil
+        singleMaskView.shape = nil
+        singleMaskView.layoutIfNeeded()
         accessibilityLabel = nil
         accessibilityValue = nil
         accessibilityHint = nil
         cards.forEach { $0.reset(); $0.isHidden = true }
         panGesture.isEnabled = false
+        setNeedsQuickLayout()
     }
 
     /// 通过辅助功能递增操作切换到下一媒体项目。

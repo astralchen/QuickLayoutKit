@@ -68,17 +68,15 @@ extension MediaMessageView {
         while cards.count < count {
             let card = CardView()
             cards.append(card)
-            addSubview(card)
         }
         while cards.count > count {
             let card = cards.removeLast()
             card.reset()
-            card.removeFromSuperview()
         }
     }
 
-    /// 按封面位置布置卡片边框、旋转、层级及单图遮罩。
-    func layoutCards() {
+    /// 按封面位置计算 QuickLayout 使用的静止边框，并更新旋转和层级。
+    func updateCardGeometry() {
         guard let group, !group.items.isEmpty else { return }
         let isGroup = group.items.count > 1
         let isRTL = effectiveUserInterfaceLayoutDirection == .rightToLeft
@@ -87,19 +85,6 @@ extension MediaMessageView {
             : (isRTL ? 1 : -1)
 
         if isGroup {
-            let titleAtTrailingEdge = outwardSign > 0
-            itemCountIcon.frame = CGRect(
-                x: titleAtTrailingEdge ? bounds.maxX - 112 : 0,
-                y: 2,
-                width: 18,
-                height: 18
-            )
-            itemCountLabel.frame = CGRect(
-                x: titleAtTrailingEdge ? bounds.maxX - 90 : 22,
-                y: 0,
-                width: 90,
-                height: Metrics.titleHeight
-            )
             let cardY = Metrics.titleHeight + Metrics.titleSpacing
             let scale = min(1, bounds.width / max(1, resolvedSize.width))
             let visibleIndices = MediaStackPolicy.visibleIndices(
@@ -120,7 +105,7 @@ extension MediaMessageView {
                 )
                 let physicalSide = relativeDirection * outwardSign
                 let rotationAngle = -physicalSide * Metrics.groupRotationAngle(depth: depth)
-                card.layer.mask = nil
+                card.mask = nil
                 let restingFrame = CGRect(
                     x: CGFloat(visualPosition) * Metrics.groupOffset.x * scale,
                     y: cardY + CGFloat(depth) * Metrics.groupOffset.y * scale,
@@ -128,9 +113,6 @@ extension MediaMessageView {
                     height: Metrics.groupCardSize.height * scale
                 )
                 card.restingFrame = restingFrame
-                card.transform = .identity
-                card.bounds = CGRect(origin: .zero, size: restingFrame.size)
-                card.center = CGPoint(x: restingFrame.midX, y: restingFrame.midY)
                 card.restingTransform = CGAffineTransform(
                     rotationAngle: rotationAngle
                 )
@@ -138,19 +120,24 @@ extension MediaMessageView {
                 card.layer.zPosition = CGFloat(30 - depth)
             }
         } else {
-            itemCountIcon.frame = .zero
-            itemCountLabel.frame = .zero
             let card = cards[0]
             card.transform = .identity
-            card.frame = bounds
             card.restingFrame = bounds
-            card.layer.mask = singleMaskLayer
-            singleMaskLayer.frame = card.bounds
-            singleMaskLayer.path = bubblePath(
-                in: card.bounds,
-                tailOnRight: direction == .outgoing ? !isRTL : isRTL
-            )
+            card.restingTransform = .identity
         }
+    }
+
+    /// 在卡片完成布局后，将单图轮廓交给框架形状视图生成。
+    func updateSingleMask() {
+        guard group?.items.count == 1, let card = cards.first else { return }
+        let isRTL = effectiveUserInterfaceLayoutDirection == .rightToLeft
+        let tailOnRight = direction == .outgoing ? !isRTL : isRTL
+        card.mask = singleMaskView
+        singleMaskView.frame = card.bounds
+        singleMaskView.shape = QuickLayoutAnyShape { rect in
+            Self.bubblePath(in: rect, tailOnRight: tailOnRight)
+        }
+        singleMaskView.layoutIfNeeded()
     }
 
     /// 根据当前封面的媒体类型与时长更新辅助功能描述。
@@ -204,7 +191,7 @@ extension MediaMessageView {
     }
 
     /// 返回指定区域的媒体气泡轮廓，并按物理方向选择尾部位置。
-    private func bubblePath(in rect: CGRect, tailOnRight: Bool) -> CGPath {
+    nonisolated private static func bubblePath(in rect: CGRect, tailOnRight: Bool) -> CGPath {
         let tail: CGFloat = 13
         let body = tailOnRight
             ? CGRect(x: 0, y: 0, width: rect.width - tail, height: rect.height)

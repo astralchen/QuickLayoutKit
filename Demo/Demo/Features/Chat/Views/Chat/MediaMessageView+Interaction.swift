@@ -17,7 +17,7 @@ extension MediaMessageView {
         guard gesture.state == .ended, let group,
               !isAnimating, interaction == nil else { return }
         let location = gesture.location(in: self)
-        let hitsTitle = !itemCountLabel.isHidden
+        let hitsTitle = hasMultipleItems
             && (itemCountLabel.frame.contains(location) || itemCountIcon.frame.contains(location))
         guard let index = mediaIndex(at: location) ?? (hitsTitle ? frontMediaIndex : nil) else { return }
         previewRequested?(messageID, group, index)
