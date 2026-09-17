@@ -209,10 +209,9 @@ final class SpeechRecognitionService: SpeechTranscribing {
         engine.inputNode.installTap(
             onBus: 0,
             bufferSize: 1_024,
-            format: analyzerFormat
-        ) { buffer, _ in
-            continuation.yield(AnalyzerInput(buffer: buffer))
-        }
+            format: analyzerFormat,
+            block: SpeechRecognitionCallbacks.modernAudioTap(continuation: continuation)
+        )
         audioEngine = engine
         engine.prepare()
         try engine.start()
@@ -282,29 +281,19 @@ final class SpeechRecognitionService: SpeechTranscribing {
         engine.inputNode.installTap(
             onBus: 0,
             bufferSize: 1_024,
-            format: format
-        ) { buffer, _ in
-            request.append(buffer)
-        }
+            format: format,
+            block: SpeechRecognitionCallbacks.legacyAudioTap(request: request)
+        )
         recognitionRequest = request
         audioEngine = engine
-        recognitionTask = recognizer.recognitionTask(with: request) {
-            recognitionResult,
-            error in
-            if let recognitionResult {
-                let text = recognitionResult.bestTranscription.formattedString
-                Task { @MainActor in
-                    guard operation.isCurrent else { return }
-                    result(text, recognitionResult.isFinal)
-                }
-            }
-            if error != nil {
-                Task { @MainActor in
-                    guard operation.isCurrent else { return }
-                    failure()
-                }
-            }
-        }
+        recognitionTask = recognizer.recognitionTask(
+            with: request,
+            resultHandler: SpeechRecognitionCallbacks.legacyResultHandler(
+                operation: operation,
+                result: result,
+                failure: failure
+            )
+        )
         engine.prepare()
         try engine.start()
     }
@@ -323,6 +312,43 @@ final class SpeechRecognitionService: SpeechTranscribing {
         guard !prefix.isEmpty else { return suffix }
         guard !suffix.isEmpty else { return prefix }
         return prefix + modernTranscriptSeparator + suffix
+    }
+}
+
+/// 系统可从任意队列调用这些闭包；创建时不能继承服务的 MainActor 隔离。
+enum SpeechRecognitionCallbacks {
+    /// 在音频回调内同步提交缓冲区，避免将实时音频工作调度到主 Actor。
+    nonisolated static func legacyAudioTap(
+        request: SFSpeechAudioBufferRecognitionRequest
+    ) -> AVAudioNodeTapBlock {
+        { buffer, _ in request.append(buffer) }
+    }
+
+    /// 现代后端同样使用非隔离的 tap，通过线程安全的 continuation 传递输入。
+    @available(iOS 26.0, *)
+    nonisolated static func modernAudioTap(
+        continuation: AsyncStream<AnalyzerInput>.Continuation
+    ) -> AVAudioNodeTapBlock {
+        { buffer, _ in continuation.yield(AnalyzerInput(buffer: buffer)) }
+    }
+
+    /// 先提取值类型结果，再回到主 Actor 验证会话并更新调用方。
+    nonisolated static func legacyResultHandler(
+        operation: OperationScope.Token,
+        result: @escaping @MainActor (String, Bool) -> Void,
+        failure: @escaping @MainActor () -> Void
+    ) -> @Sendable (SFSpeechRecognitionResult?, Error?) -> Void {
+        { recognitionResult, error in
+            let text = recognitionResult?.bestTranscription.formattedString
+            let isFinal = recognitionResult?.isFinal ?? false
+            let didFail = error != nil
+            Task { @MainActor in
+                guard operation.isCurrent else { return }
+                if let text { result(text, isFinal) }
+                // result 可能同步停止或替换当前会话。
+                if didFail, operation.isCurrent { failure() }
+            }
+        }
     }
 }
 
