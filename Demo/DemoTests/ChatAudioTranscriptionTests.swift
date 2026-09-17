@@ -158,6 +158,31 @@ struct ChatAudioTranscriptionTests {
         #expect(audioMessages(model.state).first?.deliveryText == delivery)
     }
 
+    @Test func audioBodyMeasuresBeforeLayoutAcrossWidthsAndDirections() {
+        guard #available(iOS 26.0, *) else { return }
+        for direction in [MessageDirection.incoming, .outgoing] {
+            for rtl in [false, true] {
+                let cell = AudioBubbleCell(frame: .zero)
+                cell.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
+                var audio = fixtureAudio()
+                audio.transcript = String(repeating: "这段转写需要随可用宽度换行。", count: 8)
+                configure(cell, audio: audio, direction: direction)
+                for width: CGFloat in [402, 200, 320, 1024] {
+                    let measured = cell.sizeThatFits(CGSize(width: width, height: 52))
+                    layout(cell, width: width)
+                    #expect(abs(cell.bounds.height - measured.height) < 1)
+                    let bubble = cell.bubbleView.convert(cell.bubbleView.bounds, to: cell)
+                    #expect(abs(bubble.width - min(width - 24, min(420, max(230, width * 0.70)))) < 1)
+                    #expect(bubble.minX >= 11 && bubble.maxX <= width - 11)
+                    #expect(bubble.maxY <= cell.bounds.height - 1)
+                    let transcript = cell.bubbleView.transcriptLabel
+                    let textHeight = transcript.sizeThatFits(CGSize(width: transcript.bounds.width, height: .infinity)).height
+                    #expect(transcript.bounds.height >= textHeight - 1)
+                }
+            }
+        }
+    }
+
     @Test func transcriptResizesBubbleAndSurvivesPlaybackWhileReuseClearsIt() {
         guard #available(iOS 26.0, *) else { return }
         for direction in [MessageDirection.incoming, .outgoing] {

@@ -127,6 +127,11 @@ final class ChatAudioCardUITests: XCTestCase {
     }
 
     @MainActor
+    func testPhotosAudioAndTextReceiveThreeSeparatedReplies() throws {
+        try verifyPhotoSelection(sendMixed: true)
+    }
+
+    @MainActor
     func testPhotoSelectionConvertsPreviewToDeletableTextAttachment() throws {
         try verifyPhotoSelection()
     }
@@ -230,7 +235,7 @@ final class ChatAudioCardUITests: XCTestCase {
     @MainActor
     private func verifyPhotoSelection(
         language: String = "zh-Hans", photosTitle: String = "照片", audioTitle: String = "音频",
-        largeText: Bool = false, preview: Bool = true
+        largeText: Bool = false, preview: Bool = true, sendMixed: Bool = false
     ) throws {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -275,6 +280,38 @@ final class ChatAudioCardUITests: XCTestCase {
         }
         XCTAssertTrue(card.waitForExistence(timeout: 10))
         XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: app.buttons["imessage.composer.send"])], timeout: 15) == .completed)
+        if sendMixed {
+            let photos = app.images.matching(identifier: "PXGGridLayout-Info")
+            XCTAssertGreaterThanOrEqual(photos.count, 3)
+            for index in 1...2 {
+                photos.element(boundBy: index).coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5)).tap()
+            }
+            text.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.98)).tap()
+            XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
+            text.typeText("The only")
+            app.buttons["imessage.composer.send"].tap()
+            let reply = app.otherElements["好呀，一会儿见！"]
+            let timeline = app.collectionViews["imessage.timeline"]
+            // 交互式收键盘需将手势拖过键盘区域，普通列表内 swipeDown 不够。
+            app.coordinate(withNormalizedOffset: .init(dx: 0.9, dy: 0.42))
+                .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: .init(dx: 0.9, dy: 0.96)))
+            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+            for _ in 0..<3 where !reply.isHittable { timeline.swipeUp() }
+            XCTAssertTrue(reply.waitForExistence(timeout: 15))
+            let files = app.buttons.matching(identifier: "imessage.attachment.file.card")
+                .allElementsBoundByIndex.sorted { $0.frame.minY < $1.frame.minY }
+            let media = app.descendants(matching: .any).matching(identifier: "imessage.media.message")
+                .allElementsBoundByIndex.sorted { $0.frame.minY < $1.frame.minY }
+            let incomingFile = try XCTUnwrap(files.last)
+            let incomingMedia = try XCTUnwrap(media.last)
+            XCTAssertGreaterThanOrEqual(incomingFile.frame.minY - incomingMedia.frame.maxY, 6)
+            XCTAssertGreaterThanOrEqual(reply.frame.minY - incomingFile.frame.maxY, 6)
+            let evidence = XCTAttachment(screenshot: app.screenshot())
+            evidence.name = "图片音频文字-三条回复保留间距"
+            evidence.lifetime = .keepAlways
+            add(evidence)
+            return
+        }
         let picture = XCTAttachment(screenshot: app.screenshot())
         picture.name = "照片与文本音频附件-\(language)"
         picture.lifetime = .keepAlways

@@ -110,6 +110,25 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         quickLayoutSizeThatFits(size) ?? super.sizeThatFits(size)
     }
 
+    /// UIKit 自适应测量使用与 body 布局相同的尺寸入口。
+    open override func systemLayoutSizeFitting(
+        _ targetSize: CGSize,
+        withHorizontalFittingPriority horizontalFittingPriority: UILayoutPriority,
+        verticalFittingPriority: UILayoutPriority
+    ) -> CGSize {
+        // 保留集合布局的 proposal；固定轴与弹性轴由 cell 的 flexibility 统一解析。
+        guard var size = quickLayoutSizeThatFits(targetSize) else {
+            return super.systemLayoutSizeFitting(
+                targetSize,
+                withHorizontalFittingPriority: horizontalFittingPriority,
+                verticalFittingPriority: verticalFittingPriority
+            )
+        }
+        if horizontalFittingPriority == .required { size.width = targetSize.width }
+        if verticalFittingPriority == .required { size.height = targetSize.height }
+        return size
+    }
+
     open override func quickLayoutFlexibility(for axis: Axis) -> Flexibility {
         switch axis {
         case .horizontal:

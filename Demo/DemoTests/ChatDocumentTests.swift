@@ -7,6 +7,48 @@ import QuickLayoutKit
 @MainActor
 @Suite(.serialized, .enabled(if: ChatTestAvailability.isSupported))
 struct ChatDocumentTests {
+    @Test(arguments: [false, true])
+    func documentBodyMeasuresBeforeLayoutAndAdaptsToAvailableWidth(rtl: Bool) throws {
+        guard #available(iOS 26.0, *) else { return }
+        let cell = DocumentBubbleCell(frame: .zero)
+        cell.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
+        let file = FileAttachment(id: UUID(), fileURL: URL(fileURLWithPath: "/tmp/body-sizing.m4a"),
+            displayName: "Audio Message with a very long filename that must wrap.m4a",
+            typeIdentifier: UTType.mpeg4Audio.identifier, byteCount: 83_000)
+        for incoming in [true, false] {
+            cell.configure(.init(id: 1, direction: incoming ? .incoming : .outgoing,
+                attachment: .file(file), deliveryText: incoming ? nil : "已读"))
+            // 先测量，再改变 bounds；覆盖零尺寸首次测量、收窄和重新展开。
+            for width: CGFloat in [402, 200, 320] {
+                let proposed = CGSize(width: width, height: 52)
+                let measured = cell.sizeThatFits(proposed)
+                let attributes = UICollectionViewLayoutAttributes(forCellWith: .init(item: 0, section: 0))
+                attributes.size = proposed
+                let fitted = cell.preferredLayoutAttributesFitting(attributes)
+                #expect(abs(fitted.size.height - measured.height) < 1)
+                #expect(measured.height >= 88)
+                cell.frame.size = measured
+                cell.setNeedsQuickLayout()
+                cell.layoutIfNeeded()
+                let card = cell.card.convert(cell.card.bounds, to: cell)
+                #expect(card.minX >= 12 - 1 && card.maxX <= width - 12 + 1)
+                #expect(card.width <= width * 0.70 + 1)
+                #expect(card.maxY <= measured.height - 2 + 1)
+                if incoming {
+                    let save = cell.saveButton.convert(cell.saveButton.bounds, to: cell)
+                    #expect(save.width == 44 && save.height == 44)
+                    #expect(save.minX >= 12 - 1 && save.maxX <= width - 12 + 1)
+                    let gap = rtl ? card.minX - save.maxX : save.minX - card.maxX
+                    #expect(abs(gap - 8) < 1)
+                } else {
+                    let status = cell.deliveryStatusView.convert(cell.deliveryStatusView.bounds, to: cell)
+                    #expect(status.minY >= card.maxY + 3 - 1)
+                    #expect(status.maxY <= measured.height - 2 + 1)
+                }
+            }
+        }
+    }
+
     @Test func photoAndAudioDraftUseFullEditorWidthWithoutOverlappingSend() async throws {
         guard #available(iOS 26.0, *) else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)

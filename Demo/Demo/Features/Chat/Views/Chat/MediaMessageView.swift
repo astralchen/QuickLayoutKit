@@ -23,6 +23,10 @@ final class MediaMessageView: UIView, UIGestureRecognizerDelegate {
         static let groupCardSize = CGSize(width: 216, height: 300)
         /// 媒体堆叠相邻层的水平与垂直偏移量。
         static let groupOffset = CGPoint(x: 8, y: 6)
+        /// 测量与绘制共用旋转角，保证背面卡片的外接矩形计入消息高度。
+        static func groupRotationAngle(depth: Int) -> CGFloat {
+            min(4, CGFloat(depth) * 1.2) * .pi / 180
+        }
         /// 媒体数量标题行的高度，单位为点。
         static let titleHeight: CGFloat = 24
         /// 媒体数量标题与堆叠卡片之间的间距，单位为点。
@@ -109,6 +113,22 @@ final class MediaMessageView: UIView, UIGestureRecognizerDelegate {
 
     /// `MediaMessageView` 在当前内容与布局约束下的固有尺寸。
     override var intrinsicContentSize: CGSize { resolvedSize }
+
+    /// 标题不随媒体卡片缩放，保存按钮与卡片共用此高度。
+    var headerHeight: CGFloat {
+        (group?.items.count ?? 0) > 1 ? Metrics.titleHeight + Metrics.titleSpacing : 0
+    }
+
+    /// 直接响应 stack 分配的宽度，首次测量不依赖 bounds 或历史布局属性。
+    override func sizeThatFits(_ size: CGSize) -> CGSize {
+        let scale = min(1, max(0, size.width) / max(1, resolvedSize.width))
+        return CGSize(width: resolvedSize.width * scale,
+                      height: headerHeight + (resolvedSize.height - headerHeight) * scale)
+    }
+
+    override func quick_flexibility(for axis: Axis) -> Flexibility {
+        axis == .horizontal ? .partial : .fixedSize
+    }
 
     /// 根据当前边界更新 `MediaMessageView` 的子视图布局与图层几何。
     override func layoutSubviews() {

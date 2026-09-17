@@ -23,8 +23,6 @@ final class AudioBubbleCell: QuickLayoutCollectionViewCell {
 
     /// 当前绑定的消息展示模型；未配置或复用清理后为 `nil`。
     private var message: MessagePresentation?
-    /// 当前布局允许的消息气泡最大宽度，单位为点。
-    private var maximumBubbleWidth: CGFloat = 300
 
     /// 需要随单元格同步更新布局方向的内容视图。
     override var quickLayoutDirectionViews: [UIView] {
@@ -34,34 +32,31 @@ final class AudioBubbleCell: QuickLayoutCollectionViewCell {
     /// 定义 `AudioBubbleCell` 的布局层级、间距和对齐方式。
     @LayoutBuilder
     override var body: Layout {
-        HStack(spacing: 0) {
-            if message?.direction == .outgoing {
-                Spacer()
-            }
-            VStack(
-                alignment: message?.direction == .outgoing
-                    ? .trailing
-                    : .leading,
-                spacing: 3
-            ) {
-                // 音频气泡与文本、送达文案共用语义边缘；两种转写状态保持同宽。
-                bubbleView.frame(
-                    width: maximumBubbleWidth,
+        BubbleWidth(minWidth: 230, maxWidth: 420) {
+            HStack(spacing: 0) {
+                if message?.direction == .outgoing {
+                    Spacer()
+                }
+                VStack(
                     alignment: message?.direction == .outgoing
                         ? .trailing
-                        : .leading
-                )
-                if message?.deliveryText != nil {
-                    deliveryStatusView
+                        : .leading,
+                    spacing: 3
+                ) {
+                    // 音频气泡与文本、送达文案共用语义边缘；两种转写状态保持同宽。
+                    bubbleView.bubbleWidth()
+                    if message?.deliveryText != nil {
+                        deliveryStatusView
+                    }
+                }
+                if message?.direction != .outgoing {
+                    Spacer()
                 }
             }
-            if message?.direction != .outgoing {
-                Spacer()
-            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 2)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 2)
     }
 
     /// 使用指定初始边框创建 `AudioBubbleCell`，并配置其子视图和默认外观。
@@ -85,21 +80,6 @@ final class AudioBubbleCell: QuickLayoutCollectionViewCell {
     /// 请使用代码初始化方法创建此对象。
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
-    }
-
-    /// 根据列表提供的宽度更新内容宽度限制，并返回自适应高度的布局属性。
-    override func preferredLayoutAttributesFitting(
-        _ layoutAttributes: UICollectionViewLayoutAttributes
-    ) -> UICollectionViewLayoutAttributes {
-        let resolvedWidth = min(max(0, layoutAttributes.size.width - 24), min(420, max(230, layoutAttributes.size.width * 0.70)))
-        if abs(resolvedWidth - maximumBubbleWidth) > 0.5 {
-            maximumBubbleWidth = resolvedWidth
-            setNeedsQuickLayout()
-        }
-        // 将 QuickLayout 的实际高度交给集合布局，避免转写更新后仍沿用估算行高。
-        let fitted = layoutAttributes.copy() as! UICollectionViewLayoutAttributes
-        fitted.size = sizeThatFits(layoutAttributes.size)
-        return fitted
     }
 
     /// 使用音频消息配置 Cell。

@@ -119,7 +119,7 @@ extension MediaMessageView {
                         : card.mediaIndex > frontMediaIndex ? 1 : -1
                 )
                 let physicalSide = relativeDirection * outwardSign
-                let rotationDegrees = -physicalSide * min(4, CGFloat(depth) * 1.2)
+                let rotationAngle = -physicalSide * Metrics.groupRotationAngle(depth: depth)
                 card.layer.mask = nil
                 let restingFrame = CGRect(
                     x: CGFloat(visualPosition) * Metrics.groupOffset.x * scale,
@@ -132,7 +132,7 @@ extension MediaMessageView {
                 card.bounds = CGRect(origin: .zero, size: restingFrame.size)
                 card.center = CGPoint(x: restingFrame.midX, y: restingFrame.midY)
                 card.restingTransform = CGAffineTransform(
-                    rotationAngle: rotationDegrees * .pi / 180
+                    rotationAngle: rotationAngle
                 )
                 card.transform = card.restingTransform
                 card.layer.zPosition = CGFloat(30 - depth)
@@ -172,12 +172,19 @@ extension MediaMessageView {
                 group.items.count,
                 MediaStackPolicy.maximumVisibleCardCount
             ) - 1
+            let angle = Metrics.groupRotationAngle(depth: max(0, backCardCount))
+            let rotatedHeight = Metrics.groupCardSize.width * sin(angle)
+                + Metrics.groupCardSize.height * cos(angle)
+            // 保持封面与卡片偏移不变，只为旋转后向下伸出的边缘预留真实高度。
+            // 按整个可见窗口的最大深度测量，切换封面时消息行不会跟着变高变矮。
+            let bottomOverflow = ceil(max(0, (rotatedHeight - Metrics.groupCardSize.height) / 2))
             return CGSize(
                 width: Metrics.groupCardSize.width
                     + Metrics.groupOffset.x * CGFloat(backCardCount),
                 height: Metrics.titleHeight + Metrics.titleSpacing
                     + Metrics.groupCardSize.height
                     + Metrics.groupOffset.y * CGFloat(backCardCount)
+                    + bottomOverflow
             )
         }
         let rawRatio = item.pixelSize.width / max(1, item.pixelSize.height)

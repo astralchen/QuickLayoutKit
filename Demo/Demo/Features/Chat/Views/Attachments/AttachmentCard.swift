@@ -91,6 +91,11 @@ final class AttachmentCard: QuickLayoutView, UIGestureRecognizerDelegate {
         return size
     }
 
+    /// 响应父布局分配的宽度，发送气泡与编辑器使用相同的内容测量规则。
+    override func sizeThatFits(_ size: CGSize) -> CGSize {
+        preferredSize(maximumWidth: size.width)
+    }
+
     /// 按上次宽度重新测量链接卡片，仅在结果变化时通知布局更新。
     private func linkPreferredSizeDidChange() {
         guard let previous = lastMeasurement else { return }
@@ -162,6 +167,8 @@ final class AttachmentCard: QuickLayoutView, UIGestureRecognizerDelegate {
     /// - Parameter frame: 在父视图坐标系中指定的初始边框。
     override init(frame: CGRect) {
         super.init(frame: frame)
+        quickLayoutHorizontalFlexibility = .partial
+        quickLayoutVerticalFlexibility = .fixedSize
         backgroundColor = .tertiarySystemFill
         layer.cornerRadius = 20
         clipsToBounds = true

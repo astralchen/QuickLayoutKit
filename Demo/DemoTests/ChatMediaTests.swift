@@ -778,7 +778,7 @@ struct ChatMediaTests {
         )
 
         #expect(view.visibleCardCount == 5)
-        #expect(view.intrinsicContentSize == CGSize(width: 248, height: 356))
+        #expect(view.intrinsicContentSize == CGSize(width: 248, height: 364))
 
         view.configure(
             messageID: 8,
@@ -1274,6 +1274,47 @@ struct ChatMediaTests {
         controller.dismissPicker(animated: false)
     }
 
+    @Test func mediaBodyMeasuresBeforeLayoutAcrossWidthsAndDirections() throws {
+        guard #available(iOS 26.0, *) else { return }
+        for count in [1, 3] {
+            let fixture = try MediaFixture(itemCount: count)
+            defer { fixture.remove() }
+            for direction in [MessageDirection.incoming, .outgoing] {
+                for rtl in [false, true] {
+                    let cell = MediaBubbleCell(frame: .zero)
+                    cell.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
+                    cell.configure(.init(id: 1, direction: direction, attachment: .mediaGroup(fixture.group),
+                                         deliveryText: direction == .outgoing ? "已读" : nil),
+                                   group: fixture.group, frontIndex: 0, strings: mediaStrings)
+                    for width: CGFloat in [402, 200, 320] {
+                        let proposed = CGSize(width: width, height: 52)
+                        let measured = cell.sizeThatFits(proposed)
+                        let attributes = UICollectionViewLayoutAttributes(forCellWith: .init(item: 0, section: 0))
+                        attributes.size = proposed
+                        #expect(abs(cell.preferredLayoutAttributesFitting(attributes).size.height - measured.height) < 1)
+                        cell.frame.size = measured
+                        cell.setNeedsQuickLayout()
+                        cell.layoutIfNeeded()
+                        let media = cell.mediaView.convert(cell.mediaView.bounds, to: cell)
+                        #expect(media.minX >= 11 && media.maxX <= width - 11)
+                        #expect(media.maxY <= measured.height - 3)
+                        #expect(cell.mediaView.headerHeight == (count > 1 ? 32 : 0))
+                        if direction == .incoming {
+                            let save = cell.saveButton.convert(cell.saveButton.bounds, to: cell)
+                            #expect(save.width == 44 && save.height == 44)
+                            #expect(save.minX >= 11 && save.maxX <= width - 11)
+                            let gap = rtl ? media.minX - save.maxX : save.minX - media.maxX
+                            #expect(abs(gap - 8) < 1)
+                        }
+                        let natural = cell.mediaView.intrinsicContentSize
+                        let header = cell.mediaView.headerHeight
+                        #expect(abs((media.height - header) / (natural.height - header) - media.width / natural.width) < 0.01)
+                    }
+                }
+            }
+        }
+    }
+
     @Test func outgoingMediaGroupFitsInsideIPhone16ProMessageRow() throws {
         guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 3)
@@ -1301,13 +1342,49 @@ struct ChatMediaTests {
 
         let frame = cell.mediaView.convert(cell.mediaView.bounds, to: cell)
         #expect(frame.width == 232)
-        #expect(frame.height == 344)
+        #expect(frame.height == 349)
         #expect(frame.minX >= 12)
         #expect(frame.maxX <= 390)
         #expect(abs(frame.maxX - 390) < 1)
         #expect(fitted.size.height >= frame.height + 20)
         #expect(fitted.size.height <= frame.height + 40)
         #expect(frame.maxY < fitted.size.height)
+    }
+
+    @Test(arguments: [false, true])
+    func mixedIncomingReplyReservesVisibleMediaFileAndTextBounds(rtl: Bool) async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 3)
+        defer { fixture.remove() }
+        let host = UIViewController()
+        let conversation = ConversationView(frame: CGRect(x: 0, y: 0, width: 402, height: 874))
+        host.view = conversation
+        let window = try makeVisibleTestWindow(rootViewController: host)
+        defer { window.isHidden = true; window.rootViewController = nil }
+        conversation.applyLayoutDirection(rtl ? .rightToLeft : .leftToRight)
+        let audioFile = FileAttachment(id: UUID(), fileURL: URL(fileURLWithPath: "/tmp/reply.m4a"),
+            displayName: "Audio Message.m4a", typeIdentifier: "public.mpeg-4-audio", byteCount: 83_000)
+        let rows: [TimelineItem] = [
+            .init(id: .message(1), content: .message(.init(id: 1, direction: .incoming, attachment: .mediaGroup(fixture.group), deliveryText: nil))),
+            .init(id: .message(2), content: .message(.init(id: 2, direction: .incoming, attachment: .file(audioFile), deliveryText: nil))),
+            .init(id: .message(3), content: .message(.init(id: 3, direction: .incoming, text: "好呀，一会儿见！", deliveryText: nil))),
+        ]
+        conversation.render(.init(timeline: rows, isTyping: false), reason: .receivedMessage)
+        try await Task.sleep(for: .milliseconds(500))
+        let collection = conversation.collectionView
+        collection.layoutIfNeeded()
+        let mediaCell = try #require(collection.cellForItem(at: .init(item: 0, section: 0)) as? MediaBubbleCell)
+        let fileCell = try #require(collection.cellForItem(at: .init(item: 1, section: 0)) as? DocumentBubbleCell)
+        let textCell = try #require(collection.cellForItem(at: .init(item: 2, section: 0)) as? BubbleCell)
+        let cardBounds = mediaCell.mediaView.cards.filter { !$0.isHidden }.map { $0.convert($0.bounds, to: collection) }
+        let fileBounds = fileCell.card.convert(fileCell.card.bounds, to: collection)
+        let textBounds = textCell.bubbleView.convert(textCell.bubbleView.bounds, to: collection)
+        let mediaBounds = cardBounds.reduce(CGRect.null) { $0.union($1) }
+        #expect(mediaBounds.maxY <= mediaCell.frame.maxY, "Rotated stack exceeds row: \(mediaBounds) / \(mediaCell.frame)")
+        #expect(fileBounds.maxY <= fileCell.frame.maxY, "File exceeds row: \(fileBounds) / \(fileCell.frame)")
+        #expect(textBounds.maxY <= textCell.frame.maxY, "Text exceeds row: \(textBounds) / \(textCell.frame)")
+        #expect(fileBounds.minY - mediaBounds.maxY >= 6, "Media overlaps file: \(mediaBounds) / \(fileBounds)")
+        #expect(textBounds.minY - fileBounds.maxY >= 6, "File overlaps text: \(fileBounds) / \(textBounds)")
     }
 
     @Test func adjacentMediaRowsReserveTheirFullHeightInLiveConversation() async throws {

@@ -23,20 +23,10 @@ final class MediaBubbleCell: QuickLayoutCollectionViewCell {
     var saveRequested: (() -> Void)?
     /// 指示当前布局是否为附件保存入口保留空间的布尔值。
     private var showsSaveButton = false
-    /// 媒体组标题区域预留的高度，单位为点。
-    private var mediaHeaderHeight: CGFloat = 0
     /// 当前 Cell 绑定的消息身份，用于拒绝复用后的转场目标。
     var previewMessageID: Int? { message?.id }
-    /// 当前布局允许的媒体内容最大宽度，单位为点。
-    private var maximumMediaWidth: CGFloat = 252
     /// 当前绑定的消息展示模型；未配置或复用清理后为 `nil`。
     private var message: MessagePresentation?
-    // 估算行在动画事务内首次配置时，普通 UIView 的 intrinsic size 可能被 10 × 10
-    // 占位测量吞掉。把已解析的媒体尺寸直接写进 Cell 布局值，确保第一次自适应测量
-    // 就包含完整卡片栈，而不是只留下数量标题的高度。
-    /// 媒体内容经过宽度限制后采用的布局尺寸。
-    private var mediaSize = CGSize(width: 252, height: 252)
-
     /// 媒体封面变化时向时间线转发消息身份和索引的闭包。
     var frontIndexDidChange: ((Int, Int) -> Void)?
     /// 向页面请求媒体全屏预览的闭包，携带消息、媒体组和起始索引。
@@ -57,9 +47,9 @@ final class MediaBubbleCell: QuickLayoutCollectionViewCell {
                 spacing: 3
             ) {
                 HStack(spacing: 8) {
-                    mediaView.frame(width: mediaSize.width, height: mediaSize.height)
+                    mediaView
                     if showsSaveButton {
-                        saveButton.frame(width: 44, height: 44).padding(.top, mediaHeaderHeight)
+                        saveButton.frame(width: 44, height: 44).padding(.top, mediaView.headerHeight)
                     }
                 }
                 if message?.deliveryText != nil { deliveryStatusView }
@@ -111,7 +101,6 @@ final class MediaBubbleCell: QuickLayoutCollectionViewCell {
     ) {
         self.message = message
         showsSaveButton = AttachmentSavePolicy.showsButton(for: message)
-        mediaHeaderHeight = group.items.count > 1 ? 32 : 0
         saveButton.configure(saveState, isMedia: true)
         deliveryStatusView.configure(message)
         deliveryLabel.text = message.deliveryText
@@ -123,29 +112,7 @@ final class MediaBubbleCell: QuickLayoutCollectionViewCell {
             frontIndex: frontIndex,
             strings: strings
         )
-        resolveMediaSize()
         setNeedsQuickLayout()
-    }
-
-    /// 根据列表提供的宽度更新内容宽度限制，并返回自适应高度的布局属性。
-    override func preferredLayoutAttributesFitting(_ attributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
-        maximumMediaWidth = max(1, attributes.size.width - 24 - (showsSaveButton ? 52 : 0))
-        resolveMediaSize()
-        setNeedsQuickLayout()
-        // UIKit 在真实 compositional 列表中通过 Auto Layout 测量 contentView，
-        // 无约束的 QuickLayout 内容会保留 52pt 估值。显式交付布局测量结果，
-        // 避免卡片按完整尺寸绘制、消息行却仍按估值排布。
-        let fitted = attributes.copy() as! UICollectionViewLayoutAttributes
-        fitted.size = sizeThatFits(attributes.size)
-        return fitted
-    }
-
-    /// 根据当前媒体固有尺寸与单元格宽度限制计算媒体布局大小。
-    private func resolveMediaSize() {
-        let natural = mediaView.intrinsicContentSize
-        let scale = min(1, maximumMediaWidth / max(1, natural.width))
-        mediaSize = CGSize(width: natural.width * scale,
-                           height: mediaHeaderHeight + (natural.height - mediaHeaderHeight) * scale)
     }
 
     /// 为复用清理 `MediaBubbleCell` 的内容与临时状态。
@@ -160,7 +127,6 @@ final class MediaBubbleCell: QuickLayoutCollectionViewCell {
         deliveryLabel.text = nil
         deliveryLabel.accessibilityLabel = nil
         mediaView.reset()
-        mediaSize = CGSize(width: 252, height: 252)
         setNeedsQuickLayout()
     }
 }
