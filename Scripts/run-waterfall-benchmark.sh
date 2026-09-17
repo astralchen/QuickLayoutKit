@@ -15,7 +15,7 @@ if [[ -n "${WATERFALL_BASELINE_REV:-}" && -z "${WATERFALL_PREBUILT_PRODUCTS:-}" 
     exit 1
 fi
 TASK_PACKAGE_ARGS=()
-TASK_PROJECT="$TASK_ROOT/Demo/Demo.xcodeproj"
+TASK_CONTAINER_ARGS=(-workspace "$TASK_ROOT/QuickLayoutKit.xcworkspace")
 TASK_BUNDLE_ID=com.sondra.Demo
 TASK_BUILD_DESCRIPTION='Release, ENABLE_TESTABILITY=YES'
 if [[ -n "${WATERFALL_PACKAGE_CACHE:-}" ]]; then
@@ -23,12 +23,13 @@ if [[ -n "${WATERFALL_PACKAGE_CACHE:-}" ]]; then
 fi
 if [[ -n "${WATERFALL_PREBUILT_PRODUCTS:-}" ]]; then
     TASK_PROJECT="$(python3 "$TASK_ROOT/Scripts/make-waterfall-benchmark-project.py" "$TASK_ROOT" "$TASK_OUTPUT/Host" "$WATERFALL_PREBUILT_PRODUCTS")"
+    TASK_CONTAINER_ARGS=(-project "$TASK_PROJECT")
     TASK_PACKAGE_ARGS=()
     TASK_BUNDLE_ID=com.sondra.WaterfallBenchmark
     TASK_BUILD_DESCRIPTION='Release (-O) original layout and tests; isolated UIKit host; prebuilt QuickLayout dependencies'
 fi
 xcrun simctl bootstatus "$TASK_DEVICE" -b
-xcodebuild build-for-testing -project "$TASK_PROJECT" -scheme Demo \
+xcodebuild build-for-testing "${TASK_CONTAINER_ARGS[@]}" -scheme Demo \
     -configuration Release -destination "platform=iOS Simulator,id=$TASK_DEVICE" \
     -derivedDataPath "$TASK_OUTPUT/DerivedData" ${TASK_PACKAGE_ARGS[@]+"${TASK_PACKAGE_ARGS[@]}"} \
     -only-testing:DemoTests/WaterfallLayoutPerformanceTests -only-testing:DemoTests/WaterfallLayoutEngineTests \

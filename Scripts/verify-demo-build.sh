@@ -1,8 +1,10 @@
 #!/bin/sh
 set -eu
 
+TASK_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
 xcodebuild \
-  -project Demo/Demo.xcodeproj \
+  -workspace "$TASK_ROOT/QuickLayoutKit.xcworkspace" \
   -scheme Demo \
   -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath /private/tmp/QuickLayoutKitDemoDerivedData \

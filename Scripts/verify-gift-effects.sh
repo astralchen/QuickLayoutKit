@@ -1,8 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+TASK_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
 # 默认使用模拟器；可传入 xcodebuild 参数指定真机和开发团队。
-common=(-project Demo/Demo.xcodeproj
+common=(-workspace "$TASK_ROOT/QuickLayoutKit.xcworkspace"
         -derivedDataPath "${GIFT_EFFECTS_DERIVED_DATA:-/private/tmp/QuickLayoutGiftEffects}"
         -disableAutomaticPackageResolution -parallel-testing-enabled NO
         -collect-test-diagnostics never)

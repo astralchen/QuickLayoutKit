@@ -785,6 +785,20 @@ print(snapshot.totalLayoutPasses)
 
 ## Demo 与测试
 
+本地开发统一打开仓库根目录的 `QuickLayoutKit.xcworkspace`，在同一工作空间中管理
+QuickLayoutKit Swift Package 和 Demo 工程：
+
+```sh
+open QuickLayoutKit.xcworkspace
+```
+
+选择 `Demo` scheme 运行示例应用；选择 `QuickLayoutKit` scheme 构建库或运行库测试。
+工作空间同时提供 `ChatRegression`、`MediaBenchmark`、`RoomPK` 和
+`VoiceRoomGiftEffects` 共享 scheme，用于对应功能的回归与性能验证。
+Demo 通过本地路径依赖根目录的软件包，修改库源码会直接参与 Demo 构建。
+工作空间的依赖版本记录在 `QuickLayoutKit.xcworkspace/xcshareddata/swiftpm/Package.resolved`；
+根目录的 `Package.resolved` 用于独立使用 Swift Package 的场景。
+
 Demo 应用支持 iOS 15.0 及以上版本。`Chat` 功能使用 iOS 26 API，仅在 iOS 26
 及以上显示入口；其他演示页面保留 iOS 15 兼容路径。Xcode 预览要求 iOS 17，聊天预览要求
 iOS 26。Demo 单元测试和 UI 测试目标同样支持 iOS 15；聊天相关用例在 iOS 26 以下明确跳过，
@@ -808,7 +822,14 @@ swift test
 Scripts/verify-demo-build.sh
 ```
 
-Demo 的单元测试和界面测试通过 `Demo/Demo.xcodeproj` 中的共享 `Demo` scheme 运行。编译、
+Demo 的单元测试和界面测试通过工作空间中的共享 `Demo` scheme 运行，例如：
+
+```sh
+xcodebuild -workspace QuickLayoutKit.xcworkspace -scheme Demo \
+  -destination 'platform=iOS Simulator,name=iPhone 18 Pro' test
+```
+
+模拟器名称请按本机已安装的设备调整。编译、
 单元测试、界面测试、模拟器运行和真机验证属于不同验证层级，应分别记录结果。
 
 ## 许可证

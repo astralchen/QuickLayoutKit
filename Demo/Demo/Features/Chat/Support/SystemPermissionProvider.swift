@@ -33,7 +33,7 @@ final class SystemPermissionProvider:
             return false
         case .undetermined:
             return await withCheckedContinuation { continuation in
-                AVAudioApplication.requestRecordPermission { granted in
+                AVAudioApplication.requestRecordPermission { @Sendable granted in
                     continuation.resume(returning: granted)
                 }
             }
@@ -51,7 +51,8 @@ final class SystemPermissionProvider:
             return false
         case .notDetermined:
             return await withCheckedContinuation { continuation in
-                SFSpeechRecognizer.requestAuthorization { status in
+                // 系统可能在后台队列回调，避免闭包继承 MainActor 隔离。
+                SFSpeechRecognizer.requestAuthorization { @Sendable status in
                     continuation.resume(returning: status == .authorized)
                 }
             }

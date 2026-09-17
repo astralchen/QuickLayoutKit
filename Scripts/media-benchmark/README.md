@@ -18,7 +18,7 @@
 `DEBUG` 仅供已有 Demo 测试夹具编译；A/B 必须使用同一个已签名应用与测试运行器。
 使用 `-onlyUsePackageVersionsFromResolvedFile` 固定依赖，不能在测量中构建其他版本。
 
-1. `xcodebuild ... -configuration Release ... build-for-testing`
+1. `xcodebuild -workspace QuickLayoutKit.xcworkspace -scheme MediaBenchmark ... -configuration Release ... build-for-testing`（从仓库根目录执行）
 2. `python3 Scripts/media-benchmark/configure-run.py <生成的.xctestrun> <输出.xctestrun> --pairs 20`
 3. `xcodebuild test-without-building -xctestrun <输出> -destination 'platform=iOS,id=<UDID>' -parallel-testing-enabled NO -only-testing:DemoUITests/ChatMediaConcurrencyPerformanceTests -resultBundlePath <结果.xcresult>`
 
