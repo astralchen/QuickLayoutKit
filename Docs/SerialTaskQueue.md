@@ -115,22 +115,32 @@ let result = await task.result
 
 ## 可组合的超时
 
+名称参照 `withTaskGroup`、`withTaskCancellationHandler`。iOS 16 起，时间接口与 `Task.sleep(for:tolerance:clock:)` 一致：
+
 ```swift
 let task = queue.addTask {
-    try await withTimeout(60) {
+    try await withTaskTimeout(for: .seconds(60)) {
         try await sequence.play(gift: gift, quantity: 1, reducedMotion: false)
     }
 }
 let result = await task.result
 ```
 
-`withTimeout` 使用结构化任务组竞速操作与计时，先观察到的结果获胜，取消剩余子任务并等待其退出后返回。普通错误保持原样，计时获胜后抛出 TimeoutError。
+`for:` 接受 `C.Instant.Duration`，默认 `clock: .continuous`、`tolerance: nil`。也可使用 `withTaskTimeout(for: .milliseconds(500), tolerance: .milliseconds(10), clock: clock) { ... }` 指定容差或注入自定义时钟。时长要求非负，零时长仍参与竞速，不保证操作一定不会启动。Duration 路径直接调用标准库计时，不经过浮点秒数或纳秒转换。
+
+Demo 和库继续支持 iOS 15；该系统使用 `withTaskTimeout(seconds: 60) { ... }` 兼容入口。礼物协调器保留秒数配置，按系统版本选择入口并共用播放闭包。两个入口共用竞速与取消实现，均保持调用方隔离。
+
+`withTaskTimeout` 使用结构化任务组竞速操作与计时，先观察到的结果获胜，取消剩余子任务并等待其退出后返回。普通错误保持原样，计时获胜后抛出 TimeoutError。
+
+仅计时正常结束时产生 TimeoutError；计时取消和自定义时钟错误原样传播。容差原样交给 Clock，可能使实际计时晚于指定时长。
+
+操作闭包参照 `Task {}` 默认继承调用处的 Actor 隔离：主 Actor、自定义 Actor 和非隔离代码均可调用，也可显式传入 `@MainActor` 闭包。接口通过 `@_inheritActorContext` 继承上下文、`@isolated(any)` 保留操作自身的隔离，并通过 `sending` 接受可安全转移的捕获；结果仍要求 `Sendable`。继承 Actor 隔离不等于固定线程，也不会自动把主 Actor 上的耗时计算转移到后台。礼物调用继续继承其调用处的 MainActor。
 
 超时从任务获得执行许可并进入包装函数时开始，不包含排队时间。到期意味着请求取消，不保证在指定秒数内返回；不合作的操作退出前，不报告最终结果或开始下一队列项。父 Task 取消会传播到子任务，调用前已经取消时不会启动操作。
 
 ## 礼物接入
 
-GiftMainEffectCoordinator 管理 isActive 和页面生命周期；关闭接收时调用 cancelAll，重新显示只接收新的赠送。每次成功赠送提交一个任务，整组通过 withTimeout 共享 60 秒期限。
+GiftMainEffectCoordinator 管理 isActive 和页面生命周期；关闭接收时调用 cancelAll，重新显示只接收新的赠送。每次成功赠送提交一个任务，整组通过 withTaskTimeout 共享 60 秒期限。
 
 礼物调用方继续省略业务 ID、调度和替换参数，自动生成 ID，采用 `.normal`、`.enqueue` 和 nil key。每份已扣款赠送独立排队，连续赠送不会被合并或替换。
 

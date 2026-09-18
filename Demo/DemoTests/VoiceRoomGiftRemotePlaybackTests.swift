@@ -80,7 +80,7 @@ final class VoiceRoomGiftRemotePlaybackTests: XCTestCase {
         let player = GiftMainEffectPlayer(containerView: container, reduceMotionEnabled: { false })
         let queue = SerialTaskQueue()
         let task = queue.addTask {
-            try await withTimeout(60) {
+            try await withTaskTimeout(for: .seconds(60)) {
                 guard let effect = gift.effects.first else { throw GiftMainEffectPlaybackError.unavailable }
                 try await player.play(effect: effect, gift: gift, quantity: 1)
             }

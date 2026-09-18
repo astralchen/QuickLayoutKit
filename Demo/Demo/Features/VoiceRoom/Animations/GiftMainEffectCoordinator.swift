@@ -75,8 +75,13 @@ final class GiftMainEffectCoordinator {
         let sequence = GiftEffectSequence(makePlayer: makePlayer, makeNativePlayer: makeNativePlayer)
         return queue.addTask { [reduceMotionEnabled, timeout, logger] in
             do {
-                try await withTimeout(timeout) {
+                let play: @MainActor () async throws -> Void = {
                     try await sequence.play(gift: gift, quantity: quantity, reducedMotion: reduceMotionEnabled())
+                }
+                if #available(iOS 16.0, *) {
+                    try await withTaskTimeout(for: .seconds(timeout), operation: play)
+                } else {
+                    try await withTaskTimeout(seconds: timeout, operation: play)
                 }
             } catch {
                 if !(error is CancellationError) {

@@ -16,7 +16,7 @@ fi
 
 # Swift Testing 使用命令行筛选，避免与 XCTest 的 scheme 标识解析混淆。
 unit_tests=(-only-testing:DemoTests/SerialTaskQueueTests
-            -only-testing:DemoTests/WithTimeoutTests
+            -only-testing:DemoTests/WithTaskTimeoutTests
             -only-testing:DemoTests/GiftPlaybackOperationTests
             -only-testing:DemoTests/VoiceRoomGiftMainEffectTests
             -only-testing:DemoTests/SeatStageTransitionTests

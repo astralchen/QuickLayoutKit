@@ -662,16 +662,16 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/astralchen/VAPView.git";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
+				branch = main;
+				kind = branch;
 			};
 		};
 		AB1500000000000000000021 /* XCRemoteSwiftPackageReference "SVGAView" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/astralchen/SVGAView.git";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
+				branch = main;
+				kind = branch;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
