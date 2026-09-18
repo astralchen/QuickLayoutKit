@@ -262,17 +262,10 @@ extension VoiceRoomViewController {
         let centerIndex = CGFloat(currentRecipients.count - 1) / 2
         for (index, recipient) in currentRecipients.enumerated() {
             guard let userID = recipient.userID else { continue }
-            let endPoint = if seatTransitionCoordinator.isTransitioning {
-                seatTransitionCoordinator.giftTargetPoint(
-                    for: userID,
-                    in: giftEffectOverlayView
-                )
-            } else {
-                seatStageView.giftTargetPoint(
-                    forUserID: userID,
-                    in: giftEffectOverlayView
-                )
-            }
+            let endPoint = seatStageView.giftTargetPoint(
+                forUserID: userID,
+                in: giftEffectOverlayView
+            )
             guard let endPoint else { continue }
             lastGiftAnimationTargetPoints.append(endPoint)
             let startPoint = CGPoint(

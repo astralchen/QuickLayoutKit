@@ -305,7 +305,7 @@ struct RoomPKTests {
     }
 
     @Test(arguments: [false, true])
-    func rapidTransitionsAndReducedMotionKeepLatestLayoutAndGiftAnchor(reducedMotion: Bool) throws {
+    func rapidTransitionsAndReducedMotionKeepLatestLayoutAndGiftAnchor(reducedMotion: Bool) async throws {
         let controller = UIViewController()
         let stage = SeatStageView(frame: CGRect(x: 0, y: 0, width: 360, height: 360))
         let messages = RoomPublicChatView(frame: CGRect(x: 0, y: 370, width: 360, height: 100))
@@ -313,21 +313,20 @@ struct RoomPKTests {
         controller.view.addSubview(messages)
         let window = try makeVisibleTestWindow(rootViewController: controller)
         defer { window.isHidden = true }
-        let coordinator = SeatStageTransitionCoordinator(stageView: stage, messagesView: messages,
-            isReduceMotionEnabled: { reducedMotion })
+        stage.isReduceMotionEnabled = { reducedMotion }
         let party = try SeatLayoutResolver.resolve(snapshot: VoiceRoomViewModel.makeDefaultStageSnapshot()).get()
         let pk = try SeatLayoutResolver.resolve(snapshot: snapshot()).get()
         stage.apply(presentation: party)
-        stage.layoutIfNeeded()
-        coordinator.transition(to: pk, animated: true, in: controller.view) { stage.layoutIfNeeded() }
-        coordinator.transition(to: party, animated: true, in: controller.view) { stage.layoutIfNeeded() }
-        coordinator.finishImmediately()
+        try await waitForSeatUpdates(stage)
+        stage.apply(presentation: pk, animated: true)
+        stage.apply(presentation: party, animated: true)
+        try await waitForSeatUpdates(stage)
         #expect(stage.seatCollectionView.numberOfItems(inSection: 0) == 9)
         #expect(stage.allSubviews(of: RoomPKDecorationView.self).isEmpty)
-        coordinator.transition(to: pk, animated: true, in: controller.view) { stage.layoutIfNeeded() }
-        coordinator.finishImmediately()
+        stage.apply(presentation: pk, animated: true)
+        try await waitForSeatUpdates(stage)
         #expect(stage.seatCollectionView.numberOfItems(inSection: 0) == 18)
-        #expect(!coordinator.isTransitioning)
+        #expect(!stage.isApplyingUpdate)
         let hostID = try #require(VoiceRoomViewModel.hostAssignment.userID)
         let anchor = try #require(stage.giftTargetPoint(forUserID: hostID, in: controller.view))
         #expect(anchor.x < stage.frame.midX)
@@ -335,7 +334,7 @@ struct RoomPKTests {
         #expect(decoration.alpha == 1)
     }
 
-    @Test func pkDataOnlyUpdatesDoNotStartGeometryTransition() throws {
+    @Test func pkDataOnlyUpdatesDoNotStartGeometryTransition() async throws {
         let source = try SeatLayoutResolver.resolve(snapshot: snapshot()).get()
         let original = snapshot().assignments
         let updated = original.map { seat in
@@ -347,11 +346,11 @@ struct RoomPKTests {
         #expect(!SeatTransitionDescriptor(from: source, to: destination).requiresTransition)
         let stage = SeatStageView(frame: CGRect(x: 0, y: 0, width: 360, height: 450))
         stage.apply(presentation: try SeatLayoutResolver.resolve(snapshot: VoiceRoomViewModel.makeDefaultStageSnapshot()).get())
-        #expect(stage.prepareTransition(to: source))
-        stage.applyDataUpdate(presentation: destination)
-        stage.finishTransitionImmediately()
+        stage.apply(presentation: source, animated: true)
+        stage.apply(presentation: destination)
+        try await waitForSeatUpdates(stage)
         #expect(stage.seatCollectionView.numberOfItems(inSection: 0) == 18)
-        #expect(stage.transitioningUserIDs.isEmpty)
+        #expect(!stage.isApplyingUpdate)
     }
 
     @Test func cardsIdentifyRoomAndStageShowsOccupiedZeroScore() throws {

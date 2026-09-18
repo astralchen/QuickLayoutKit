@@ -10,7 +10,7 @@ import Foundation
 /// 描述两次舞台 Presentation 之间是否存在需要动画的几何变化。
 ///
 /// `revision`、分数和音频状态不属于舞台几何。只有布局、可见 Slot 或用户所在
-/// Slot 发生变化时，Controller 才创建场景级过渡动画。
+/// Slot 发生变化时，舞台才请求 CollectionView 几何动画。
 struct SeatTransitionDescriptor: Equatable {
 
     /// 一个布尔值，指示布局或用户占位变化是否需要几何转场。

@@ -80,13 +80,6 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
     var audienceSheetViewController:
         AudienceSheetViewController?
 
-    /// 同步麦位舞台、公屏和页面布局的场景转场协调器。
-    lazy var seatTransitionCoordinator =
-        SeatStageTransitionCoordinator(
-            stageView: seatStageView,
-            messagesView: messagesView
-        )
-
     /// 当前舞台的可见麦位数量。
     var displayedSeatCount: Int {
         renderedState?.stagePresentation.visibleSlots.count ?? 0
@@ -226,9 +219,6 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
         let didChangeCompactPresentation = seatStageView.setCompactPresentation(
             usesCompactPageLayout
         )
-        if didChangeCompactPresentation {
-            seatTransitionCoordinator.finishImmediately()
-        }
         let requiredActionBarHeight = actionBarView.bounds.height > 0
             ? actionBarView.bounds.height + 10
             : 65
@@ -257,7 +247,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
     /// 安全区变化时结束旧几何转场，并请求重新布局页面。
     override func viewSafeAreaInsetsDidChange() {
         super.viewSafeAreaInsetsDidChange()
-        seatTransitionCoordinator.finishImmediately()
+        seatStageView.finishUpdatesImmediately()
         setNeedsQuickLayout()
     }
 
@@ -266,7 +256,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
         to size: CGSize,
         with coordinator: any UIViewControllerTransitionCoordinator
     ) {
-        seatTransitionCoordinator.finishImmediately()
+        seatStageView.finishUpdatesImmediately()
         super.viewWillTransition(to: size, with: coordinator)
     }
 
@@ -283,7 +273,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
         giftFlightAnimators.removeAll()
         followRequestTask?.cancel()
         followRequestTask = nil
-        seatTransitionCoordinator.finishImmediately()
+        seatStageView.finishUpdatesImmediately()
         giftSheetHost?.dismantleViewController()
         giftSheetHost = nil
         giftSheetViewController = nil
@@ -313,7 +303,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
     override func reloadLayoutDirection(
         _ direction: UIUserInterfaceLayoutDirection
     ) {
-        seatTransitionCoordinator.finishImmediately()
+        seatStageView.finishUpdatesImmediately()
         super.reloadLayoutDirection(direction)
         let semanticAttribute = direction
             .appLayoutDirection
@@ -436,7 +426,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
             for: UIApplication.willResignActiveNotification
         )
         .sink { [weak self] _ in
-            self?.seatTransitionCoordinator.finishImmediately()
+            self?.seatStageView.finishUpdatesImmediately()
         }
         .store(in: &cancellables)
     }
@@ -463,15 +453,12 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
             from: previousPresentation,
             to: state.stagePresentation
         )
-        seatTransitionCoordinator.transition(
-            to: state.stagePresentation,
-            animated: transition.requiresTransition,
-            in: view
-        ) { [weak self] in
-            guard let self else { return }
-            self.setNeedsQuickLayout()
-            self.view.layoutIfNeeded()
-        }
+        seatStageView.apply(
+            presentation: state.stagePresentation,
+            animated: transition.requiresTransition
+        )
+        setNeedsQuickLayout()
+        view.layoutIfNeeded()
         giftSheetViewController?.updateRecipients(state.visibleRecipients)
         if previousState?.audienceMembers != state.audienceMembers
             || previousState?.audienceCount != state.audienceCount {

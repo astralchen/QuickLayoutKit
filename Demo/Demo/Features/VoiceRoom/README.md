@@ -8,7 +8,7 @@
 - `ViewModels`：直播间状态、送礼选择与交易校验、充值选择与入账；不执行导航和 UIKit 动画。
 - `Views`：只负责布局、渲染、用户输入和无障碍反馈，按聊天、麦位、送礼、充值等子域拆分。
 - `Controllers`：绑定 ViewModel，协调导航、键盘、子控制器 containment 和跨视图动画。
-- `Animations`：可独立生命周期的送礼特效与麦位场景转场协调。
+- `Animations`：可独立生命周期的送礼特效，以及麦位几何变化的判定。
 - `Support`：跨子域共享的主题、预览数据与轻量辅助能力。
 
 ## 约束
@@ -45,8 +45,10 @@
 - `SeatStageView` 持有不可滚动的 `UICollectionView`，舞台高度由外层 QuickLayout 管理，麦位内部不形成第二个滚动区域。
 - Diffable Item 身份固定为“有用户用 `userID`、空麦用 `slotID`”；`seatID` 只标识音频实体，不参与视图移动身份。
 - `SeatCollectionGeometry` 根据已校验的 Presentation、客户端布局家族、Metrics 与 RTL 方向生成绝对 Frame，自定义 Layout 不读取 ViewModel。
-- 房型切换、上下麦和换麦直接动画真实 Cell 的 Frame、透明度与内容；不创建截图、镜像麦位或专用转场 Overlay。
-- 快速连续切换时，取消旧几何动画并无动画提交最新合法快照，避免反向续播过期房型；仅分数、音频状态等数据变化时只刷新 Cell，不中断当前场景动画。
+- 房型切换、上下麦和换麦由 `SeatCollectionLayout` 的 UIKit 更新回调动画真实 Cell 的位置、尺寸与透明度；新增／删除使用 0.96 倍缩放淡入淡出。Cell 始终只保留一个真实 `SeatView`，内容直接更新。
+- `SeatStageView.apply(presentation:animated:)` 是统一提交入口；身份不变的几何变化使用独立 batch update，纯内容变化只刷新 Cell。舞台高度、公屏位置与 PK 装饰直接更新，不再依赖场景转场协调器。
+- 快速连续切换仅保留最新目标，等待当前 UIKit 更新完成后无动画提交；分数、音频状态等内容更新不会打断几何动画。更新期间临时关闭麦位交互并允许退出 Cell 超出容器，完成后恢复交互、裁剪与辅助功能顺序。
+- 首次展示、不可见、禁用动画及减少动态效果时直接提交；环境变化和退出页面会停止可见动画，串行收敛最新状态。送礼锚点始终从真实头像的 presentation layer 查询。
 
 ## 麦位显示规则
 

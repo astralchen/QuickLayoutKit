@@ -6,6 +6,7 @@
 //
 
 import CoreGraphics
+import QuickLayoutKit
 import Testing
 import UIKit
 @testable import Demo
@@ -105,69 +106,76 @@ struct SeatStageTransitionTests {
         withExtendedLifetime(collection) {}
     }
 
-    @Test func transitionInterpolatesAndMeasurementDoesNotMutateLayout() throws {
-        var section = makeLayoutTestSection(count: 5)
-        let shared = section.items[0]
-        let moved = SeatLayoutItem(identifier: shared.identifier, slotID: shared.slotID,
-            position: SeatPosition(rawValue: 1), roomSide: shared.roomSide, styleID: shared.styleID)
-        let entrant = SeatLayoutItem(identifier: .user(.init(rawValue: "new-user")), slotID: .init(rawValue: "new-slot"),
-            position: SeatPosition(rawValue: 0), roomSide: .current, styleID: .standardHost)
-        let destination = SeatLayoutSection(layoutID: .individualAudience, layoutFamily: .individualAudience,
-            items: [entrant, moved], metrics: .compact)
-        let layout = SeatCollectionLayout { _, _ in section }
-        let collection = SeatLayoutCountTestCollectionView(frame: CGRect(x: 0, y: 0, width: 360, height: 700), collectionViewLayout: layout)
-        collection.snapshotCounts = [5]
-        let original = try #require(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))?.frame)
-        let targetSize = layout.sizeThatFits(collection.bounds.size, for: destination, layoutDirection: .leftToRight)
-        #expect(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))?.frame == original)
-        layout.beginTransition(to: destination)
-        collection.snapshotCounts = [6]
-        #expect(layout.itemIdentifiers == destination.itemIdentifiers + Array(section.itemIdentifiers.dropFirst()))
-        let start = try #require(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0)))
-        #expect(start.frame == original)
-        #expect(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))?.alpha == 0)
-        layout.transitionProgress = 1
-        let end = try #require(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0)))
-        #expect(layout.collectionViewContentSize == targetSize)
-        layout.transitionProgress = 0.5
-        let mid = try #require(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0)))
-        #expect(abs(mid.frame.midX - (start.frame.midX + end.frame.midX) / 2) < 0.001)
-        #expect(abs(mid.frame.height - (start.frame.height + end.frame.height) / 2) < 0.001)
-        for index in [0, 2] {
-            let faded = try #require(layout.layoutAttributesForItem(at: IndexPath(item: index, section: 0)))
-            #expect(faded.alpha == 0.5)
-            #expect(abs(faded.transform.a - 0.93) < 0.001)
+    @Test func nativeUpdatesPreserveIdentityAndDeletionGeometry() async throws {
+        let fixture = try SeatUpdateFixture()
+        defer { fixture.window.isHidden = true }
+        let source = makeLayoutTestSection(count: 3)
+        await fixture.apply(source)
+        let oldFrames = try (0..<3).map {
+            try #require(fixture.layout.layoutAttributesForItem(at: IndexPath(item: $0, section: 0))?.frame)
         }
-        _ = layout.sizeThatFits(CGSize(width: 760, height: 0), for: destination, layoutDirection: .rightToLeft)
-        #expect(layout.transitionProgress == 0.5)
-        #expect(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0))?.frame == mid.frame)
-        layout.transitionProgress = 2
-        #expect(layout.transitionProgress == 1)
-        section = destination
-        layout.finishTransition()
-        collection.snapshotCounts = [2]
-        #expect(layout.itemIdentifiers == destination.itemIdentifiers)
-        #expect(layout.collectionViewContentSize == targetSize)
-        #expect(layout.layoutAttributesForElements(in: .infinite)?.allSatisfy { $0.alpha == 1 && $0.transform == .identity } == true)
-        layout.transitionProgress = 0.5
-        #expect(layout.transitionProgress == 0)
-        withExtendedLifetime(collection) {}
+        let entrant = makeLayoutTestSection(count: 4).items[3]
+        let reordered = [source.items[2], source.items[0], entrant].enumerated().map { index, item in
+            SeatLayoutItem(identifier: item.identifier, slotID: item.slotID, position: .init(rawValue: index),
+                roomSide: item.roomSide, styleID: item.styleID)
+        }
+        let target = SeatLayoutSection(layoutID: .partyNine, layoutFamily: .partyGrid,
+            items: reordered, metrics: .regular)
+        await fixture.apply(target, animated: true)
+        let deleted = try #require(fixture.layout.disappearing[IndexPath(item: 1, section: 0)]?.last)
+        #expect(deleted.alpha == 0)
+        #expect(deleted.transform.a == 0.96)
+        deleted.transform = .identity
+        #expect(deleted.frame == oldFrames[1])
+        let movedFrom = try #require(fixture.movementOrigins[source.items[2].identifier])
+        #expect(movedFrom == CGPoint(x: oldFrames[2].midX, y: oldFrames[2].midY))
+        let inserted = try #require(fixture.layout.appearing[IndexPath(item: 2, section: 0)]?.last)
+        #expect(inserted.alpha == 0 && inserted.transform.a == 0.96)
+        let current = try #require(fixture.layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0)))
+        #expect(current.frame != oldFrames[2])
+        #expect(current.alpha == 1 && current.transform == .identity)
+        // 后续更新必须从刚刚完成的目标几何开始，不能复用第一轮缓存。
+        let latestFrame = current.frame
+        await fixture.apply(source, animated: true)
+        #expect(fixture.movementOrigins[source.items[2].identifier] == CGPoint(x: latestFrame.midX, y: latestFrame.midY))
     }
 
-    @Test func finishingTransitionRequeriesProviderEvenWhenSourceIsUnchanged() throws {
-        let source = makeLayoutTestSection(count: 1)
-        let layout = SeatCollectionLayout(section: source)
-        let collection = SeatLayoutCountTestCollectionView(frame: CGRect(x: 0, y: 0, width: 360, height: 600), collectionViewLayout: layout)
-        collection.snapshotCounts = [1]
-        layout.beginTransition(to: makeLayoutTestSection(count: 9))
-        #expect(layout.itemIdentifiers.count == 9)
-        layout.finishTransition()
-        #expect(layout.itemIdentifiers == source.itemIdentifiers)
-        #expect(layout.layoutAttributesForElements(in: .infinite)?.count == 1)
-        withExtendedLifetime(collection) {}
+    @Test func sameIdentityBatchUpdatesAnimateGeometryAndMeasurementIsPure() async throws {
+        let fixture = try SeatUpdateFixture()
+        defer { fixture.window.isHidden = true }
+        let source = makeLayoutTestSection(count: 3)
+        await fixture.apply(source)
+        let oldFrame = try #require(fixture.layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))?.frame)
+        let target = SeatLayoutSection(layoutID: .individualAudience, layoutFamily: .individualAudience,
+            items: source.items, metrics: .regular)
+        let size = fixture.layout.sizeThatFits(fixture.collection.bounds.size, for: target, layoutDirection: .leftToRight)
+        #expect(fixture.layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))?.frame == oldFrame)
+        let host = try #require(fixture.collection.cellForItem(at: IndexPath(item: 0, section: 0)))
+        var animatedSourceSize: CGSize?
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            fixture.collection.performBatchUpdates {
+                fixture.layout.invalidateLayout()
+                fixture.section = target
+            } completion: { _ in continuation.resume() }
+            CATransaction.flush()
+            if let animation = host.layer.animation(forKey: "bounds.size") as? CABasicAnimation,
+               let value = animation.fromValue as? NSValue {
+                let start = value.cgSizeValue
+                animatedSourceSize = animation.isAdditive
+                    ? CGSize(width: host.bounds.width + start.width, height: host.bounds.height + start.height)
+                    : start
+            }
+        }
+        #expect(animatedSourceSize == oldFrame.size)
+        #expect(fixture.layout.collectionViewContentSize == size)
+        #expect(fixture.layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))?.frame != oldFrame)
+        fixture.layout.finishUpdates()
+        fixture.layout.finishUpdates()
+        await fixture.apply(source)
+        #expect(fixture.layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))?.frame == oldFrame)
     }
 
-    @Test func roomModeTransitionsKeepOnlyCurrentSnapshotAttributes() throws {
+    @Test func roomModeTransitionsKeepOnlyCurrentSnapshotAttributes() async throws {
         let controller = UIViewController()
         let stage = SeatStageView(frame: CGRect(x: 0, y: 0, width: 360, height: 450))
         controller.view.addSubview(stage)
@@ -189,18 +197,8 @@ struct SeatStageTransitionTests {
                 roomMode: entry.0,
                 audienceSeatState: entry.1
             ))
-            if offset == 0 {
-                stage.apply(presentation: destination)
-            } else {
-                #expect(stage.prepareTransition(to: destination))
-                stage.animatePreparedTransition()
-                let collection = stage.seatCollectionView
-                let attributes = try #require(collection.collectionViewLayout.layoutAttributesForElements(in: .infinite))
-                #expect(attributes.allSatisfy {
-                    $0.indexPath.section == 0 && $0.indexPath.item < collection.numberOfItems(inSection: 0)
-                })
-                stage.completePreparedTransition()
-            }
+            stage.apply(presentation: destination, animated: offset != 0)
+            try await waitForSeatUpdates(stage)
             stage.layoutIfNeeded()
             let collection = stage.seatCollectionView
             let layout = collection.collectionViewLayout
@@ -405,7 +403,7 @@ struct SeatStageTransitionTests {
         )
     }
 
-    @Test func dataOnlyChangesDoNotCreateSceneTransition() throws {
+    @Test func dataOnlyChangesDoNotRequestGeometryAnimation() throws {
         let sourceSnapshot = VoiceRoomViewModel.makeDefaultStageSnapshot()
         let changedAssignments = sourceSnapshot.assignments.map { assignment in
             let isOccupied = assignment.occupant != nil
@@ -433,7 +431,7 @@ struct SeatStageTransitionTests {
         #expect(!descriptor.requiresTransition)
     }
 
-    @Test func layoutVariantAndUserSlotChangesCreateSceneTransition() throws {
+    @Test func layoutVariantAndUserSlotChangesRequireGeometryAnimation() throws {
         let partySnapshot = VoiceRoomViewModel.makeDefaultStageSnapshot()
         let individualSnapshot = VoiceRoomViewModel.makeDefaultStageSnapshot(
             revision: 2,
@@ -474,215 +472,234 @@ struct SeatStageTransitionTests {
         )
     }
 
-    @Test func sharedHostAndStageUseTheSameInteractiveTimeline() throws {
-        let animationsWereEnabled = UIView.areAnimationsEnabled
-        UIView.setAnimationsEnabled(true)
-        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
-
-        let viewModel = VoiceRoomViewModel()
-        let viewController = VoiceRoomViewController(viewModel: viewModel)
-        installTransitionCoordinator(
-            in: viewController,
-            isReduceMotionEnabled: false
-        )
-        let navigationController = UINavigationController(
-            rootViewController: viewController
-        )
-        let window = try makeTransitionTestWindow(
-            rootViewController: navigationController,
-            size: CGSize(width: 402, height: 874)
-        )
-        defer {
-            viewController.seatTransitionCoordinator.finishImmediately()
-            window.isHidden = true
-        }
-
-        let hostID = try #require(
-            viewModel.state.displayedSeats.first?.userID
-        )
-        let sourcePoint = try #require(
-            viewController.seatStageView.giftTargetPoint(
-                forUserID: hostID,
-                in: viewController.view
-            )
-        )
-
-        #expect(
-            viewModel.consumeStageSnapshot(
-                VoiceRoomViewModel.makeDefaultStageSnapshot(
-                    revision: 2,
-                    roomMode: .individual,
-                    audienceSeatState: .disabled
-                )
-            )
-        )
-        let animator = try #require(
-            viewController.seatTransitionCoordinator.testingAnimator
-        )
-        animator.pauseAnimation()
-        animator.fractionComplete = 0.5
-
-        let middlePoint = try #require(
-            viewController.seatTransitionCoordinator.giftTargetPoint(
-                for: hostID,
-                in: viewController.view
-            )
-        )
-        #expect(viewController.seatTransitionCoordinator.isTransitioning)
-        #expect(
-            viewController.seatTransitionCoordinator.testingActiveUserIDs
-                .contains(hostID)
-        )
-        viewController.seatTransitionCoordinator.finishImmediately()
-        let destinationPoint = try #require(
-            viewController.seatStageView.giftTargetPoint(
-                forUserID: hostID,
-                in: viewController.view
-            )
-        )
-        #expect(
-            pointLiesBetween(
-                middlePoint,
-                sourcePoint,
-                destinationPoint,
-                tolerance: 2
-            )
-        )
-        #expect(!viewController.seatStageView.seatCollectionView.isScrollEnabled)
+    @Test func rapidGeometricReplacementCommitsOnlyLatestTarget() async throws {
+        let controller = UIViewController()
+        let stage = SeatStageView(frame: CGRect(x: 0, y: 0, width: 360, height: 450))
+        controller.view.addSubview(stage)
+        let window = try makeTransitionTestWindow(rootViewController: controller, size: CGSize(width: 390, height: 844))
+        defer { window.isHidden = true }
+        let source = try presentation(for: VoiceRoomViewModel.makeDefaultStageSnapshot())
+        stage.apply(presentation: source)
+        try await waitForSeatUpdates(stage)
+        let originalClipping = stage.seatCollectionView.clipsToBounds
+        stage.apply(presentation: try presentation(for: VoiceRoomViewModel.makeDefaultStageSnapshot(
+            revision: 2, roomMode: .individual, audienceSeatState: .disabled)), animated: true)
+        #expect(stage.isApplyingUpdate)
+        #expect(!stage.seatCollectionView.isUserInteractionEnabled)
+        #expect(!stage.seatCollectionView.clipsToBounds)
+        stage.apply(presentation: try presentation(for: VoiceRoomViewModel.makeDefaultStageSnapshot(
+            revision: 3, roomMode: .pk(styleID: "room.nine"))), animated: true)
+        stage.apply(presentation: source, animated: true)
+        try await waitForSeatUpdates(stage)
+        #expect(stage.seatCollectionView.numberOfItems(inSection: 0) == 9)
+        #expect(stage.allSubviews(of: RoomPKDecorationView.self).isEmpty)
+        #expect(stage.seatCollectionView.isUserInteractionEnabled)
+        #expect(!stage.accessibilityElementsHidden)
+        #expect(stage.seatCollectionView.clipsToBounds == originalClipping)
+        #expect(stage.seatCollectionView.visibleCells.count == 9)
+        #expect(stage.seatCollectionView.visibleCells.allSatisfy { $0.allSubviews(of: SeatView.self).count == 1 })
     }
 
-    @Test func rapidGeometricReplacementCommitsLatestStateWithoutSecondAnimation() throws {
-        let animationsWereEnabled = UIView.areAnimationsEnabled
-        UIView.setAnimationsEnabled(true)
-        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
-
-        let viewModel = VoiceRoomViewModel()
-        let viewController = VoiceRoomViewController(viewModel: viewModel)
-        installTransitionCoordinator(
-            in: viewController,
-            isReduceMotionEnabled: false
-        )
-        let navigationController = UINavigationController(
-            rootViewController: viewController
-        )
-        let window = try makeTransitionTestWindow(
-            rootViewController: navigationController,
-            size: CGSize(width: 402, height: 874)
-        )
-        defer {
-            viewController.seatTransitionCoordinator.finishImmediately()
-            window.isHidden = true
-        }
-        let hostID = try #require(
-            viewModel.state.displayedSeats.first?.userID
-        )
-        let initialPoint = try #require(
-            viewController.seatStageView.giftTargetPoint(
-                forUserID: hostID,
-                in: viewController.view
-            )
-        )
-
-        #expect(
-            viewModel.consumeStageSnapshot(
-                VoiceRoomViewModel.makeDefaultStageSnapshot(
-                    revision: 2,
-                    roomMode: .individual,
-                    audienceSeatState: .disabled
-                )
-            )
-        )
-        let firstAnimator = try #require(
-            viewController.seatTransitionCoordinator.testingAnimator
-        )
-        firstAnimator.pauseAnimation()
-        firstAnimator.fractionComplete = 0.4
-        let interruptedPoint = try #require(
-            viewController.seatTransitionCoordinator.giftTargetPoint(
-                for: hostID,
-                in: viewController.view
-            )
-        )
-
-        #expect(
-            viewModel.consumeStageSnapshot(
-                VoiceRoomViewModel.makeDefaultStageSnapshot(
-                    revision: 3,
-                    roomMode: .party,
-                    audienceSeatState: .enabled
-                )
-            )
-        )
-        let latestPoint = try #require(
-            viewController.seatStageView.giftTargetPoint(
-                forUserID: hostID,
-                in: viewController.view
-            )
-        )
-
-        #expect(viewController.seatTransitionCoordinator.testingAnimator == nil)
-        #expect(!viewController.seatTransitionCoordinator.isTransitioning)
-        #expect(
-            viewController.seatTransitionCoordinator.testingActiveUserIDs.isEmpty
-        )
-        #expect(
-            distance(initialPoint, latestPoint) <= 1.5,
-            "初始最终点 \(initialPoint)，最新 revision 最终点 \(latestPoint)"
-        )
-        #expect(distance(interruptedPoint, latestPoint) > 1.5)
-        #expect(viewModel.state.snapshot.revision == 3)
+    @Test(arguments: [false, true])
+    func reducedMotionAndDisabledAnimationsCommitDirectly(reducedMotion: Bool) async throws {
+        let stage = SeatStageView(frame: CGRect(x: 0, y: 0, width: 360, height: 450))
+        let controller = UIViewController()
+        controller.view.addSubview(stage)
+        let window = try makeTransitionTestWindow(rootViewController: controller, size: CGSize(width: 390, height: 844))
+        defer { window.isHidden = true }
+        stage.apply(presentation: try presentation(for: VoiceRoomViewModel.makeDefaultStageSnapshot()))
+        try await waitForSeatUpdates(stage)
+        stage.isReduceMotionEnabled = { reducedMotion }
+        let animationsEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(reducedMotion)
+        stage.apply(presentation: try presentation(for: VoiceRoomViewModel.makeDefaultStageSnapshot(
+            roomMode: .individual, audienceSeatState: .disabled)), animated: true)
+        UIView.setAnimationsEnabled(animationsEnabled)
+        try await waitForSeatUpdates(stage)
+        #expect(stage.seatCollectionView.numberOfItems(inSection: 0) == 1)
+        #expect(stage.seatCollectionView.isUserInteractionEnabled)
+        #expect(stage.seatCollectionView.visibleCells.allSatisfy { ($0.layer.animationKeys() ?? []).isEmpty })
     }
 
-    @Test func reduceMotionUsesSceneCrossfadeWithoutSeatTransforms() throws {
-        let animationsWereEnabled = UIView.areAnimationsEnabled
-        UIView.setAnimationsEnabled(true)
-        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
-
-        let viewModel = VoiceRoomViewModel()
-        let viewController = VoiceRoomViewController(viewModel: viewModel)
-        installTransitionCoordinator(
-            in: viewController,
-            isReduceMotionEnabled: true
-        )
-        let navigationController = UINavigationController(
-            rootViewController: viewController
-        )
-        let window = try makeTransitionTestWindow(
-            rootViewController: navigationController,
-            size: CGSize(width: 402, height: 874)
-        )
-        defer {
-            viewController.seatTransitionCoordinator.finishImmediately()
-            window.isHidden = true
+    @Test func geometryOnlyStageUpdateAndContentRefreshKeepOneSeatView() async throws {
+        let stage = SeatStageView(frame: CGRect(x: 0, y: 0, width: 360, height: 450))
+        let controller = UIViewController()
+        controller.view.addSubview(stage)
+        let window = try makeTransitionTestWindow(rootViewController: controller, size: CGSize(width: 390, height: 844))
+        defer { window.isHidden = true }
+        let source = try presentation(for: VoiceRoomViewModel.makeDefaultStageSnapshot(
+            roomMode: .individual, audienceSeatState: .disabled))
+        stage.apply(presentation: source)
+        try await waitForSeatUpdates(stage)
+        let firstCell = try #require(stage.seatCollectionView.cellForItem(at: IndexPath(item: 0, section: 0)))
+        let oldSize = firstCell.bounds.size
+        let slots = source.slots.map { slot in
+            SeatSlotPresentation(slotID: slot.slotID, position: slot.position, assignment: slot.assignment,
+                role: slot.role, styleID: .standardHost, isVisible: slot.isVisible, interaction: slot.interaction)
         }
-
-        #expect(
-            viewModel.consumeStageSnapshot(
-                VoiceRoomViewModel.makeDefaultStageSnapshot(
-                    revision: 2,
-                    roomMode: .individual,
-                    audienceSeatState: .disabled
-                )
-            )
-        )
-        let animator = try #require(
-            viewController.seatTransitionCoordinator.testingAnimator
-        )
-        animator.pauseAnimation()
-        animator.fractionComplete = 0.5
-
-        #expect(abs(animator.duration - 0.15) <= 0.001)
-        #expect(
-            viewController.seatTransitionCoordinator
-                .testingUsesReducedMotionTransition
-        )
-        #expect(
-            viewController.seatTransitionCoordinator
-                .testingActiveUserIDs.isEmpty
-        )
-        #expect(viewController.seatStageView.transform == .identity)
-        #expect(viewController.messagesView.transform == .identity)
+        let target = SeatStagePresentation(revision: 2, layoutID: source.layoutID, variant: source.variant,
+            layoutFamily: .partyGrid, slots: slots, decorations: source.decorations)
+        stage.apply(presentation: target, animated: true)
+        #expect(stage.isApplyingUpdate)
+        let changedSlots = slots.map { slot in
+            SeatSlotPresentation(slotID: slot.slotID, position: slot.position,
+                assignment: slot.assignment.map { seat in
+                    SeatAssignment(seatID: seat.seatID, slotID: seat.slotID, position: seat.position,
+                        occupant: seat.occupant, audioState: .muted, score: 123)
+                }, role: slot.role, styleID: slot.styleID, isVisible: slot.isVisible, interaction: slot.interaction)
+        }
+        stage.apply(presentation: SeatStagePresentation(revision: 3, layoutID: target.layoutID,
+            variant: target.variant, layoutFamily: target.layoutFamily, slots: changedSlots, decorations: target.decorations))
+        #expect(stage.isApplyingUpdate)
+        try await waitForSeatUpdates(stage)
+        #expect(stage.seatCollectionView.cellForItem(at: IndexPath(item: 0, section: 0)) === firstCell)
+        #expect(firstCell.bounds.size != oldSize)
+        #expect(firstCell.allSubviews(of: SeatView.self).count == 1)
+        #expect(firstCell.allSubviews(of: UILabel.self).contains { $0.text == SeatDisplayContent(presentation: changedSlots[0]).scoreText })
+        let hostID = try #require(source.visibleAssignments.first?.userID)
+        #expect(stage.giftTargetPoint(forUserID: hostID, in: controller.view) != nil)
     }
+
+    @Test func swappingAndVacatingSeatsPreservesUserCellsAndVisibleGiftAnchors() async throws {
+        let stage = SeatStageView(frame: CGRect(x: 0, y: 0, width: 360, height: 450))
+        let controller = UIViewController()
+        controller.view.addSubview(stage)
+        let window = try makeTransitionTestWindow(rootViewController: controller, size: CGSize(width: 390, height: 844))
+        defer { window.isHidden = true }
+        let snapshot = VoiceRoomViewModel.makeDefaultStageSnapshot()
+        stage.apply(presentation: try presentation(for: snapshot))
+        try await waitForSeatUpdates(stage)
+        let hostCell = try #require(stage.seatCollectionView.cellForItem(at: IndexPath(item: 0, section: 0)))
+        let userID = try #require(snapshot.assignments[0].userID)
+        var assignments = snapshot.assignments
+        assignments[0] = replacingOccupant(in: snapshot.assignments[0], with: snapshot.assignments[1].occupant)
+        assignments[1] = replacingOccupant(in: snapshot.assignments[1], with: snapshot.assignments[0].occupant)
+        stage.apply(presentation: try presentation(for: VoiceRoomViewModel.makeDefaultStageSnapshot(
+            revision: 2, assignments: assignments)), animated: true)
+        // 动画中头像图片和背景中心相同；实际表示层位置必须与送礼锚点一致。
+        try await Task.sleep(for: .milliseconds(30))
+        let avatar = try #require(hostCell.allSubviews(of: UIImageView.self).first {
+            $0.accessibilityIdentifier?.hasPrefix("liveRoom.seat.avatar.") == true
+        })
+        let avatarLayer = avatar.layer.presentation() ?? avatar.layer
+        let rootLayer = controller.view.layer.presentation() ?? controller.view.layer
+        let visibleCenter = avatarLayer.convert(CGPoint(x: avatarLayer.bounds.midX, y: avatarLayer.bounds.midY), to: rootLayer)
+        let anchor = try #require(stage.giftTargetPoint(forUserID: userID, in: controller.view))
+        #expect(hypot(anchor.x - visibleCenter.x, anchor.y - visibleCenter.y) < 1)
+        try await waitForSeatUpdates(stage)
+        #expect(stage.seatCollectionView.cellForItem(at: IndexPath(item: 1, section: 0)) === hostCell)
+        let seat = assignments[1]
+        assignments[1] = SeatAssignment(seatID: seat.seatID, slotID: seat.slotID, position: seat.position,
+            occupant: nil, audioState: .unavailable, score: 0)
+        stage.apply(presentation: try presentation(for: VoiceRoomViewModel.makeDefaultStageSnapshot(
+            revision: 3, assignments: assignments)), animated: true)
+        try await waitForSeatUpdates(stage)
+        #expect(stage.seatCollectionView.numberOfItems(inSection: 0) == 9)
+        #expect(stage.giftTargetPoint(forUserID: userID, in: controller.view) == nil)
+    }
+
+    @Test func pageMovesPublicChatImmediatelyWithoutSceneAnimator() async throws {
+        let viewModel = VoiceRoomViewModel()
+        let controller = VoiceRoomViewController(viewModel: viewModel)
+        let window = try makeTransitionTestWindow(rootViewController: controller, size: CGSize(width: 402, height: 874))
+        defer { window.isHidden = true }
+        try await waitForSeatUpdates(controller.seatStageView)
+        controller.view.layoutIfNeeded()
+        let oldFrame = controller.messagesView.frame
+        let hostCell = try #require(controller.seatStageView.seatCollectionView.cellForItem(at: IndexPath(item: 0, section: 0)))
+        #expect(viewModel.consumeStageSnapshot(VoiceRoomViewModel.makeDefaultStageSnapshot(
+            revision: 2, roomMode: .individual, audienceSeatState: .disabled)))
+        controller.view.layoutIfNeeded()
+        let newFrame = controller.messagesView.frame
+        CATransaction.flush()
+        #expect(controller.seatStageView.isApplyingUpdate)
+        #expect(!(hostCell.layer.animationKeys() ?? []).isEmpty)
+        #expect(newFrame != oldFrame)
+        #expect((controller.messagesView.layer.animationKeys() ?? []).isEmpty)
+        try await waitForSeatUpdates(controller.seatStageView)
+        controller.view.layoutIfNeeded()
+        #expect(controller.messagesView.frame == newFrame)
+    }
+
+    @Test func hiddenStageCommitsWithoutGeometryAnimation() async throws {
+        let stage = SeatStageView(frame: CGRect(x: 0, y: 0, width: 360, height: 450))
+        let controller = UIViewController()
+        controller.view.addSubview(stage)
+        let window = try makeTransitionTestWindow(rootViewController: controller, size: CGSize(width: 390, height: 844))
+        defer { window.isHidden = true }
+        stage.apply(presentation: try presentation(for: VoiceRoomViewModel.makeDefaultStageSnapshot()))
+        try await waitForSeatUpdates(stage)
+        controller.view.isHidden = true
+        stage.apply(presentation: try presentation(for: VoiceRoomViewModel.makeDefaultStageSnapshot(
+            roomMode: .individual, audienceSeatState: .disabled)), animated: true)
+        #expect(stage.seatCollectionView.isUserInteractionEnabled)
+        #expect(!stage.accessibilityElementsHidden)
+        try await waitForSeatUpdates(stage)
+        #expect(stage.seatCollectionView.numberOfItems(inSection: 0) == 1)
+        #expect(stage.seatCollectionView.visibleCells.allSatisfy { ($0.layer.animationKeys() ?? []).isEmpty })
+    }
+
+    @Test func repeatedPageDirectionChangesUpdateCollectionAndSeatContent() async throws {
+        let controller = VoiceRoomViewController(viewModel: VoiceRoomViewModel())
+        let window = try makeTransitionTestWindow(rootViewController: controller, size: CGSize(width: 402, height: 874))
+        defer { window.isHidden = true }
+        try await waitForSeatUpdates(controller.seatStageView)
+        var originalFrames: [CGRect] = []
+        for direction: UIUserInterfaceLayoutDirection in [.leftToRight, .rightToLeft, .leftToRight] {
+            window.semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight
+            controller.reloadLayoutDirection(direction)
+            controller.view.setNeedsLayout()
+            controller.view.layoutIfNeeded()
+            try await waitForSeatUpdates(controller.seatStageView)
+            let collection = controller.seatStageView.seatCollectionView
+            #expect(collection.effectiveUserInterfaceLayoutDirection == direction)
+            let frames = try (0..<9).map { try #require(collection.collectionViewLayout
+                .layoutAttributesForItem(at: IndexPath(item: $0, section: 0))?.frame) }
+            if originalFrames.isEmpty { originalFrames = frames }
+            for (source, current) in zip(originalFrames, frames) {
+                let expectedX = direction == .rightToLeft ? collection.bounds.width - source.maxX : source.minX
+                #expect(abs(current.minX - expectedX) < 0.5)
+            }
+            for cell in collection.visibleCells {
+                #expect(cell.effectiveUserInterfaceLayoutDirection == direction)
+                #expect(cell.allSubviews(of: SeatView.self).allSatisfy { $0.effectiveUserInterfaceLayoutDirection == direction })
+            }
+        }
+    }
+
+    @Test func environmentChangeAndRemovalSettleLatestSnapshot() async throws {
+        let stage = SeatStageView(frame: CGRect(x: 0, y: 0, width: 360, height: 450))
+        let controller = UIViewController()
+        controller.view.addSubview(stage)
+        let window = try makeTransitionTestWindow(rootViewController: controller, size: CGSize(width: 390, height: 844))
+        defer { window.isHidden = true }
+        let source = try presentation(for: VoiceRoomViewModel.makeDefaultStageSnapshot())
+        stage.apply(presentation: source)
+        try await waitForSeatUpdates(stage)
+        stage.apply(presentation: try presentation(for: VoiceRoomViewModel.makeDefaultStageSnapshot(
+            roomMode: .individual, audienceSeatState: .disabled)), animated: true)
+        stage.apply(presentation: source, animated: true)
+        stage.frame.size.width = 700
+        controller.view.semanticContentAttribute = .forceRightToLeft
+        stage.setCompactPresentation(true)
+        stage.setNeedsLayout()
+        stage.layoutIfNeeded()
+        try await waitForSeatUpdates(stage)
+        #expect(stage.seatCollectionView.numberOfItems(inSection: 0) == 9)
+        #expect(stage.seatCollectionView.isUserInteractionEnabled)
+        let frames = try (0..<9).map { try #require(stage.seatCollectionView.collectionViewLayout
+            .layoutAttributesForItem(at: IndexPath(item: $0, section: 0))?.frame) }
+        #expect(frames[1].minX > frames[4].minX)
+        #expect(abs(frames[0].midX - stage.seatCollectionView.bounds.width / 2) < 0.5)
+        stage.apply(presentation: try presentation(for: VoiceRoomViewModel.makeDefaultStageSnapshot(
+            roomMode: .individual, audienceSeatState: .disabled)), animated: true)
+        stage.apply(presentation: source, animated: true)
+        stage.removeFromSuperview()
+        try await waitForSeatUpdates(stage)
+        #expect(stage.seatCollectionView.numberOfItems(inSection: 0) == 9)
+        #expect(stage.seatCollectionView.isUserInteractionEnabled)
+    }
+
 }
 
 @MainActor
@@ -759,7 +776,7 @@ private func makeTransitionTestWindow(
     let window = UIWindow(windowScene: windowScene)
     window.frame = CGRect(origin: .zero, size: size)
     window.rootViewController = rootViewController
-    window.isHidden = false
+    window.makeKeyAndVisible()
     rootViewController.view.frame = window.bounds
     rootViewController.view.setNeedsLayout()
     rootViewController.view.layoutIfNeeded()
@@ -767,35 +784,17 @@ private func makeTransitionTestWindow(
 }
 
 @MainActor
-private func installTransitionCoordinator(
-    in viewController: VoiceRoomViewController,
-    isReduceMotionEnabled: Bool
-) {
-    viewController.seatTransitionCoordinator =
-        SeatStageTransitionCoordinator(
-            stageView: viewController.seatStageView,
-            messagesView: viewController.messagesView,
-            isReduceMotionEnabled: { isReduceMotionEnabled }
-        )
-}
-
-private func pointLiesBetween(
-    _ point: CGPoint,
-    _ first: CGPoint,
-    _ second: CGPoint,
-    tolerance: CGFloat
-) -> Bool {
-    let bounds = CGRect(
-        x: min(first.x, second.x) - tolerance,
-        y: min(first.y, second.y) - tolerance,
-        width: abs(first.x - second.x) + tolerance * 2,
-        height: abs(first.y - second.y) + tolerance * 2
-    )
-    return bounds.contains(point)
-}
-
-private func distance(_ first: CGPoint, _ second: CGPoint) -> CGFloat {
-    hypot(first.x - second.x, first.y - second.y)
+func waitForSeatUpdates(_ stage: SeatStageView) async throws {
+    let deadline = Date().addingTimeInterval(3)
+    while stage.isApplyingUpdate && Date() < deadline {
+        try await Task.sleep(for: .milliseconds(10))
+    }
+    #expect(!stage.isApplyingUpdate, "麦位更新必须完成并恢复交互")
+    stage.setNeedsLayout()
+    stage.layoutIfNeeded()
+    // UIKit completion 与渲染服务提交最后一帧之间可能相差一帧。
+    CATransaction.flush()
+    try await Task.sleep(for: .milliseconds(40))
 }
 
 /// 控制 UIKit 当前可见的 Snapshot 数量，精确覆盖 prepare() 之间的查询窗口。
@@ -850,4 +849,87 @@ func seatLayoutTestGeometry(
     let result = SeatLayoutTestGeometry(itemIDs: layout.itemIdentifiers, frames: frames, contentSize: layout.collectionViewContentSize)
     withExtendedLifetime(collection) {}
     return result
+}
+
+/// 记录 UIKit 实际调用的动画属性，避免 finalize 后再查询已经清空的旧事务。
+@MainActor
+private final class RecordingSeatLayout: SeatCollectionLayout {
+    var appearing: [IndexPath: [UICollectionViewLayoutAttributes]] = [:]
+    var disappearing: [IndexPath: [UICollectionViewLayoutAttributes]] = [:]
+
+    override func prepare(forCollectionViewUpdates updates: [UICollectionViewUpdateItem]) {
+        super.prepare(forCollectionViewUpdates: updates)
+        // 多次失效不得覆盖最初保存的源几何。
+        invalidateLayout()
+        invalidateLayout()
+    }
+
+    override func initialLayoutAttributesForAppearingItem(at indexPath: IndexPath) -> UICollectionViewLayoutAttributes? {
+        let value = super.initialLayoutAttributesForAppearingItem(at: indexPath)
+        if let copy = value?.copy() as? UICollectionViewLayoutAttributes {
+            appearing[indexPath, default: []].append(copy)
+        }
+        return value
+    }
+
+    override func finalLayoutAttributesForDisappearingItem(at indexPath: IndexPath) -> UICollectionViewLayoutAttributes? {
+        let value = super.finalLayoutAttributesForDisappearingItem(at: indexPath)
+        if let copy = value?.copy() as? UICollectionViewLayoutAttributes {
+            disappearing[indexPath, default: []].append(copy)
+        }
+        return value
+    }
+}
+
+@MainActor
+private final class SeatUpdateFixture {
+    var section: SeatLayoutSection?
+    lazy var layout = RecordingSeatLayout { [weak self] _, _ in self?.section }
+    lazy var collection = UICollectionView(frame: CGRect(x: 0, y: 0, width: 360, height: 600), collectionViewLayout: layout)
+    let window: UIWindow
+    var source: UICollectionViewDiffableDataSource<Int, SeatCollectionItemID>!
+    var movementOrigins: [SeatCollectionItemID: CGPoint] = [:]
+
+    init() throws {
+        let controller = UIViewController()
+        window = try makeTransitionTestWindow(rootViewController: controller, size: CGSize(width: 390, height: 844))
+        controller.view.addSubview(collection)
+        collection.contentInsetAdjustmentBehavior = .never
+        collection.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "cell")
+        source = UICollectionViewDiffableDataSource(collectionView: collection) { collection, index, _ in
+            collection.dequeueReusableCell(withReuseIdentifier: "cell", for: index)
+        }
+        layout.itemIdentifierProvider = { [weak self] in self?.source.itemIdentifier(for: $0) }
+    }
+
+    func apply(_ next: SeatLayoutSection, animated: Bool = false) async {
+        collection.layoutIfNeeded()
+        layout.finishUpdates()
+        layout.appearing.removeAll()
+        layout.disappearing.removeAll()
+        movementOrigins.removeAll()
+        section = next
+        var snapshot = NSDiffableDataSourceSnapshot<Int, SeatCollectionItemID>()
+        snapshot.appendSections([0])
+        snapshot.appendItems(next.itemIdentifiers)
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            source.apply(snapshot, animatingDifferences: animated) { continuation.resume() }
+            CATransaction.flush()
+            for cell in collection.visibleCells {
+                guard let index = collection.indexPath(for: cell), let id = source.itemIdentifier(for: index),
+                      let animation = cell.layer.animation(forKey: "position") as? CABasicAnimation,
+                      let value = animation.fromValue as? NSValue else { continue }
+                let start = value.cgPointValue
+                movementOrigins[id] = animation.isAdditive
+                    ? CGPoint(x: cell.layer.position.x + start.x, y: cell.layer.position.y + start.y)
+                    : start
+            }
+        }
+        collection.layoutIfNeeded()
+        layout.finishUpdates()
+        // 首次 Snapshot 完成可能同步回调；先提交首帧，下一轮才有可动画的源 Cell。
+        CATransaction.flush()
+        try? await Task.sleep(for: .milliseconds(40))
+        #expect(collection.visibleCells.count == next.items.count)
+    }
 }

@@ -11,18 +11,11 @@ import UIKit
 
 /// CollectionView 复用麦位单元格。
 ///
-/// 几何过渡只短暂保留 source/destination 两个真实麦位 View 做交叉淡变；完成后
-/// 立即收敛为一个 View，不创建位图快照，也不保存第二份业务状态。
+/// 单个真实 SeatView 展示最新内容；几何与增删动画由 CollectionView Layout 负责。
 final class SeatCollectionCell: QuickLayoutCollectionViewCell {
 
     /// 当前显示的真实麦位视图。
-    private var currentSeatView = SeatView(frame: .zero)
-    /// 转场期间用于交叉淡变的目标麦位视图；完成后成为当前视图。
-    private var destinationSeatView: SeatView?
-    /// 当前麦位视图对应的数据条目。
-    private var currentItem: SeatCollectionItem?
-    /// 转场目标视图对应的数据条目；无转场时为 `nil`。
-    private var destinationItem: SeatCollectionItem?
+    private let currentSeatView = SeatView(frame: .zero)
     /// 用户选择可交互麦位时调用的回调；参数为当前麦位绑定。
     private var seatDidSelect: ((SeatAssignment) -> Void)?
 
@@ -42,23 +35,19 @@ final class SeatCollectionCell: QuickLayoutCollectionViewCell {
         return nil
     }
 
-    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
-    override var body: Layout {
-        ZStack {
-            currentSeatView.resizable()
-            if let destinationSeatView {
-                destinationSeatView.resizable()
-            }
-        }
+    /// 与工程内其他 CollectionView Cell 一样，同步已经物化的内容宿主。
+    override var quickLayoutDirectionViews: [UIView] {
+        super.quickLayoutDirectionViews + [currentSeatView]
     }
 
-    /// 移除临时目标视图、旧条目及点击回调，并恢复默认几何外观。
+    /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
+    override var body: Layout {
+        currentSeatView.resizable()
+    }
+
+    /// 清理点击回调并恢复默认外观。
     override func prepareForReuse() {
         super.prepareForReuse()
-        destinationSeatView?.removeFromSuperview()
-        destinationSeatView = nil
-        currentItem = nil
-        destinationItem = nil
         seatDidSelect = nil
         alpha = 1
         transform = .identity
@@ -71,10 +60,6 @@ final class SeatCollectionCell: QuickLayoutCollectionViewCell {
         seatDidSelect: @escaping (SeatAssignment) -> Void
     ) {
         self.seatDidSelect = seatDidSelect
-        currentItem = item
-        destinationItem = nil
-        destinationSeatView?.removeFromSuperview()
-        destinationSeatView = nil
         configure(
             currentSeatView,
             item: item,
@@ -84,76 +69,21 @@ final class SeatCollectionCell: QuickLayoutCollectionViewCell {
         setNeedsQuickLayout()
     }
 
-    /// 创建透明的目标麦位视图，为真实内容的交叉淡变准备布局。
-    func prepareTransition(
-        to item: SeatCollectionItem,
-        metrics: SeatLayoutMetrics
-    ) {
-        destinationItem = item
-        let destinationView = SeatView(frame: .zero)
-        configureSelection(for: destinationView)
-        configure(destinationView, item: item, metrics: metrics)
-        destinationView.alpha = 0
-        destinationSeatView?.removeFromSuperview()
-        destinationSeatView = destinationView
-        accessibilityElements = []
-        setNeedsQuickLayout()
-        layoutIfNeeded()
-    }
-
-    /// 将不改变几何身份的数据更新合并到当前或目标麦位内容。
-    func refresh(
-        item: SeatCollectionItem,
-        metrics: SeatLayoutMetrics
-    ) {
-        if let destinationSeatView {
-            destinationItem = item
-            configure(destinationSeatView, item: item, metrics: metrics)
-        } else {
-            currentItem = item
-            configure(currentSeatView, item: item, metrics: metrics)
-        }
-        setNeedsQuickLayout()
-    }
-
-    /// 将原麦位视图淡出并将目标视图淡入；由外部动画事务驱动。
-    func animateToDestination() {
-        guard let destinationSeatView else { return }
-        currentSeatView.alpha = 0
-        destinationSeatView.alpha = 1
-    }
-
-    /// 移除源视图并将目标视图设为唯一内容，恢复辅助功能元素。
-    func completeTransition() {
-        guard let destinationSeatView, let destinationItem else {
-            currentSeatView.alpha = 1
-            accessibilityElements = [currentSeatView]
-            return
-        }
-        currentSeatView.removeFromSuperview()
-        currentSeatView = destinationSeatView
-        currentSeatView.alpha = 1
-        currentItem = destinationItem
-        self.destinationSeatView = nil
-        self.destinationItem = nil
-        accessibilityElements = [currentSeatView]
+    /// 纯内容更新不启动快照或打断正在运行的 Cell 几何动画。
+    func refresh(item: SeatCollectionItem, metrics: SeatLayoutMetrics) {
+        configure(currentSeatView, item: item, metrics: metrics)
         setNeedsQuickLayout()
     }
 
     /// 返回当前可见头像在指定视图坐标系中的实时送礼锚点。
     func giftTargetPoint(in view: UIView) -> CGPoint? {
         layoutIfNeeded()
-        guard let pointInCell = visibleGiftTargetPointInCell() else {
-            return nil
-        }
-        let sourceLayer = layer.presentation() ?? layer
-        let destinationLayer = view.layer.presentation() ?? view.layer
-        return sourceLayer.convert(pointInCell, to: destinationLayer)
+        return currentSeatView.giftTargetPoint(in: view)
     }
 
     /// 使用当前原生配置的样式展示到达反馈；省略时采用礼物默认样式。
     func playGiftArrival(gift: Gift, color: UIColor, style: GiftEffectStyle? = nil) {
-        (destinationSeatView ?? currentSeatView).playGiftArrival(
+        currentSeatView.playGiftArrival(
             gift: gift,
             color: color,
             style: style
@@ -175,49 +105,6 @@ final class SeatCollectionCell: QuickLayoutCollectionViewCell {
         seatView.seatDidSelect = { [weak self] assignment in
             self?.seatDidSelect?(assignment)
         }
-    }
-
-    /// 内容交叉淡变时按两个真实 SeatView 的可见度插值头像锚点。
-    ///
-    /// 直接选 destination 会在动画开始时跳到仍完全透明的大头像中心；按
-    /// presentation opacity 插值后，飞行礼物与用户当前实际看到的头像保持连续。
-    private func visibleGiftTargetPointInCell() -> CGPoint? {
-        guard
-            let currentPoint = giftTargetPointInCell(for: currentSeatView),
-            let destinationSeatView,
-            let destinationPoint = giftTargetPointInCell(
-                for: destinationSeatView
-            )
-        else {
-            return giftTargetPointInCell(for: currentSeatView)
-        }
-        let currentOpacity = CGFloat(
-            currentSeatView.layer.presentation()?.opacity
-                ?? currentSeatView.layer.opacity
-        )
-        let destinationOpacity = CGFloat(
-            destinationSeatView.layer.presentation()?.opacity
-                ?? destinationSeatView.layer.opacity
-        )
-        let totalOpacity = currentOpacity + destinationOpacity
-        guard totalOpacity > 0.001 else { return destinationPoint }
-        let progress = destinationOpacity / totalOpacity
-        return CGPoint(
-            x: currentPoint.x
-                + (destinationPoint.x - currentPoint.x) * progress,
-            y: currentPoint.y
-                + (destinationPoint.y - currentPoint.y) * progress
-        )
-    }
-
-    /// 返回指定麦位头像在单元格局部坐标系中的锚点。
-    private func giftTargetPointInCell(
-        for seatView: SeatView
-    ) -> CGPoint? {
-        guard let point = seatView.giftTargetPointInBounds() else {
-            return nil
-        }
-        return seatView.convert(point, to: self)
     }
 }
 

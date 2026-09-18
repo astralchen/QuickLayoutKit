@@ -127,7 +127,7 @@ typealias SeatCollectionLayoutSectionProvider = (
 ///
 /// 分区提供者的输入变化后调用 invalidateLayout()。最终几何及转场端点由布局
 /// 自身计算；属性查询始终通过当前数据源身份匹配几何，不缓存过期的 IndexPath。
-final class SeatCollectionLayout: UICollectionViewLayout {
+class SeatCollectionLayout: UICollectionViewLayout {
     private let sectionProvider: SeatCollectionLayoutSectionProvider
     private var needsGeometryUpdate = true
     private var cachedEnvironment: SeatLayoutEnvironment?
@@ -138,33 +138,16 @@ final class SeatCollectionLayout: UICollectionViewLayout {
     /// Stage 在数据源初始化后连接此查询；固定分区布局未连接时使用描述顺序。
     var itemIdentifierProvider: ((IndexPath) -> SeatCollectionItemID?)?
 
-    @MainActor
-    private struct Transition {
-        let currentSection: SeatLayoutSection?
-        let nextSection: SeatLayoutSection
-        var currentGeometry = SeatCollectionGeometry.empty
-        var nextGeometry = SeatCollectionGeometry.empty
-    }
-    private var transition: Transition?
-    private var progress: CGFloat = 0
+    /// 第一次失效时保留旧身份顺序；删除回调的 IndexPath 属于旧 Snapshot。
+    private var previousGeometry: SeatCollectionGeometry?
+    private var previousIdentifiers: [SeatCollectionItemID] = []
+    private var inserted: Set<IndexPath> = []
+    private var deleted: Set<IndexPath> = []
 
-    /// 当前阶段应安装的数据源顺序；转场期间包括源与目标的条目并集。
+    /// 当前分区的目标顺序，不包含已经删除的条目。
     var itemIdentifiers: [SeatCollectionItemID] {
         updateGeometryIfNeeded()
         return orderedIdentifiers
-    }
-
-    /// 当前几何转场的完成比例；无转场时写入无效，有限数值限制在 0...1。
-    var transitionProgress: CGFloat {
-        get { progress }
-        set {
-            guard transition != nil, newValue.isFinite else { return }
-            let value = min(1, max(0, newValue))
-            guard value != progress else { return }
-            progress = value
-            // 进度不改变分区提供者的输入，UIKit 按新比例重新查询属性。
-            super.invalidateLayout()
-        }
     }
 
     /// 创建始终使用指定分区描述的布局。
@@ -190,25 +173,23 @@ final class SeatCollectionLayout: UICollectionViewLayout {
     }
 
     override func invalidateLayout() {
+        preservePreviousGeometry()
         needsGeometryUpdate = true
         super.invalidateLayout()
     }
 
     override func invalidateLayout(with context: UICollectionViewLayoutInvalidationContext) {
+        preservePreviousGeometry()
         needsGeometryUpdate = true
         super.invalidateLayout(with: context)
     }
 
     override var collectionViewContentSize: CGSize {
         updateGeometryIfNeeded()
-        guard let transition else { return geometry.contentSize }
-        return CGSize(
-            width: interpolate(transition.currentGeometry.contentSize.width, transition.nextGeometry.contentSize.width),
-            height: interpolate(transition.currentGeometry.contentSize.height, transition.nextGeometry.contentSize.height)
-        )
+        return geometry.contentSize
     }
 
-    /// 测量目标分区，不改变当前提供者结果、布局缓存或转场进度。
+    /// 测量目标分区，不改变当前提供者结果、布局缓存。
     func sizeThatFits(
         _ size: CGSize,
         for section: SeatLayoutSection,
@@ -222,25 +203,6 @@ final class SeatCollectionLayout: UICollectionViewLayout {
                 traitCollection: collectionView?.traitCollection ?? UITraitCollection()
             )
         ).contentSize
-    }
-
-    /// 安装转场两端描述，并以目标条目优先的并集顺序显示起点。
-    func beginTransition(to section: SeatLayoutSection) {
-        precondition(transition == nil, "Finish the current seat transition before starting another")
-        updateGeometryIfNeeded()
-        transition = Transition(currentSection: currentSection, nextSection: section)
-        progress = 0
-        invalidateLayout()
-        updateGeometryIfNeeded()
-    }
-
-    /// 收敛至提供者的最新描述；宿主应先将提供者内容更新为目标状态。
-    func finishTransition() {
-        guard transition != nil else { return }
-        transition = nil
-        progress = 0
-        invalidateLayout()
-        updateGeometryIfNeeded()
     }
 
     override func layoutAttributesForElements(in rect: CGRect) -> [UICollectionViewLayoutAttributes]? {
@@ -259,36 +221,80 @@ final class SeatCollectionLayout: UICollectionViewLayout {
 
     /// 每次查询都解析当前 Snapshot 身份；返回独立属性对象，避免 UIKit 修改几何缓存。
     private func attributesForItem(at indexPath: IndexPath) -> UICollectionViewLayoutAttributes? {
-        /// 与数据源对应的稳定条目标识。
-    let identifier: SeatCollectionItemID?
-        if let itemIdentifierProvider {
-            identifier = itemIdentifierProvider(indexPath)
-        } else {
-            identifier = orderedIdentifiers.indices.contains(indexPath.item) ? orderedIdentifiers[indexPath.item] : nil
-        }
-        guard let identifier else { return nil }
-        let attributes = UICollectionViewLayoutAttributes(forCellWith: indexPath)
-        if let transition {
-            let source = transition.currentGeometry.frames[identifier]
-            let destination = transition.nextGeometry.frames[identifier]
-            guard let start = source ?? destination, let end = destination ?? source else { return nil }
-            attributes.frame = CGRect(
-                x: interpolate(start.minX, end.minX), y: interpolate(start.minY, end.minY),
-                width: interpolate(start.width, end.width), height: interpolate(start.height, end.height)
-            )
-            attributes.alpha = interpolate(source == nil ? 0 : 1, destination == nil ? 0 : 1)
-            let scale = interpolate(source == nil ? 0.86 : 1, destination == nil ? 0.86 : 1)
-            attributes.transform = CGAffineTransform(scaleX: scale, y: scale)
-        } else {
-            guard let frame = geometry.frames[identifier] else { return nil }
-            attributes.frame = frame
-        }
-        attributes.zIndex = indexPath.item
-        return attributes
+        guard let identifier = identifier(at: indexPath), let frame = geometry.frames[identifier] else { return nil }
+        return attributes(frame: frame, at: indexPath)
     }
 
-    private func interpolate(_ start: CGFloat, _ end: CGFloat) -> CGFloat {
-        start + (end - start) * progress
+    private func identifier(at indexPath: IndexPath) -> SeatCollectionItemID? {
+        if let itemIdentifierProvider { return itemIdentifierProvider(indexPath) }
+        return orderedIdentifiers.indices.contains(indexPath.item) ? orderedIdentifiers[indexPath.item] : nil
+    }
+
+    private func attributes(frame: CGRect, at indexPath: IndexPath) -> UICollectionViewLayoutAttributes {
+        let value = UICollectionViewLayoutAttributes(forCellWith: indexPath)
+        value.frame = frame
+        value.zIndex = indexPath.item
+        return value
+    }
+
+    private func preservePreviousGeometry() {
+        guard previousGeometry == nil, cachedEnvironment != nil else { return }
+        previousGeometry = geometry
+        previousIdentifiers = orderedIdentifiers
+    }
+
+    override func prepare(forCollectionViewUpdates updateItems: [UICollectionViewUpdateItem]) {
+        super.prepare(forCollectionViewUpdates: updateItems)
+        inserted = Set(updateItems.filter { $0.updateAction == .insert }.compactMap(\.indexPathAfterUpdate))
+        deleted = Set(updateItems.filter { $0.updateAction == .delete }.compactMap(\.indexPathBeforeUpdate))
+    }
+
+    override func initialLayoutAttributesForAppearingItem(at indexPath: IndexPath) -> UICollectionViewLayoutAttributes? {
+        updateGeometryIfNeeded()
+        guard indexPath.section == 0, let id = identifier(at: indexPath) else {
+            return super.initialLayoutAttributesForAppearingItem(at: indexPath)
+        }
+        // 稳定身份同时覆盖显式 move、增删引起的索引偏移，以及原位置上的尺寸变化。
+        if let frame = previousGeometry?.frames[id] {
+            return attributes(frame: frame, at: indexPath)
+        }
+        if inserted.contains(indexPath), let frame = geometry.frames[id] {
+            let value = attributes(frame: frame, at: indexPath)
+            value.alpha = 0
+            value.transform = CGAffineTransform(scaleX: 0.96, y: 0.96)
+            return value
+        }
+        return super.initialLayoutAttributesForAppearingItem(at: indexPath)
+    }
+
+    override func finalLayoutAttributesForDisappearingItem(at indexPath: IndexPath) -> UICollectionViewLayoutAttributes? {
+        updateGeometryIfNeeded()
+        guard indexPath.section == 0, previousIdentifiers.indices.contains(indexPath.item),
+              let previousGeometry else {
+            return super.finalLayoutAttributesForDisappearingItem(at: indexPath)
+        }
+        let id = previousIdentifiers[indexPath.item]
+        if !deleted.contains(indexPath), let frame = geometry.frames[id] {
+            return attributes(frame: frame, at: indexPath)
+        }
+        guard let frame = previousGeometry.frames[id] else { return nil }
+        let value = attributes(frame: frame, at: indexPath)
+        value.alpha = 0
+        value.transform = CGAffineTransform(scaleX: 0.96, y: 0.96)
+        return value
+    }
+
+    /// 原生动画收尾与无动画 Snapshot completion 共用，可重复调用。
+    func finishUpdates() {
+        previousGeometry = nil
+        previousIdentifiers.removeAll()
+        inserted.removeAll()
+        deleted.removeAll()
+    }
+
+    override func finalizeCollectionViewUpdates() {
+        super.finalizeCollectionViewUpdates()
+        finishUpdates()
     }
 
     private var currentItemCount: Int {
@@ -319,29 +325,16 @@ final class SeatCollectionLayout: UICollectionViewLayout {
         guard needsGeometryUpdate || environmentChanged else { return }
         needsGeometryUpdate = false
         cachedEnvironment = environment
-        if var transition {
-            transition.currentGeometry = transition.currentSection.map {
-                SeatCollectionGeometry.resolve(section: $0, environment: environment)
-            } ?? .empty
-            transition.nextGeometry = SeatCollectionGeometry.resolve(section: transition.nextSection, environment: environment)
-            let destinationIDs = transition.nextSection.itemIdentifiers
-            let destinationSet = Set(destinationIDs)
-            orderedIdentifiers = destinationIDs + (transition.currentSection?.itemIdentifiers ?? []).filter {
-                !destinationSet.contains($0)
-            }
-            self.transition = transition
-        } else {
-            let section = sectionProvider(0, environment)
-            // 即使提供者仍返回源分区，结束转场也必须移除并集标识。
-            orderedIdentifiers = section?.itemIdentifiers ?? []
-            // 数据源内容刷新也会使 UIKit 失效；相同规则无需重算几何。
-            guard section != currentSection || environmentChanged else { return }
-            currentSection = section
-            geometry = section.map {
-                SeatCollectionGeometry.resolve(section: $0, environment: environment)
-            } ?? .empty
-        }
+        let section = sectionProvider(0, environment)
+        guard section != currentSection || environmentChanged else { return }
+        preservePreviousGeometry()
+        currentSection = section
+        orderedIdentifiers = section?.itemIdentifiers ?? []
+        geometry = section.map {
+            SeatCollectionGeometry.resolve(section: $0, environment: environment)
+        } ?? .empty
     }
+
 }
 
 /// Layout 内部的几何结果；业务容器只提交分区规则，不直接依赖此类型。

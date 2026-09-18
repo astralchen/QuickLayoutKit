@@ -70,10 +70,12 @@ final class SeatCollectionDataSource {
         }
     }
 
-    /// 按给定条目顺序提交非动画快照，并可重新配置已有条目。
+    /// 按给定条目顺序提交快照，并可重新配置已有条目。
     func applySnapshot(
         itemIDs: [SeatCollectionItemID],
-        reconfigureExisting: Bool = false
+        reconfigureExisting: Bool = false,
+        animated: Bool = false,
+        completion: (() -> Void)? = nil
     ) {
         var snapshot = NSDiffableDataSourceSnapshot<
             Section,
@@ -85,7 +87,7 @@ final class SeatCollectionDataSource {
             let existing = Set(dataSource.snapshot().itemIdentifiers)
             snapshot.reconfigureItems(itemIDs.filter(existing.contains))
         }
-        dataSource.apply(snapshot, animatingDifferences: false)
+        dataSource.apply(snapshot, animatingDifferences: animated, completion: completion)
     }
 
     /// 返回当前 Snapshot 在指定索引路径上的稳定身份，供布局查询几何。

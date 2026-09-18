@@ -361,31 +361,12 @@ final class SeatView: QuickLayoutView {
         setNeedsQuickLayout()
     }
 
-    /// 返回已布局头像中心在指定视图坐标系中的位置；无有效布局时为 `nil`。
+    /// 从真实头像的表示层取中心，包含 Cell、舞台及头像自身正在播放的几何动画。
     func giftTargetPoint(in view: UIView) -> CGPoint? {
-        guard window != nil, avatarBackgroundView.window != nil else {
-            return nil
-        }
-        return avatarBackgroundView.convert(
-            CGPoint(
-                x: avatarBackgroundView.bounds.midX,
-                y: avatarBackgroundView.bounds.midY
-            ),
-            to: view
-        )
-    }
-
-    /// 返回头像中心在麦位自身坐标中的位置，供移动中的 Cell 使用
-    /// presentation layer 计算实时送礼锚点。
-    func giftTargetPointInBounds() -> CGPoint? {
         guard avatarBackgroundView.superview != nil else { return nil }
-        return avatarBackgroundView.convert(
-            CGPoint(
-                x: avatarBackgroundView.bounds.midX,
-                y: avatarBackgroundView.bounds.midY
-            ),
-            to: self
-        )
+        let source = avatarBackgroundView.layer.presentation() ?? avatarBackgroundView.layer
+        let destination = view.layer.presentation() ?? view.layer
+        return source.convert(CGPoint(x: source.bounds.midX, y: source.bounds.midY), to: destination)
     }
 
     /// 使用当前原生配置的样式展示到达反馈；省略时采用礼物默认样式。
