@@ -157,15 +157,42 @@ extension Gift {
         ),
     ] + remoteEffectGifts + multipleEffectGifts
 
-    /// 组合已有远程素材演示一份礼物多个主特效；素材缺失时不产生不完整的组合。
+    /// 组合已有素材演示一份礼物多个主特效；仅跳过自身素材缺失的组合。
     private static var multipleEffectGifts: [Gift] {
-        guard let vap = remoteEffectGifts.first(where: { $0.id == "flowerJourney" }),
-              let svga = remoteEffectGifts.first(where: { $0.id == "flowerBouquet" }) else { return [] }
-        return [Gift(
-            id: "flowerDuet", titleKey: "liveRoom.gift.item.flowerDuet",
-            symbolName: "sparkles", price: 520, themeIndex: 2, effectStyle: .trail,
-            effects: [.native(.burst)] + vap.effects + svga.effects
-        )]
+        let configurations: [(id: String, symbol: String, price: Int, theme: Int,
+                              style: GiftEffectStyle, remoteIDs: [String])] = [
+            ("flowerDuet", "sparkles", 520, 2, .burst,
+             ["flowerJourney", "flowerBouquet"]),
+            ("flowerSeaSuite", "leaf.fill", 666, 1, .trail,
+             ["vap.花海倾心", "svga.漫花风吟"]),
+            ("rosePromise", "heart.fill", 888, 0, .burst,
+             ["svga.玫瑰之芯", "vap.玫瑰恋人"]),
+            ("moonlitVoyage", "moon.stars.fill", 1_314, 3, .trail,
+             ["vap.花舟赴月", "svga.蓝鸢映月"]),
+            ("galaxyDream", "globe", 1_888, 4, .celebration,
+             ["svga.深陷银河", "vap.星梦情缘"]),
+            ("fireworkGala", "sparkles", 2_888, 1, .celebration,
+             ["vap.花火信约", "svga.烟花映夏"]),
+            ("rhythmParty", "music.note", 666, 5, .burst,
+             ["svga.欢乐节拍", "svga.梦焰狂欢"]),
+            ("auroraDream", "sun.max.fill", 5_200, 4, .celebration,
+             ["vap.极光圣殿", "vap.琉光月影"]),
+        ]
+        return configurations.compactMap { configuration in
+            let remoteGifts = configuration.remoteIDs.compactMap { id in
+                remoteEffectGifts.first { $0.id == id }
+            }
+            guard remoteGifts.count == configuration.remoteIDs.count else { return nil }
+            return Gift(
+                id: configuration.id,
+                titleKey: "liveRoom.gift.item.\(configuration.id)",
+                symbolName: configuration.symbol,
+                price: configuration.price,
+                themeIndex: configuration.theme,
+                effectStyle: configuration.id == "flowerDuet" ? .trail : configuration.style,
+                effects: [.native(configuration.style)] + remoteGifts.flatMap(\.effects)
+            )
+        }
     }
 
     /// 按两个配置文件的原始顺序生成所有远程礼物，不预加载动画。

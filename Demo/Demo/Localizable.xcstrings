@@ -6947,6 +6947,29 @@
         }
       }
     },
+    "liveRoom.gift.item.auroraDream" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "عالم الشفق الحالم"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aurora Dreamscape"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "极光幻境"
+          }
+        }
+      }
+    },
     "liveRoom.gift.item.castle" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7035,6 +7058,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "水晶"
+          }
+        }
+      }
+    },
+    "liveRoom.gift.item.fireworkGala" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مهرجان الألعاب النارية"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Firework Gala"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "花火盛典"
           }
         }
       }
@@ -7131,6 +7177,29 @@
         }
       }
     },
+    "liveRoom.gift.item.flowerSeaSuite" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سيمفونية بحر الزهور"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flower Sea Symphony"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "花海协奏曲"
+          }
+        }
+      }
+    },
     "liveRoom.gift.item.galaxy" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7150,6 +7219,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "银河"
+          }
+        }
+      }
+    },
+    "liveRoom.gift.item.galaxyDream" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حلم المجرة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Galaxy Dream"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "星河绮梦"
           }
         }
       }
@@ -7200,6 +7292,29 @@
         }
       }
     },
+    "liveRoom.gift.item.moonlitVoyage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رحلة الزهور تحت القمر"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moonlit Flower Voyage"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "月下花舟"
+          }
+        }
+      }
+    },
     "liveRoom.gift.item.music" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7246,6 +7361,29 @@
         }
       }
     },
+    "liveRoom.gift.item.rhythmParty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حفلة نبض القلب"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heartbeat Party"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心动节拍"
+          }
+        }
+      }
+    },
     "liveRoom.gift.item.rocket" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7288,6 +7426,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "玫瑰"
+          }
+        }
+      }
+    },
+    "liveRoom.gift.item.rosePromise" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "وعد الورد"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rose Promise"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "玫瑰誓约"
           }
         }
       }

@@ -61,8 +61,8 @@ extension DemoTests {
         #expect(giftSheet.parent === viewController)
         #expect(giftSheet.selectedRecipientSeatIDs.isEmpty)
         #expect(giftSheet.selectedGiftID == "heart")
-        #expect(giftSheet.giftCount == 269)
-        #expect(giftSheet.visibleGiftCount == 269)
+        #expect(giftSheet.giftCount == 276)
+        #expect(giftSheet.visibleGiftCount == 276)
         #expect(giftSheet.selectedGiftCategoryID == "all")
         #expect(viewController.giftBalance == 12_800)
         #expect(giftSheet.giftBalance == 12_800)
@@ -125,15 +125,15 @@ extension DemoTests {
         )
         activate(luxuryCategoryButton)
         #expect(giftSheet.selectedGiftCategoryID == "luxury")
-        #expect(giftSheet.visibleGiftCount == 4)
+        #expect(giftSheet.visibleGiftCount == 7)
         #expect(giftSheet.selectedGiftID == "galaxy")
         activate(allCategoryButton)
         #expect(giftSheet.selectedGiftCategoryID == "all")
-        #expect(giftSheet.visibleGiftCount == 269)
+        #expect(giftSheet.visibleGiftCount == 276)
         activate(collectionCategoryButton)
         giftSheet.view.layoutIfNeeded()
         #expect(giftSheet.selectedGiftCategoryID == "collection")
-        #expect(giftSheet.visibleGiftCount == 6)
+        #expect(giftSheet.visibleGiftCount == 9)
         let collectionFrame = collectionCategoryButton.convert(
             collectionCategoryButton.bounds,
             to: categoryScrollView
@@ -544,7 +544,7 @@ extension DemoTests {
                 let frame = button.convert(button.bounds, to: scrollView)
                 #expect(giftSheet.selectedGiftCategoryID == category)
                 if category == "vap" || category == "svga" {
-                    #expect(giftSheet.visibleGiftCount == (category == "vap" ? 146 : 106))
+                    #expect(giftSheet.visibleGiftCount == (category == "vap" ? 152 : 112))
                     #expect(giftSheet.selectedGiftID == (category == "vap" ? "flowerJourney" : "flowerBouquet"))
                 }
                 #expect(scrollView.bounds.contains(frame), "\(language): \(category)")
@@ -908,7 +908,7 @@ extension DemoTests {
         giftSheet.view.setNeedsLayout()
         giftSheet.view.layoutIfNeeded()
 
-        #expect(giftSheet.giftCount == 269)
+        #expect(giftSheet.giftCount == 276)
         #expect(giftSheet.giftColumnCount == 6)
         #expect(giftSheet.view.allSubviews(of: UIScrollView.self).count == 3)
         let categoryScrollView = giftSheet.giftCategoryScrollView

@@ -32,8 +32,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/astralchen/SVGAView.git",
       "state" : {
-        "revision" : "e3ea8511a181f68bf2500384b548ba05faeff779",
-        "version" : "1.0.0"
+        "branch" : "main",
+        "revision" : "b46660145ac9c01e6febf89d7551c3979f94a6ca"
       }
     },
     {
@@ -59,8 +59,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/astralchen/VAPView.git",
       "state" : {
-        "revision" : "e3ac5d4ffd0a5a2fba595640e95a0f222d3a3ae8",
-        "version" : "1.0.0"
+        "branch" : "main",
+        "revision" : "c70da3f1e408e642fb18b46cbf2540ea3dea5507"
       }
     },
     {

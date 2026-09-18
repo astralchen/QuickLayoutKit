@@ -14,6 +14,7 @@
             <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="7714E9812EFE2A9300F8BC60" BuildableName="DemoTests.xctest" BlueprintName="DemoTests" ReferencedContainer="container:Demo.xcodeproj" />
             <SelectedTests>
                <Test Identifier="VoiceRoomGiftRemotePlaybackTests" />
+               <Test Identifier="GiftEffectPrefetchIntegrationTests" />
             </SelectedTests>
          </TestableReference>
          <TestableReference skipped="NO" parallelizable="NO">

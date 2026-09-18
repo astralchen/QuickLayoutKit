@@ -14,8 +14,8 @@ struct VoiceRoomGiftMainEffectTests {
     }
 
     @Test func bundledConfigurationAndCatalog() async throws {
-        #expect(Gift.catalog.count == 269)
-        #expect(Set(Gift.catalog.map(\.id)).count == 269)
+        #expect(Gift.catalog.count == 276)
+        #expect(Set(Gift.catalog.map(\.id)).count == 276)
         let vap = try gift()
         let svga = try gift("flowerBouquet")
         #expect(vap.price == 520 && svga.price == 520)
@@ -65,7 +65,7 @@ struct VoiceRoomGiftMainEffectTests {
                 players.append(player)
                 return player
             }
-            let coordinator = GiftMainEffectCoordinator(reduceMotionEnabled: { false }, makePlayer: factory)
+            let coordinator = GiftMainEffectCoordinator(reduceMotionEnabled: { false }, prefetcher: GiftEffectPrefetcher(load: { _ in }), makePlayer: factory)
             coordinator.activate()
             var combination = try gift("flowerDuet")
             combination.effects = effects
@@ -90,7 +90,7 @@ struct VoiceRoomGiftMainEffectTests {
     @Test func combinationCancellationAndRestart() async throws {
         var remotePlayers: [FakeGiftEffectPlayer] = []
         let native = FakeGiftEffectPlayer()
-        let coordinator = GiftMainEffectCoordinator(reduceMotionEnabled: { false }) {
+        let coordinator = GiftMainEffectCoordinator(reduceMotionEnabled: { false }, prefetcher: GiftEffectPrefetcher(load: { _ in })) {
             let player = FakeGiftEffectPlayer()
             remotePlayers.append(player)
             return player
@@ -114,7 +114,7 @@ struct VoiceRoomGiftMainEffectTests {
     /// 减少动态效果只创建一次静态展示，不创建任何原生组合播放器。
     @Test func combinationReducedMotionRunsOnce() async throws {
         var players: [FakeGiftEffectPlayer] = []
-        let coordinator = GiftMainEffectCoordinator(reduceMotionEnabled: { true }) {
+        let coordinator = GiftMainEffectCoordinator(reduceMotionEnabled: { true }, prefetcher: GiftEffectPrefetcher(load: { _ in })) {
             let player = FakeGiftEffectPlayer()
             players.append(player)
             return player
@@ -137,7 +137,7 @@ struct VoiceRoomGiftMainEffectTests {
         let window = try makeVisibleTestWindow(rootViewController: controller)
         defer { window.isHidden = true }
         var players: [FakeGiftEffectPlayer] = []
-        controller.giftMainEffectCoordinator = GiftMainEffectCoordinator(reduceMotionEnabled: { false }) {
+        controller.giftMainEffectCoordinator = GiftMainEffectCoordinator(reduceMotionEnabled: { false }, prefetcher: GiftEffectPrefetcher(load: { _ in })) {
             let player = FakeGiftEffectPlayer()
             players.append(player)
             return player
@@ -188,7 +188,7 @@ struct VoiceRoomGiftMainEffectTests {
     /// 整组超时请求取消，当前效果实际退出后才继续下一份赠送。
     @Test func timeoutStopsGroupAndStartsNext() async throws {
         var players: [FakeGiftEffectPlayer] = []
-        let coordinator = GiftMainEffectCoordinator(timeout: 0.1) {
+        let coordinator = GiftMainEffectCoordinator(timeout: 0.1, prefetcher: GiftEffectPrefetcher(load: { _ in })) {
             let player = FakeGiftEffectPlayer()
             players.append(player)
             return player

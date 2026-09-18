@@ -30,6 +30,8 @@ protocol GiftEffectPlaying: AnyObject {
 final class GiftMainEffectCoordinator {
     /// 通用调度器只运行调用方提交的闭包，不依赖 Gift 或播放器。
     private let queue = SerialTaskQueue()
+    /// 与播放独立调度的资源预热器；仅服务已确认入队的赠送。
+    private let prefetcher: GiftEffectPrefetcher
     /// 一个布尔值，指示是否接受新的主特效请求；初始值为 `false`。
     private(set) var isActive = false
     /// 尚未开始执行的赠送请求数量，不包含当前任务。
@@ -38,9 +40,9 @@ final class GiftMainEffectCoordinator {
     var isPlaying: Bool { queue.isRunning }
     /// 整组实际开始后的协作式超时期限定，不包含排队时间。
     private let timeout: TimeInterval
-    /// 当前任务开始时才创建播放器，不预先加载等待项资源。
+    /// 当前效果开始时才创建播放器，预下载不持有视图。
     private let makePlayer: @MainActor () -> any GiftEffectPlaying
-    /// 整组开始时读取；减少动态效果只展示一次静态礼物，不执行组合中的素材。
+    /// 入队和整组开始时读取；减少动态效果不预下载，只展示一次静态礼物。
     private let reduceMotionEnabled: @MainActor () -> Bool
     /// 展示错误仅用于诊断，不影响已成功的赠送业务。
     private let logger = Logger(subsystem: "Demo.VoiceRoom", category: "GiftPlayback")
@@ -49,12 +51,19 @@ final class GiftMainEffectCoordinator {
     ///
     /// - Parameters:
     ///   - timeout: 整组任务实际开始后的协作式超时时长，单位为秒，默认值为 `60`；不含排队时间。
-    ///   - reduceMotionEnabled: 在整组开始时读取的减少动态效果设置；默认读取系统值。
+    ///   - reduceMotionEnabled: 在入队和整组开始时读取的减少动态效果设置；默认读取系统值。
+    ///   - prefetcher: 预下载调度器，默认复用 VAP/SVGA 缓存；测试可替换加载器。
     ///   - makePlayer: 当前效果实际开始时创建远程或静态展示播放器的工厂。
-    init(timeout: TimeInterval = 60, reduceMotionEnabled: @escaping @MainActor () -> Bool = { UIAccessibility.isReduceMotionEnabled }, makePlayer: @escaping @MainActor () -> any GiftEffectPlaying) {
+    init(timeout: TimeInterval = 60, reduceMotionEnabled: @escaping @MainActor () -> Bool = { UIAccessibility.isReduceMotionEnabled }, prefetcher: GiftEffectPrefetcher = GiftEffectPrefetcher(), makePlayer: @escaping @MainActor () -> any GiftEffectPlaying) {
         self.timeout = timeout
         self.makePlayer = makePlayer
         self.reduceMotionEnabled = reduceMotionEnabled
+        self.prefetcher = prefetcher
+    }
+
+    isolated deinit {
+        queue.cancelAll()
+        prefetcher.cancelAll()
     }
 
     /// 允许接收后续赠送的主特效请求；不会恢复已取消的请求。
@@ -72,11 +81,17 @@ final class GiftMainEffectCoordinator {
     @discardableResult
     func enqueue(gift: Gift, quantity: Int, makeNativePlayer: (@MainActor () -> any GiftEffectPlaying)? = nil) -> Task<Void, Error>? {
         guard isActive, !gift.effects.isEmpty else { return nil }
+        // 先登记预下载，再提交串行播放；前一份礼物播放期间即可准备后续资源。
+        let requestID = reduceMotionEnabled() ? nil : prefetcher.register(effects: gift.effects)
         let sequence = GiftEffectSequence(makePlayer: makePlayer, makeNativePlayer: makeNativePlayer)
-        return queue.addTask { [reduceMotionEnabled, timeout, logger] in
+        let task = queue.addTask { [reduceMotionEnabled, timeout, logger, prefetcher] in
+            defer { if let requestID { prefetcher.release(requestID) } }
             do {
+                // 排队期间系统设置可能改变；开始播放时再次检查，并释放不再需要的远程资源。
+                let reducedMotion = reduceMotionEnabled()
+                if reducedMotion, let requestID { prefetcher.release(requestID) }
                 let play: @MainActor () async throws -> Void = {
-                    try await sequence.play(gift: gift, quantity: quantity, reducedMotion: reduceMotionEnabled())
+                    try await sequence.play(gift: gift, quantity: quantity, reducedMotion: reducedMotion)
                 }
                 if #available(iOS 16.0, *) {
                     try await withTaskTimeout(for: .seconds(timeout), operation: play)
@@ -90,6 +105,14 @@ final class GiftMainEffectCoordinator {
                 throw error
             }
         }
+        // 等待项取消时不会进入上面的操作体，必须独立观察句柄的终态。
+        if let requestID {
+            Task { [weak prefetcher] in
+                _ = await task.result
+                prefetcher?.release(requestID)
+            }
+        }
+        return task
     }
 
     /// 停止接收新请求，并取消当前及待执行的任务。
@@ -97,6 +120,7 @@ final class GiftMainEffectCoordinator {
     /// 当前任务实际返回或抛出错误后才释放串行执行槽。此方法可以重复调用。
     func deactivate() {
         isActive = false
+        prefetcher.cancelAll()
         queue.cancelAll()
     }
 }
