@@ -13,7 +13,7 @@ import UIKit
 /// 直播间麦位舞台容器。
 ///
 /// 舞台使用不可滚动的 CollectionView 统一承载所有房型。业务 Presentation 只决定
-/// Item 与客户端布局家族；具体 Frame 由 `SeatCollectionGeometry` 计算。
+/// Item 与客户端布局家族；具体 Frame 由 `SeatCollectionLayout` 根据容器环境计算。
 final class SeatStageView: TranslucentCardView {
 
     /// 一次尚未提交完成的舞台目标数据及过渡几何。
@@ -22,10 +22,6 @@ final class SeatStageView: TranslucentCardView {
         let destinationPresentation: SeatStagePresentation
         /// 转场完成后保留的目标集合条目。
         let destinationItems: [SeatCollectionItem]
-        /// 仅包含目标条目的最终布局配置。
-        let destinationConfiguration: SeatCollectionLayoutConfiguration
-        /// 包含源与目标条目并集的动画终点配置。
-        let destinationUnionConfiguration: SeatCollectionLayoutConfiguration
     }
 
     /// 记录当前组件诊断信息的日志记录器。
@@ -46,7 +42,10 @@ final class SeatStageView: TranslucentCardView {
         didSet { pkDecoration.ifLoaded?.alpha = pkDecorationAlpha }
     }
     /// 为真实麦位单元格提供绝对几何位置的集合布局。
-    private let seatLayout = SeatCollectionLayout()
+    private lazy var seatLayout = SeatCollectionLayout { [weak self] _, _ in
+        guard let self, let presentation = currentPresentation else { return nil }
+        return makeSection(presentation: presentation, items: currentItems)
+    }
     /// 负责内容条目展示和复用的集合视图。
     private lazy var collectionView = UICollectionView(
         frame: .zero,
@@ -133,7 +132,6 @@ final class SeatStageView: TranslucentCardView {
         updateLayoutEnvironmentIfNeeded()
         pkDecoration.ifLoaded?.sizeClass = layoutMetrics.sizeClass
         super.layoutSubviews()
-        collectionView.collectionViewLayout.invalidateLayout()
         collectionView.layoutIfNeeded()
     }
 
@@ -201,9 +199,7 @@ final class SeatStageView: TranslucentCardView {
         }
         self.pendingTransition = PendingTransition(
             destinationPresentation: presentation,
-            destinationItems: destinationItems,
-            destinationConfiguration: pendingTransition.destinationConfiguration,
-            destinationUnionConfiguration: pendingTransition.destinationUnionConfiguration
+            destinationItems: destinationItems
         )
     }
 
@@ -217,50 +213,27 @@ final class SeatStageView: TranslucentCardView {
     func prepareTransition(
         to presentation: SeatStagePresentation
     ) -> Bool {
+        if pendingTransition != nil {
+            finishTransitionImmediately()
+        }
         guard let sourcePresentation = currentPresentation else {
             commit(presentation: presentation)
             return false
         }
-        if pendingTransition != nil {
-            finishTransitionImmediately()
-        }
 
         let sourceItems = currentItems
         let destinationItems = makeItems(for: presentation)
-        let sourceConfiguration = makeConfiguration(
-            presentation: sourcePresentation,
-            items: sourceItems
-        )
-        let destinationConfiguration = makeConfiguration(
-            presentation: presentation,
-            items: destinationItems
-        )
+        let destinationSection = makeSection(presentation: presentation, items: destinationItems)
         let sourceByID = Dictionary(
             uniqueKeysWithValues: sourceItems.map { ($0.id, $0) }
         )
         let destinationByID = Dictionary(
             uniqueKeysWithValues: destinationItems.map { ($0.id, $0) }
         )
-        // 过渡期间保留即将移除的真实 Cell，让离场与进场共享同一条动画时间线。
-        let unionIDs = destinationItems.map(\.id) + sourceItems.map(\.id).filter {
-            destinationByID[$0] == nil
-        }
-        let sourceUnion = unionConfiguration(
-            itemIDs: unionIDs,
-            primary: sourceConfiguration,
-            secondary: destinationConfiguration
-        )
-        let destinationUnion = unionConfiguration(
-            itemIDs: unionIDs,
-            primary: destinationConfiguration,
-            secondary: sourceConfiguration
-        )
-
-        itemsByID = sourceByID.merging(destinationByID) { _, destination in
-            destination
-        }
-        seatLayout.apply(sourceUnion)
-        collectionDataSource.applySnapshot(itemIDs: unionIDs)
+        // 布局持有几何并集；数据源安装同一份标识顺序。
+        itemsByID = sourceByID.merging(destinationByID) { _, destination in destination }
+        seatLayout.beginTransition(to: destinationSection)
+        applyLayoutSnapshot()
         collectionView.layoutIfNeeded()
 
         let sharedIDs = Set(sourceItems.map(\.id))
@@ -276,13 +249,11 @@ final class SeatStageView: TranslucentCardView {
         pkDecorationAlpha = sourcePresentation.layoutID == .roomPKNine ? 1 : 0
         pendingTransition = PendingTransition(
             destinationPresentation: presentation,
-            destinationItems: destinationItems,
-            destinationConfiguration: destinationConfiguration,
-            destinationUnionConfiguration: destinationUnion
+            destinationItems: destinationItems
         )
         setNeedsQuickLayout()
         updateCollectionHeight(
-            destinationConfiguration.contentSize.height,
+            measuredHeight(for: destinationSection),
             notify: true
         )
         setSeatInteractionEnabled(false)
@@ -294,7 +265,7 @@ final class SeatStageView: TranslucentCardView {
     func animatePreparedTransition() {
         guard let pendingTransition else { return }
         pkDecorationAlpha = pendingTransition.destinationPresentation.layoutID == .roomPKNine ? 1 : 0
-        seatLayout.apply(pendingTransition.destinationUnionConfiguration)
+        seatLayout.transitionProgress = 1
         collectionView.layoutIfNeeded()
         collectionView.visibleCells
             .compactMap { $0 as? SeatCollectionCell }
@@ -312,8 +283,8 @@ final class SeatStageView: TranslucentCardView {
         itemsByID = Dictionary(
             uniqueKeysWithValues: currentItems.map { ($0.id, $0) }
         )
-        seatLayout.apply(pendingTransition.destinationConfiguration)
-        collectionDataSource.applySnapshot(itemIDs: currentItems.map(\.id))
+        seatLayout.finishTransition()
+        applyLayoutSnapshot()
         self.pendingTransition = nil
         setNeedsQuickLayout()
         setSeatInteractionEnabled(true)
@@ -381,29 +352,26 @@ final class SeatStageView: TranslucentCardView {
         collectionView.contentInsetAdjustmentBehavior = .never
         collectionView.isPrefetchingEnabled = false
         collectionView.accessibilityIdentifier = "liveRoom.seat.collection"
-        _ = collectionDataSource
+        let dataSource = collectionDataSource
+        seatLayout.itemIdentifierProvider = { [weak dataSource] indexPath in
+            dataSource?.itemIdentifier(for: indexPath)
+        }
     }
 
-    /// 提交完整舞台数据、几何配置和非动画集合快照，并刷新辅助功能顺序。
+    /// 提交完整舞台数据，使分区规则失效并刷新非动画快照及辅助功能顺序。
     private func commit(presentation: SeatStagePresentation) {
         pkDecoration.ifLoaded?.reloadLocalizedContent()
         pkDecorationAlpha = 1
         let items = makeItems(for: presentation)
-        let configuration = makeConfiguration(
-            presentation: presentation,
-            items: items
-        )
+        let section = makeSection(presentation: presentation, items: items)
         currentPresentation = presentation
         currentItems = items
         itemsByID = Dictionary(
             uniqueKeysWithValues: items.map { ($0.id, $0) }
         )
-        seatLayout.apply(configuration)
-        collectionDataSource.applySnapshot(
-            itemIDs: items.map(\.id),
-            reconfigureExisting: true
-        )
-        updateCollectionHeight(configuration.contentSize.height, notify: true)
+        seatLayout.invalidateLayout()
+        applyLayoutSnapshot(reconfigureExisting: true)
+        updateCollectionHeight(measuredHeight(for: section), notify: true)
         accessibilityValue = String(items.count)
         setNeedsQuickLayout()
         collectionView.layoutIfNeeded()
@@ -419,49 +387,33 @@ final class SeatStageView: TranslucentCardView {
             .map(SeatCollectionItem.init)
     }
 
-    /// 结合当前尺寸参数、容器宽度和布局方向计算舞台几何配置。
-    private func makeConfiguration(
+    /// 将展示数据投影为分区规则；Frame 和转场属性由 Layout 生成。
+    private func makeSection(
         presentation: SeatStagePresentation,
         items: [SeatCollectionItem]
-    ) -> SeatCollectionLayoutConfiguration {
-        let availableWidth = max(
-            0,
-            bounds.width - layoutMetrics.stageHorizontalPadding * 2
-        )
-        return SeatCollectionGeometry.configuration(
-            presentation: presentation,
-            items: items,
-            metrics: layoutMetrics,
-            availableWidth: availableWidth,
-            direction: effectiveUserInterfaceLayoutDirection
+    ) -> SeatLayoutSection {
+        SeatLayoutSection(
+            layoutID: presentation.layoutID,
+            layoutFamily: presentation.layoutFamily,
+            items: items.map(SeatLayoutItem.init),
+            metrics: layoutMetrics
         )
     }
 
-    /// 合并源与目标条目几何，为仅在另一端存在的条目提供透明缩小状态。
-    private func unionConfiguration(
-        itemIDs: [SeatCollectionItemID],
-        primary: SeatCollectionLayoutConfiguration,
-        secondary: SeatCollectionLayoutConfiguration
-    ) -> SeatCollectionLayoutConfiguration {
-        var states: [
-            SeatCollectionItemID: SeatCollectionLayoutState
-        ] = [:]
-        for itemID in itemIDs {
-            if let state = primary.states[itemID] {
-                states[itemID] = state
-            // 仅在另一端存在的条目保留几何位置，以透明和缩小状态参与入场或离场。
-            } else if let fallback = secondary.states[itemID] {
-                states[itemID] = SeatCollectionLayoutState(
-                    frame: fallback.frame,
-                    alpha: 0,
-                    transform: CGAffineTransform(scaleX: 0.86, y: 0.86)
-                )
-            }
-        }
-        return SeatCollectionLayoutConfiguration(
-            itemIDs: itemIDs,
-            states: states,
-            contentSize: primary.contentSize
+    /// 提前测量目标高度，供舞台和公屏在同一时间线上布局。
+    private func measuredHeight(for section: SeatLayoutSection) -> CGFloat {
+        seatLayout.sizeThatFits(
+            CGSize(width: max(0, bounds.width - layoutMetrics.stageHorizontalPadding * 2), height: 0),
+            for: section,
+            layoutDirection: effectiveUserInterfaceLayoutDirection
+        ).height
+    }
+
+    /// 从 Layout 取得唯一的条目顺序，统一提交普通或转场 Snapshot。
+    private func applyLayoutSnapshot(reconfigureExisting: Bool = false) {
+        collectionDataSource.applySnapshot(
+            itemIDs: seatLayout.itemIdentifiers,
+            reconfigureExisting: reconfigureExisting
         )
     }
 
@@ -488,19 +440,16 @@ final class SeatStageView: TranslucentCardView {
         lastLayoutWidth = layoutWidth
         lastLayoutDirection = direction
         guard let currentPresentation else { return }
-        let configuration = makeConfiguration(
+        let section = makeSection(
             presentation: currentPresentation,
             items: currentItems
         )
         itemsByID = Dictionary(
             uniqueKeysWithValues: currentItems.map { ($0.id, $0) }
         )
-        seatLayout.apply(configuration)
-        collectionDataSource.applySnapshot(
-            itemIDs: currentItems.map(\.id),
-            reconfigureExisting: true
-        )
-        updateCollectionHeight(configuration.contentSize.height, notify: true)
+        seatLayout.invalidateLayout()
+        applyLayoutSnapshot(reconfigureExisting: true)
+        updateCollectionHeight(measuredHeight(for: section), notify: true)
         setNeedsQuickLayout()
     }
 

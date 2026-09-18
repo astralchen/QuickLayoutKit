@@ -37,196 +37,352 @@ nonisolated struct SeatCollectionItem: Sendable {
     }
 }
 
-/// 单个麦位在自定义 Collection Layout 中的完整视觉状态。
-struct SeatCollectionLayoutState: Equatable {
-    /// 条目在集合视图内容坐标系中的矩形，单位为点。
-    let frame: CGRect
-    /// 条目显示的不透明度，范围为 `0...1`。
-    let alpha: CGFloat
-    /// 应用到条目的二维几何变换。
-    let transform: CGAffineTransform
+/// 一个麦位的布局输入；不持有用户资料或已经计算的几何属性。
+struct SeatLayoutItem: Equatable {
+    /// 与数据源对应的稳定条目标识。
+    let identifier: SeatCollectionItemID
+    /// 客户端布局中的稳定位置标识。
+    let slotID: SeatSlotID
+    /// 麦位在所属房间中的零基位置。
+    let position: SeatPosition
+    /// 麦位所属房间，用于区分 PK 两侧。
+    let roomSide: SeatRoomSide
+    /// 决定麦位尺寸的客户端样式。
+    let styleID: SeatVisualStyleID
 
-    /// 创建指定矩形的条目几何状态；默认完全不透明且不应用变换。
+    /// 创建几何无关的麦位描述。
     init(
-        frame: CGRect,
-        alpha: CGFloat = 1,
-        transform: CGAffineTransform = .identity
+        identifier: SeatCollectionItemID,
+        slotID: SeatSlotID,
+        position: SeatPosition,
+        roomSide: SeatRoomSide,
+        styleID: SeatVisualStyleID
     ) {
-        self.frame = frame
-        self.alpha = alpha
-        self.transform = transform
+        self.identifier = identifier
+        self.slotID = slotID
+        self.position = position
+        self.roomSide = roomSide
+        self.styleID = styleID
+    }
+
+    /// 从展示条目提取布局所需的身份、位置及尺寸样式。
+    init(item: SeatCollectionItem) {
+        self.init(
+            identifier: item.id,
+            slotID: item.slot.slotID,
+            position: item.slot.position,
+            roomSide: item.slot.roomSide,
+            styleID: item.slot.styleID
+        )
     }
 }
 
-/// 一次布局提交所需的条目顺序、几何状态和内容尺寸。
-struct SeatCollectionLayoutConfiguration: Equatable {
-    /// 按集合视图显示顺序排列的稳定条目标识。
-    let itemIDs: [SeatCollectionItemID]
-    /// 以稳定条目标识索引的几何和透明度状态。
-    let states: [SeatCollectionItemID: SeatCollectionLayoutState]
-    /// 整个集合视图内容区域的尺寸，单位为点。
-    let contentSize: CGSize
+/// 单分区舞台的布局规则；条目数组同时定义稳定身份和显示顺序。
+struct SeatLayoutSection: Equatable {
+    /// 客户端布局标识，同时决定是否采用普通 RTL 镜像。
+    let layoutID: SeatLayoutID
+    /// 用于选择行列与主持麦排布算法的布局家族。
+    let layoutFamily: SeatLayoutFamily
+    /// 按数据源显示顺序排列的完整布局条目。
+    let items: [SeatLayoutItem]
+    /// 当前尺寸等级下的宽度、间距与外部舞台边距。
+    let metrics: SeatLayoutMetrics
 
-    /// 不包含条目且内容尺寸为零的初始布局配置。
-    static let empty = Self(itemIDs: [], states: [:], contentSize: .zero)
+    /// 从有序条目派生的数据源标识，不另存可分歧的顺序。
+    var itemIdentifiers: [SeatCollectionItemID] { items.map(\.identifier) }
+
+    /// 创建分区规则；重复条目或位置标识属于调用方编程错误。
+    init(
+        layoutID: SeatLayoutID,
+        layoutFamily: SeatLayoutFamily,
+        items: [SeatLayoutItem],
+        metrics: SeatLayoutMetrics
+    ) {
+        precondition(Set(items.map(\.identifier)).count == items.count, "Duplicate seat item identifier")
+        precondition(Set(items.map(\.slotID)).count == items.count, "Duplicate seat slot identifier")
+        self.layoutID = layoutID
+        self.layoutFamily = layoutFamily
+        self.items = items
+        self.metrics = metrics
+    }
 }
 
-/// 非滚动麦位舞台使用的绝对几何布局。
+/// Layout 提供给分区描述闭包的当前容器环境。
+struct SeatLayoutEnvironment {
+    /// 扣除 CollectionView 内容边距后的容器尺寸，单位为点。
+    let effectiveContentSize: CGSize
+    /// 当前有效的界面布局方向。
+    let layoutDirection: UIUserInterfaceLayoutDirection
+    /// 当前容器的系统特征，例如尺寸类与显示比例。
+    let traitCollection: UITraitCollection
+}
+
+/// 返回指定分区的布局描述；当前舞台只请求分区 0，nil 表示空布局。
+typealias SeatCollectionLayoutSectionProvider = (
+    _ sectionIndex: Int,
+    _ layoutEnvironment: SeatLayoutEnvironment
+) -> SeatLayoutSection?
+
+/// 根据分区描述和容器环境生成麦位属性的非滚动布局。
 ///
-/// 布局只消费已经由 Resolver 校验过的 Presentation，不读取 ViewModel，也不推断
-/// 后台业务。所有 Frame 都由客户端受控的布局家族与 Metrics 计算。
+/// 分区提供者的输入变化后调用 invalidateLayout()。最终几何及转场端点由布局
+/// 自身计算；属性查询始终通过当前数据源身份匹配几何，不缓存过期的 IndexPath。
 final class SeatCollectionLayout: UICollectionViewLayout {
+    private let sectionProvider: SeatCollectionLayoutSectionProvider
+    private var needsGeometryUpdate = true
+    private var cachedEnvironment: SeatLayoutEnvironment?
+    private var currentSection: SeatLayoutSection?
+    private var geometry = SeatCollectionGeometry.empty
+    private var orderedIdentifiers: [SeatCollectionItemID] = []
 
-    /// 最近一次提交给布局对象的完整几何配置。
-    private(set) var configuration = SeatCollectionLayoutConfiguration.empty
-    /// 按索引路径缓存的集合视图布局属性。
-    private var attributesByIndexPath: [IndexPath: UICollectionViewLayoutAttributes] = [:]
+    /// Stage 在数据源初始化后连接此查询；固定分区布局未连接时使用描述顺序。
+    var itemIdentifierProvider: ((IndexPath) -> SeatCollectionItemID?)?
 
-    /// 当前几何配置声明的内容尺寸，单位为点。
+    @MainActor
+    private struct Transition {
+        let currentSection: SeatLayoutSection?
+        let nextSection: SeatLayoutSection
+        var currentGeometry = SeatCollectionGeometry.empty
+        var nextGeometry = SeatCollectionGeometry.empty
+    }
+    private var transition: Transition?
+    private var progress: CGFloat = 0
+
+    /// 当前阶段应安装的数据源顺序；转场期间包括源与目标的条目并集。
+    var itemIdentifiers: [SeatCollectionItemID] {
+        updateGeometryIfNeeded()
+        return orderedIdentifiers
+    }
+
+    /// 当前几何转场的完成比例；无转场时写入无效，有限数值限制在 0...1。
+    var transitionProgress: CGFloat {
+        get { progress }
+        set {
+            guard transition != nil, newValue.isFinite else { return }
+            let value = min(1, max(0, newValue))
+            guard value != progress else { return }
+            progress = value
+            // 进度不改变分区提供者的输入，UIKit 按新比例重新查询属性。
+            super.invalidateLayout()
+        }
+    }
+
+    /// 创建始终使用指定分区描述的布局。
+    convenience init(section: SeatLayoutSection) {
+        self.init(sectionProvider: { _, _ in section })
+    }
+
+    /// 创建在布局失效或环境变化时重新取得分区描述的布局。
+    init(sectionProvider: @escaping SeatCollectionLayoutSectionProvider) {
+        self.sectionProvider = sectionProvider
+        super.init()
+    }
+
+    /// 从归档创建空布局；动态舞台使用分区提供者初始化器。
+    required init?(coder: NSCoder) {
+        sectionProvider = { _, _ in nil }
+        super.init(coder: coder)
+    }
+
+    override func prepare() {
+        super.prepare()
+        updateGeometryIfNeeded()
+    }
+
+    override func invalidateLayout() {
+        needsGeometryUpdate = true
+        super.invalidateLayout()
+    }
+
+    override func invalidateLayout(with context: UICollectionViewLayoutInvalidationContext) {
+        needsGeometryUpdate = true
+        super.invalidateLayout(with: context)
+    }
+
     override var collectionViewContentSize: CGSize {
-        configuration.contentSize
+        updateGeometryIfNeeded()
+        guard let transition else { return geometry.contentSize }
+        return CGSize(
+            width: interpolate(transition.currentGeometry.contentSize.width, transition.nextGeometry.contentSize.width),
+            height: interpolate(transition.currentGeometry.contentSize.height, transition.nextGeometry.contentSize.height)
+        )
     }
 
-    /// 替换几何配置、重建布局属性并使集合视图布局失效。
-    func apply(_ configuration: SeatCollectionLayoutConfiguration) {
-        guard self.configuration != configuration else { return }
-        self.configuration = configuration
-        // Snapshot 更新期间 UIKit 可能在下一次 prepare() 前查询布局。
-        // 配置与缓存必须同步切换，避免返回旧并集的索引或旧身份对应的 Frame。
-        rebuildAttributes()
+    /// 测量目标分区，不改变当前提供者结果、布局缓存或转场进度。
+    func sizeThatFits(
+        _ size: CGSize,
+        for section: SeatLayoutSection,
+        layoutDirection: UIUserInterfaceLayoutDirection
+    ) -> CGSize {
+        SeatCollectionGeometry.resolve(
+            section: section,
+            environment: SeatLayoutEnvironment(
+                effectiveContentSize: size,
+                layoutDirection: layoutDirection,
+                traitCollection: collectionView?.traitCollection ?? UITraitCollection()
+            )
+        ).contentSize
+    }
+
+    /// 安装转场两端描述，并以目标条目优先的并集顺序显示起点。
+    func beginTransition(to section: SeatLayoutSection) {
+        precondition(transition == nil, "Finish the current seat transition before starting another")
+        updateGeometryIfNeeded()
+        transition = Transition(currentSection: currentSection, nextSection: section)
+        progress = 0
         invalidateLayout()
+        updateGeometryIfNeeded()
     }
 
-    /// 按当前条目顺序生成包含位置、透明度和变换的布局属性缓存。
-    private func rebuildAttributes() {
-        attributesByIndexPath.removeAll(keepingCapacity: true)
-        for (index, itemID) in configuration.itemIDs.enumerated() {
-            guard let state = configuration.states[itemID] else { continue }
-            let indexPath = IndexPath(item: index, section: 0)
-            let attributes = UICollectionViewLayoutAttributes(forCellWith: indexPath)
-            attributes.frame = state.frame
-            attributes.alpha = state.alpha
-            attributes.transform = state.transform
-            attributes.zIndex = index
-            attributesByIndexPath[indexPath] = attributes
+    /// 收敛至提供者的最新描述；宿主应先将提供者内容更新为目标状态。
+    func finishTransition() {
+        guard transition != nil else { return }
+        transition = nil
+        progress = 0
+        invalidateLayout()
+        updateGeometryIfNeeded()
+    }
+
+    override func layoutAttributesForElements(in rect: CGRect) -> [UICollectionViewLayoutAttributes]? {
+        updateGeometryIfNeeded()
+        return (0..<currentItemCount).compactMap { item in
+            let attributes = attributesForItem(at: IndexPath(item: item, section: 0))
+            return attributes.flatMap { $0.frame.intersects(rect) ? $0 : nil }
         }
     }
 
-    /// 返回与指定内容矩形相交且索引仍有效的条目布局属性。
-    override func layoutAttributesForElements(
-        in rect: CGRect
-    ) -> [UICollectionViewLayoutAttributes]? {
-        let itemCount = currentItemCount
-        return attributesByIndexPath.values.filter {
-            $0.indexPath.item < itemCount && $0.frame.intersects(rect)
+    override func layoutAttributesForItem(at indexPath: IndexPath) -> UICollectionViewLayoutAttributes? {
+        updateGeometryIfNeeded()
+        guard indexPath.section == 0, indexPath.item >= 0, indexPath.item < currentItemCount else { return nil }
+        return attributesForItem(at: indexPath)
+    }
+
+    /// 每次查询都解析当前 Snapshot 身份；返回独立属性对象，避免 UIKit 修改几何缓存。
+    private func attributesForItem(at indexPath: IndexPath) -> UICollectionViewLayoutAttributes? {
+        /// 与数据源对应的稳定条目标识。
+    let identifier: SeatCollectionItemID?
+        if let itemIdentifierProvider {
+            identifier = itemIdentifierProvider(indexPath)
+        } else {
+            identifier = orderedIdentifiers.indices.contains(indexPath.item) ? orderedIdentifiers[indexPath.item] : nil
         }
+        guard let identifier else { return nil }
+        let attributes = UICollectionViewLayoutAttributes(forCellWith: indexPath)
+        if let transition {
+            let source = transition.currentGeometry.frames[identifier]
+            let destination = transition.nextGeometry.frames[identifier]
+            guard let start = source ?? destination, let end = destination ?? source else { return nil }
+            attributes.frame = CGRect(
+                x: interpolate(start.minX, end.minX), y: interpolate(start.minY, end.minY),
+                width: interpolate(start.width, end.width), height: interpolate(start.height, end.height)
+            )
+            attributes.alpha = interpolate(source == nil ? 0 : 1, destination == nil ? 0 : 1)
+            let scale = interpolate(source == nil ? 0.86 : 1, destination == nil ? 0.86 : 1)
+            attributes.transform = CGAffineTransform(scaleX: scale, y: scale)
+        } else {
+            guard let frame = geometry.frames[identifier] else { return nil }
+            attributes.frame = frame
+        }
+        attributes.zIndex = indexPath.item
+        return attributes
     }
 
-    /// 返回指定有效索引路径的布局属性；不存在时为 `nil`。
-    override func layoutAttributesForItem(
-        at indexPath: IndexPath
-    ) -> UICollectionViewLayoutAttributes? {
-        guard indexPath.section == 0,
-            indexPath.item >= 0,
-            indexPath.item < currentItemCount
-        else { return nil }
-        return attributesByIndexPath[indexPath]
+    private func interpolate(_ start: CGFloat, _ end: CGFloat) -> CGFloat {
+        start + (end - start) * progress
     }
 
-    // 配置和 Diffable Snapshot 分两步提交；缓存即使是最新配置，也只能向 UIKit
-    // 返回当前 Snapshot 中存在的索引。不要在建缓存时裁剪，否则扩展后会缺失麦位。
-    /// 集合视图当前第一分区中可安全查询的条目数量。
     private var currentItemCount: Int {
         guard let collectionView, collectionView.numberOfSections > 0 else { return 0 }
         return collectionView.numberOfItems(inSection: 0)
     }
 
-    /// 返回容器宽度变化是否超过半点；只有满足该条件时才使布局失效。
-    override func shouldInvalidateLayout(
-        forBoundsChange newBounds: CGRect
-    ) -> Bool {
+    override func shouldInvalidateLayout(forBoundsChange newBounds: CGRect) -> Bool {
         guard let collectionView else { return false }
         return abs(collectionView.bounds.width - newBounds.width) > 0.5
     }
+
+    /// prepare 与查询共用更新入口；缓存不按瞬时 Snapshot 数量裁剪。
+    private func updateGeometryIfNeeded() {
+        let contentSize = collectionView.map {
+            $0.bounds.inset(by: $0.adjustedContentInset).size
+        } ?? .zero
+        let environment = SeatLayoutEnvironment(
+            effectiveContentSize: contentSize,
+            layoutDirection: collectionView?.effectiveUserInterfaceLayoutDirection ?? .leftToRight,
+            traitCollection: collectionView?.traitCollection ?? UITraitCollection()
+        )
+        let environmentChanged = cachedEnvironment.map {
+            abs($0.effectiveContentSize.width - environment.effectiveContentSize.width) > 0.5
+                || $0.layoutDirection != environment.layoutDirection
+                || !$0.traitCollection.isEqual(environment.traitCollection)
+        } ?? true
+        guard needsGeometryUpdate || environmentChanged else { return }
+        needsGeometryUpdate = false
+        cachedEnvironment = environment
+        if var transition {
+            transition.currentGeometry = transition.currentSection.map {
+                SeatCollectionGeometry.resolve(section: $0, environment: environment)
+            } ?? .empty
+            transition.nextGeometry = SeatCollectionGeometry.resolve(section: transition.nextSection, environment: environment)
+            let destinationIDs = transition.nextSection.itemIdentifiers
+            let destinationSet = Set(destinationIDs)
+            orderedIdentifiers = destinationIDs + (transition.currentSection?.itemIdentifiers ?? []).filter {
+                !destinationSet.contains($0)
+            }
+            self.transition = transition
+        } else {
+            let section = sectionProvider(0, environment)
+            // 即使提供者仍返回源分区，结束转场也必须移除并集标识。
+            orderedIdentifiers = section?.itemIdentifiers ?? []
+            // 数据源内容刷新也会使 UIKit 失效；相同规则无需重算几何。
+            guard section != currentSection || environmentChanged else { return }
+            currentSection = section
+            geometry = section.map {
+                SeatCollectionGeometry.resolve(section: $0, environment: environment)
+            } ?? .empty
+        }
+    }
 }
 
-/// 将业务布局家族解析为 CollectionView 可直接消费的绝对 Frame。
+/// Layout 内部的几何结果；业务容器只提交分区规则，不直接依赖此类型。
 @MainActor
-enum SeatCollectionGeometry {
+private struct SeatCollectionGeometry {
+    let frames: [SeatCollectionItemID: CGRect]
+    let contentSize: CGSize
+    static let empty = Self(frames: [:], contentSize: .zero)
 
-    /// 根据舞台数据、尺寸参数、可用宽度和布局方向生成确定性几何配置。
-    static func configuration(
-        presentation: SeatStagePresentation,
-        items: [SeatCollectionItem],
-        metrics: SeatLayoutMetrics,
-        availableWidth: CGFloat,
-        direction: UIUserInterfaceLayoutDirection
-    ) -> SeatCollectionLayoutConfiguration {
-        let slots = Dictionary(
-            uniqueKeysWithValues: items.map { ($0.slot.slotID, $0) }
-        )
+    static func resolve(section: SeatLayoutSection, environment: SeatLayoutEnvironment) -> Self {
+        let metrics = section.metrics
+        let availableWidth = max(0, environment.effectiveContentSize.width)
         let logicalFrames: [SeatCollectionItemID: CGRect]
-        switch presentation.layoutFamily {
+        switch section.layoutFamily {
         case .partyGrid:
-            logicalFrames = partyFrames(
-                presentation: presentation,
-                itemsBySlotID: slots,
-                metrics: metrics,
-                availableWidth: availableWidth
-            )
+            logicalFrames = partyFrames(items: section.items, metrics: metrics, availableWidth: availableWidth)
         case .individualAudience:
-            logicalFrames = individualFrames(
-                presentation: presentation,
-                itemsBySlotID: slots,
-                metrics: metrics,
-                availableWidth: availableWidth
-            )
+            logicalFrames = individualFrames(items: section.items, metrics: metrics, availableWidth: availableWidth)
         case .pk:
             let geometry = RoomPKGeometry(width: availableWidth, sizeClass: metrics.sizeClass)
-            logicalFrames = Dictionary(uniqueKeysWithValues: items.map { item in
-                (item.id, geometry.frame(side: item.slot.roomSide, position: item.slot.position.rawValue))
+            logicalFrames = Dictionary(uniqueKeysWithValues: section.items.map { item in
+                (item.identifier, geometry.frame(side: item.roomSide, position: item.position.rawValue))
             })
         }
-
-        let states = Dictionary(
-            uniqueKeysWithValues: logicalFrames.map { itemID, frame in
-                let resolvedFrame: CGRect
-                // 普通房型镜像逻辑布局；厅 PK 保持本房在物理左侧，避免交换双方身份位置。
-                if direction == .rightToLeft && presentation.layoutID != .roomPKNine {
-                    resolvedFrame = CGRect(
-                        x: availableWidth - frame.maxX,
-                        y: frame.minY,
-                        width: frame.width,
-                        height: frame.height
-                    )
-                } else {
-                    resolvedFrame = frame
-                }
-                return (
-                    itemID,
-                    SeatCollectionLayoutState(frame: resolvedFrame)
-                )
+        let frames = logicalFrames.mapValues { frame in
+            if environment.layoutDirection == .rightToLeft && section.layoutID != .roomPKNine {
+                return CGRect(x: availableWidth - frame.maxX, y: frame.minY, width: frame.width, height: frame.height)
             }
-        )
-        let contentHeight = states.values.map(\.frame.maxY).max() ?? 0
-        return SeatCollectionLayoutConfiguration(
-            itemIDs: items.map(\.id),
-            states: states,
-            contentSize: CGSize(width: availableWidth, height: contentHeight)
-        )
+            return frame
+        }
+        return Self(frames: frames, contentSize: CGSize(width: availableWidth, height: frames.values.map(\.maxY).max() ?? 0))
     }
 
     /// 返回派对房主持麦与两排观众麦在舞台中的矩形。
     private static func partyFrames(
-        presentation: SeatStagePresentation,
-        itemsBySlotID: [SeatSlotID: SeatCollectionItem],
+        items: [SeatLayoutItem],
         metrics: SeatLayoutMetrics,
         availableWidth: CGFloat
     ) -> [SeatCollectionItemID: CGRect] {
-        let slots = presentation.visibleSlots.sorted { $0.position < $1.position }
-        guard let host = slots.first,
-            let hostItem = itemsBySlotID[host.slotID]
-        else { return [:] }
+        let slots = items.sorted { $0.position < $1.position }
+        guard let host = slots.first else { return [:] }
 
         let seatSize = SeatView.fittingSize(
             styleID: host.styleID,
@@ -234,7 +390,7 @@ enum SeatCollectionGeometry {
             width: metrics.standardSeatWidth
         )
         var frames: [SeatCollectionItemID: CGRect] = [
-            hostItem.id: CGRect(
+            host.identifier: CGRect(
                 x: (availableWidth - seatSize.width) / 2,
                 y: 0,
                 width: seatSize.width,
@@ -244,7 +400,6 @@ enum SeatCollectionGeometry {
         let guestSlots = Array(slots.dropFirst())
         let rowCapacity = 4
         for (offset, slot) in slots.dropFirst().enumerated() {
-            guard let item = itemsBySlotID[slot.slotID] else { continue }
             let row = offset / rowCapacity
             let column = offset % rowCapacity
             let itemCountInRow = min(
@@ -257,7 +412,7 @@ enum SeatCollectionGeometry {
                 spacing: metrics.partyHorizontalSpacing,
                 availableWidth: availableWidth
             )
-            frames[item.id] = CGRect(
+            frames[slot.identifier] = CGRect(
                 x: rowOriginX + CGFloat(column)
                     * (seatSize.width + metrics.partyHorizontalSpacing),
                 y: seatSize.height
@@ -273,15 +428,12 @@ enum SeatCollectionGeometry {
 
     /// 返回个播房放大主持麦及可见观众麦的矩形。
     private static func individualFrames(
-        presentation: SeatStagePresentation,
-        itemsBySlotID: [SeatSlotID: SeatCollectionItem],
+        items: [SeatLayoutItem],
         metrics: SeatLayoutMetrics,
         availableWidth: CGFloat
     ) -> [SeatCollectionItemID: CGRect] {
-        let slots = presentation.visibleSlots.sorted { $0.position < $1.position }
-        guard let host = slots.first,
-            let hostItem = itemsBySlotID[host.slotID]
-        else { return [:] }
+        let slots = items.sorted { $0.position < $1.position }
+        guard let host = slots.first else { return [:] }
 
         let hostSize = SeatView.fittingSize(
             styleID: host.styleID,
@@ -289,7 +441,7 @@ enum SeatCollectionGeometry {
             width: metrics.emphasizedHostWidth
         )
         var frames: [SeatCollectionItemID: CGRect] = [
-            hostItem.id: CGRect(
+            host.identifier: CGRect(
                 x: (availableWidth - hostSize.width) / 2,
                 y: 0,
                 width: hostSize.width,
@@ -313,9 +465,8 @@ enum SeatCollectionGeometry {
         )
         var guestOriginX = guestRowOriginX
         for (offset, slot) in slots.dropFirst().enumerated() {
-            guard let item = itemsBySlotID[slot.slotID] else { continue }
             let seatSize = guestSizes[offset]
-            frames[item.id] = CGRect(
+            frames[slot.identifier] = CGRect(
                 x: guestOriginX,
                 y: hostSize.height + metrics.stageSpacing,
                 width: seatSize.width,

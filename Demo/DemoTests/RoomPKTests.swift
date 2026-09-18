@@ -220,20 +220,20 @@ struct RoomPKTests {
     func geometryFitsAndPreservesPhysicalSidesInRTL(width: CGFloat) throws {
         let presentation = try SeatLayoutResolver.resolve(snapshot: snapshot()).get()
         let items = presentation.visibleSlots.map(SeatCollectionItem.init)
-        let lhs = SeatCollectionGeometry.configuration(presentation: presentation, items: items,
+        let lhs = seatLayoutTestGeometry(presentation: presentation, items: items,
             metrics: .regular, availableWidth: width, direction: .leftToRight)
-        let rhs = SeatCollectionGeometry.configuration(presentation: presentation, items: items,
+        let rhs = seatLayoutTestGeometry(presentation: presentation, items: items,
             metrics: .regular, availableWidth: width, direction: .rightToLeft)
         #expect(lhs == rhs)
-        #expect(lhs.states.count == 18)
-        let frames = try items.map { try #require(lhs.states[$0.id]?.frame) }
+        #expect(lhs.frames.count == 18)
+        let frames = try items.map { try #require(lhs.frames[$0.id]) }
         for (index, frame) in frames.enumerated() {
             #expect(frame.minX >= 0 && frame.maxX <= width + 0.5)
             #expect(frame.minY >= 0 && frame.maxY <= lhs.contentSize.height)
             for other in frames.dropFirst(index + 1) { #expect(!frame.intersects(other)) }
         }
         for side in SeatRoomSide.allCases {
-            let sideFrames = try items.filter { $0.slot.roomSide == side }.map { try #require(lhs.states[$0.id]?.frame) }
+            let sideFrames = try items.filter { $0.slot.roomSide == side }.map { try #require(lhs.frames[$0.id]) }
             #expect(sideFrames[0].width > sideFrames[1].width)
             #expect(sideFrames[1...4].allSatisfy { $0.minY == sideFrames[1].minY })
             #expect(sideFrames[5...8].allSatisfy { $0.minY == sideFrames[5].minY })

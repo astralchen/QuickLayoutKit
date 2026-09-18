@@ -80,10 +80,47 @@ final class RoomPKUITests: XCTestCase {
     }
 
     @MainActor
-    private func launchRoomPK() -> XCUIApplication {
+    func testRoomModeLayoutTransitions() throws {
+        verifyRoomModeLayoutTransitions(locale: "zh-Hans")
+    }
+
+    @MainActor
+    func testRoomModeLayoutTransitionsInRTL() throws {
+        verifyRoomModeLayoutTransitions(locale: "ar")
+    }
+
+    @MainActor
+    private func verifyRoomModeLayoutTransitions(locale: String) {
+        let app = launchRoomPK(locale: locale)
+        let isRTL = locale == "ar"
+        let steps: [(String, Int, String)] = [
+            (isRTL ? "إنهاء التحدي" : "结束 PK", 9, "派对九麦"),
+            (isRTL ? "غرفة بث فردي" : "个播房", 1, "个播默认收起"),
+            (isRTL ? "فتح مقاعد الجمهور" : "开启观众席", 5, "个播展开"),
+            (isRTL ? "إغلاق مقاعد الجمهور" : "关闭观众席", 1, "个播收起"),
+            (isRTL ? "فتح مقاعد الجمهور" : "开启观众席", 5, "个播恢复"),
+            (isRTL ? "منافسة الغرف" : "厅 PK", 18, "厅PK恢复")
+        ]
+        for (title, count, name) in steps {
+            app.buttons["liveRoom.more.button"].tap()
+            let action = app.buttons[title]
+            XCTAssertTrue(action.waitForExistence(timeout: 3))
+            action.tap()
+            let seats = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "liveRoom.seat.button."))
+            let settled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "count == %d", count), object: seats)
+            XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 5), .completed)
+            let messages = app.otherElements["liveRoom.publicChat.container"]
+            XCTAssertTrue(messages.exists)
+            XCTAssertLessThanOrEqual(seats.element(boundBy: count - 1).frame.maxY, messages.frame.minY + 1)
+            capture(app, "布局API-\(locale)-\(name)")
+        }
+    }
+
+    @MainActor
+    private func launchRoomPK(locale: String = "zh-Hans") -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments += ["-AppleLanguages", "(en)", "-quicklayoutkit.demo.locale.identifier", "zh-Hans"]
+        app.launchArguments += ["-AppleLanguages", "(en)", "-quicklayoutkit.demo.locale.identifier", locale]
         app.launch()
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
         let route = app.cells["demo.liveRoom.title"]
@@ -93,7 +130,7 @@ final class RoomPKUITests: XCTestCase {
         let more = app.buttons["liveRoom.more.button"]
         XCTAssertTrue(more.waitForExistence(timeout: 10))
         more.tap()
-        app.buttons["厅 PK"].tap()
+        app.buttons[locale == "ar" ? "منافسة الغرف" : "厅 PK"].tap()
         XCTAssertTrue(app.buttons["liveRoom.seat.button.current.1"].waitForExistence(timeout: 5))
         return app
     }

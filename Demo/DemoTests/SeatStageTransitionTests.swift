@@ -14,53 +14,157 @@ import UIKit
 @Suite(.serialized)
 struct SeatStageTransitionTests {
 
-    @Test func layoutConfigurationReplacesCachedAttributesBeforePrepare() throws {
-        let layout = SeatCollectionLayout()
-        let collectionView = SeatLayoutCountTestCollectionView(frame: .zero, collectionViewLayout: layout)
-        collectionView.snapshotCounts = [18]
-        let source = makeLayoutTestConfiguration(count: 18)
-        layout.apply(source)
+    @Test func invalidationReplacesGeometryBeforePrepare() throws {
+        var section = makeLayoutTestSection(count: 18)
+        let layout = SeatCollectionLayout { _, _ in section }
+        let collection = SeatLayoutCountTestCollectionView(frame: CGRect(x: 0, y: 0, width: 700, height: 600), collectionViewLayout: layout)
+        collection.snapshotCounts = [18]
         layout.prepare()
-        #expect(layout.layoutAttributesForElements(in: .infinite)?.count == 18)
-
-        // 模拟转场收尾：配置先收敛，UIKit 尚未再次调用 prepare()。
-        let destination = SeatCollectionLayoutConfiguration(
-            itemIDs: Array(source.itemIDs.prefix(9).reversed()),
-            states: source.states,
-            contentSize: source.contentSize
-        )
-        layout.apply(destination)
-        let attributes = try #require(layout.layoutAttributesForElements(in: .infinite))
-        #expect(attributes.count == 9)
+        let sourceFrame = try #require(layout.layoutAttributesForItem(at: IndexPath(item: 8, section: 0))?.frame)
+        section = SeatLayoutSection(layoutID: section.layoutID, layoutFamily: section.layoutFamily,
+            items: Array(section.items.prefix(9).reversed()), metrics: section.metrics)
+        layout.invalidateLayout()
+        #expect(layout.layoutAttributesForElements(in: .infinite)?.count == 9)
         #expect(layout.layoutAttributesForItem(at: IndexPath(item: 9, section: 0)) == nil)
-        let first = try #require(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0)))
-        #expect(first.frame == source.states[source.itemIDs[8]]?.frame)
-        withExtendedLifetime(collectionView) {}
+        #expect(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))?.frame == sourceFrame)
+        withExtendedLifetime(collection) {}
     }
 
     @Test func layoutQueriesRespectSnapshotCountsBetweenPrepareCalls() throws {
-        let layout = SeatCollectionLayout()
-        let collectionView = SeatLayoutCountTestCollectionView(frame: .zero, collectionViewLayout: layout)
-        collectionView.snapshotCounts = [18]
-        layout.apply(makeLayoutTestConfiguration(count: 18))
+        let layout = SeatCollectionLayout(section: makeLayoutTestSection(count: 18))
+        let collection = SeatLayoutCountTestCollectionView(frame: CGRect(x: 0, y: 0, width: 700, height: 600), collectionViewLayout: layout)
+        collection.snapshotCounts = [18]
         layout.prepare()
-
-        // 配置/缓存仍是并集时，当前 Snapshot 的合法范围也必须约束查询结果。
-        for count in [9, 5, 1, 0, 18] {
-            collectionView.snapshotCounts = [count]
+        for count in [18, 9, 5, 1, 0, 18] {
+            collection.snapshotCounts = [count]
             let attributes = try #require(layout.layoutAttributesForElements(in: .infinite))
-            #expect(Set(attributes.map(\.indexPath)) == Set((0..<count).map {
-                IndexPath(item: $0, section: 0)
-            }))
+            #expect(Set(attributes.map(\.indexPath)) == Set((0..<count).map { IndexPath(item: $0, section: 0) }))
             for item in 0..<18 {
-                #expect((layout.layoutAttributesForItem(at: IndexPath(item: item, section: 0)) != nil)
-                    == (item < count))
+                #expect((layout.layoutAttributesForItem(at: IndexPath(item: item, section: 0)) != nil) == (item < count))
             }
         }
-        collectionView.snapshotCounts = []
+        collection.snapshotCounts = []
         #expect(layout.layoutAttributesForElements(in: .infinite)?.isEmpty == true)
         #expect(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0)) == nil)
-        withExtendedLifetime(collectionView) {}
+        withExtendedLifetime(collection) {}
+    }
+
+    @Test func layoutUsesCurrentSnapshotIdentityDuringReordering() throws {
+        var section = makeLayoutTestSection(count: 5)
+        var identifiers = section.itemIdentifiers
+        let layout = SeatCollectionLayout { _, _ in section }
+        let collection = SeatLayoutCountTestCollectionView(frame: CGRect(x: 0, y: 0, width: 700, height: 600), collectionViewLayout: layout)
+        collection.snapshotCounts = [5]
+        layout.itemIdentifierProvider = { identifiers[$0.item] }
+        let old = try (0..<5).map { try #require(layout.layoutAttributesForItem(at: IndexPath(item: $0, section: 0))?.frame) }
+        section = SeatLayoutSection(layoutID: section.layoutID, layoutFamily: section.layoutFamily,
+            items: Array(section.items.reversed()), metrics: section.metrics)
+        layout.invalidateLayout()
+        // 描述已重排，Snapshot 还没提交：仍按当前身份返回原几何。
+        #expect(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))?.frame == old[0])
+        identifiers.reverse()
+        #expect(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))?.frame == old[4])
+        layout.itemIdentifierProvider = { _ in nil }
+        #expect(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0)) == nil)
+        withExtendedLifetime(collection) {}
+    }
+
+    @Test func layoutRespondsToBoundsDirectionMetricsAndEmptyProvider() throws {
+        var section: SeatLayoutSection? = makeLayoutTestSection(count: 9)
+        var receivedWidths: [CGFloat] = []
+        let layout = SeatCollectionLayout { index, environment in
+            #expect(index == 0)
+            receivedWidths.append(environment.effectiveContentSize.width)
+            return section
+        }
+        let collection = SeatLayoutCountTestCollectionView(frame: .zero, collectionViewLayout: layout)
+        collection.contentInsetAdjustmentBehavior = .never
+        collection.snapshotCounts = [9]
+        _ = layout.collectionViewContentSize
+        for width in [CGFloat(700), 760] {
+            collection.bounds.size.width = width
+            let host = try #require(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0)))
+            #expect(abs(host.frame.midX - width / 2) < 0.5)
+            #expect(layout.collectionViewContentSize.width == width)
+        }
+        let left = try #require(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0))?.frame)
+        collection.semanticContentAttribute = .forceRightToLeft
+        let right = try #require(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0))?.frame)
+        #expect(abs(right.minX - (760 - left.maxX)) < 0.5)
+        let previous = try #require(section)
+        section = SeatLayoutSection(layoutID: previous.layoutID, layoutFamily: previous.layoutFamily,
+            items: previous.items, metrics: .compact)
+        layout.invalidateLayout()
+        #expect(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0))!.frame.width < right.width)
+        #expect(receivedWidths.contains(0) && receivedWidths.contains(700) && receivedWidths.contains(760))
+        section = nil
+        layout.invalidateLayout()
+        #expect(layout.itemIdentifiers.isEmpty)
+        #expect(layout.collectionViewContentSize == .zero)
+        #expect(layout.layoutAttributesForElements(in: .infinite)?.isEmpty == true)
+        withExtendedLifetime(collection) {}
+    }
+
+    @Test func transitionInterpolatesAndMeasurementDoesNotMutateLayout() throws {
+        var section = makeLayoutTestSection(count: 5)
+        let shared = section.items[0]
+        let moved = SeatLayoutItem(identifier: shared.identifier, slotID: shared.slotID,
+            position: SeatPosition(rawValue: 1), roomSide: shared.roomSide, styleID: shared.styleID)
+        let entrant = SeatLayoutItem(identifier: .user(.init(rawValue: "new-user")), slotID: .init(rawValue: "new-slot"),
+            position: SeatPosition(rawValue: 0), roomSide: .current, styleID: .standardHost)
+        let destination = SeatLayoutSection(layoutID: .individualAudience, layoutFamily: .individualAudience,
+            items: [entrant, moved], metrics: .compact)
+        let layout = SeatCollectionLayout { _, _ in section }
+        let collection = SeatLayoutCountTestCollectionView(frame: CGRect(x: 0, y: 0, width: 360, height: 700), collectionViewLayout: layout)
+        collection.snapshotCounts = [5]
+        let original = try #require(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))?.frame)
+        let targetSize = layout.sizeThatFits(collection.bounds.size, for: destination, layoutDirection: .leftToRight)
+        #expect(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))?.frame == original)
+        layout.beginTransition(to: destination)
+        collection.snapshotCounts = [6]
+        #expect(layout.itemIdentifiers == destination.itemIdentifiers + Array(section.itemIdentifiers.dropFirst()))
+        let start = try #require(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0)))
+        #expect(start.frame == original)
+        #expect(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))?.alpha == 0)
+        layout.transitionProgress = 1
+        let end = try #require(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0)))
+        #expect(layout.collectionViewContentSize == targetSize)
+        layout.transitionProgress = 0.5
+        let mid = try #require(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0)))
+        #expect(abs(mid.frame.midX - (start.frame.midX + end.frame.midX) / 2) < 0.001)
+        #expect(abs(mid.frame.height - (start.frame.height + end.frame.height) / 2) < 0.001)
+        for index in [0, 2] {
+            let faded = try #require(layout.layoutAttributesForItem(at: IndexPath(item: index, section: 0)))
+            #expect(faded.alpha == 0.5)
+            #expect(abs(faded.transform.a - 0.93) < 0.001)
+        }
+        _ = layout.sizeThatFits(CGSize(width: 760, height: 0), for: destination, layoutDirection: .rightToLeft)
+        #expect(layout.transitionProgress == 0.5)
+        #expect(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0))?.frame == mid.frame)
+        layout.transitionProgress = 2
+        #expect(layout.transitionProgress == 1)
+        section = destination
+        layout.finishTransition()
+        collection.snapshotCounts = [2]
+        #expect(layout.itemIdentifiers == destination.itemIdentifiers)
+        #expect(layout.collectionViewContentSize == targetSize)
+        #expect(layout.layoutAttributesForElements(in: .infinite)?.allSatisfy { $0.alpha == 1 && $0.transform == .identity } == true)
+        layout.transitionProgress = 0.5
+        #expect(layout.transitionProgress == 0)
+        withExtendedLifetime(collection) {}
+    }
+
+    @Test func finishingTransitionRequeriesProviderEvenWhenSourceIsUnchanged() throws {
+        let source = makeLayoutTestSection(count: 1)
+        let layout = SeatCollectionLayout(section: source)
+        let collection = SeatLayoutCountTestCollectionView(frame: CGRect(x: 0, y: 0, width: 360, height: 600), collectionViewLayout: layout)
+        collection.snapshotCounts = [1]
+        layout.beginTransition(to: makeLayoutTestSection(count: 9))
+        #expect(layout.itemIdentifiers.count == 9)
+        layout.finishTransition()
+        #expect(layout.itemIdentifiers == source.itemIdentifiers)
+        #expect(layout.layoutAttributesForElements(in: .infinite)?.count == 1)
+        withExtendedLifetime(collection) {}
     }
 
     @Test func roomModeTransitionsKeepOnlyCurrentSnapshotAttributes() throws {
@@ -150,14 +254,14 @@ struct SeatStageTransitionTests {
             SeatCollectionItem.init
         )
         let availableWidth: CGFloat = 370
-        let leftToRight = SeatCollectionGeometry.configuration(
+        let leftToRight = seatLayoutTestGeometry(
             presentation: resolvedPresentation,
             items: items,
             metrics: .regular,
             availableWidth: availableWidth,
             direction: .leftToRight
         )
-        let rightToLeft = SeatCollectionGeometry.configuration(
+        let rightToLeft = seatLayoutTestGeometry(
             presentation: resolvedPresentation,
             items: items,
             metrics: .regular,
@@ -168,8 +272,8 @@ struct SeatStageTransitionTests {
         #expect(leftToRight.itemIDs == rightToLeft.itemIDs)
         #expect(leftToRight.contentSize == rightToLeft.contentSize)
         for itemID in leftToRight.itemIDs {
-            let leftFrame = try #require(leftToRight.states[itemID]?.frame)
-            let rightFrame = try #require(rightToLeft.states[itemID]?.frame)
+            let leftFrame = try #require(leftToRight.frames[itemID])
+            let rightFrame = try #require(rightToLeft.frames[itemID])
             #expect(abs(rightFrame.minX - (availableWidth - leftFrame.maxX)) < 0.5)
             #expect(abs(rightFrame.minY - leftFrame.minY) < 0.5)
             #expect(rightFrame.size == leftFrame.size)
@@ -187,7 +291,7 @@ struct SeatStageTransitionTests {
         )
         let availableWidth = containerWidth
             - partyMetrics.stageHorizontalPadding * 2
-        let partyConfiguration = SeatCollectionGeometry.configuration(
+        let partyConfiguration = seatLayoutTestGeometry(
             presentation: partyPresentation,
             items: partyPresentation.visibleSlots.map(
                 SeatCollectionItem.init
@@ -223,7 +327,7 @@ struct SeatStageTransitionTests {
             )
         )
         let individualConfiguration =
-            SeatCollectionGeometry.configuration(
+            seatLayoutTestGeometry(
                 presentation: individualPresentation,
                 items: individualPresentation.visibleSlots.map(
                     SeatCollectionItem.init
@@ -597,7 +701,7 @@ private func presentation(
 private func expectRowsCentered(
     positions: [Int],
     presentation: SeatStagePresentation,
-    configuration: SeatCollectionLayoutConfiguration,
+    configuration: SeatLayoutTestGeometry,
     availableWidth: CGFloat
 ) throws {
     let frames = try positions.map { position in
@@ -607,7 +711,7 @@ private func expectRowsCentered(
             }
         )
         let itemID = SeatCollectionItem(slot: slot).id
-        return try #require(configuration.states[itemID]?.frame)
+        return try #require(configuration.frames[itemID])
     }
     let minX = try #require(frames.map(\.minX).min())
     let maxX = try #require(frames.map(\.maxX).max())
@@ -707,18 +811,43 @@ private final class SeatLayoutCountTestCollectionView: UICollectionView {
 }
 
 @MainActor
-private func makeLayoutTestConfiguration(count: Int) -> SeatCollectionLayoutConfiguration {
-    let itemIDs = (0..<count).map { SeatCollectionItemID.user(.init(rawValue: "layout-test-\($0)")) }
-    let states = Dictionary(uniqueKeysWithValues: itemIDs.enumerated().map { index, itemID in
-        (itemID, SeatCollectionLayoutState(
-            frame: CGRect(x: index * 40, y: 0, width: 30, height: 50),
-            alpha: index >= 9 ? 0 : 1,
-            transform: index >= 9 ? CGAffineTransform(scaleX: 0.86, y: 0.86) : .identity
-        ))
+private func makeLayoutTestSection(count: Int) -> SeatLayoutSection {
+    SeatLayoutSection(layoutID: .partyNine, layoutFamily: .partyGrid,
+        items: (0..<count).map { index in
+            SeatLayoutItem(identifier: .user(.init(rawValue: "layout-test-\(index)")),
+                slotID: .init(rawValue: "layout-slot-\(index)"), position: .init(rawValue: index),
+                roomSide: .current, styleID: index == 0 ? .standardHost : .standardGuest)
+        }, metrics: .regular)
+}
+
+/// 测试通过真实 Layout 的属性接口读取结果，不调用内部几何计算器。
+struct SeatLayoutTestGeometry: Equatable {
+    let itemIDs: [SeatCollectionItemID]
+    let frames: [SeatCollectionItemID: CGRect]
+    let contentSize: CGSize
+}
+
+@MainActor
+func seatLayoutTestGeometry(
+    presentation: SeatStagePresentation,
+    items: [SeatCollectionItem],
+    metrics: SeatLayoutMetrics,
+    availableWidth: CGFloat,
+    direction: UIUserInterfaceLayoutDirection
+) -> SeatLayoutTestGeometry {
+    let section = SeatLayoutSection(layoutID: presentation.layoutID, layoutFamily: presentation.layoutFamily,
+        items: items.map(SeatLayoutItem.init), metrics: metrics)
+    let layout = SeatCollectionLayout(section: section)
+    let collection = SeatLayoutCountTestCollectionView(
+        frame: CGRect(x: 0, y: 0, width: availableWidth, height: 1_000), collectionViewLayout: layout)
+    collection.contentInsetAdjustmentBehavior = .never
+    collection.semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight
+    collection.snapshotCounts = [items.count]
+    let frames = Dictionary(uniqueKeysWithValues: items.enumerated().compactMap { index, item -> (SeatCollectionItemID, CGRect)? in
+        guard let frame = layout.layoutAttributesForItem(at: IndexPath(item: index, section: 0))?.frame else { return nil }
+        return (item.id, frame)
     })
-    return SeatCollectionLayoutConfiguration(
-        itemIDs: itemIDs,
-        states: states,
-        contentSize: CGSize(width: count * 40, height: 50)
-    )
+    let result = SeatLayoutTestGeometry(itemIDs: layout.itemIdentifiers, frames: frames, contentSize: layout.collectionViewContentSize)
+    withExtendedLifetime(collection) {}
+    return result
 }

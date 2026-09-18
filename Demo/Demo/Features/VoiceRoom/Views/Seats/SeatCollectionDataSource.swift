@@ -88,6 +88,11 @@ final class SeatCollectionDataSource {
         dataSource.apply(snapshot, animatingDifferences: false)
     }
 
+    /// 返回当前 Snapshot 在指定索引路径上的稳定身份，供布局查询几何。
+    func itemIdentifier(for indexPath: IndexPath) -> SeatCollectionItemID? {
+        dataSource.itemIdentifier(for: indexPath)
+    }
+
     /// 返回指定稳定条目当前已实例化的麦位单元格；不可见时可为 `nil`。
     func cell(
         for itemID: SeatCollectionItemID
