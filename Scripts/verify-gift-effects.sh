@@ -18,6 +18,7 @@ fi
 unit_tests=(-only-testing:DemoTests/TaskQueueTests
             -only-testing:DemoTests/SerialTaskQueueTests
             -only-testing:DemoTests/WithTaskTimeoutTests
+            -only-testing:DemoTests/WithTaskRetryTests
             -only-testing:DemoTests/GiftPlaybackOperationTests
             -only-testing:DemoTests/GiftEffectPrefetcherTests
             -only-testing:DemoTests/VoiceRoomGiftMainEffectTests

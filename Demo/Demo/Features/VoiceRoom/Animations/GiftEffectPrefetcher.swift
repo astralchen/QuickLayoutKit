@@ -44,6 +44,7 @@ final class GiftEffectPrefetcher {
 
     private let queue: TaskQueue
     private let load: Loader
+    private let retryDelaySeconds: RetryDelay<TimeInterval>
     private let logger = Logger(subsystem: "Demo.VoiceRoom", category: "GiftPrefetch")
     /// 请求和执行身份分离，取消后的同 URL 新请求不会被旧完成回调删除。
     private var requests: [UUID: Set<UUID>] = [:]
@@ -61,9 +62,15 @@ final class GiftEffectPrefetcher {
     ///
     /// - Parameters:
     ///   - maxConcurrentLoads: 并发加载数量上限，必须大于零。默认值为 `2`。
+    ///   - retryDelaySeconds: 可重试失败后的等待策略，默认等待 300 毫秒；测试可注入可观测策略。
     ///   - load: 资源加载操作。默认复用 VAP 和 SVGA 的加载及缓存能力。
-    init(maxConcurrentLoads: Int = 2, load: @escaping Loader = GiftEffectPrefetcher.loadResource) {
+    init(
+        maxConcurrentLoads: Int = 2,
+        retryDelaySeconds: RetryDelay<TimeInterval> = .fixed(0.3),
+        load: @escaping Loader = GiftEffectPrefetcher.loadResource
+    ) {
         queue = TaskQueue(maxConcurrentTasks: maxConcurrentLoads)
+        self.retryDelaySeconds = retryDelaySeconds
         self.load = load
     }
 
@@ -152,14 +159,35 @@ final class GiftEffectPrefetcher {
         queue.cancelAll()
     }
 
-    /// 在登记时同步提交，资源去重与错误诊断留在业务层。
+    /// 仅对白名单中的传输故障重试；离线、SDK 解析错误和未知错误均停止。
+    /// VAP 直接抛出 URL 错误，SVGA 使用 network 包装；不按文案猜测未知错误。
+    private nonisolated static func shouldRetry(_ error: any Error) -> Bool {
+        guard let error = networkError(from: error) else { return false }
+        return error.code == .timedOut || error.code == .networkConnectionLost
+    }
+
+    /// 仅识别 SDK 明确标记的网络错误，不解包解码失败中的底层错误。
+    /// 分类时借用原始 URL 错误，最终仍向上传播 SDK 的完整错误。
+    private nonisolated static func networkError(from error: any Error) -> URLError? {
+        if let error = error as? URLError { return error }
+        if let error = error as? SVGAViewError, case .network(let underlying) = error {
+            return underlying
+        }
+        return nil
+    }
+
+    /// 每个共享资源在同一个队列任务内最多加载两次，等待期间保留槽位和需求身份。
     private func start(resource: Resource, executionID: UUID) {
         let effect = resource.effect
-        let task = queue.addTask { [load, logger] in
+        let task = queue.addTask { [load, logger, retryDelaySeconds] in
             do {
-                try await load(effect)
+                try await withTaskRetry(maxAttempts: 2, delaySeconds: retryDelaySeconds,
+                                        shouldRetry: Self.shouldRetry) {
+                    try await load(effect)
+                }
             } catch {
-                if !Task.isCancelled, !(error is CancellationError) {
+                if !Task.isCancelled, !(error is CancellationError),
+                   Self.networkError(from: error)?.code != .cancelled, (error as? SVGAViewError) != .cancelled {
                     logger.error("礼物预下载失败，播放时按正常路径加载：\(error.localizedDescription, privacy: .public)")
                 }
                 throw error

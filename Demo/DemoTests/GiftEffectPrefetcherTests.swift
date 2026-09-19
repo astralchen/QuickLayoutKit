@@ -1,5 +1,7 @@
 import Foundation
 import Testing
+import SVGAView
+import VAPView
 @testable import Demo
 
 @MainActor
@@ -87,6 +89,158 @@ struct GiftEffectPrefetcherTests {
         try await waitForTaskCondition { loader.effects.count == 2 }
         loader.finishAll()
         prefetcher.cancelAll()
+    }
+
+    @Test func transientFailuresRetryWithinSharedResourceAndKeepQueueSlot() async throws {
+        for code in [URLError.timedOut, .networkConnectionLost] {
+            let loader = ControlledGiftLoader()
+            let prefetcher = GiftEffectPrefetcher(maxConcurrentLoads: 1, retryDelaySeconds: .immediate, load: loader.load)
+            let first = prefetcher.register(effects: [vap, vap])
+            let second = prefetcher.register(effects: [vap, other])
+            try await waitForTaskCondition { loader.effects.count == 1 }
+            prefetcher.release(first)
+            loader.finish(0, result: .failure(URLError(code)))
+            try await waitForTaskCondition { loader.effects.count == 2 }
+            #expect(loader.effects == [vap, vap], "重试仍占原槽位，不能把资源重新排到 other 后面")
+            #expect(loader.cancelled.isEmpty && prefetcher.runningCount == 1)
+            loader.finish(1)
+            try await waitForTaskCondition { loader.effects.count == 3 }
+            #expect(loader.effects == [vap, vap, other])
+            loader.finish(2)
+            try await waitForTaskCondition { prefetcher.runningCount == 0 }
+            prefetcher.release(second)
+        }
+    }
+
+    @Test func exhaustedRetryBudgetRemainsSharedUntilAllOwnersLeave() async throws {
+        let loader = ControlledGiftLoader()
+        let prefetcher = GiftEffectPrefetcher(retryDelaySeconds: .immediate, load: loader.load)
+        let first = prefetcher.register(effects: [vap])
+        try await waitForTaskCondition { loader.effects.count == 1 }
+        loader.finish(0, result: .failure(URLError(.timedOut)))
+        try await waitForTaskCondition { loader.effects.count == 2 }
+        let second = prefetcher.register(effects: [vap])
+        loader.finish(1, result: .failure(URLError(.networkConnectionLost)))
+        try await waitForTaskCondition { prefetcher.runningCount == 0 }
+        let third = prefetcher.register(effects: [vap])
+        #expect(prefetcher.runningCount == 0 && loader.effects == [vap, vap])
+        prefetcher.release(first)
+        prefetcher.release(second)
+        prefetcher.release(third)
+        prefetcher.register(effects: [vap])
+        try await waitForTaskCondition { loader.effects.count == 3 }
+        loader.finish(2)
+        try await waitForTaskCondition { prefetcher.runningCount == 0 }
+        prefetcher.cancelAll()
+    }
+
+    @Test func terminalAndUnclassifiedErrorsNeverRetry() async throws {
+        let errors: [any Error] = [
+            CancellationError(), URLError(.cancelled), URLError(.notConnectedToInternet),
+            URLError(.badURL), URLError(.badServerResponse), URLError(.cannotLoadFromNetwork),
+            VAPError.fileNotFound("missing"), VAPError.missingVAPConfig,
+            VAPError.decodeFailed(URLError(.timedOut)),
+            SVGAViewError.cancelled, SVGAViewError.invalidJSON,
+            SVGAViewError.network(URLError(.cancelled)),
+            SVGAViewError.network(URLError(.notConnectedToInternet)),
+            SVGAViewError.network(URLError(.badServerResponse)),
+            SVGAViewError.network(URLError(.secureConnectionFailed)),
+            SVGAViewError.underlying(URLError(.timedOut).localizedDescription)
+        ]
+        for error in errors {
+            let loader = ControlledGiftLoader()
+            let prefetcher = GiftEffectPrefetcher(retryDelaySeconds: .immediate, load: loader.load)
+            prefetcher.register(effects: [vap])
+            try await waitForTaskCondition { loader.effects.count == 1 }
+            loader.finish(0, result: .failure(error))
+            try await waitForTaskCondition { prefetcher.runningCount == 0 }
+            #expect(loader.effects == [vap], "不应重试：\(error)")
+            prefetcher.cancelAll()
+        }
+    }
+
+    @Test func svgaNetworkFailuresRetryOnceAndKeepSharedBudget() async throws {
+        for code in [URLError.timedOut, .networkConnectionLost] {
+            for succeeds in [false, true] {
+                let loader = ControlledGiftLoader()
+                let prefetcher = GiftEffectPrefetcher(retryDelaySeconds: .immediate, load: loader.load)
+                let first = prefetcher.register(effects: [svga, svga])
+                try await waitForTaskCondition { loader.effects.count == 1 }
+                loader.finish(0, result: .failure(SVGAViewError.network(URLError(code))))
+                try await waitForTaskCondition { loader.effects.count == 2 }
+                #expect(loader.effects == [svga, svga])
+                let second = prefetcher.register(effects: [svga])
+                prefetcher.release(first)
+                loader.finish(1, result: succeeds ? .success(()) : .failure(SVGAViewError.network(URLError(code))))
+                try await waitForTaskCondition { prefetcher.runningCount == 0 }
+                let third = prefetcher.register(effects: [svga])
+                #expect(loader.effects == [svga, svga] && prefetcher.runningCount == 0)
+                #expect(loader.cancelled.isEmpty)
+                prefetcher.release(second)
+                prefetcher.release(third)
+            }
+        }
+    }
+
+    @Test func cancelledUncooperativeLoadCannotRetryItsLateNetworkFailure() async throws {
+        let failures: [(GiftEffect, any Error)] = [
+            (vap, URLError(.networkConnectionLost)),
+            (svga, SVGAViewError.network(URLError(.networkConnectionLost)))
+        ]
+        for (effect, error) in failures {
+            let loader = ControlledGiftLoader()
+            let prefetcher = GiftEffectPrefetcher(retryDelaySeconds: .immediate, load: loader.load)
+            let request = prefetcher.register(effects: [effect])
+            try await waitForTaskCondition { loader.effects.count == 1 }
+            prefetcher.release(request)
+            try await waitForTaskCondition { loader.cancelled.contains(0) }
+            #expect(prefetcher.runningCount == 1)
+            loader.finish(0, result: .failure(error))
+            try await waitForTaskCondition { prefetcher.runningCount == 0 }
+            #expect(loader.effects == [effect])
+        }
+    }
+
+    @Test func releasingLastOwnerOrCancellingAllStopsBackoff() async throws {
+        for cancelAll in [false, true] {
+            let loader = ControlledGiftLoader()
+            let delay = PrefetchRetryDelayProbe()
+            let prefetcher = GiftEffectPrefetcher(retryDelaySeconds: delay.strategy, load: loader.load)
+            let request = prefetcher.register(effects: [vap])
+            try await waitForTaskCondition { loader.effects.count == 1 }
+            loader.finish(0, result: .failure(URLError(.timedOut)))
+            try await waitForTaskCondition { delay.reached }
+            #expect(prefetcher.runningCount == 1 && loader.effects == [vap])
+            if cancelAll { prefetcher.cancelAll() } else { prefetcher.release(request) }
+            try await waitForTaskCondition { prefetcher.runningCount == 0 }
+            #expect(loader.effects == [vap] && prefetcher.requestCount == 0)
+        }
+    }
+
+    @Test func deactivationStopsPrefetchBackoffWithoutReplayingGift() async throws {
+        let loader = ControlledGiftLoader()
+        let delay = PrefetchRetryDelayProbe()
+        let prefetcher = GiftEffectPrefetcher(retryDelaySeconds: delay.strategy, load: loader.load)
+        var players: [PrefetchTestPlayer] = []
+        let coordinator = GiftMainEffectCoordinator(reduceMotionEnabled: { false }, prefetcher: prefetcher) {
+            let player = PrefetchTestPlayer()
+            players.append(player)
+            return player
+        }
+        coordinator.activate()
+        let task = try #require(coordinator.enqueue(gift: gift([vap, svga]), quantity: 1))
+        try await waitForTaskCondition { loader.effects.count == 2 && players.count == 1 }
+        let vapIndex = try #require(loader.effects.firstIndex(of: vap))
+        loader.finish(vapIndex, result: .failure(URLError(.timedOut)))
+        try await waitForTaskCondition { delay.reached }
+        coordinator.deactivate()
+        _ = await task.result
+        loader.finishAll()
+        try await waitForTaskCondition { prefetcher.runningCount == 0 }
+        #expect(players.count == 1 && loader.effects.count == 2 && prefetcher.requestCount == 0)
+        coordinator.activate()
+        #expect(coordinator.pendingCount == 0)
+        coordinator.deactivate()
     }
 
     @Test func destructionCancelsWithoutRetainingPrefetcher() async throws {
@@ -205,6 +359,19 @@ struct GiftEffectPrefetcherTests {
             loader.finishAll()
             try await waitForTaskCondition { prefetcher.runningCount == 0 }
             #expect(loader.effects.count == 2 && loader.effects.contains(vap) && loader.effects.contains(svga))
+        }
+    }
+}
+
+/// 报告进入退避计算；长间隔让取消测试无需依赖生产环境的 300 毫秒时序。
+@MainActor
+private final class PrefetchRetryDelayProbe {
+    private(set) var reached = false
+
+    var strategy: RetryDelay<TimeInterval> {
+        .custom { [self] _, _ in
+            Task { @MainActor in reached = true }
+            return 3_600
         }
     }
 }
