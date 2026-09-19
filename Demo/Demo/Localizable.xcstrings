@@ -1,6 +1,259 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+  "liveRoom.publicChat.me": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Me"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "我"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "أنا"
+        }
+      }
+    }
+  },
+  "liveRoom.publicChat.colon": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": ": "
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "："
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "："
+        }
+      }
+    }
+  },
+  "liveRoom.publicChat.host": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Host"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "房主"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "المضيف"
+        }
+      }
+    }
+  },
+  "liveRoom.publicChat.welcome": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Welcome! Be kind, respect each other, and enjoy the music."
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "欢迎来到语音房，请友善交流，一起享受好声音。"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "مرحبًا! لنتحدث بلطف ونحترم بعضنا ونستمتع بالموسيقى."
+        }
+      }
+    }
+  },
+  "liveRoom.publicChat.hostWelcome": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Good evening! What would you like to hear tonight? 🎵"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "晚上好呀，今晚想听什么歌？🎵"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "مساء الخير! ماذا تحبون أن تسمعوا الليلة؟ 🎵"
+        }
+      }
+    }
+  },
+  "liveRoom.publicChat.song": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Your voice is so soothing. Looking forward to the next song ✨"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "声音好温柔，期待下一首歌 ✨"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "صوتك هادئ وجميل، بانتظار الأغنية التالية ✨"
+        }
+      }
+    }
+  },
+  "liveRoom.publicChat.hello": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Found a lovely room. Staying here to listen 🎧"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "发现一个宝藏房间，坐下来听歌啦 🎧"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "وجدت غرفة رائعة، سأبقى للاستماع 🎧"
+        }
+      }
+    }
+  },
+  "liveRoom.publicChat.thanks": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Thank you for the hearts! This next song is for you 💜"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "谢谢送来的小心心，下一首送给大家 💜"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "شكرًا على القلوب! الأغنية التالية لكم 💜"
+        }
+      }
+    }
+  },
+  "liveRoom.publicChat.arrival": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "{user} joined the room"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "欢迎 {user} 进入房间"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "انضم {user} إلى الغرفة"
+        }
+      }
+    }
+  },
+  "liveRoom.publicChat.gift": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "{sender} sent {gift} ×{quantity} to each of {recipients}"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "{sender} 送给 {recipients} {gift} ×{quantity}／人"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "أرسل {sender} {gift} ×{quantity} لكل من {recipients}"
+        }
+      }
+    }
+  },
+  "liveRoom.publicChat.unread": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "%lld new messages ↓"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "有 %lld 条新消息 ↓"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "%lld رسائل جديدة ↓"
+        }
+      }
+    }
+  },
   "liveRoom.pk.user.8": {
     "extractionState": "manual",
     "localizations": {
@@ -8392,6 +8645,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "小满：今晚的声音也太温柔了 ✨"
+          }
+        }
+      }
+    },
+    "liveRoom.follow.shortTitle" : {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "متابعة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关注"
           }
         }
       }

@@ -17,6 +17,8 @@ final class RoomHeaderView: TranslucentCardView {
     private let roomAvatarButton = SymbolButton(frame: .zero)
     /// 显示组件主标题的标签。
     private let titleLabel = UILabel()
+    private let followButton = FollowButton(frame: .zero)
+    var followDidTap: (() -> Void)?
     /// 显示标题补充说明的标签。
     private let subtitleLabel = UILabel()
     /// 显示在线人数并打开观众面板的按钮。
@@ -50,27 +52,56 @@ final class RoomHeaderView: TranslucentCardView {
     /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 11) {
-                avatarLayout
-                titleLayout
-                audienceLayout
-                moreLayout
+            if !traitCollection.preferredContentSizeCategory.isAccessibilityCategory,
+               bounds.width == 0 || bounds.width >= 360 {
+                HStack(spacing: 11) {
+                    avatarLayout
+                    titleLayout
+                    VStack(alignment: .trailing, spacing: 4) {
+                        followLayout
+                        audienceLayout
+                    }
+                }
+                .padding(12)
             }
-            .padding(12)
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     avatarLayout
                     titleLayout
                 }
-                HStack(spacing: 8) {
-                    audienceLayout
-                    Spacer()
-                    moreLayout
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) {
+                        followLayout
+                        audienceLayout
+                        Spacer()
+                        moreLayout
+                    }
+                    // 辅助功能特大字号不压缩文字，操作入口按行展开。
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            followLayout
+                            Spacer()
+                            moreLayout
+                        }
+                        audienceLayout
+                    }
                 }
             }
             .padding(12)
         }
+    }
+
+    private var followLayout: Layout {
+        followButton.fixedSize(axis: .horizontal).fixedSize(axis: .vertical)
+    }
+
+    func configureFollowing(followTitle: String, followedTitle: String, accessibilityTitle: String,
+                            isFollowing: Bool, isRequesting: Bool) {
+        followButton.configure(followTitle: followTitle, followedTitle: followedTitle,
+                               accessibilityTitle: accessibilityTitle,
+                               isFollowing: isFollowing, isRequesting: isRequesting)
+        setNeedsQuickLayout()
     }
 
     /// 页头房间头像入口的布局。
@@ -83,8 +114,8 @@ final class RoomHeaderView: TranslucentCardView {
     /// 页头主标题与副标题的布局。
     private var titleLayout: Layout {
         VStack(alignment: .leading, spacing: 3) {
-            titleLabel
-            subtitleLabel
+            titleLabel.resizable(axis: .horizontal)
+            subtitleLabel.resizable(axis: .horizontal)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -115,9 +146,25 @@ final class RoomHeaderView: TranslucentCardView {
     ) {
         titleLabel.text = roomTitle
         subtitleLabel.text = roomSubtitle
+        configureAudience(title: audience)
+        audienceButton.accessibilityHint = audienceAccessibilityHint
+        roomAvatarButton.accessibilityLabel = avatarAccessibilityLabel
+        roomAvatarButton.accessibilityHint = avatarAccessibilityHint
+        setNeedsQuickLayout()
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        if previousTraitCollection?.preferredContentSizeCategory != traitCollection.preferredContentSizeCategory {
+            configureAudience(title: audienceButton.accessibilityLabel ?? "")
+            setNeedsQuickLayout()
+        }
+    }
+
+    private func configureAudience(title: String) {
         audienceButton.configure(
-            title: audience,
-            font: .preferredFont(forTextStyle: .caption1),
+            title: title,
+            font: .preferredFont(forTextStyle: .caption1, compatibleWith: traitCollection),
             foregroundColor: .white,
             backgroundColor: UIColor.white.withAlphaComponent(0.14),
             contentInsets: EdgeInsets(
@@ -127,14 +174,14 @@ final class RoomHeaderView: TranslucentCardView {
                 trailing: 9
             )
         )
-        audienceButton.accessibilityHint = audienceAccessibilityHint
-        roomAvatarButton.accessibilityLabel = avatarAccessibilityLabel
-        roomAvatarButton.accessibilityHint = avatarAccessibilityHint
-        setNeedsQuickLayout()
     }
 
     /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
+        // 页头是辅助信息；限制其最大字号，为完整动态字号的公屏正文保留阅读空间。
+        maximumContentSizeCategory = .accessibilityMedium
+        followButton.accessibilityIdentifier = "liveRoom.follow.button"
+        followButton.action = { [weak self] in self?.followDidTap?() }
         roomAvatarButton.configure(
             symbolName: "music.mic.circle.fill",
             symbolSize: 28,
@@ -184,6 +231,8 @@ private func makeRoomHeaderViewPreview() -> UIViewController {
         avatarAccessibilityLabel: "直播间头像",
         avatarAccessibilityHint: "查看直播间信息"
     )
+    view.configureFollowing(followTitle: "关注", followedTitle: VoiceRoomPreviewData.followedTitle,
+                            accessibilityTitle: VoiceRoomPreviewData.followedTitle, isFollowing: true, isRequesting: false)
     return QuickLayoutHostingController {
         ZStack {
             StarfieldBackgroundView()

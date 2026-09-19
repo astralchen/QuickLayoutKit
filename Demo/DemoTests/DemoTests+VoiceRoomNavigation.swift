@@ -170,7 +170,7 @@ extension DemoTests {
         layout(viewController, in: navigationController)
         #expect(!viewModel.state.isFollowing)
         #expect(
-            followButton.allSubviews(of: UILabel.self).isEmpty
+            followButton.allSubviews(of: UILabel.self).count == 2
         )
         #expect(followButton.accessibilityLabel == "关注中…")
         #expect(!followButton.isEnabled)
@@ -203,8 +203,9 @@ extension DemoTests {
         #expect(followButton.isEnabled)
         #expect(followButton.isSelected)
         #expect(followButton.accessibilityTraits.contains(.selected))
-        #expect(followButton.layer.borderColor == UIColor.white
-            .withAlphaComponent(0.24).cgColor)
+        #expect(followButton.allSubviews(of: UIView.self).contains {
+            $0.layer.borderColor == UIColor.white.withAlphaComponent(0.24).cgColor
+        })
         #expect(followButton.layer.cornerCurve == .circular)
         layout(viewController, in: navigationController)
         let checkmarkImageView = try #require(
@@ -212,9 +213,9 @@ extension DemoTests {
                 $0.accessibilityIdentifier == "liveRoom.follow.checkmark"
             }
         )
-        #expect(abs(checkmarkImageView.bounds.width - 11) < 0.5)
+        #expect(abs(checkmarkImageView.bounds.width - 12) < 0.5)
         let checkmarkImage = try #require(checkmarkImageView.image)
-        let fittedHeight = 11 * checkmarkImage.size.height / checkmarkImage.size.width
+        let fittedHeight = 12 * checkmarkImage.size.height / checkmarkImage.size.width
         #expect(abs(checkmarkImageView.bounds.height - fittedHeight) < 0.5)
         #expect(
             abs(
@@ -236,7 +237,7 @@ extension DemoTests {
         layout(viewController, in: navigationController)
         #expect(viewModel.state.isFollowing)
         #expect(
-            followButton.allSubviews(of: UILabel.self).isEmpty
+            followButton.allSubviews(of: UILabel.self).count == 2
         )
         #expect(followButton.accessibilityLabel == "取消关注中…")
         #expect(!followButton.isEnabled)

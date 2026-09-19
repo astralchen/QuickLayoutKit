@@ -172,12 +172,8 @@ enum VoiceRoomPreviewData {
     }
 
     /// 预览公屏使用的示例消息。
-    static let messages = [
-        "小满：今晚的声音也太温柔了 ✨",
-        "阿澈：坐等下一首歌 🎵",
-        "直播间：欢迎来到预览专用直播间",
-        "小满：预览数据不会进入生产状态",
-    ]
+    static let messages = RoomPublicChatFixtures.messages
+    static let followedTitle = "已关注"
 
     /// 用于预览在线观众列表和在麦状态的固定数据。
     static let audienceMembers: [AudienceMember] = (0..<12).map {

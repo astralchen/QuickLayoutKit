@@ -69,7 +69,7 @@ extension DemoTests {
         #expect(fiveSeatFrames[0].width > fiveSeatFrames[1].width)
     }
 
-    @Test func voiceRoomPublicChatMessagesFillAvailableWidthOnIPad() throws {
+    @Test func voiceRoomPublicChatMessagesFillAvailableWidthOnIPad() async throws {
         Localization.setLocale(identifier: "zh-Hans")
         defer { Localization.setLocale(identifier: "en-US") }
 
@@ -85,6 +85,7 @@ extension DemoTests {
 
         layout(viewController, in: navigationController)
 
+        try await settlePublicChat(viewController.messagesView)
         let scrollView = viewController.publicChatScrollView
         let firstMessageLabel = try #require(
             viewController.view.allSubviews(of: UILabel.self).first {
@@ -100,9 +101,9 @@ extension DemoTests {
             to: viewController.view
         )
 
-        #expect(firstMessageLabel.textAlignment == .natural)
-        #expect(abs(messageFrame.minX - scrollFrame.minX - 14) < 1)
-        #expect(abs(scrollFrame.maxX - messageFrame.maxX - 14) < 1)
+        #expect(firstMessageLabel.textAlignment == .left)
+        #expect(abs(messageFrame.minX - scrollFrame.minX - 8) < 1)
+        #expect(abs(scrollFrame.maxX - messageFrame.maxX - 8) < 1)
         #expect(messageFrame.width > scrollFrame.width * 0.9)
         #expect(
             viewController.view.allSubviews(of: UIScrollView.self)

@@ -9,7 +9,7 @@ import QuickLayoutKit
 
 extension DemoTests {
 
-    @Test func voiceRoomMessageButtonSendsScrollsAndRemovesComposer() throws {
+    @Test func voiceRoomMessageButtonSendsScrollsAndRemovesComposer() async throws {
         Localization.setLocale(identifier: "zh-Hans")
         defer { Localization.setLocale(identifier: "en-US") }
 
@@ -245,6 +245,7 @@ extension DemoTests {
             }
         )
 
+        try await settlePublicChat(viewController.messagesView)
         let scrollView = viewController.publicChatScrollView
         let bottomOffset = max(
             -scrollView.contentInset.top,

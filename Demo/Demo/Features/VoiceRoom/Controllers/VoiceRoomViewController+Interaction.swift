@@ -128,17 +128,6 @@ extension VoiceRoomViewController {
 
     /// 用本地化文案、关注状态和会话消息刷新公屏。
     func reloadPublicChat(scrollToLatest: Bool) {
-        let seedMessages = [
-            Localization.text("liveRoom.messages.first"),
-            Localization.text("liveRoom.messages.second"),
-            Localization.text("liveRoom.messages.third"),
-        ]
-        let initialMessages = (0..<8).map { index in
-            seedMessages[index % seedMessages.count]
-        }
-        let messages = initialMessages + viewModel.sentPublicMessages.map {
-            Localization.text("liveRoom.messages.me", $0)
-        }
         let followTitleKey: String
         switch viewModel.state.pendingFollowingState {
         case true?:
@@ -150,13 +139,15 @@ extension VoiceRoomViewController {
                 ? "liveRoom.messages.followed"
                 : "liveRoom.messages.follow"
         }
-        messagesView.configure(
-            title: Localization.text("liveRoom.messages.title"),
-            follow: Localization.text(followTitleKey),
+        roomHeaderView.configureFollowing(
+            followTitle: Localization.text("liveRoom.follow.shortTitle"),
+            followedTitle: Localization.text("liveRoom.messages.followed"),
+            accessibilityTitle: Localization.text(followTitleKey),
             isFollowing: viewModel.state.isFollowing,
-            isFollowRequesting:
-                viewModel.state.pendingFollowingState != nil,
-            messages: messages,
+            isRequesting: viewModel.state.pendingFollowingState != nil
+        )
+        messagesView.configure(
+            messages: viewModel.state.publicMessages.map(RoomPublicMessagePresentation.init),
             scrollToLatest: scrollToLatest
         )
     }

@@ -67,6 +67,8 @@ final class VoiceRoomViewModel {
         let isFollowing: Bool
         /// 非空时表示关注接口正在提交该目标状态。
         let pendingFollowingState: Bool?
+        /// 公屏时间线，只在消息业务提交后追加。
+        var publicMessages: [RoomPublicMessage] = []
 
         /// 当前舞台可见位置中的麦位绑定。
         var displayedSeats: [SeatAssignment] {
@@ -327,7 +329,13 @@ final class VoiceRoomViewModel {
     /// 直播间会话余额由 ViewModel 统一持有，控制器只负责页面导航与动画协调。
     private(set) var giftBalance: Int
     /// 本次会话中已通过空白校验的公屏消息。
-    private(set) var sentPublicMessages: [String] = []
+    var sentPublicMessages: [String] {
+        state.publicMessages.compactMap {
+            guard case let .text(author, .literal(body)) = $0.content,
+                  author.id == RoomPublicMessage.Author.me.id else { return nil }
+            return body
+        }
+    }
 
     /// 最近一次提交的界面状态。
     private(set) var state: State
@@ -337,6 +345,7 @@ final class VoiceRoomViewModel {
     /// 初始快照无效时回退到内置派对九麦状态。未注入的命令和关注接口使用演示实现；未提供快照源时不订阅持续更新。
     init(
         initialGiftBalance: Int = 12_800,
+        publicMessages: [RoomPublicMessage] = RoomPublicChatFixtures.messages,
         stageSnapshot: RoomStageSnapshot? = nil,
         audienceCount: Int = 1_280,
         audienceMembers: [AudienceMember]? = nil,
@@ -388,7 +397,8 @@ final class VoiceRoomViewModel {
                 $0.resolvingPresence(in: initialSnapshot.assignments)
             },
             isFollowing: isFollowing,
-            pendingFollowingState: nil
+            pendingFollowingState: nil,
+            publicMessages: publicMessages
         )
         self.roomCommandHandler = roomCommandHandler
             ?? MockRoomCommandHandler(
@@ -520,7 +530,8 @@ final class VoiceRoomViewModel {
             in: .whitespacesAndNewlines
         )
         guard !trimmedMessage.isEmpty else { return false }
-        sentPublicMessages.append(trimmedMessage)
+        state.publicMessages.append(.init(content: .text(author: .me, body: .literal(trimmedMessage))))
+        stateHandler?(state)
         return true
     }
 
@@ -596,6 +607,14 @@ final class VoiceRoomViewModel {
         else { return nil }
 
         giftBalance -= request.totalCost
+        let recipients = request.recipients.compactMap { recipient -> RoomPublicMessage.Author? in
+            guard let id = recipient.userID, let current = currentRecipients[id] else { return nil }
+            return .init(id: id, name: .localized(current.nameKey))
+        }
+        state.publicMessages.append(.init(content: .gift(
+            author: .me, recipients: recipients, gift: request.gift, quantity: request.quantity
+        )))
+        stateHandler?(state)
         return giftBalance
     }
 
@@ -622,7 +641,8 @@ final class VoiceRoomViewModel {
             audienceCount: state.audienceCount,
             audienceMembers: state.audienceMembers,
             isFollowing: state.isFollowing,
-            pendingFollowingState: state.pendingFollowingState
+            pendingFollowingState: state.pendingFollowingState,
+            publicMessages: state.publicMessages
         )
         stateHandler?(state)
     }
@@ -641,7 +661,8 @@ final class VoiceRoomViewModel {
                 $0.resolvingPresence(in: snapshot.assignments)
             },
             isFollowing: state.isFollowing,
-            pendingFollowingState: state.pendingFollowingState
+            pendingFollowingState: state.pendingFollowingState,
+            publicMessages: state.publicMessages
         )
         stateHandler?(state)
     }
@@ -658,7 +679,8 @@ final class VoiceRoomViewModel {
             audienceCount: state.audienceCount,
             audienceMembers: state.audienceMembers,
             isFollowing: isFollowing,
-            pendingFollowingState: pendingFollowingState
+            pendingFollowingState: pendingFollowingState,
+            publicMessages: state.publicMessages
         )
         stateHandler?(state)
     }

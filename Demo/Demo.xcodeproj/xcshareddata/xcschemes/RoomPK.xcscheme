@@ -62,6 +62,7 @@
             <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="7714E98B2EFE2A9300F8BC60" BuildableName="DemoUITests.xctest" BlueprintName="DemoUITests" ReferencedContainer="container:Demo.xcodeproj" />
             <SelectedTests>
                <Test Identifier="RoomPKUITests" />
+               <Test Identifier="RoomPublicChatUITests" />
             </SelectedTests>
          </TestableReference>
       </Testables>

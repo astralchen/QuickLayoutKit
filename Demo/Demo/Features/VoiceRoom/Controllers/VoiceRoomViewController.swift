@@ -317,6 +317,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
             $0.semanticContentAttribute = semanticAttribute
             $0.setNeedsLayout()
         }
+        messagesView.updateLayoutDirection()
         setNeedsQuickLayout()
     }
 
@@ -401,7 +402,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
         actionBarView.giftDidTap = { [weak self] in
             self?.presentGiftSheet()
         }
-        messagesView.followDidTap = { [weak self] in
+        roomHeaderView.followDidTap = { [weak self] in
             self?.toggleFollowing()
         }
         roomHeaderView.audienceDidTap = { [weak self] in
@@ -444,7 +445,8 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
         let previousPresentation = previousState?.stagePresentation
         renderedState = state
         reloadRoomHeader(using: state)
-        if previousState?.isFollowing != state.isFollowing
+        if previousState?.publicMessages != state.publicMessages
+            || previousState?.isFollowing != state.isFollowing
             || previousState?.pendingFollowingState
                 != state.pendingFollowingState {
             reloadPublicChat(scrollToLatest: false)
