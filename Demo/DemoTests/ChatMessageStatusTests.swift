@@ -242,6 +242,55 @@ struct ChatMessageStatusTests {
         })
     }
 
+    @Test func deleteSendingMessageIgnoresLateCompletionAndKeepsNextSend() async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let sender = StatusSender(), delay = StatusDelay()
+        let model = makeModel(sender, delay)
+        defer { model.cancelPendingReply() }
+        #expect(model.send("delete"))
+        #expect(model.send("keep"))
+        #expect(await eventually { sender.calls.count == 2 })
+        #expect(model.deleteMessage(id: 0))
+        #expect(!model.deleteMessage(id: 0))
+        sender.resolve(0, success: true)
+        sender.resolve(1, success: false)
+        #expect(await eventually { sender.completed == 2 && !model.state.isProcessingMessages })
+        #expect(message(model, 0) == nil)
+        #expect(message(model, 1)?.deliveryState == .failed)
+        #expect(model.retryMessage(id: 1))
+        #expect(await eventually { sender.calls.count == 3 })
+        sender.resolve(2, success: false)
+        #expect(await eventually { sender.completed == 3 })
+        #expect(model.deleteMessage(id: 1))
+        #expect(model.state.timeline.isEmpty)
+    }
+
+    @Test func deletingActiveReplyRejectsOldWorkerAndContinuesQueue() async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let sender = StatusSender(), delay = StatusDelay()
+        let model = makeModel(sender, delay)
+        defer { model.cancelPendingReply() }
+        #expect(model.send("delete"))
+        #expect(model.send("keep"))
+        #expect(await eventually { sender.calls.count == 2 })
+        sender.resolve(0, success: true)
+        sender.resolve(1, success: true)
+        #expect(await eventually { delay.calls.count == 1 })
+        delay.resume()
+        #expect(await eventually { model.state.isTyping && delay.calls.count == 2 })
+        #expect(model.deleteMessage(id: 0))
+        #expect(!model.state.isTyping)
+        #expect(await eventually { delay.calls.count == 3 })
+        delay.resume() // 删除前尚未完成的旧回复。
+        delay.resume() // 下一条消息的阅读延迟。
+        #expect(await eventually { delay.calls.count == 4 })
+        delay.resume()
+        #expect(await eventually { !model.state.isProcessingMessages })
+        #expect(message(model, 0) == nil)
+        #expect(model.messages.filter { $0.direction == .incoming }.count == 1)
+        #expect(message(model, 1)?.deliveryState == .read)
+    }
+
     @available(iOS 26.0, *)
     private func makeModel(_ sender: StatusSender, _ delay: StatusDelay, receipts: Bool = true) -> ChatViewModel {
         ChatViewModel(localizer: Localizer { key, _ in key }, clock: Date.init,

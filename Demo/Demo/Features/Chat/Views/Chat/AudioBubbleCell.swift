@@ -10,6 +10,9 @@ import UIKit
 /// 承载音频消息气泡的可复用时间线 Cell。
 @available(iOS 17.0, *)
 final class AudioBubbleCell: QuickLayoutCollectionViewCell {
+    /// 气泡内容的原生长按交互。
+    let messageMenu = MessageMenuInteraction()
+
 
     /// 显示音频波形、时长和转写文本的气泡视图。
     let bubbleView = AudioBubbleView(frame: .zero)
@@ -140,6 +143,7 @@ final class AudioBubbleCell: QuickLayoutCollectionViewCell {
     /// 为复用清理 `AudioBubbleCell` 的内容与临时状态。
     override func prepareForReuse() {
         super.prepareForReuse()
+        messageMenu.reset()
         message = nil
         playbackRequested = nil
         bubbleView.reset()

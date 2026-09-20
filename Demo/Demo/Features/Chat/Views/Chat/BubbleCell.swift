@@ -9,6 +9,9 @@ import UIKit
 
 /// 在时间线中显示文本气泡和发送状态的自适应单元格。
 final class BubbleCell: QuickLayoutCollectionViewCell {
+    /// 气泡内容的原生长按交互。
+    let messageMenu = MessageMenuInteraction()
+
 
     /// 呈现消息正文与收发方向外观的文本气泡视图。
     let bubbleView = BubbleView(frame: .zero)
@@ -107,6 +110,7 @@ final class BubbleCell: QuickLayoutCollectionViewCell {
     /// 为复用清理 `BubbleCell` 的内容与临时状态。
     override func prepareForReuse() {
         super.prepareForReuse()
+        messageMenu.reset()
         message = nil
         bubbleView.reset()
         deliveryStatusView.configure(nil)

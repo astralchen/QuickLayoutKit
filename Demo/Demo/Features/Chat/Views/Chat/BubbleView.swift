@@ -45,6 +45,13 @@ final class BubbleView: QuickLayoutView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    var menuPreviewPath: UIBezierPath {
+        let rtl = effectiveUserInterfaceLayoutDirection == .rightToLeft
+        let left = direction == .incoming ? !rtl : rtl
+        return UIBezierPath(cgPath: Self.roundedPath(in: bounds, topLeft: 18, topRight: 18,
+                                                    bottomLeft: left ? 5 : 18, bottomRight: left ? 18 : 5))
+    }
+
     /// 根据当前边界更新 `BubbleView` 的子视图布局与图层几何。
     override func layoutSubviews() {
         super.layoutSubviews()
@@ -79,6 +86,8 @@ final class BubbleView: QuickLayoutView {
 
     /// 清空文本与辅助功能信息，恢复未配置的气泡状态。
     func reset() {
+        messageTextView.endMessageSelection()
+        messageTextView.usesMessageMenu = false
         direction = .incoming
         formattedText = nil
         messageTextView.attributedText = nil

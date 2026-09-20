@@ -16,6 +16,8 @@ import UIKit
 nonisolated enum MessageAction: Equatable, Sendable {
     /// 请求重试指定身份的失败消息。
     case retryMessage(messageID: Int)
+    /// 执行菜单打开时锁定的内容操作。
+    case menu(MessageMenuOperation, MessageMenuTarget)
     /// 请求打开文件或链接附件。
     case openDocument(messageID: Int, attachment: Attachment)
     /// 请求保存指定消息中的附件。
@@ -35,7 +37,7 @@ nonisolated enum MessageAction: Equatable, Sendable {
 
 /// 将时间线状态映射为可复用消息单元格，并管理滚动与局部交互的视图。
 @available(iOS 17.0, *)
-final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
+final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestureRecognizerDelegate {
 
     /// 会话集合视图使用的稳定分区身份。
     nonisolated enum Section: Hashable, Sendable {
@@ -125,6 +127,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
 
     /// 消息 Cell 请求页面级操作时调用。
     var actionRequested: ((MessageAction) -> Void)?
+    var menuSaveState: ((MessageMenuTarget) -> AttachmentSaveState)?
 
     /// 重新查询可见 Cell；收回媒体组前同步封面而不移动列表。
     func previewSource(messageID: Int, attachmentID: UUID, index: Int, synchronize: Bool) -> UIView? {
@@ -152,6 +155,10 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
         super.init(frame: frame)
         configureCollectionView()
         adapter.collectionDelegate = self
+        let selectionDismiss = UITapGestureRecognizer(target: self, action: #selector(dismissSelectionOutside(_:)))
+        selectionDismiss.cancelsTouchesInView = false
+        selectionDismiss.delegate = self
+        addGestureRecognizer(selectionDismiss)
     }
 
     /// 不支持从归档创建 `ConversationView`。
@@ -164,6 +171,10 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
     /// 列表重新显示已有 Cell 时恢复缩略图消费者。
     func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
         MediaImageView.setContentActive(true, in: cell)
+        if let timeline = lastState?.timeline, timeline.indices.contains(indexPath.item),
+           case .message(let message) = timeline[indexPath.item].content {
+            configureMessageMenu(cell, message: message)
+        }
     }
 
     /// 离屏立即取消读取并释放图像，无需等待 Cell 进入复用池。
@@ -172,6 +183,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
     }
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        endMessageSelection()
         hasInteractedWithTimeline = true
         pendingExplicitScroll = false
     }
@@ -190,17 +202,18 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
         reason: ChatViewModel.UpdateReason
     ) {
         let previousState = lastState
+        if reason == .messageDeleted { pendingExplicitScroll = false }
         lastState = state
         if reason == .sentMessage { hasInteractedWithTimeline = true }
         let preservesHistoryPosition = reason == .historyLoaded && hasInteractedWithTimeline
         if reason == .initial || reason == .sentMessage { pendingExplicitScroll = true }
         if reason == .historyLoaded && !preservesHistoryPosition { pendingExplicitScroll = true }
         let wasNearBottom = timelineCount == 0 || pendingExplicitScroll || isNearBottom
-        var localizationAnchor = (preservesHistoryPosition || reason == .attachmentSave || ((reason == .localization || reason == .audioTranscript || reason == .messageStatus) && !wasNearBottom))
+        var localizationAnchor = (preservesHistoryPosition || reason == .attachmentSave || reason == .messageDeleted || ((reason == .localization || reason == .audioTranscript || reason == .messageStatus) && !wasNearBottom))
             ? collectionView.captureLocalizationAnchor()
             : nil
         // 历史插入会改变 IndexPath，必须先用旧时间线身份定位同一条消息。
-        if preservesHistoryPosition, let anchor = localizationAnchor {
+        if preservesHistoryPosition || reason == .messageDeleted, let anchor = localizationAnchor {
             if let previousState, previousState.timeline.indices.contains(anchor.indexPath.item),
                let item = state.timeline.firstIndex(where: {
                    $0.id == previousState.timeline[anchor.indexPath.item].id
@@ -208,6 +221,15 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
                 localizationAnchor = .init(indexPath: IndexPath(item: item, section: 0),
                     offsetFromViewportTop: anchor.offsetFromViewportTop,
                     offsetFromViewportLeading: anchor.offsetFromViewportLeading)
+            } else if reason == .messageDeleted, let previousState {
+                let survivors = previousState.timeline.enumerated().filter { old in state.timeline.contains { $0.id == old.element.id } }
+                if let nearest = survivors.min(by: { abs($0.offset - anchor.indexPath.item) < abs($1.offset - anchor.indexPath.item) }),
+                   let newIndex = state.timeline.firstIndex(where: { $0.id == nearest.element.id }),
+                   let attributes = collectionView.layoutAttributesForItem(at: IndexPath(item: nearest.offset, section: 0)) {
+                    localizationAnchor = .init(indexPath: IndexPath(item: newIndex, section: 0),
+                        offsetFromViewportTop: attributes.frame.minY - collectionView.contentOffset.y - collectionView.adjustedContentInset.top,
+                        offsetFromViewportLeading: anchor.offsetFromViewportLeading)
+                } else { localizationAnchor = nil }
             } else { localizationAnchor = nil }
         }
         timelineCount = state.timeline.count
@@ -238,14 +260,18 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
                 let explicitScroll = self.pendingExplicitScroll
                 self.pendingExplicitScroll = false
                 if let localizationAnchor, !explicitScroll {
-                    _ = self.collectionView.restoreLocalizationAnchor(
-                        localizationAnchor
-                    )
+                    _ = self.collectionView.restoreLocalizationAnchor(localizationAnchor)
+                    if reason == .messageDeleted {
+                        // 首次恢复可能使估算高度的相邻 Cell 进入视口并触发自适应测量。
+                        // 完成这一轮布局后，用同一阅读锚点校正最终几何。
+                        self.collectionView.layoutIfNeeded()
+                        _ = self.collectionView.restoreLocalizationAnchor(localizationAnchor)
+                    }
                     return
                 }
 
                 let shouldScroll: Bool = switch reason {
-                case .attachmentSave:
+                case .attachmentSave, .messageDeleted:
                     false
                 case .historyLoaded:
                     !preservesHistoryPosition
@@ -282,6 +308,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
                             ) { [weak self] cell, message, _ in
                                 cell.deliveryStatusView.retryRequested = { [weak self] in self?.actionRequested?(.retryMessage(messageID: $0)) }
                                 cell.configure(message)
+                                self?.configureMessageMenu(cell, message: message)
                             }
                             .refreshID(message.refreshIdentity)
                             .refresh(when: .automatic, action: .reconfigure(layout: .invalidate))
@@ -296,6 +323,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
                                         self?.actionRequested?(.saveAttachment(messageID: message.id, attachment: attachment))
                                     }
                                     cell.configure(message, saveState: self?.saveState(for: message) ?? .available)
+                                    self?.configureMessageMenu(cell, message: message)
                                 }
                                 .refreshID(saveRefreshIdentity(message))
                                 .refresh(when: .automatic, action: .reconfigure(layout: .invalidate))
@@ -325,6 +353,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
                                             "imessage.audio.pause"
                                         )
                                     )
+                                    configureMessageMenu(cell, message: message)
                                 }
                                 .refreshID(message.refreshIdentity)
                                 .refresh(when: .automatic, action: .reconfigure(layout: .invalidate))
@@ -366,6 +395,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
                                         strings: mediaStrings,
                                         saveState: saveState(for: message)
                                     )
+                                    configureMessageMenu(cell, message: message)
                                 }
                                 .refreshID(saveRefreshIdentity(message))
                                 .refresh(when: .automatic, action: .reconfigure(layout: .invalidate))
@@ -467,6 +497,122 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
                 + collectionView.adjustedContentInset.bottom
         )
         return maximumOffset - collectionView.contentOffset.y <= 88
+    }
+
+    /// 重查稳定身份，供菜单和执行入口共同使用。
+    func message(for target: MessageMenuTarget) -> MessagePresentation? {
+        lastState?.timeline.compactMap { item -> MessagePresentation? in
+            guard case .message(let message) = item.content, target.matches(message) else { return nil }
+            return message
+        }.first
+    }
+
+    @objc private func dismissSelectionOutside(_ gesture: UITapGestureRecognizer) {
+        for cell in collectionView.visibleCells.compactMap({ $0 as? BubbleCell }) {
+            let text = cell.bubbleView.messageTextView
+            if text.isSelectingMessageText && text.bounds.contains(gesture.location(in: text)) { return }
+        }
+        endMessageSelection()
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool { true }
+
+    func refreshMenuAccessibility() {
+        for cell in collectionView.visibleCells {
+            switch cell {
+            case let cell as BubbleCell: cell.messageMenu.refreshAccessibility()
+            case let cell as AudioBubbleCell: cell.messageMenu.refreshAccessibility()
+            case let cell as DocumentBubbleCell: cell.messageMenu.refreshAccessibility()
+            case let cell as MediaBubbleCell: cell.messageMenu.refreshAccessibility()
+            default: break
+            }
+        }
+    }
+
+    func endMessageSelection() {
+        for cell in collectionView.visibleCells.compactMap({ $0 as? BubbleCell }) {
+            cell.bubbleView.messageTextView.endMessageSelection()
+        }
+    }
+
+    func selectMessageText(_ target: MessageMenuTarget) {
+        guard message(for: target) != nil,
+              let index = lastState?.timeline.firstIndex(where: { $0.id == .message(target.messageID) }),
+              let cell = collectionView.cellForItem(at: IndexPath(item: index, section: 0)) as? BubbleCell else { return }
+        endMessageSelection()
+        cell.bubbleView.messageTextView.beginMessageSelection()
+    }
+
+    func menuSourceView(for target: MessageMenuTarget) -> UIView? {
+        guard message(for: target) != nil,
+              let index = lastState?.timeline.firstIndex(where: { $0.id == .message(target.messageID) }) else { return nil }
+        let cell = collectionView.cellForItem(at: IndexPath(item: index, section: 0))
+        switch cell {
+        case let cell as BubbleCell: return cell.bubbleView
+        case let cell as AudioBubbleCell: return cell.bubbleView
+        case let cell as DocumentBubbleCell: return cell.card
+        case let cell as MediaBubbleCell: return cell.mediaView.previewSourceView
+        default: return nil
+        }
+    }
+
+    private func configureMessageMenu(_ cell: UICollectionViewCell, message: MessagePresentation) {
+        var target = MessageMenuTarget(messageID: message.id)
+        if case .attachment(let attachment) = message.content { target.attachmentID = attachment.id }
+        let menu: MessageMenuInteraction
+        let host: UIView
+        let accessibilityView: UIView
+        let source: () -> MessageMenuInteraction.Source?
+        switch cell {
+        case let cell as BubbleCell:
+            menu = cell.messageMenu
+            host = cell.bubbleView
+            accessibilityView = cell.bubbleView.messageTextView
+            cell.bubbleView.messageTextView.usesMessageMenu = true
+            source = { [weak cell] in
+                guard let cell, !cell.bubbleView.messageTextView.isSelectingMessageText else { return nil }
+                return .init(target: target, view: cell.bubbleView, path: cell.bubbleView.menuPreviewPath)
+            }
+        case let cell as AudioBubbleCell:
+            menu = cell.messageMenu
+            host = cell.bubbleView
+            accessibilityView = cell.bubbleView.playButton
+            source = { [weak cell] in
+                guard let cell else { return nil }
+                return .init(target: target, view: cell.bubbleView,
+                             path: cell.bubbleView.menuPreviewPath)
+            }
+        case let cell as DocumentBubbleCell:
+            menu = cell.messageMenu
+            host = cell.card
+            accessibilityView = cell.card
+            source = { [weak cell] in
+                guard let cell else { return nil }
+                return .init(target: target, view: cell.card,
+                             path: UIBezierPath(roundedRect: cell.card.bounds, cornerRadius: cell.card.layer.cornerRadius))
+            }
+        case let cell as MediaBubbleCell:
+            menu = cell.messageMenu
+            host = cell.mediaView
+            accessibilityView = cell.mediaView
+            source = { [weak cell] in
+                guard let view = cell?.mediaView, let group = view.group, group.items.indices.contains(view.frontMediaIndex),
+                      let preview = view.previewSourceView else { return nil }
+                var selected = target
+                selected.mediaItemID = group.items[view.frontMediaIndex].id
+                return .init(target: selected, view: preview,
+                             path: UIBezierPath(roundedRect: preview.bounds, cornerRadius: 22),
+                             canPresent: !view.isAnimating && view.interaction == nil)
+            }
+        default: return
+        }
+        menu.configure(host: host, accessibilityView: accessibilityView, source: source, items: { [weak self] target in
+            guard let self, let message = self.message(for: target) else { return [] }
+            return MessageMenuPolicy.items(for: message, target: target, saveState: menuSaveState?(target) ?? .available)
+        }, perform: { [weak self] operation, target in
+            self?.actionRequested?(.menu(operation, target))
+        })
     }
 
     /// 配置集合视图的滚动、键盘、辅助功能及组合布局行为。

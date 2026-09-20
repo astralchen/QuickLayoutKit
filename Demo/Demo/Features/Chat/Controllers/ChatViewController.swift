@@ -230,9 +230,18 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
             }
         }
         attachmentSaveCoordinator.failed = { [weak self] error in self?.presentAttachmentSaveFailure(error) }
+        conversationView.menuSaveState = { [weak self] in self?.menuSaveCoordinator.state(for: $0) ?? .available }
+        menuSaveCoordinator.failed = { [weak self] in self?.presentAttachmentSaveFailure($0) }
+        menuSaveCoordinator.changed = { [weak self] in self?.conversationView.refreshMenuAccessibility() }
         configureInteractions()
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-imessage-menu-fixture") {
+            viewModel.insertInitialHistory([
+                .init(direction: .incoming, content: .userText("Menu text https://www.apple.com")),
+                .init(direction: .outgoing, content: .richText(.init(runs: [.init("Bold menu text", style: .bold)])))
+            ])
+        }
         if let index = arguments.firstIndex(of: "-imessage-save-fixture"),
            arguments.indices.contains(index + 1),
            ["resources", "resources-video", "resources-pdf", "resources-heic", "resources-draft", "resources-live", "resources-live-single"].contains(arguments[index + 1]) {
@@ -286,6 +295,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
 
     /// 管理附件保存操作、状态反馈和页面退出失效的协调器。
     let attachmentSaveCoordinator = AttachmentSaveCoordinator()
+    let menuSaveCoordinator = MessageMenuSaveCoordinator()
     /// 指示页面或其父容器正在退出聊天层级的布尔值。
     private var isLeavingChat = false
     /// 指示页面退出清理已经执行的布尔值，防止重复取消和删除资源。
@@ -337,6 +347,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
         (activePreview as? AttachmentPreviewController)?.completeDismissal()
         activePreview?.dismiss(animated: false)
         attachmentSaveCoordinator.invalidate()
+        menuSaveCoordinator.invalidate()
         composerView.dismissRecordingUnavailableHint()
         composerView.pasteCoordinator.invalidate()
         audioTranscription.cancelAll()

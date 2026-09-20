@@ -43,6 +43,8 @@ final class ChatViewModel {
         case attachmentSave
         /// 发送、送达、已读或处理状态发生变化。
         case messageStatus
+        /// 删除后保留阅读位置并重新计算时间分组。
+        case messageDeleted
     }
 
     /// 供会话视图一次性渲染的完整状态快照。

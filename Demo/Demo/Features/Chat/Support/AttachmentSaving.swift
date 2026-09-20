@@ -27,17 +27,17 @@ nonisolated enum AttachmentSaveError: Error, Equatable {
     case photoPermissionDenied, invalidAttachment, presentationUnavailable
 }
 
-/// 仅媒体组与文件卡片支持保存；语音气泡不属于文件导出入口。
+/// 可保存能力与气泡旁按钮显示分开；音频仅从菜单导出。
 nonisolated enum AttachmentSavePolicy {
     /// 返回指定附件是否包含可保存的媒体原件或文件。
     ///
     /// - Parameter attachment: 待检查的页面附件。
-    /// - Returns: 非空媒体组或文件附件返回 `true`；音频气泡和链接返回 `false`。
+    /// - Returns: 非空媒体组、文件和音频返回 `true`；链接返回 `false`。
     static func supports(_ attachment: Attachment) -> Bool {
         switch attachment {
         case .mediaGroup(let group): !group.items.isEmpty
-        case .file: true
-        case .audio, .link: false
+        case .file, .audio: true
+        case .link: false
         }
     }
 
@@ -47,6 +47,7 @@ nonisolated enum AttachmentSavePolicy {
     static func showsButton(for message: MessagePresentation) -> Bool {
         guard message.direction == .incoming,
               case .attachment(let attachment) = message.content else { return false }
+        if case .audio = attachment { return false }
         return supports(attachment)
     }
 }
@@ -85,6 +86,8 @@ final class AttachmentSaveSnapshot {
         switch attachment {
         case .mediaGroup(let group) where !group.items.isEmpty:
             sources = group.items.map { ($0.originalFileURL, $0.originalFileURL.lastPathComponent) }
+        case .audio(let audio):
+            sources = [(audio.fileURL, audio.fileURL.lastPathComponent)]
         case .file(let file):
             // 展示名称只用于副本文件名，移除目录部分并保留原件扩展名。
             // 每个原件使用独立子目录，允许媒体组中出现同名文件。
@@ -146,14 +149,18 @@ final class SystemAttachmentSaver: AttachmentSaving {
     init(authorizePhotos: (() async -> PHAuthorizationStatus)? = nil, writePhotos: PhotoWriter? = nil) {
         self.authorizePhotos = authorizePhotos ?? { await PHPhotoLibrary.requestAuthorization(for: .addOnly) }
         self.writePhotos = writePhotos ?? { items, files, videos in
-            try await PHPhotoLibrary.shared().performChanges {
-                for (index, item) in items.enumerated() {
-                    let file = files[index]
-                    let request = PHAssetCreationRequest.forAsset()
-                    request.addResource(with: item.kind.isVideo ? .video : .photo, fileURL: file, options: nil)
-                    if let video = videos[index] {
-                        request.addResource(with: .pairedVideo, fileURL: video, options: nil)
-                    }
+            try await PHPhotoLibrary.shared().performChanges(Self.photoChanges(items: items, files: files, videos: videos))
+        }
+    }
+
+    /// Photos 在自己的 changes 队列调用闭包；不能继承页面的 MainActor 隔离。
+    nonisolated static func photoChanges(items: [MediaItem], files: [URL], videos: [URL?]) -> @Sendable () -> Void {
+        {
+            for (index, item) in items.enumerated() {
+                let request = PHAssetCreationRequest.forAsset()
+                request.addResource(with: item.kind.isVideo ? .video : .photo, fileURL: files[index], options: nil)
+                if let video = videos[index] {
+                    request.addResource(with: .pairedVideo, fileURL: video, options: nil)
                 }
             }
         }
@@ -174,10 +181,10 @@ final class SystemAttachmentSaver: AttachmentSaving {
             }
             try await writePhotos(group.items, snapshot.files, snapshot.pairedVideos)
             return .saved
-        case .file:
+        case .file, .audio:
             let session = DocumentExportSession()
             return try await session.export(snapshot.files, from: presenter)
-        case .audio, .link:
+        case .link:
             throw AttachmentSaveError.invalidAttachment
         }
     }

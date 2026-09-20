@@ -11,6 +11,9 @@ import UniformTypeIdentifiers
 /// 在时间线中呈现文件或链接卡片、发送状态和保存入口的单元格。
 @available(iOS 17.0, *)
 final class DocumentBubbleCell: QuickLayoutCollectionViewCell {
+    /// 气泡内容的原生长按交互。
+    let messageMenu = MessageMenuInteraction()
+
     /// 与编辑器共用内容配置和测量规则的附件卡片。
     let card = AttachmentCard(frame: .zero)
     /// 显示发送进度、失败入口及送达文本的状态视图。
@@ -91,6 +94,7 @@ final class DocumentBubbleCell: QuickLayoutCollectionViewCell {
     /// 为复用清理 `DocumentBubbleCell` 的内容与临时状态。
     override func prepareForReuse() {
         super.prepareForReuse()
+        messageMenu.reset()
         message = nil
         showsSaveButton = false
         saveRequested = nil

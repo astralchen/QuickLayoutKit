@@ -9,7 +9,7 @@ enum SampleChatHistory {
     /// 判断正常入口是否应加载完整样例；专用调试场景只加载各自指定的数据。
     static func isEnabled(arguments: [String]) -> Bool {
         !arguments.contains { argument in
-            argument == "-imessage-save-fixture" || argument == "preview-video"
+            argument == "-imessage-menu-fixture" || argument == "-imessage-save-fixture" || argument == "preview-video"
                 || argument == "-media-benchmark" || argument == "-imessage-basic-history"
         }
     }

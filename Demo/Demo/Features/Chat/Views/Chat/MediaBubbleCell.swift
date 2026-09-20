@@ -11,6 +11,9 @@ import UIKit
 
 /// 在时间线中显示媒体内容、发送状态和保存入口的自适应单元格。
 final class MediaBubbleCell: QuickLayoutCollectionViewCell {
+    /// 气泡内容的原生长按交互。
+    let messageMenu = MessageMenuInteraction()
+
     /// 显示单图气泡或可切换媒体堆叠的视图。
     let mediaView = MediaMessageView()
     /// 显示发送进度、失败入口及送达文本的状态视图。
@@ -78,6 +81,7 @@ final class MediaBubbleCell: QuickLayoutCollectionViewCell {
         isAccessibilityElement = false
         mediaView.frontIndexDidChange = { [weak self] messageID, index in
             self?.frontIndexDidChange?(messageID, index)
+            self?.messageMenu.refreshAccessibility()
         }
         mediaView.previewRequested = { [weak self] messageID, group, index in
             self?.previewRequested?(messageID, group, index)
@@ -118,6 +122,7 @@ final class MediaBubbleCell: QuickLayoutCollectionViewCell {
     /// 为复用清理 `MediaBubbleCell` 的内容与临时状态。
     override func prepareForReuse() {
         super.prepareForReuse()
+        messageMenu.reset()
         message = nil
         showsSaveButton = false
         saveRequested = nil

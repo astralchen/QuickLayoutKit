@@ -233,6 +233,17 @@ final class AudioBubbleView: QuickLayoutView {
         )
     }
 
+    /// 菜单使用与气泡相同的主体和尾部，避免高亮预览裁掉尾巴。
+    var menuPreviewPath: UIBezierPath {
+        let body = CGRect(x: 0, y: 0, width: bounds.width, height: max(0, bounds.height - 6))
+        let path = UIBezierPath(roundedRect: body, cornerRadius: min(24, min(body.width, body.height) / 2))
+        let rtl = effectiveUserInterfaceLayoutDirection == .rightToLeft
+        let tail = UIBezierPath(cgPath: TailShape(isMirrored: direction == .outgoing ? !rtl : rtl).path(in: bounds))
+        // 镜像会反转绕向；与主体保持同向，使非零填充合并重叠部分。
+        path.append(direction == .outgoing ? (rtl ? tail.reversing() : tail) : (rtl ? tail : tail.reversing()))
+        return path
+    }
+
     /// 根据当前边界更新 `AudioBubbleView` 的子视图布局与图层几何。
     override func layoutSubviews() {
         super.layoutSubviews()

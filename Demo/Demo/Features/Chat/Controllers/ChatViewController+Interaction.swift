@@ -319,6 +319,8 @@ extension ChatViewController {
     /// - Parameter action: Cell 发出的值类型操作。
     private func handleMessageAction(_ action: MessageAction) {
         switch action {
+        case .menu(let operation, let target):
+            handleMenuAction(operation, target: target)
         case .retryMessage(let messageID):
             viewModel.retryMessage(id: messageID)
         case .saveAttachment(let messageID, let attachment):

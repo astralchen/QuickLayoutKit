@@ -154,6 +154,26 @@ extension ChatViewModel {
         startSending(messageID: messageID)
     }
 
+    /// 只删除当前会话记录，使对应发送和模拟回复结果失效；共享文件仍由页面持有。
+    @discardableResult
+    func deleteMessage(id: Int) -> Bool {
+        guard messages.contains(where: { $0.id == id }) else { return false }
+        sendAttempts[id] = nil
+        sendTasks.removeValue(forKey: id)?.cancel()
+        pendingReplies.removeAll { $0.messageID == id }
+        if activeReplyID == id {
+            replyGeneration = UUID()
+            pendingReplyTask?.cancel()
+            pendingReplyTask = nil
+            activeReplyID = nil
+            isTyping = false
+        }
+        messages.removeAll { $0.id == id }
+        publish(reason: .messageDeleted)
+        scheduleReplies()
+        return true
+    }
+
     /// 重试原消息；保持 ID、顺序、附件和发送时间，重复点击不会启动第二次尝试。
     @discardableResult
     func retryMessage(id: Int) -> Bool {
