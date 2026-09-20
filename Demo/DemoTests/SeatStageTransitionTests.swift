@@ -15,6 +15,54 @@ import UIKit
 @Suite(.serialized)
 struct SeatStageTransitionTests {
 
+    @Test(arguments: [CGFloat(320), 402, 768], [AudienceSeatState.enabled, .disabled])
+    func hostNameDoesNotExpandWhenReturningToParty(width: CGFloat, audienceState: AudienceSeatState) async throws {
+        let viewModel = VoiceRoomViewModel()
+        #expect(viewModel.consumeStageSnapshot(VoiceRoomViewModel.makeDefaultStageSnapshot(
+            revision: 2, roomMode: .individual, audienceSeatState: audienceState)))
+        let controller = VoiceRoomViewController(viewModel: viewModel)
+        let window = try makeTransitionTestWindow(rootViewController: controller, size: CGSize(width: width, height: 900))
+        defer { window.isHidden = true }
+        let stage = controller.seatStageView
+        try await waitForSeatUpdates(stage)
+        let host = try #require(stage.seatCollectionView.cellForItem(at: IndexPath(item: 0, section: 0)))
+        let name = try #require(host.allSubviews(of: UILabel.self).first { $0.accessibilityIdentifier == "liveRoom.seat.name.0" })
+        let avatar = try #require(host.allSubviews(of: UIImageView.self).first { $0.accessibilityIdentifier == "liveRoom.seat.avatar.0" })
+        let score = try #require(host.allSubviews(of: UILabel.self).first { $0.accessibilityIdentifier == "liveRoom.seat.score.0" })
+        let sourceSizes = [name.bounds.size, score.bounds.size]
+        let sourceHostHeight = host.bounds.height
+        #expect(viewModel.consumeStageSnapshot(VoiceRoomViewModel.makeDefaultStageSnapshot(revision: 3)))
+        controller.view.layoutIfNeeded()
+        var intermediateFrames = 0
+        for _ in 0..<12 {
+            try await Task.sleep(for: .milliseconds(16))
+            let root = try #require(window.layer.presentation())
+            let nameLayer = try #require(name.layer.presentation())
+            let avatarLayer = try #require(avatar.layer.presentation())
+            let scoreLayer = try #require(score.layer.presentation())
+            let nameFrame = nameLayer.convert(nameLayer.bounds, to: root)
+            let avatarFrame = avatarLayer.convert(avatarLayer.bounds, to: root)
+            let scoreFrame = scoreLayer.convert(scoreLayer.bounds, to: root)
+            #expect(abs(nameFrame.midX - avatarFrame.midX) < 1)
+            #expect(nameFrame.minY >= scoreFrame.maxY)
+            for (label, sourceSize) in zip([name, score], sourceSizes) {
+                let size = try #require(label.layer.presentation()).bounds.size
+                #expect(size.width <= max(sourceSize.width, label.bounds.width) + 0.75)
+                #expect(size.height <= max(sourceSize.height, label.bounds.height) + 0.75)
+                #expect(size.height >= min(sourceSize.height, label.bounds.height) - 0.75)
+            }
+            let visibleHeight = try #require(host.layer.presentation()).bounds.height
+            if abs(visibleHeight - sourceHostHeight) > 0.5,
+               abs(visibleHeight - host.bounds.height) > 0.5 {
+                intermediateFrames += 1
+            }
+        }
+        #expect(intermediateFrames > 0, "必须检查实际过渡帧，不能只验证最终昵称")
+        try await waitForSeatUpdates(stage)
+        #expect(stage.seatCollectionView.cellForItem(at: IndexPath(item: 0, section: 0)) === host)
+        #expect(name.bounds.size == name.layer.presentation()?.bounds.size)
+    }
+
     @Test(arguments: [CGFloat(320), 390, 768])
     func hostAvatarStaysCircularDuringRoomModeTransitions(width: CGFloat) async throws {
         let controller = UIViewController()

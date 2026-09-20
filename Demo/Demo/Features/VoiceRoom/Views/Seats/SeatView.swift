@@ -259,11 +259,13 @@ final class SeatView: QuickLayoutView {
 
             scoreLabel
                 .resizable(axis: .horizontal)
+                .fixedSize(axis: .vertical)
                 .padding(.horizontal, sizeClass == .expanded ? 9 : 5)
                 .padding(.vertical, sizeClass == .expanded ? 4 : 3)
                 .frame(width: avatarDiameter)
                 .background { roundedContent(scoreBackgroundView) }
-            nameLabel
+            // Cell 缩小时仍保留单行高度，避免过渡布局将文字压成零尺寸。
+            nameLabel.fixedSize(axis: .vertical)
         }
     }
 
