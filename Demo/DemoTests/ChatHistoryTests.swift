@@ -17,14 +17,14 @@ struct ChatHistoryTests {
         #expect(model.messages.isEmpty && model.state.timeline.isEmpty)
         #expect(model.nextMessageID == 0)
         model.insertInitialHistory(samples)
-        #expect(samples.count == 26)
-        #expect(model.messages.count == 26)
-        #expect(model.nextMessageID == 26)
-        #expect(model.messages.filter { $0.direction == .outgoing }.count == 13)
+        #expect(samples.count == 38)
+        #expect(model.messages.count == 38)
+        #expect(model.nextMessageID == 38)
+        #expect(model.messages.filter { $0.direction == .outgoing }.count == 19)
         #expect(model.messages.allSatisfy { $0.deliveryState == ($0.direction == .outgoing ? .read : nil) })
         #expect(model.sendTasks.isEmpty && model.pendingReplies.isEmpty && model.pendingReplyTask == nil)
         #expect(!model.state.isProcessingMessages && !model.state.isTyping)
-        #expect(Set(model.messages.map(\.id)).count == 26)
+        #expect(Set(model.messages.map(\.id)).count == 38)
         var media: [MediaItem] = []
         var attachmentIDs: [UUID] = []
         var files: Set<URL> = []
@@ -66,7 +66,7 @@ struct ChatHistoryTests {
         #expect(media.filter { $0.kind.isVideo }.count == 2)
         #expect(media.allSatisfy { !($0.isLivePhoto && $0.isAnimatedImage) })
         model.insertInitialHistory(samples)
-        #expect(model.messages.count == 26)
+        #expect(model.messages.count == 38)
         store.removeAll()
         #expect(files.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
     }
@@ -80,8 +80,8 @@ struct ChatHistoryTests {
         defer { store.removeAll(); model.cancelPendingReply() }
         let samples = try await SampleChatHistory.load(store: store)
         model.insertInitialHistory(samples)
-        #expect(model.messages[26].id == sent.id)
-        #expect(model.messages[26].content == sent.content)
+        #expect(model.messages[38].id == sent.id)
+        #expect(model.messages[38].content == sent.content)
         #expect(Set(model.messages.map(\.id)).count == model.messages.count)
         #expect(model.messages.map(\.sentAt) == model.messages.map(\.sentAt).sorted())
         let nextID = model.nextMessageID
@@ -95,7 +95,7 @@ struct ChatHistoryTests {
         defer { store.removeAll() }
         store.rejectedName = "live-photo.mov"
         let samples = try await SampleChatHistory.load(store: store)
-        #expect(samples.count == 24)
+        #expect(samples.count == 36)
         let referenced = Set(samples.flatMap { sample -> [URL] in
             if case .attachment(let attachment) = sample.content { return attachment.localFileURLs }
             return []
@@ -134,10 +134,10 @@ struct ChatHistoryTests {
         for _ in 0..<2 {
             let page = ChatViewController()
             page.loadViewIfNeeded()
-            for _ in 0..<150 where page.viewModel.messages.count != 26 {
+            for _ in 0..<150 where page.viewModel.messages.count != 38 {
                 try await Task.sleep(for: .milliseconds(100))
             }
-            #expect(page.viewModel.messages.count == 26)
+            #expect(page.viewModel.messages.count == 38)
             #expect(page.viewModel.sendTasks.isEmpty)
         }
     }

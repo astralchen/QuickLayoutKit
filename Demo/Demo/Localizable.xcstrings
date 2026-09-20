@@ -5711,19 +5711,19 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "نلتقي هنا:\n1 Apple Park Way, Cupertino, CA 95014\nأرسل لي رسالة عند وصولك."
+            "value" : "نلتقي هنا:\n1 Apple Park Way, Cupertino, CA 95014\n北京市朝阳区三里屯路19号\nأرسل لي رسالة عند وصولك."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Meet here:\n1 Apple Park Way, Cupertino, CA 95014\nSend me a message when you arrive."
+            "value" : "Meet here:\n1 Apple Park Way, Cupertino, CA 95014\n北京市朝阳区三里屯路19号\nSend me a message when you arrive."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "见面地址：\n1 Apple Park Way, Cupertino, CA 95014\n到达后给我发条消息。"
+            "value" : "见面地址：\n1 Apple Park Way, Cupertino, CA 95014\n北京市朝阳区三里屯路19号\n到达后给我发条消息。"
           }
         }
       }
@@ -5734,19 +5734,19 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "إليك التفاصيل:\nالهاتف: +1 (202) 555-0147\nالبريد: hello@example.com\nالعنوان: 1 Apple Park Way, Cupertino, CA 95014\nالموقع: https://www.apple.com\nملاحظة: 3 أشخاص ونسختان من المستند."
+            "value" : "تفاصيل الرحلة والتواصل:\nالهاتف: +1 (202) 555-0147\nالبريد: hello@example.com\nالعنوان: 1 Apple Park Way, Cupertino, CA 95014\nالموقع: https://www.apple.com\nالموعد: غدًا الساعة 3:30 مساءً\nالرحلة: UA123\nUPS: 1Z999AA10123456784\nالميزانية: US$25.00\nالمسافة: 10 km؛ الحرارة: 72 °F\nملاحظة: 3 أشخاص ونسختان من المستند."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Here are the details:\nPhone: +1 (202) 555-0147\nEmail: hello@example.com\nAddress: 1 Apple Park Way, Cupertino, CA 95014\nWebsite: https://www.apple.com\nNote: 3 people, 2 copies of the document."
+            "value" : "Trip and contact details:\nPhone: +1 (202) 555-0147\nEmail: hello@example.com\nAddress: 1 Apple Park Way, Cupertino, CA 95014\nWebsite: https://www.apple.com\nTime: tomorrow at 3:30 PM\nFlight: UA123\nUPS: 1Z999AA10123456784\nBudget: US$25.00\nDistance: 10 km; temperature: 72 °F\nNote: 3 people, 2 copies of the document."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "联系方式已整理好：\n电话：+1 (202) 555-0147\n邮箱：hello@example.com\n地址：1 Apple Park Way, Cupertino, CA 95014\n网址：https://www.apple.com\n备注：共 3 人，带上 2 份资料。"
+            "value" : "行程与联系方式：\n电话：+1 (202) 555-0147\n邮箱：hello@example.com\n地址：1 Apple Park Way, Cupertino, CA 95014\n网址：https://www.apple.com\n时间：明天下午3:30\n航班：UA123\nUPS：1Z999AA10123456784\n预算：US$25.00\n距离：10 km，温度：72 °F\n备注：共 3 人，带上 2 份资料。"
           }
         }
       }
@@ -5757,19 +5757,157 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "رقم الهاتف: +1 (202) 555-0147\nهذا رقم توضيحي لعرض إجراءات الهاتف في النظام."
+            "value" : "الهاتف: +1 (202) 555-0147\nالصين: +86 10 5550 1234\nهذه أمثلة لتنسيقات أرقام الهاتف."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Phone: +1 (202) 555-0147\nThis example number shows the system phone actions."
+            "value" : "Phone: +1 (202) 555-0147\nChina: +86 10 5550 1234\nThese numbers demonstrate phone formats."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "联系电话：+1 (202) 555-0147\n这是演示号码，可查看系统提供的电话操作。"
+            "value" : "联系电话：+1 (202) 555-0147\n国内电话：+86 10 5550 1234\n以上为演示格式。"
+          }
+        }
+      }
+    },
+    "imessage.seed.text.email" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أرسل المستندات إلى hello@example.com\nيمكنك أيضًا إرسال نسخة إلى team@example.org."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send the documents to hello@example.com\nYou can also copy team@example.org."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "资料请发至 hello@example.com\n也可以抄送 team@example.org。"
+          }
+        }
+      }
+    },
+    "imessage.seed.text.date" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نلتقي غدًا الساعة 3:30 مساءً.\nنراجع التقدم يوم الاثنين القادم الساعة 10:00 صباحًا."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Let's meet tomorrow at 3:30 PM.\nWe can check in next Monday at 10:00 AM."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我们明天下午3:30见面。\n下周一上午10:00再确认一下进度。"
+          }
+        }
+      }
+    },
+    "imessage.seed.text.flight" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الرحلة: UA123\nرحلة أخرى: CA1831\nتعتمد حالة الرحلة على المعلومات المتاحة للنظام."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flight: UA123\nAnother flight: CA1831\nFlight status depends on the information available to the system."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "航班：UA123\n另一班：CA1831\n航班状态以系统提供的信息为准。"
+          }
+        }
+      }
+    },
+    "imessage.seed.text.shipment" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رقم تتبع UPS: 1Z999AA10123456784\nهذا المثال لا يمثل شحنة حقيقية."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "UPS tracking number: 1Z999AA10123456784\nThis example does not represent a real shipment."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "UPS 快递单号：1Z999AA10123456784\n这是演示单号，不代表真实包裹。"
+          }
+        }
+      }
+    },
+    "imessage.seed.text.money" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أسعار توضيحية: US$25.00، €18.50، CN¥120.00.\nاطّلع على إجراءات العملات التي يتيحها النظام."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Example prices: US$25.00, €18.50, CN¥120.00.\nView the currency actions offered by the system."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "费用参考：US$25.00、€18.50、CN¥120.00。\n可查看系统提供的货币操作。"
+          }
+        }
+      }
+    },
+    "imessage.seed.text.physicalValue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "المسافة: 10 km\nدرجة الحرارة: 72 °F\nوزن الأمتعة: 3 kg"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Distance: 10 km\nTemperature: 72 °F\nLuggage weight: 3 kg"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "距离：10 km\n温度：72 °F\n行李重量：3 kg"
           }
         }
       }

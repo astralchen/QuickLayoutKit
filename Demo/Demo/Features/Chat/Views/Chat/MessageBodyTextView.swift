@@ -10,7 +10,10 @@ final class MessageBodyTextView: UITextView {
         backgroundColor = .clear
         textContainerInset = .zero
         textContainer.lineFragmentPadding = 0
-        dataDetectorTypes = [.phoneNumber, .link, .address]
+        dataDetectorTypes = [.phoneNumber, .link, .address, .calendarEvent, .flightNumber, .shipmentTrackingNumber]
+        if #available(iOS 16.0, *) {
+            dataDetectorTypes.formUnion([.money, .physicalValue])
+        }
         accessibilityIdentifier = "imessage.message.text"
     }
 

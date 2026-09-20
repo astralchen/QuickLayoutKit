@@ -10,7 +10,7 @@ import UIKit
 /// 根据消息方向显示文本与圆角气泡轮廓的视图。
 final class BubbleView: QuickLayoutView {
 
-    /// 显示消息正文，并由系统识别电话、地址、网址和邮箱。
+    /// 显示消息正文，由系统识别联系方式、日期、航班、快递、金额和单位。
     let messageTextView = MessageBodyTextView()
     /// 按消息方向裁剪气泡圆角的形状遮罩。
     private let bubbleMask = QuickLayoutShapeView(frame: .zero)

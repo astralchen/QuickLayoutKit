@@ -33,7 +33,8 @@ enum SampleChatHistory {
             .init(localizer.text("imessage.seed.rich.mixed"), style: [.bold, .italic, .underline]),
         ])
         let linkTitle = localizer.text("imessage.seed.link.title")
-        var samples = ["plain", "phone", "address", "url", "mixed"].flatMap { name in
+        var samples = ["plain", "phone", "address", "url", "email", "date", "flight",
+                       "shipment", "money", "physicalValue", "mixed"].flatMap { name in
             pair(.userText(localizer.text("imessage.seed.text.\(name)")))
         }
         samples += pair(.richText(richText))
