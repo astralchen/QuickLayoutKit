@@ -15,6 +15,59 @@ import UIKit
 @Suite(.serialized)
 struct SeatStageTransitionTests {
 
+    @Test(arguments: [CGFloat(320), 390, 768])
+    func hostAvatarStaysCircularDuringRoomModeTransitions(width: CGFloat) async throws {
+        let controller = UIViewController()
+        let stage = SeatStageView(frame: CGRect(x: 0, y: 0, width: width, height: 700))
+        controller.view.addSubview(stage)
+        let window = try makeTransitionTestWindow(
+            rootViewController: controller,
+            size: CGSize(width: width, height: 900)
+        )
+        defer { window.isHidden = true }
+        stage.apply(presentation: try presentation(for: VoiceRoomViewModel.makeDefaultStageSnapshot()))
+        try await waitForSeatUpdates(stage)
+
+        for mode: RoomMode in [.individual, .party] {
+            let host = try #require(stage.seatCollectionView.cellForItem(at: IndexPath(item: 0, section: 0)))
+            let avatar = try #require(host.allSubviews(of: UIImageView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.seat.avatar.0"
+            })
+            let sourceFrame = host.layer.frame
+            let roundedViews = host.allSubviews(of: UIView.self).filter { $0.layer.cornerRadius > 0 }
+            #expect(roundedViews.contains(avatar))
+            #expect(roundedViews.count >= 5)
+            stage.apply(presentation: try presentation(for: VoiceRoomViewModel.makeDefaultStageSnapshot(
+                roomMode: mode, audienceSeatState: .enabled)), animated: true)
+            var intermediateFrames = 0
+            var imageData: Data?
+            for frame in 0..<8 {
+                try await Task.sleep(for: .milliseconds(20))
+                for view in roundedViews {
+                    let layer = try #require(view.layer.presentation())
+                    let radius = min(layer.bounds.width, layer.bounds.height) / 2
+                    #expect(abs(layer.cornerRadius - radius) < 0.75,
+                        "0 号麦圆角必须跟随实际尺寸：radius=\(layer.cornerRadius), size=\(layer.bounds.size)")
+                }
+                if frame == 3 {
+                    let image = UIGraphicsImageRenderer(bounds: window.bounds).image { context in
+                        (window.layer.presentation() ?? window.layer).render(in: context.cgContext)
+                    }
+                    imageData = image.pngData()
+                }
+                let visibleFrame = try #require(host.layer.presentation()).frame
+                if abs(visibleFrame.height - sourceFrame.height) > 0.5,
+                   abs(visibleFrame.height - host.layer.frame.height) > 0.5 {
+                    intermediateFrames += 1
+                }
+            }
+            #expect(intermediateFrames > 0, "必须检查过渡帧，不能只验证最终状态")
+            try await waitForSeatUpdates(stage)
+            #expect(abs(avatar.layer.cornerRadius - avatar.bounds.width / 2) < 0.5)
+            Attachment.record(try #require(imageData), named: "host-\(mode)-\(Int(width))-transition.png")
+        }
+    }
+
     @Test func invalidationReplacesGeometryBeforePrepare() throws {
         var section = makeLayoutTestSection(count: 18)
         let layout = SeatCollectionLayout { _, _ in section }

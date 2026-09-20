@@ -184,13 +184,13 @@ final class SeatView: QuickLayoutView {
         VStack(spacing: pkMetrics.spacing) {
             ZStack(alignment: .bottomTrailing) {
                 ZStack {
-                    haloView.resizable().frame(width: avatarDiameter + pkMetrics.haloInset, height: avatarDiameter + pkMetrics.haloInset)
-                    avatarBackgroundView.resizable().frame(width: avatarDiameter, height: avatarDiameter)
-                    avatarImageView.resizable().scaledToFit()
+                    roundedContent(haloView).frame(width: avatarDiameter + pkMetrics.haloInset, height: avatarDiameter + pkMetrics.haloInset)
+                    roundedContent(avatarBackgroundView).frame(width: avatarDiameter, height: avatarDiameter)
+                    roundedContent(avatarImageView, isRounded: assignment?.avatarImageID != nil).scaledToFit()
                         .frame(width: avatarDiameter * avatarContentScale, height: avatarDiameter * avatarContentScale)
                 }
                 ZStack {
-                    microphoneBackgroundView.resizable()
+                    roundedContent(microphoneBackgroundView)
                     microphoneImageView.resizable().scaledToFit()
                         .frame(width: microphoneIconDiameter, height: microphoneIconDiameter)
                     speakingIndicatorView.resizable()
@@ -200,7 +200,7 @@ final class SeatView: QuickLayoutView {
             }
             scoreLabel.resizable(axis: .horizontal)
                 .frame(width: avatarDiameter, height: pkMetrics.scoreHeight)
-                .background { scoreBackgroundView }
+                .background { roundedContent(scoreBackgroundView) }
             if pkMetrics.isHost {
                 nameLabel.resizable(axis: .horizontal).frame(height: pkMetrics.nameHeight)
             }
@@ -217,20 +217,17 @@ final class SeatView: QuickLayoutView {
         ) {
             ZStack(alignment: .bottomTrailing) {
                 ZStack {
-                    haloView
-                        .resizable()
+                    roundedContent(haloView)
                         .frame(
                             width: avatarDiameter + 10,
                             height: avatarDiameter + 10
                         )
-                    avatarBackgroundView
-                        .resizable()
+                    roundedContent(avatarBackgroundView)
                         .frame(
                             width: avatarDiameter,
                             height: avatarDiameter
                         )
-                    avatarImageView
-                        .resizable()
+                    roundedContent(avatarImageView, isRounded: assignment?.avatarImageID != nil)
                         .scaledToFit()
                         .frame(
                             width: avatarDiameter * avatarContentScale,
@@ -239,8 +236,7 @@ final class SeatView: QuickLayoutView {
                 }
 
                 ZStack {
-                    microphoneBackgroundView
-                        .resizable()
+                    roundedContent(microphoneBackgroundView)
                         .frame(
                             width: microphoneDiameter,
                             height: microphoneDiameter
@@ -266,28 +262,30 @@ final class SeatView: QuickLayoutView {
                 .padding(.horizontal, sizeClass == .expanded ? 9 : 5)
                 .padding(.vertical, sizeClass == .expanded ? 4 : 3)
                 .frame(width: avatarDiameter)
-                .background { scoreBackgroundView }
+                .background { roundedContent(scoreBackgroundView) }
             nameLabel
         }
     }
 
-    /// 根据实际尺寸更新圆角、命中区域及依赖宽度的 PK 样式。
+    /// 在实际尺寸应用后更新圆角，避免配置目标样式时提前改变头像裁剪。
+    private func roundedContent(_ view: UIView, isRounded: Bool = true) -> Layout {
+        view.resizable()
+            .onGeometryChange(for: CGFloat.self) { geometry in
+                isRounded ? min(geometry.size.width, geometry.size.height) / 2 : 0
+            } action: { [weak view] radius in
+                view?.layer.cornerRadius = radius
+            }
+    }
+
+    /// 更新命中区域及依赖宽度的 PK 样式。
     override func layoutSubviews() {
         if isPK {
             if lastPKWidth != bounds.width {
                 lastPKWidth = bounds.width
                 setNeedsQuickLayout()
             }
-            haloView.layer.cornerRadius = (avatarDiameter + pkMetrics.haloInset) / 2
-            avatarBackgroundView.layer.cornerRadius = avatarDiameter / 2
-            avatarImageView.layer.cornerRadius = avatarImageIDCornerRadius
-            microphoneBackgroundView.layer.cornerRadius = microphoneDiameter / 2
         }
         super.layoutSubviews()
-        scoreBackgroundView.layer.cornerRadius = min(
-            scoreBackgroundView.bounds.width,
-            scoreBackgroundView.bounds.height
-        ) / 2
         interactionButton.frame = bounds
         bringSubviewToFront(interactionButton)
     }
@@ -313,9 +311,6 @@ final class SeatView: QuickLayoutView {
         avatarImageView.contentMode = usesPhotoAvatar
             ? .scaleAspectFill
             : .scaleAspectFit
-        avatarImageView.layer.cornerRadius = usesPhotoAvatar
-            ? avatarDiameter / 2
-            : 0
         avatarImageView.clipsToBounds = usesPhotoAvatar
         let isMuted = assignment?.isMuted ?? true
         microphoneBackgroundView.backgroundColor = isMuted
@@ -467,19 +462,12 @@ final class SeatView: QuickLayoutView {
     func setSizeClass(_ sizeClass: SeatSizeClass) {
         guard self.sizeClass != sizeClass else { return }
         self.sizeClass = sizeClass
-        haloView.layer.cornerRadius = (avatarDiameter + 10) / 2
-        avatarBackgroundView.layer.cornerRadius = avatarDiameter / 2
-        avatarImageView.layer.cornerRadius = avatarImageIDCornerRadius
-        microphoneBackgroundView.layer.cornerRadius = microphoneDiameter / 2
         configureTypography()
         setNeedsQuickLayout()
     }
 
-    /// 根据当前样式更新头像裁剪、字体和布局需求。
+    /// 根据当前样式更新外圈边框、字体和布局需求。
     private func applyVisualStyle() {
-        haloView.layer.cornerRadius = (avatarDiameter + 10) / 2
-        avatarBackgroundView.layer.cornerRadius = avatarDiameter / 2
-        avatarImageView.layer.cornerRadius = avatarImageIDCornerRadius
         haloView.layer.borderWidth = slotPresentation?.role == .host ? 3 : 2
         configureTypography()
         setNeedsQuickLayout()
@@ -490,12 +478,10 @@ final class SeatView: QuickLayoutView {
         quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
 
         haloView.backgroundColor = UIColor.white.withAlphaComponent(0.05)
-        haloView.layer.cornerRadius = (avatarDiameter + 10) / 2
         haloView.layer.borderWidth = 2
         haloView.layer.shadowOpacity = 0.45
         haloView.layer.shadowRadius = 8
 
-        avatarBackgroundView.layer.cornerRadius = avatarDiameter / 2
         avatarBackgroundView.layer.masksToBounds = true
         avatarImageView.contentMode = .scaleAspectFit
 
@@ -503,7 +489,6 @@ final class SeatView: QuickLayoutView {
         addSubview(interactionButton)
         interactionButton.action = { [weak self] in self?.didTapSeat() }
 
-        microphoneBackgroundView.layer.cornerRadius = microphoneDiameter / 2
         microphoneImageView.tintColor = .white
         microphoneImageView.contentMode = .scaleAspectFit
         speakingIndicatorView.isHidden = true
@@ -526,11 +511,6 @@ final class SeatView: QuickLayoutView {
     private func didTapSeat() {
         guard let assignment, assignment.isOccupied else { return }
         seatDidSelect?(assignment)
-    }
-
-    /// 当前头像采用的圆角半径，单位为点。
-    private var avatarImageIDCornerRadius: CGFloat {
-        assignment?.avatarImageID == nil ? 0 : avatarDiameter / 2
     }
 
     /// 根据麦位样式和尺寸等级设置积分及名称字体。
