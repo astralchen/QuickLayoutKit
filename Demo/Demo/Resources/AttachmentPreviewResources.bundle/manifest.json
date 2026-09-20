@@ -194,5 +194,19 @@
     "kind": "image",
     "bytes": 1345091,
     "sha256": "d04d4d6c042e2b1713c6f36c4b9a3ab0c248cf14aa1947843c384fdfa362709f"
+  },
+  {
+    "file": "live-photo.jpg",
+    "original": "Original synthetic artwork: Scripts/make-live-photo-fixture.swift",
+    "kind": "live-photo-image",
+    "bytes": 25040,
+    "sha256": "b90c091fcd03c3801f9bce21c160bd5f45e919333d14a5d27198abe7bd08760f"
+  },
+  {
+    "file": "live-photo.mov",
+    "original": "Original synthetic artwork: Scripts/make-live-photo-fixture.swift",
+    "kind": "live-photo-video",
+    "bytes": 134073,
+    "sha256": "eb2aec1e7e7296dcce39186324ddd4553bab2d8d4315608c170a6cda6df6645a"
   }
 ]

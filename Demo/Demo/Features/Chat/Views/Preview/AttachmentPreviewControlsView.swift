@@ -5,6 +5,11 @@ import QuickLayoutKit
 /// 附件预览控制层，拥有标题、菜单入口、播放条和缩略图；不持有播放器或分页控制器。
 @available(iOS 26.0, *)
 final class AttachmentPreviewControlsView: QuickLayoutView {
+    let livePhotoButton = LivePhotoBadgeButton(frame: .zero)
+    var didSelectLivePhotoMode: ((LivePhotoPlaybackMode) -> Void)?
+    private var livePhotoMode: LivePhotoPlaybackMode = .live
+    private var photoRect: CGRect = .zero
+
     /// 关闭预览的用户请求；宿主负责转场及清理。
     var didRequestClose: (() -> Void)?
     /// 播放或暂停的用户请求，不在视图内部准备播放器。
@@ -83,6 +88,14 @@ final class AttachmentPreviewControlsView: QuickLayoutView {
         itemCount = items.count
         thumbnailStrip = AttachmentThumbnailStripView(items: items, selectedIndex: selectedIndex, imageLoader: imageLoader)
         super.init(frame: .zero)
+        addSubview(livePhotoButton)
+        livePhotoButton.isHidden = true
+        registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (view: AttachmentPreviewControlsView, _: UITraitCollection) in
+            view.livePhotoButton.update(mode: view.livePhotoMode) { [weak view] mode in
+                view?.didSelectLivePhotoMode?(mode)
+            }
+            view.setNeedsLayout()
+        }
         configureButton(closeButton, symbol: "chevron.backward", key: "imessage.media.close", identifier: "imessage.media.preview.close")
         closeButton.configuration?.baseForegroundColor = .label
         configureButton(moreButton, symbol: "ellipsis", key: "imessage.preview.more", identifier: "imessage.preview.more")
@@ -134,6 +147,36 @@ final class AttachmentPreviewControlsView: QuickLayoutView {
         glassContainer.layoutIfNeeded()
         titleView.layoutIfNeeded()
         playbackControls.layoutIfNeeded()
+        layoutLivePhotoBadge()
+    }
+
+    func updateLivePhoto(isLivePhoto: Bool, mode: LivePhotoPlaybackMode) {
+        livePhotoMode = mode
+        livePhotoButton.isHidden = !isLivePhoto
+        livePhotoButton.update(mode: mode) { [weak self] value in self?.didSelectLivePhotoMode?(value) }
+        setNeedsLayout()
+    }
+
+    func updatePhotoRect(_ rect: CGRect) {
+        guard photoRect != rect else { return }
+        photoRect = rect
+        setNeedsLayout()
+    }
+
+    private func layoutLivePhotoBadge() {
+        guard !livePhotoButton.isHidden else { return }
+        livePhotoButton.semanticContentAttribute = semanticContentAttribute
+        let photo = photoRect.isEmpty ? bounds : photoRect
+        let leading = max(safeAreaInsets.left, photo.minX) + 16
+        let trailing = min(bounds.width - safeAreaInsets.right, photo.maxX) - 16
+        let available = max(0, trailing - leading)
+        let size = livePhotoButton.sizeThatFits(CGSize(width: available, height: 100))
+        let width = min(size.width, available)
+        let top = max(documentTopInset, photo.minY + 6)
+        let rtl = effectiveUserInterfaceLayoutDirection == .rightToLeft
+        livePhotoButton.frame = CGRect(x: rtl ? trailing - width : leading,
+            y: top, width: width, height: max(20, size.height))
+        bringSubviewToFront(livePhotoButton)
     }
 
     /// 同步正式选中项的信息与可播放性，不改变沉浸显隐状态。
@@ -181,7 +224,7 @@ final class AttachmentPreviewControlsView: QuickLayoutView {
         layoutIfNeeded()
         isScrubbingPresentation = expanded
         let hidesSurroundingControls = expanded && !UIAccessibility.isVoiceOverRunning
-        for control in [titleView, closeButton, moreButton, thumbnailStrip] {
+        for control in [titleView, closeButton, moreButton, thumbnailStrip, livePhotoButton] {
             control.isUserInteractionEnabled = !hidesSurroundingControls
             control.accessibilityElementsHidden = hidesSurroundingControls
         }
@@ -194,7 +237,7 @@ final class AttachmentPreviewControlsView: QuickLayoutView {
         let changes = {
             self.layoutIfNeeded()
             self.playbackControls.applyExpansionAppearance()
-            for control in [self.titleView, self.closeButton, self.moreButton, self.thumbnailStrip] {
+            for control in [self.titleView, self.closeButton, self.moreButton, self.thumbnailStrip, self.livePhotoButton] {
                 control.alpha = hidesSurroundingControls ? 0 : 1
             }
         }
@@ -222,6 +265,7 @@ final class AttachmentPreviewControlsView: QuickLayoutView {
     }
     /// 环境设置仅影响材质和可访问性，VoiceOver 开启时恢复控制层。
     func applyAccessibilitySettings() {
+        livePhotoButton.update(mode: livePhotoMode) { [weak self] value in self?.didSelectLivePhotoMode?(value) }
         titleView.applyAccessibilitySettings()
         playbackControls.applyAccessibilitySettings()
         if UIAccessibility.isVoiceOverRunning {

@@ -1,6 +1,190 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+  "imessage.media.livePhoto": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Live Photo"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "实况照片"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "صورة حية"
+        }
+      }
+    }
+  },
+  "imessage.preview.live.loop": {
+    "extractionState": "manual",
+    "localizations": {
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "循环播放"
+        }
+      },
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Loop"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "تكرار"
+        }
+      }
+    }
+  },
+  "imessage.preview.live.bounce": {
+    "extractionState": "manual",
+    "localizations": {
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "来回播放"
+        }
+      },
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Bounce"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "ارتداد"
+        }
+      }
+    }
+  },
+  "imessage.preview.live.on": {
+    "extractionState": "manual",
+    "localizations": {
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "实况"
+        }
+      },
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Live"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "حيّة"
+        }
+      }
+    }
+  },
+  "imessage.preview.live.off": {
+    "extractionState": "manual",
+    "localizations": {
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "关闭实况"
+        }
+      },
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Turn Off Live"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "إيقاف الصورة الحيّة"
+        }
+      }
+    }
+  },
+  "imessage.preview.live.offState": {
+    "extractionState": "manual",
+    "localizations": {
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "实况已关闭"
+        }
+      },
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Live Off"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "الصورة الحيّة متوقفة"
+        }
+      }
+    }
+  },
+  "imessage.preview.live.play": {
+    "extractionState": "manual",
+    "localizations": {
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "播放实况照片"
+        }
+      },
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Play Live Photo"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "تشغيل الصورة الحيّة"
+        }
+      }
+    }
+  },
+  "imessage.preview.live.unavailable": {
+    "extractionState": "manual",
+    "localizations": {
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "实况照片无法播放，可关闭后重新开启重试"
+        }
+      },
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Unable to play Live Photo. Turn Live off and on to retry."
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "تعذر تشغيل الصورة الحيّة. أوقفها ثم أعد تشغيلها للمحاولة مجددًا."
+        }
+      }
+    }
+  },
   "liveRoom.publicChat.me": {
     "extractionState": "manual",
     "localizations": {

@@ -46,6 +46,9 @@ extension MediaMessageView {
             }
             orderedCards.append(card)
             card.isHidden = false
+            // 可复用卡片拥有自己的 QuickLayout 环境，显式同步消息的有效方向。
+            card.semanticContentAttribute = effectiveUserInterfaceLayoutDirection == .rightToLeft
+                ? .forceRightToLeft : .forceLeftToRight
             card.configure(
                 item,
                 index: index,
@@ -54,7 +57,8 @@ extension MediaMessageView {
                     groupID: group.id,
                     itemID: item.id,
                     frontIndex: frontMediaIndex
-                )
+                ),
+                badgeLeadingInset: 12 + (group.items.count == 1 && direction == .incoming ? Metrics.singleTailWidth : 0)
             )
             card.layer.zPosition = CGFloat(30 - abs(index - frontMediaIndex))
             card.alpha = 1
@@ -144,7 +148,7 @@ extension MediaMessageView {
     func updateAccessibilityLabel() {
         guard let group, let strings, !group.items.isEmpty else { return }
         let item = group.items[frontMediaIndex]
-        let kind = item.kind.isVideo ? strings.video : strings.image
+        let kind = item.isLivePhoto ? Localization.text("imessage.media.livePhoto") : (item.kind.isVideo ? strings.video : strings.image)
         if group.items.count == 1 {
             accessibilityLabel = kind
         } else {
@@ -192,7 +196,7 @@ extension MediaMessageView {
 
     /// 返回指定区域的媒体气泡轮廓，并按物理方向选择尾部位置。
     nonisolated private static func bubblePath(in rect: CGRect, tailOnRight: Bool) -> CGPath {
-        let tail: CGFloat = 13
+        let tail = Metrics.singleTailWidth
         let body = tailOnRight
             ? CGRect(x: 0, y: 0, width: rect.width - tail, height: rect.height)
             : CGRect(x: tail, y: 0, width: rect.width - tail, height: rect.height)

@@ -356,7 +356,7 @@ extension ChatAttachmentSaveTests {
             // 页面可以在等待系统授权时清理原附件，保存必须继续使用独立副本。
             for url in urls { try? FileManager.default.removeItem(at: url) }
             return .authorized
-        }, writePhotos: { received, copies in
+        }, writePhotos: { received, copies, _ in
             writes += 1
             copiedURLs = copies
             #expect(received == items)
@@ -378,7 +378,7 @@ extension ChatAttachmentSaveTests {
         let attachment = ConversationPreviewData.pastedMediaDrafts[0].attachment
         for status in [PHAuthorizationStatus.denied, .restricted] {
             var writes = 0
-            let saver = SystemAttachmentSaver(authorizePhotos: { status }, writePhotos: { _, _ in writes += 1 })
+            let saver = SystemAttachmentSaver(authorizePhotos: { status }, writePhotos: { _, _, _ in writes += 1 })
             do {
                 _ = try await saver.save(attachment, from: UIViewController())
                 Issue.record("Denied permission unexpectedly saved")
@@ -392,7 +392,7 @@ extension ChatAttachmentSaveTests {
     @Test func failedPhotoTransactionCleansCopiesAndPropagatesFailure() async throws {
         guard #available(iOS 26.0, *) else { return }
         var copies: [URL] = []
-        let saver = SystemAttachmentSaver(authorizePhotos: { .authorized }, writePhotos: { _, urls in
+        let saver = SystemAttachmentSaver(authorizePhotos: { .authorized }, writePhotos: { _, urls, _ in
             copies = urls
             throw CocoaError(.fileWriteOutOfSpace)
         })

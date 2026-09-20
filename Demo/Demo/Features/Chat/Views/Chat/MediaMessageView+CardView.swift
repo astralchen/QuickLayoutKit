@@ -28,6 +28,9 @@ extension MediaMessageView {
 
         /// 显示当前媒体图像的图像视图。
         let imageView = MediaImageView()
+        /// 实况照片的纯白色系统标志，作为照片内容上的装饰，不单独截获手势。
+        let livePhotoBadge = UIImageView(image: UIImage(systemName: "livephoto"))
+        private var badgeLeadingInset: CGFloat = 12
         /// 视频播放符号背后的模糊材质容器。
         lazy var playBackground = QuickLayoutVisualEffectView(
             effect: UIBlurEffect(style: .systemUltraThinMaterialLight)
@@ -47,12 +50,17 @@ extension MediaMessageView {
         /// 当前媒体是否需要显示视频播放标记。
         private var isVideo = false
 
-        /// 缩略图填满卡片，视频播放标记居中叠放。
+        /// 缩略图填满卡片，视频播放标记居中，实况标志固定在顶部前缘。
         override var body: Layout {
             ZStack {
                 imageView.resizable()
                 if isVideo {
                     playBackground.resizable().frame(width: 48, height: 48)
+                }
+                if !livePhotoBadge.isHidden {
+                    livePhotoBadge.resizable().frame(width: 18, height: 18)
+                        .padding(.leading, badgeLeadingInset).padding(.top, 12)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
             }
         }
@@ -79,6 +87,15 @@ extension MediaMessageView {
             backgroundColor = .secondarySystemFill
             imageView.contentMode = .scaleAspectFill
             imageView.clipsToBounds = true
+            livePhotoBadge.isHidden = true
+            livePhotoBadge.contentMode = .scaleAspectFit
+            livePhotoBadge.tintColor = .white
+            livePhotoBadge.isUserInteractionEnabled = false
+            livePhotoBadge.isAccessibilityElement = false
+            livePhotoBadge.layer.shadowColor = UIColor.black.cgColor
+            livePhotoBadge.layer.shadowOpacity = 0.35
+            livePhotoBadge.layer.shadowRadius = 2
+            livePhotoBadge.layer.shadowOffset = .zero
             playBackground.clipsToBounds = true
             playBackground.layer.cornerRadius = 24
             playImageView.tintColor = .label
@@ -96,7 +113,8 @@ extension MediaMessageView {
         func configure(
             _ item: MediaItem,
             index: Int,
-            identity: BindingIdentity
+            identity: BindingIdentity,
+            badgeLeadingInset: CGFloat = 12
         ) {
             let keepsCurrentImage = represents(
                 messageID: identity.messageID,
@@ -107,6 +125,8 @@ extension MediaMessageView {
             representedIdentity = identity
             if !keepsCurrentImage { imageView.setThumbnail(nil) }
             isVideo = item.kind.isVideo
+            livePhotoBadge.isHidden = !item.isLivePhoto
+            self.badgeLeadingInset = badgeLeadingInset
             imageView.setThumbnail(item.thumbnailFileURL)
             setNeedsQuickLayout()
         }
@@ -117,6 +137,8 @@ extension MediaMessageView {
             representedIdentity = nil
             imageView.image = nil
             isVideo = false
+            livePhotoBadge.isHidden = true
+            badgeLeadingInset = 12
             mask = nil
             restingFrame = .zero
             restingTransform = .identity

@@ -92,7 +92,7 @@ struct ChatMediaPipelineTests {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let before = try Data(contentsOf: url)
         let thumbnail = url.deletingLastPathComponent().appendingPathComponent("thumb.jpg")
-        let metadata = try await MediaImportProcessor.makeMetadata(originalURL: url, thumbnailURL: thumbnail, isVideo: false, isLivePhoto: false)
+        let metadata = try await MediaImportProcessor.makeMetadata(originalURL: url, thumbnailURL: thumbnail, isVideo: false)
         #expect(metadata.pixelSize == CGSize(width: 1024, height: 4096))
         #expect(try Data(contentsOf: url) == before)
         let decoded = try await MediaImageLoader.decodeOriginal(thumbnail)
@@ -232,7 +232,7 @@ struct ChatMediaPipelineTests {
         let original = try fixture()
         defer { try? FileManager.default.removeItem(at: original.deletingLastPathComponent()) }
         let thumbnail = original.deletingLastPathComponent().appendingPathComponent("thumb.jpg")
-        _ = try await MediaImportProcessor.makeMetadata(originalURL: original, thumbnailURL: thumbnail, isVideo: false, isLivePhoto: false)
+        _ = try await MediaImportProcessor.makeMetadata(originalURL: original, thumbnailURL: thumbnail, isVideo: false)
         let page = AttachmentPreviewPage(frame: CGRect(x: 0, y: 0, width: 402, height: 874))
         let loader = MediaImageLoader()
         page.configure(.init(id: UUID(), url: original, thumbnailURL: thumbnail, title: "", kind: .image), imageLoader: loader)
@@ -253,6 +253,95 @@ struct ChatMediaPipelineTests {
         try await until { page.hasOriginalImage }
         page.reset()
         #expect(page.imageView.image == nil)
+    }
+
+    /// 检查实际像素自动变化，而非只检查动画标记；复用后的旧帧不能覆盖静态照片。
+    @Test func gifPreviewAutoplaysPreservesZoomAndStopsWhenReused() async throws {
+        let still = try fixture(width: 48, height: 32)
+        defer { try? FileManager.default.removeItem(at: still.deletingLastPathComponent()) }
+        // 故意不使用 .gif 扩展名，确认由真实文件类型识别。
+        let gif = still.deletingLastPathComponent().appendingPathComponent("animation.data")
+        let destination = try #require(CGImageDestinationCreateWithURL(gif as CFURL, UTType.gif.identifier as CFString, 3, nil))
+        let context = try #require(CGContext(data: nil, width: 48, height: 32, bitsPerComponent: 8,
+            bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        for color in [UIColor.red, .green, .blue] {
+            context.setFillColor(color.cgColor)
+            context.fill(CGRect(x: 0, y: 0, width: 48, height: 32))
+            CGImageDestinationAddImage(destination, try #require(context.makeImage()),
+                [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: 0.12]] as CFDictionary)
+        }
+        #expect(CGImageDestinationFinalize(destination))
+        let decoded = try await MediaImageLoader.decodeOriginal(gif)
+        #expect(decoded.isAnimatedGIF)
+        let staticDecoded = try await MediaImageLoader.decodeOriginal(still)
+        #expect(!staticDecoded.isAnimatedGIF)
+
+        let page = AttachmentPreviewPage(frame: CGRect(x: 0, y: 0, width: 375, height: 667))
+        let item = AttachmentPreviewItem(id: UUID(), url: gif, thumbnailURL: nil, title: "GIF", kind: .image)
+        page.configure(item)
+        page.layoutIfNeeded()
+        page.setOriginalActive(true)
+        try await until { page.hasOriginalImage }
+        func pixels() -> Data? { page.imageView.image?.cgImage?.dataProvider?.data as Data? }
+        let first = try #require(pixels())
+        page.imageScrollView.zoomScale = 2
+        let frame = page.imageView.frame
+        try await until { pixels() != first }
+        #expect(page.imageScrollView.zoomScale == 2)
+        #expect(page.imageView.frame == frame)
+        page.suspendImages()
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(page.imageView.image == nil)
+        page.resumeImages()
+        page.setOriginalActive(true)
+        try await until { page.hasOriginalImage }
+        let resumed = try #require(pixels())
+        try await until { pixels() != resumed }
+        page.configure(.init(id: UUID(), url: still, thumbnailURL: nil, title: "静态照片", kind: .image))
+        page.setOriginalActive(true)
+        try await until { page.hasOriginalImage }
+        let stillPixels = try #require(pixels())
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(pixels() == stillPixels)
+        page.reset()
+    }
+
+    /// 系统循环实况同时提供 MOV 与 GIF；电影表示排在前面也不得改变照片身份。
+    @Test(arguments: ["preview-image-01.gif", "preview-image-02.png", "video-only"])
+    func photoRepresentationTakesPrecedenceOverAlternateMovie(name: String) async throws {
+        let bundle = try #require(Bundle.main.url(forResource: "AttachmentPreviewResources", withExtension: "bundle"))
+        let movie = bundle.appendingPathComponent("live-photo.mov")
+        let provider = NSItemProvider()
+        provider.registerFileRepresentation(forTypeIdentifier: UTType.quickTimeMovie.identifier, fileOptions: [], visibility: .all) { completion in
+            completion(movie, false, nil)
+            return Progress(totalUnitCount: 1)
+        }
+        let isVideo = name == "video-only"
+        let source = isVideo ? movie : bundle.appendingPathComponent(name)
+        if !isVideo {
+            let type = name.hasSuffix("gif") ? UTType.gif : UTType.png
+            provider.registerFileRepresentation(forTypeIdentifier: type.identifier, fileOptions: [], visibility: .all) { completion in
+                completion(source, false, nil)
+                return Progress(totalUnitCount: 1)
+            }
+        }
+        #expect(!provider.canLoadObject(ofClass: PHLivePhoto.self))
+        let store = PageAttachmentStore()
+        defer { store.removeAll() }
+        let controller = PhotoPickerController(attachmentStore: store)
+        let entry = PhotoPickerController.DraftEntry(assetIdentifier: nil)
+        controller.entries.append(entry)
+        controller.pendingImports.append(.init(provider: provider, entry: entry, generation: controller.generation))
+        controller.drainImports()
+        try await until { controller.activeImports.isEmpty }
+        let media = try #require(controller.draftAttachment?.items.first)
+        #expect(media.kind.isVideo == isVideo)
+        #expect(media.isAnimatedImage == name.hasSuffix("gif"))
+        #expect(!media.isLivePhoto)
+        #expect(try Data(contentsOf: media.originalFileURL) == Data(contentsOf: source))
+        let preview = try #require(AttachmentPreviewItem.prepare(.mediaGroup(.init(items: [media]))).first)
+        #expect(preview.kind == (isVideo ? .video : .image))
+        controller.discardDraft()
     }
 
     @Test(arguments: [1, 2]) func allTwentyImportsCompleteInSelectionOrderAndCommitFiles(limit: Int) async throws {

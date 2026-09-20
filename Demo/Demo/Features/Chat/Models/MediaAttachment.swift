@@ -41,11 +41,14 @@ nonisolated struct MediaItem: Equatable, Hashable, Sendable,
     let pixelSize: CGSize
     /// 媒体类型及视频专属时长信息。
     let kind: MediaKind
-    /// 图片原文件是否包含动画帧，或照片资源是否为 Live Photo。
-    ///
-    /// 当前版本仍使用静态缩略图展示与发送；该值只用于在 Composer 预览项上
-    /// 呈现动态媒体标志，不持有 `PHAsset` 或解码器对象。
+    /// 图片原文件是否包含多个动画帧，不包含仅具有配对视频的实况照片。
     let isAnimatedImage: Bool
+    /// 与原始照片匹配、由页面拥有的实况视频资源。
+    let livePhotoVideoURL: URL?
+    /// 只有图像和配对视频共同存在于模型中才具有实况身份。
+    var isLivePhoto: Bool { !kind.isVideo && livePhotoVideoURL != nil }
+    /// 草稿原有动态角标同时覆盖多帧图片和实况照片。
+    var showsAnimatedBadge: Bool { isAnimatedImage || isLivePhoto }
 
     /// 使用已导入的原件、缩略图与元数据创建媒体项目。
     ///
@@ -56,7 +59,8 @@ nonisolated struct MediaItem: Equatable, Hashable, Sendable,
     ///   - thumbnailFileURL: 静态缩略图 URL。
     ///   - pixelSize: 用于展示比例计算的像素尺寸。
     ///   - kind: 图像或包含时长的视频类型。
-    ///   - isAnimatedImage: 是否需要显示动态图像标记，默认值为 `false`。
+    ///   - isAnimatedImage: 原始图片是否包含多帧，默认值为 `false`。
+    ///   - livePhotoVideoURL: 与原始照片配对的实况视频，普通图片为 `nil`。
     init(
         id: UUID = UUID(),
         assetIdentifier: String?,
@@ -64,7 +68,8 @@ nonisolated struct MediaItem: Equatable, Hashable, Sendable,
         thumbnailFileURL: URL,
         pixelSize: CGSize,
         kind: MediaKind,
-        isAnimatedImage: Bool = false
+        isAnimatedImage: Bool = false,
+        livePhotoVideoURL: URL? = nil
     ) {
         self.id = id
         self.assetIdentifier = assetIdentifier
@@ -73,6 +78,7 @@ nonisolated struct MediaItem: Equatable, Hashable, Sendable,
         self.pixelSize = pixelSize
         self.kind = kind
         self.isAnimatedImage = isAnimatedImage
+        self.livePhotoVideoURL = kind.isVideo ? nil : livePhotoVideoURL
     }
 }
 
@@ -97,7 +103,7 @@ nonisolated struct MediaGroupAttachment:
 
     /// 按媒体项目顺序返回原件与缩略图 URL，供页面存储统一管理。
     var localFileURLs: [URL] {
-        items.flatMap { [$0.originalFileURL, $0.thumbnailFileURL] }
+        items.flatMap { [$0.originalFileURL, $0.thumbnailFileURL] + [$0.livePhotoVideoURL].compactMap { $0 } }
     }
 }
 

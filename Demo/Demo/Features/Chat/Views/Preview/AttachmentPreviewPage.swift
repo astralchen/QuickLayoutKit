@@ -14,6 +14,15 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
     let imageScrollView = UIScrollView()
     let imageView = UIImageView()
     let playerLayer = AVPlayerLayer()
+    private(set) var livePhotoPlayer: AttachmentLivePhotoPlayer?
+    private var livePhotoMode: LivePhotoPlaybackMode = .live
+    var photoGeometryDidChange: (() -> Void)?
+    private lazy var livePress = UILongPressGestureRecognizer(target: self, action: #selector(livePhotoPressed(_:)))
+    /// 未缩放图片的位置供固定控制层定位，避免手势缩放改变标识位置。
+    var fittedPhotoRect: CGRect {
+        guard imageSize.width > 0, imageSize.height > 0 else { return bounds }
+        return AVMakeRect(aspectRatio: imageSize, insideRect: bounds)
+    }
     /// 布局引擎放置视频画布；AVPlayerLayer 只同步其本地 bounds。
     private let videoSurface = UIView()
 
@@ -102,17 +111,28 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
         let tap = UITapGestureRecognizer(target: self, action: #selector(singleTapped))
         tap.require(toFail: doubleTap)
         imageScrollView.addGestureRecognizer(tap)
+        livePress.minimumPressDuration = 0.3
+        livePress.isEnabled = false
+        imageScrollView.addGestureRecognizer(livePress)
+        tap.require(toFail: livePress)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     /// 展示指定项目并拒绝已复用页面的迟到加载结果。
-    func configure(_ item: AttachmentPreviewItem, imageLoader: MediaImageLoader? = nil, isVisible: Bool = true) {
+    func configure(_ item: AttachmentPreviewItem, imageLoader: MediaImageLoader? = nil, isVisible: Bool = true, playbackCoordinator: PlaybackCoordinator? = nil) {
         reset()
         mediaLoader = imageLoader ?? mediaLoader ?? MediaImageLoader()
         representedItem = item
         imagesAreVisible = isVisible
         itemID = item.id
         isVideo = item.kind == .video
+        if item.isLivePhoto, let playbackCoordinator {
+            let player = AttachmentLivePhotoPlayer(coordinator: playbackCoordinator)
+            player.didFail = { [weak self] in self?.showLivePhotoError() }
+            livePhotoPlayer = player
+            imageView.addSubview(player.view)
+            imageView.addSubview(player.effect.view)
+        }
         accessibilityIdentifier = "imessage.preview.page.\(item.id.uuidString)"
         switch item.kind {
         case .image, .video:
@@ -185,7 +205,7 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
     /// 视频的展开和收回使用封面，避免快照复制视频输出导致后续播放停帧。
     /// 没有封面时返回 nil，由宿主淡入淡出；其他内容保留原有快照行为。
     func transitionSnapshot(afterScreenUpdates: Bool) -> UIView? {
-        if isVideo {
+        if isVideo || representedItem?.isLivePhoto == true {
             guard let image = imageView.image else { return nil }
             let snapshot = UIImageView(image: image)
             snapshot.contentMode = .scaleAspectFill
@@ -216,6 +236,9 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
             imageScrollView.zoomScale = 1
             layoutImage()
         }
+        livePhotoPlayer?.view.frame = imageView.bounds
+        livePhotoPlayer?.effect.view.frame = imageView.bounds
+        photoGeometryDidChange?()
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         playerLayer.frame = videoSurface.bounds
@@ -252,6 +275,7 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
         let active = active && imagesAreVisible && representedItem?.kind == .image
         guard active != isOriginalActive else { return }
         isOriginalActive = active
+        updateLivePhotoEligibility()
         originalGeneration = UUID()
         originalTask?.cancel()
         originalTask = nil
@@ -265,11 +289,13 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
         originalTask = Task { [weak self] in
             defer { MediaPerformance.signposter.endInterval("OriginalReady", readyInterval) }
             do {
-                let image = try await mediaLoader.original(url: item.url)
+                let original = try await mediaLoader.originalContent(url: item.url)
                 guard !Task.isCancelled, let self, originalGeneration == token, isOriginalActive else { return }
+                let image = original.image
                 hasOriginalImage = true
                 loading.stopAnimating()
                 apply(image)
+                if original.isAnimatedGIF, !item.isLivePhoto { playGIF(url: item.url, generation: token) }
                 #if MEDIA_BENCHMARK
                 mediaLoader.benchmarkOriginalDisplayed?(item.url, CGSize(width: image.cgImage?.width ?? 0, height: image.cgImage?.height ?? 0))
                 #endif
@@ -280,6 +306,71 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
                 showError()
             }
         }
+    }
+
+    /// 系统按 GIF 原始帧时长自动播放；仅替换像素，不重置缩放或照片几何。
+    /// 使用原图代次结束离页/复用后的回调，不额外持有整组解码帧。
+    private func playGIF(url: URL, generation: UUID) {
+        let status = CGAnimateImageAtURLWithBlock(url as CFURL,
+            [kCGImageAnimationLoopCount: kCFNumberPositiveInfinity!] as CFDictionary) { [weak self] _, frame, stop in
+                // ImageIO 明确保证逐帧回调运行在主队列。
+                MainActor.assumeIsolated {
+                    guard let self, self.originalGeneration == generation, self.isOriginalActive else {
+                        stop.pointee = true
+                        return
+                    }
+                    self.imageView.image = UIImage(cgImage: frame)
+                }
+            }
+        if status != 0 { showError() }
+    }
+
+    func setLivePhotoMode(_ mode: LivePhotoPlaybackMode) {
+        if livePhotoMode == mode {
+            if mode.isContinuous { updateLivePhotoEligibility() }
+            return
+        }
+        livePhotoMode = mode
+        if mode != .off { messageLabel.isHidden = true }
+        updateLivePhotoEligibility()
+    }
+
+    func stopLivePhotoPlayback() { livePhotoPlayer?.stop() }
+
+    private func updateLivePhotoEligibility() {
+        let active = isOriginalActive && livePhotoMode != .off && representedItem?.isLivePhoto == true
+        livePress.isEnabled = active && livePhotoMode == .live
+        imageScrollView.accessibilityCustomActions = livePress.isEnabled ? [UIAccessibilityCustomAction(
+            name: Localization.text("imessage.preview.live.play"), actionHandler: { [weak self] _ in
+                self?.livePhotoPlayer?.play()
+                return self?.livePhotoPlayer?.isReady == true
+            })] : nil
+        guard active, let item = representedItem, let video = item.livePhotoVideoURL else {
+            livePhotoPlayer?.unload()
+            return
+        }
+        let scale = max(1, traitCollection.displayScale)
+        let targetSize = CGSize(width: bounds.width * scale, height: bounds.height * scale)
+        if livePhotoMode.isContinuous {
+            livePhotoPlayer?.unload()
+            livePhotoPlayer?.playEffect(video: video, mode: livePhotoMode, targetSize: targetSize)
+        } else {
+            livePhotoPlayer?.prepare(photo: item.url, video: video, placeholder: imageView.image, targetSize: targetSize)
+        }
+    }
+
+    @objc private func livePhotoPressed(_ gesture: UILongPressGestureRecognizer) {
+        switch gesture.state {
+        case .began: livePhotoPlayer?.play()
+        case .ended, .cancelled, .failed: livePhotoPlayer?.stop()
+        default: break
+        }
+    }
+
+    private func showLivePhotoError() {
+        messageLabel.text = Localization.text("imessage.preview.live.unavailable")
+        messageLabel.isHidden = false
+        UIAccessibility.post(notification: .announcement, argument: messageLabel.text)
     }
 
     /// 显示阶段只从 thumbnailURL 读取封面，永远不以原件作为缩略图回退。
@@ -320,6 +411,9 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
         let size = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
         imageView.frame = CGRect(x: (bounds.width - size.width) / 2, y: (bounds.height - size.height) / 2, width: size.width, height: size.height)
         imageScrollView.contentSize = bounds.size
+        livePhotoPlayer?.view.frame = imageView.bounds
+        livePhotoPlayer?.effect.view.frame = imageView.bounds
+        photoGeometryDidChange?()
     }
     private func reportPDFPage() {
         guard let pdfView, let document = pdfView.document, let page = pdfView.currentPage else { return }
@@ -332,6 +426,13 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
     /// 取消页面加载并清除仅属于当前项目的观察者。
     func reset() {
         suspendImages()
+        livePhotoPlayer?.unload()
+        livePhotoPlayer?.view.removeFromSuperview()
+        livePhotoPlayer?.effect.view.removeFromSuperview()
+        livePhotoPlayer = nil
+        livePhotoMode = .live
+        livePress.isEnabled = false
+        imageScrollView.accessibilityCustomActions = nil
         representedItem = nil
         imageTask?.cancel(); imageTask = nil
         if let pdfObserver { NotificationCenter.default.removeObserver(pdfObserver) }
@@ -348,7 +449,7 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
         messageLabel.text = nil
         loading.stopAnimating()
     }
-    override func prepareForReuse() { super.prepareForReuse(); reset(); toggleControls = nil; pageDidChange = nil }
+    override func prepareForReuse() { super.prepareForReuse(); reset(); toggleControls = nil; pageDidChange = nil; photoGeometryDidChange = nil }
     isolated deinit { originalTask?.cancel(); mediaLoader?.cancel(thumbnailRequest); imageTask?.cancel(); if let pdfObserver { NotificationCenter.default.removeObserver(pdfObserver) } }
 }
 

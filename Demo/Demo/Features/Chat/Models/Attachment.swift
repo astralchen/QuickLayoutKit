@@ -110,7 +110,7 @@ extension Attachment {
             return .mediaGroup(.init(items: group.items.map { item in
                 .init(assetIdentifier: item.assetIdentifier, originalFileURL: item.originalFileURL,
                       thumbnailFileURL: item.thumbnailFileURL, pixelSize: item.pixelSize,
-                      kind: item.kind, isAnimatedImage: item.isAnimatedImage)
+                      kind: item.kind, isAnimatedImage: item.isAnimatedImage, livePhotoVideoURL: item.livePhotoVideoURL)
             }))
         case .file(let file):
             return .file(.init(id: UUID(), fileURL: file.fileURL, displayName: file.displayName,

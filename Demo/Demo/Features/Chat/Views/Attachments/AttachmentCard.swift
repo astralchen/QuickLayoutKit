@@ -251,7 +251,7 @@ final class AttachmentCard: QuickLayoutView, UIGestureRecognizerDelegate {
                 icon.contentMode = .scaleAspectFill
                 icon.setThumbnail(media.thumbnailFileURL)
                 titleLabel.text = Localization.text(isVideo ? "imessage.media.video"
-                    : media.isAnimatedImage ? "imessage.media.animatedImage" : "imessage.media.image")
+                    : media.showsAnimatedBadge ? "imessage.media.animatedImage" : "imessage.media.image")
                 if let duration = media.kind.duration {
                     detailLabel.text = AudioBubbleView.durationText(duration)
                 } else {

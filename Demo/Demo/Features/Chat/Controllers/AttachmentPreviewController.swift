@@ -12,11 +12,14 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     let items: [AttachmentPreviewItem]
     private(set) var currentIndex: Int
     let playback: AttachmentPreviewPlayer
+    private let playbackCoordinator: PlaybackCoordinator
+    private var livePhotoModes: [UUID: LivePhotoPlaybackMode] = [:]
     let collectionView: UICollectionView
     let backdrop = UIView()
     /// 独立控制层拥有全部预览控件，宿主只连接播放、分页和转场意图。
     private(set) lazy var chrome: AttachmentPreviewControlsView = {
         let controls = AttachmentPreviewControlsView(items: items, selectedIndex: currentIndex, imageLoader: mediaImageLoader)
+        controls.didSelectLivePhotoMode = { [weak self] mode in self?.setLivePhotoMode(mode) }
         controls.didRequestClose = { [weak self] in self?.closeTapped() }
         controls.didRequestPlaybackToggle = { [weak self] in self?.playTapped() }
         controls.didRequestMuteToggle = { [weak self] in self?.playback.isMuted.toggle() }
@@ -94,6 +97,7 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
         mediaImageLoader = imageLoader ?? MediaImageLoader()
         self.items = items
         currentIndex = AttachmentPreviewPolicy.index(initialIndex, count: items.count)
+        self.playbackCoordinator = playbackCoordinator
         playback = AttachmentPreviewPlayer(coordinator: playbackCoordinator)
         let layout = AttachmentPagingLayout()
         pagingLayout = layout
@@ -185,7 +189,7 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
         }
         UIAccessibility.post(notification: .screenChanged, argument: chrome.closeButton)
     }
-    override func viewDidDisappear(_ animated: Bool) { super.viewDidDisappear(animated); if isBeingDismissed { completeDismissal() } }
+    override func viewDidDisappear(_ animated: Bool) { super.viewDidDisappear(animated); currentPage?.stopLivePhotoPlayback(); if isBeingDismissed { completeDismissal() } }
 
     /// 仅在成功关闭后清理；交互式取消不能销毁播放状态。
     func completeDismissal() {
@@ -201,7 +205,12 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     private func configure(_ page: AttachmentPreviewPage, item: AttachmentPreviewItem, index: Int) {
         page.semanticContentAttribute = view.semanticContentAttribute
         page.contentView.semanticContentAttribute = view.semanticContentAttribute
-        page.configure(item, imageLoader: mediaImageLoader, isVisible: false)
+        page.configure(item, imageLoader: mediaImageLoader, isVisible: false, playbackCoordinator: playbackCoordinator)
+        page.setLivePhotoMode(livePhotoModes[item.id] ?? .live)
+        page.photoGeometryDidChange = { [weak self, weak page] in
+            guard let self, let page, self.currentItem?.id == page.itemID else { return }
+            self.chrome.updatePhotoRect(page.convert(page.fittedPhotoRect, to: self.chrome))
+        }
         page.documentTopInset = chrome.documentTopInset
         page.toggleControls = { [weak self] in self?.toggleControls() }
         page.pageDidChange = { [weak self] number, count in
@@ -303,6 +312,7 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
         bindCurrentPlayer()
         isPositioningPage = false
         updateOriginalEligibility()
+        if let page = currentPage { chrome.updatePhotoRect(page.convert(page.fittedPhotoRect, to: chrome)) }
         if autoplayVideo { autoplayCurrentVideo() }
     }
     /// 缩略图与菜单使用布局提供的坐标，连续跳转会替换旧目标。
@@ -334,11 +344,20 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
         }
     }
 
+    /// 播放模式只属于当前预览会话，不修改附件原件或保存结果。
+    func setLivePhotoMode(_ mode: LivePhotoPlaybackMode) {
+        guard let item = currentItem, item.isLivePhoto else { return }
+        livePhotoModes[item.id] = mode
+        currentPage?.setLivePhotoMode(mode)
+        chrome.updateLivePhoto(isLivePhoto: true, mode: mode)
+    }
+
     private func updateCurrentItem() {
         guard let item = currentItem else { return }
         chrome.updateItem(
             title: item.title.isEmpty ? Localization.text(item.kind == .video ? "imessage.media.video" : "imessage.media.image") : item.title,
             position: positionText(index: currentIndex), isPlayable: item.kind == .audio || item.kind == .video)
+        chrome.updateLivePhoto(isLivePhoto: item.isLivePhoto, mode: livePhotoModes[item.id] ?? .live)
         updateMoreMenu()
         prepareCurrentPlayback()
         chrome.thumbnailStrip.select(currentIndex)
@@ -393,6 +412,7 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
         playback.toggle()
     }
     @objc func closeTapped() {
+        currentPage?.stopLivePhotoPlayback()
         guard !transitionHandler.isInteracting, !isBeingDismissed else { return }
         let index = pagingLayout.index(nearestTo: collectionView.contentOffset)
         stopHorizontalScrolling()
@@ -426,7 +446,9 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     @objc private func panned(_ gesture: UIPanGestureRecognizer) {
         let translation = gesture.translation(in: view)
         switch gesture.state {
-        case .began: transitionHandler.begin()
+        case .began:
+            currentPage?.stopLivePhotoPlayback()
+            transitionHandler.begin()
         case .changed: transitionHandler.update(translation: translation)
         case .ended: transitionHandler.end(translation: translation, velocity: gesture.velocity(in: view))
         case .cancelled, .failed: transitionHandler.cancel()

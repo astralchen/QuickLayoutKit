@@ -198,7 +198,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
         let arguments = ProcessInfo.processInfo.arguments
         if let index = arguments.firstIndex(of: "-imessage-save-fixture"),
            arguments.indices.contains(index + 1),
-           ["resources", "resources-video", "resources-pdf", "resources-heic", "resources-draft"].contains(arguments[index + 1]) {
+           ["resources", "resources-video", "resources-pdf", "resources-heic", "resources-draft", "resources-live", "resources-live-single"].contains(arguments[index + 1]) {
             resourceFixtureTask = Task { [weak self] in
                 guard let self else { return }
                 do {

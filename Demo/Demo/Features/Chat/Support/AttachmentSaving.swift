@@ -71,6 +71,8 @@ final class AttachmentSaveSnapshot {
     let directoryURL: URL
     /// 按附件顺序排列的副本 URL；在快照释放前保持可用。
     let files: [URL]
+    /// 与媒体项目一一对应的实况视频副本，普通媒体为 nil。
+    let pairedVideos: [URL?]
 
     /// 复制附件原件，创建不依赖聊天页面生命周期的导出快照。
     ///
@@ -98,6 +100,7 @@ final class AttachmentSaveSnapshot {
         directoryURL = parentDirectory.appendingPathComponent("Chat-Export-\(UUID().uuidString)", isDirectory: true)
         let manager = FileManager.default
         var copies: [URL] = []
+        var videoCopies: [URL?] = []
         do {
             for (index, source) in sources.enumerated() {
                 let folder = directoryURL.appendingPathComponent(String(index), isDirectory: true)
@@ -105,8 +108,18 @@ final class AttachmentSaveSnapshot {
                 let destination = folder.appendingPathComponent(source.1)
                 try manager.copyItem(at: source.0, to: destination)
                 copies.append(destination)
+                if case .mediaGroup(let group) = attachment, let video = group.items[index].livePhotoVideoURL {
+                    let videoFolder = folder.appendingPathComponent("paired", isDirectory: true)
+                    try manager.createDirectory(at: videoFolder, withIntermediateDirectories: true)
+                    let videoCopy = videoFolder.appendingPathComponent(video.lastPathComponent)
+                    try manager.copyItem(at: video, to: videoCopy)
+                    videoCopies.append(videoCopy)
+                } else {
+                    videoCopies.append(nil)
+                }
             }
             files = copies
+            pairedVideos = videoCopies
         } catch {
             try? manager.removeItem(at: directoryURL)
             throw error
@@ -121,7 +134,7 @@ final class AttachmentSaveSnapshot {
 @MainActor
 final class SystemAttachmentSaver: AttachmentSaving {
     /// 将有序媒体项目及对应文件副本写入照片图库的异步操作。
-    typealias PhotoWriter = ([MediaItem], [URL]) async throws -> Void
+    typealias PhotoWriter = ([MediaItem], [URL], [URL?]) async throws -> Void
     /// 请求照片图库仅添加权限的异步闭包。
     private let authorizePhotos: () async -> PHAuthorizationStatus
     /// 执行媒体原件写入的闭包；文件顺序与媒体项目一一对应。
@@ -132,11 +145,15 @@ final class SystemAttachmentSaver: AttachmentSaving {
     /// 未提供闭包时使用 Photos 的仅添加授权和批量资源创建接口。
     init(authorizePhotos: (() async -> PHAuthorizationStatus)? = nil, writePhotos: PhotoWriter? = nil) {
         self.authorizePhotos = authorizePhotos ?? { await PHPhotoLibrary.requestAuthorization(for: .addOnly) }
-        self.writePhotos = writePhotos ?? { items, files in
+        self.writePhotos = writePhotos ?? { items, files, videos in
             try await PHPhotoLibrary.shared().performChanges {
-                for (item, file) in zip(items, files) {
+                for (index, item) in items.enumerated() {
+                    let file = files[index]
                     let request = PHAssetCreationRequest.forAsset()
                     request.addResource(with: item.kind.isVideo ? .video : .photo, fileURL: file, options: nil)
+                    if let video = videos[index] {
+                        request.addResource(with: .pairedVideo, fileURL: video, options: nil)
+                    }
                 }
             }
         }
@@ -155,7 +172,7 @@ final class SystemAttachmentSaver: AttachmentSaving {
             guard status == .authorized || status == .limited else {
                 throw AttachmentSaveError.photoPermissionDenied
             }
-            try await writePhotos(group.items, snapshot.files)
+            try await writePhotos(group.items, snapshot.files, snapshot.pairedVideos)
             return .saved
         case .file:
             let session = DocumentExportSession()

@@ -11,7 +11,14 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         app.launchArguments += ["-imessage-save-fixture", fixture, "-quicklayoutkit.demo.locale.identifier", locale] + extra
         app.launch()
         let route = app.cells["demo.imessage.title"]
-        for _ in 0..<8 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
+        if extra.contains("-UIPreferredContentSizeCategoryName") {
+            let search = app.searchFields.firstMatch
+            XCTAssertTrue(search.waitForExistence(timeout: 10))
+            search.tap()
+            search.typeText("iMessage\n")
+        } else {
+            for _ in 0..<8 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
+        }
         XCTAssertTrue(route.waitForExistence(timeout: 10))
         route.tap()
         XCTAssertTrue(app.textViews["imessage.composer.text"].waitForExistence(timeout: 10))
@@ -25,7 +32,13 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
     }
     /// 采样屏幕中央主图区域，显隐控件前后应保留同一画面，避免仅检查 AX 漏掉黑屏。
     @MainActor private func mediaSample(_ screenshot: XCUIScreenshot) -> [UInt8] {
-        guard let source = screenshot.image.cgImage,
+        let captured = screenshot.image
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let normalized = UIGraphicsImageRenderer(size: captured.size, format: format).image { _ in
+            captured.draw(in: CGRect(origin: .zero, size: captured.size))
+        }
+        guard let source = normalized.cgImage,
               let image = source.cropping(to: CGRect(x: CGFloat(source.width) * 0.2,
                   y: CGFloat(source.height) * 0.45, width: CGFloat(source.width) * 0.6,
                   height: CGFloat(source.height) * 0.1)) else {
@@ -47,6 +60,248 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         media.tap()
         XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 10))
     }
+    /// 除 xcresult 附件外保留独立截图，便于测试归档服务异常时仍能检查真实画面。
+    @MainActor private func captureLivePhoto(_ app: XCUIApplication, _ name: String, screenshot: XCUIScreenshot? = nil) {
+        let screenshot = screenshot ?? XCUIScreen.main.screenshot()
+        let capturedImage = screenshot.image
+        let attachment = XCTAttachment(image: capturedImage)
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name).appendingPathExtension("png")
+        do { try XCTUnwrap(capturedImage.pngData()).write(to: url) }
+        catch { XCTFail("保存实况截图失败：\(error)") }
+    }
+
+    /// 单张实况经过草稿、发送和模拟回复后，消息仍可识别实况并打开原预览。
+    @MainActor func testLivePhotoMessageBadges() {
+        let app = chat(fixture: "resources-live-single", extra: ["-imessage-preview-draft"])
+        let thumbnail = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "imessage.composer.media.preview.")).firstMatch
+        XCTAssertTrue(thumbnail.waitForExistence(timeout: 15))
+        app.buttons["imessage.composer.send"].tap()
+        let messages = app.descendants(matching: .any).matching(identifier: "imessage.media.message")
+        let replied = NSPredicate { _, _ in messages.count == 2 }
+        expectation(for: replied, evaluatedWith: nil)
+        waitForExpectations(timeout: 15)
+        for message in messages.allElementsBoundByIndex {
+            XCTAssertTrue(message.label.contains("实况照片"), message.label)
+        }
+        captureLivePhoto(app, "实况照片-收发消息-iPhone16Pro")
+        messages.element(boundBy: 1).tap()
+        XCTAssertTrue(app.buttons["imessage.preview.live"].waitForExistence(timeout: 10))
+        app.buttons["imessage.media.preview.close"].tap()
+        XCTAssertTrue(messages.element(boundBy: 1).waitForExistence(timeout: 5))
+    }
+
+    /// 从草稿进入实况预览，验证小屏菜单、沉浸、逐项开关、发送及重新打开。
+    @MainActor func testLivePhotoBadgeMenuAndDraftToMessage() {
+        let app = chat(fixture: "resources-live", extra: ["-imessage-preview-draft"])
+        let thumbnail = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "imessage.composer.media.preview.")).firstMatch
+        XCTAssertTrue(thumbnail.waitForExistence(timeout: 15))
+        thumbnail.tap()
+        // 草稿条自动滚到最后选中项；明确切到资源组中的第一张实况。
+        XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 10))
+        app.cells["imessage.preview.thumbnail.0"].tap()
+        let badge = app.buttons["imessage.preview.live"]
+        XCTAssertTrue(badge.waitForExistence(timeout: 10))
+        XCTAssertEqual(badge.value as? String, "实况")
+        XCTAssertGreaterThanOrEqual(badge.frame.minX, 16)
+        XCTAssertLessThanOrEqual(badge.frame.maxX, app.frame.width - 16)
+        captureLivePhoto(app, "实况-iPhoneSE-开启")
+        badge.tap()
+        captureLivePhoto(app, "实况-iPhoneSE-菜单")
+        app.buttons["关闭实况"].tap()
+        XCTAssertEqual(badge.value as? String, "实况已关闭")
+        captureLivePhoto(app, "实况-iPhoneSE-关闭")
+        app.cells["imessage.preview.thumbnail.1"].tap()
+        XCTAssertTrue(badge.waitForNonExistence(timeout: 5))
+        app.cells["imessage.preview.thumbnail.2"].tap()
+        XCTAssertFalse(badge.exists, "GIF 不能标成实况")
+        app.cells["imessage.preview.thumbnail.3"].tap()
+        XCTAssertTrue(badge.waitForExistence(timeout: 5))
+        XCTAssertEqual(badge.value as? String, "实况")
+        app.cells["imessage.preview.thumbnail.0"].tap()
+        XCTAssertEqual(badge.value as? String, "实况已关闭")
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(badge.waitForNonExistence(timeout: 5))
+        captureLivePhoto(app, "实况-iPhoneSE-沉浸")
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(badge.waitForExistence(timeout: 5))
+        app.buttons["imessage.media.preview.close"].tap()
+        app.buttons["imessage.composer.send"].tap()
+        openMedia(app)
+        XCTAssertTrue(badge.waitForExistence(timeout: 5))
+        XCTAssertEqual(badge.value as? String, "实况")
+        // 保留长按区间供模拟器录屏检查实际运动；松手后回到静态照片。
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(forDuration: 3)
+        XCTAssertFalse(app.staticTexts["imessage.preview.message"].exists)
+        captureLivePhoto(app, "实况-iPhoneSE-发送后播放")
+        app.buttons["imessage.media.preview.close"].tap()
+    }
+
+    /// 真机像素必须持续变化；菜单切换、缩放、翻页和重新打开不改变照片身份。
+    @MainActor func testLivePhotoLoopAndBouncePreview() {
+        let app = chat(fixture: "resources-live")
+        openMedia(app)
+        app.cells["imessage.preview.thumbnail.0"].tap()
+        let badge = app.buttons["imessage.preview.live"]
+        XCTAssertTrue(badge.waitForExistence(timeout: 10))
+        func assertMoving() {
+            let initial = mediaSample(XCUIScreen.main.screenshot())
+            let moving = NSPredicate { _, _ in
+                let next = self.mediaSample(XCUIScreen.main.screenshot())
+                return zip(initial, next).filter { abs(Int($0) - Int($1)) > 12 }.count > initial.count / 100
+            }
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: moving, object: nil)], timeout: 15), .completed)
+        }
+        badge.tap()
+        captureLivePhoto(app, "实况-四项菜单-iPhoneSE")
+        for title in ["循环播放", "来回播放"] {
+            if title == "来回播放" { badge.tap() }
+            app.buttons[title].tap()
+            XCTAssertEqual(badge.value as? String, title)
+            assertMoving()
+            XCTAssertFalse(app.sliders["imessage.preview.progress"].exists)
+            captureLivePhoto(app, "实况-" + title + "-iPhoneSE")
+        }
+        let center = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        center.doubleTap()
+        assertMoving()
+        center.doubleTap()
+        center.tap()
+        XCTAssertTrue(badge.waitForNonExistence(timeout: 5))
+        assertMoving()
+        center.tap()
+        XCTAssertTrue(badge.waitForExistence(timeout: 5))
+        app.cells["imessage.preview.thumbnail.3"].tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", "实况"), object: badge)], timeout: 5), .completed)
+        app.cells["imessage.preview.thumbnail.0"].tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", "来回播放"), object: badge)], timeout: 5), .completed)
+        assertMoving()
+        badge.tap()
+        app.buttons["关闭实况"].tap()
+        XCTAssertEqual(badge.value as? String, "实况已关闭")
+        let still = mediaSample(XCUIScreen.main.screenshot())
+        Thread.sleep(forTimeInterval: 0.5)
+        XCTAssertEqual(still, mediaSample(XCUIScreen.main.screenshot()))
+        app.buttons["imessage.media.preview.close"].tap()
+        openMedia(app)
+        XCTAssertEqual(badge.value as? String, "实况")
+        app.buttons["imessage.media.preview.close"].tap()
+    }
+
+    @MainActor func testLivePhotoLandscapeRTLAndLargeText() {
+        let app = chat(fixture: "resources-live", locale: "ar",
+                       extra: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        openMedia(app)
+        let badge = app.buttons["imessage.preview.live"]
+        XCTAssertTrue(badge.waitForExistence(timeout: 10))
+        XCTAssertGreaterThan(badge.frame.midX, app.frame.midX)
+        badge.tap()
+        app.buttons["ارتداد"].tap()
+        XCTAssertEqual(badge.value as? String, "ارتداد")
+        captureLivePhoto(app, "实况-RTL-大字号")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let landscape = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            app.frame.width > app.frame.height && badge.isHittable
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [landscape], timeout: 10), .completed)
+        XCTAssertGreaterThanOrEqual(badge.frame.minX, app.frame.minX)
+        XCTAssertLessThanOrEqual(badge.frame.maxX, app.frame.maxX)
+        XCTAssertGreaterThanOrEqual(badge.frame.minY, app.frame.minY)
+        XCTAssertLessThanOrEqual(badge.frame.maxY, app.frame.maxY)
+        captureLivePhoto(app, "实况-RTL-横屏")
+        app.buttons["imessage.media.preview.close"].tap()
+    }
+
+    /// 无需长按，切到 GIF 后屏幕实际像素持续变化；沉浸显隐不应停止播放。
+    @MainActor func testGIFPreviewAutoplaysWithoutPressing() {
+        let app = chat(fixture: "resources-live")
+        openMedia(app)
+        app.cells["imessage.preview.thumbnail.2"].tap()
+        XCTAssertTrue(app.buttons["imessage.preview.live"].waitForNonExistence(timeout: 5))
+        func assertMoving() {
+            let first = mediaSample(XCUIScreen.main.screenshot())
+            XCTAssertFalse(first.isEmpty)
+            var changed = false
+            for _ in 0..<8 {
+                Thread.sleep(forTimeInterval: 0.17)
+                let next = mediaSample(XCUIScreen.main.screenshot())
+                if zip(first, next).filter({ abs(Int($0) - Int($1)) > 12 }).count > first.count / 100 {
+                    changed = true
+                    break
+                }
+            }
+            XCTAssertTrue(changed, "GIF 必须直接播放，并输出不同的实际画面")
+        }
+        assertMoving()
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForNonExistence(timeout: 5))
+        assertMoving()
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 5))
+        app.cells["imessage.preview.thumbnail.1"].tap()
+        app.cells["imessage.preview.thumbnail.2"].tap()
+        assertMoving()
+        captureLivePhoto(app, "GIF-iPhoneSE-直接播放")
+        app.buttons["imessage.media.preview.close"].tap()
+    }
+
+    /// 经过系统选择器导入真实相册实况，输入栏和全屏预览都必须保持照片身份。
+    @MainActor func testSystemLivePhotoSelectionKeepsPhotoDraft() throws {
+        let app = chat(fixture: "none")
+        app.buttons["imessage.composer.attachment"].tap()
+        app.buttons["照片"].tap()
+        let photos = app.images.matching(identifier: "PXGGridLayout-Info")
+        XCTAssertTrue(photos.firstMatch.waitForExistence(timeout: 15))
+        let live = photos.matching(NSPredicate(format: "label CONTAINS[c] %@ OR label CONTAINS[c] %@", "实况", "Live Photo")).firstMatch
+        guard live.exists else { throw XCTSkip("当前照片选择器可见范围内没有实况照片") }
+        live.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5)).tap()
+        let preview = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "imessage.composer.media.preview.")).firstMatch
+        // 首次读取原始实况时由设备使用者选择相册授权范围。
+        XCTAssertTrue(preview.waitForExistence(timeout: 120))
+        XCTAssertEqual(app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "imessage.composer.media.", "视频")).count, 0)
+        captureLivePhoto(app, "系统实况导入-输入栏")
+        preview.tap()
+        // 允许读取所选原始资源后，循环效果照片也应保留真正的实况配对。
+        XCTAssertTrue(app.staticTexts["图片"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["imessage.preview.live"].waitForExistence(timeout: 15))
+        XCTAssertFalse(app.sliders["imessage.preview.progress"].exists)
+        captureLivePhoto(app, "系统实况导入-播放前")
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(forDuration: 3)
+        XCTAssertFalse(app.staticTexts["imessage.preview.message"].exists)
+        var restoredScreenshot: XCUIScreenshot?
+        let coverRestored = XCTNSPredicateExpectation(predicate: NSPredicate { [self] _, _ in
+            let screenshot = XCUIScreen.main.screenshot()
+            let sample = mediaSample(screenshot)
+            let restored = !sample.isEmpty && sample.filter { $0 > 24 }.count > sample.count / 4
+            if restored { restoredScreenshot = screenshot }
+            return restored
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [coverRestored], timeout: 5), .completed, "松手后必须恢复照片，不能黑屏")
+        XCTAssertTrue(app.buttons["imessage.preview.live"].exists)
+        captureLivePhoto(app, "系统实况导入-全屏照片预览", screenshot: restoredScreenshot)
+        for title in ["循环播放", "来回播放"] {
+            let badge = app.buttons["imessage.preview.live"]
+            badge.tap()
+            app.buttons[title].tap()
+            XCTAssertEqual(badge.value as? String, title)
+            let first = mediaSample(XCUIScreen.main.screenshot())
+            let moving = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                let next = self.mediaSample(XCUIScreen.main.screenshot())
+                return zip(first, next).filter { abs(Int($0) - Int($1)) > 12 }.count > first.count / 100
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [moving], timeout: 20), .completed)
+            XCTAssertFalse(app.staticTexts["imessage.preview.message"].exists)
+            captureLivePhoto(app, "系统实况导入-" + title)
+        }
+        app.buttons["imessage.media.preview.close"].tap()
+    }
+
     /// 为真实视频的播放与跳转后播放提供无操作录屏区间；画面连续性需另行检查录屏。
     /// 两段等待期间不查询 AX、不截图、不拖动进度，让画面自行连续输出。
     @MainActor func testSentVideoUninterruptedPlaybackForRecording() {

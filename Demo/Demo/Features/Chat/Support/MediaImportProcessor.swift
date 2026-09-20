@@ -13,7 +13,7 @@ nonisolated enum MediaImportProcessor {
         let pixelSize: CGSize
         /// 原件的图像或视频类型及有效时长。
         let kind: MediaKind
-        /// 指示原件包含多帧图像或来源为 Live Photo 的布尔值。
+        /// 指示原件包含多帧图像的布尔值。
         let isAnimatedImage: Bool
     }
 
@@ -23,14 +23,12 @@ nonisolated enum MediaImportProcessor {
     ///   - originalURL: 页面拥有的媒体原件。
     ///   - thumbnailURL: JPEG 缩略图的输出位置。
     ///   - isVideo: 是否按视频轨道和时长读取原件。
-    ///   - isLivePhoto: 系统提供者是否将来源标为 Live Photo。
     /// - Returns: 媒体展示所需的尺寸、类型和动态图像标记。
     /// - Throws: 原件损坏、元数据无效、解码或缩略图写入失败时产生的错误。
     @concurrent static func makeMetadata(
         originalURL: URL,
         thumbnailURL: URL,
-        isVideo: Bool,
-        isLivePhoto: Bool
+        isVideo: Bool
     ) async throws -> ImportedMetadata {
         assert(!Thread.isMainThread, "媒体元数据与缩略图生成必须离开主线程")
         let interval = MediaPerformance.signposter.beginInterval("ImportMetadata", id: MediaPerformance.signposter.makeSignpostID())
@@ -106,7 +104,7 @@ nonisolated enum MediaImportProcessor {
                     ? CGSize(width: height.doubleValue, height: width.doubleValue)
                     : CGSize(width: width.doubleValue, height: height.doubleValue),
                 kind: .image,
-                isAnimatedImage: isLivePhoto || CGImageSourceGetCount(source) > 1
+                isAnimatedImage: CGImageSourceGetCount(source) > 1
             )
         }
     }

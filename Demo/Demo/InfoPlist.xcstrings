@@ -93,6 +93,29 @@
         }
       }
     },
+    "NSPhotoLibraryUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يقرأ التطبيق الموارد الأصلية للصور الحية التي تحددها للحفاظ على الحركة والصوت."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The demo reads the original resources of your selected Live Photos to preserve motion and sound."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "读取你所选实况照片的原始照片和配对视频，以保留实况播放与声音。可以仅允许访问所选照片。"
+          }
+        }
+      }
+    },
     "NSSpeechRecognitionUsageDescription" : {
       "comment" : "Explains why the Demo requests speech-recognition access.",
       "localizations" : {

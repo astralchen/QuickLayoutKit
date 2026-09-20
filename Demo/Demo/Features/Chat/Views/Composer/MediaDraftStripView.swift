@@ -63,7 +63,7 @@ final class MediaDraftStripView: QuickLayoutView, MediaDraftCollectionViewLayout
     }
     var renderedItemIDs: [UUID] { dataSource.snapshot().itemIdentifiers }
     var animatedBadgeItemIDs: Set<UUID> {
-        Set(displayedItems.compactMap { $0.mediaItem?.isAnimatedImage == true ? $0.id : nil })
+        Set(displayedItems.compactMap { $0.mediaItem?.showsAnimatedBadge == true ? $0.id : nil })
     }
 
     override init(frame: CGRect) {
@@ -463,8 +463,8 @@ final class MediaDraftStripView: QuickLayoutView, MediaDraftCollectionViewLayout
                 )
                 switch media.kind {
                 case .image:
-                    animatedBadgeView.isHidden = !media.isAnimatedImage
-                    let imageDescription = media.isAnimatedImage
+                    animatedBadgeView.isHidden = !media.showsAnimatedBadge
+                    let imageDescription = media.showsAnimatedBadge
                         ? strings.animatedImage
                         : strings.image
                     accessibilityLabel = "\(position), \(imageDescription)"

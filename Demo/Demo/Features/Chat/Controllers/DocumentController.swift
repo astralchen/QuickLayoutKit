@@ -243,7 +243,7 @@ final class DocumentController: NSObject, UIDocumentPickerDelegate {
                     let metadata = try await imageLoader.scheduler.run(kind: .importing) {
                         try await MediaImportProcessor.makeMetadata(
                             originalURL: copied.fileURL, thumbnailURL: thumbnail,
-                            isVideo: type.conforms(to: .movie), isLivePhoto: false
+                            isVideo: type.conforms(to: .movie)
                         )
                     }
                     guard !Task.isCancelled, drafts[file.id] != nil else {

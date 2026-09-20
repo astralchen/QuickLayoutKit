@@ -33,6 +33,8 @@ final class MediaMessageView: QuickLayoutView, UIGestureRecognizerDelegate {
         static let titleSpacing: CGFloat = 8
         /// 媒体卡片的圆角半径，单位为点。
         static let cornerRadius: CGFloat = 22
+        /// 单张气泡在尾部一侧额外预留的宽度。
+        static let singleTailWidth: CGFloat = 13
     }
 
     /// 显示媒体组总项目数的标签。

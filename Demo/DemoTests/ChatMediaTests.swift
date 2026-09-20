@@ -17,6 +17,64 @@ import QuickLayoutKit
 @MainActor
 @Suite(.serialized, .enabled(if: ChatTestAvailability.isSupported))
 struct ChatMediaTests {
+    /// 复用同一张卡片时，实况标志不能泄漏到普通照片、GIF 或视频。
+    @Test func messageLivePhotoBadgeFollowsIdentityAndReuse() throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 4, videoIndices: [3], animatedIndices: [2], liveIndices: [0])
+        defer { fixture.remove() }
+        let view = makeStackView(fixture.group)
+        for front in [0, 1, 2, 3, 0] {
+            view.configure(messageID: 8, direction: .outgoing, group: fixture.group,
+                           frontIndex: front, strings: mediaStrings)
+            view.layoutIfNeeded()
+            for card in view.cards where !card.isHidden {
+                #expect(card.livePhotoBadge.isHidden == (card.mediaIndex != 0))
+                #expect(!card.livePhotoBadge.isUserInteractionEnabled)
+                #expect(!card.livePhotoBadge.isAccessibilityElement)
+            }
+        }
+        // 消息单元格复用为另一条普通照片消息。
+        let plain = MediaGroupAttachment(items: [fixture.group.items[1]])
+        view.configure(messageID: 9, direction: .incoming, group: plain, frontIndex: 0, strings: mediaStrings)
+        view.layoutIfNeeded()
+        #expect(view.cards.allSatisfy { $0.livePhotoBadge.isHidden })
+    }
+
+    /// 单张气泡避开尾部，照片组沿每张卡片布局；RTL 镜像位置且不改变命中区域。
+    @Test func messageLivePhotoBadgeGeometry() throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 2, liveIndices: [0, 1])
+        defer { fixture.remove() }
+        let window = try makeDraftTestWindow()
+        defer { window.isHidden = true }
+        for count in [1, 2] {
+            for direction in [MessageDirection.incoming, .outgoing] {
+                for semantic in [UISemanticContentAttribute.forceLeftToRight, .forceRightToLeft] {
+                    let group = MediaGroupAttachment(items: Array(fixture.group.items.prefix(count)))
+                    let view = makeStackView(group, direction: direction)
+                    view.semanticContentAttribute = semantic
+                    window.rootViewController!.view.addSubview(view)
+                    view.setNeedsLayout()
+                    view.layoutIfNeeded()
+                    for card in view.cards where !card.isHidden {
+                        card.layoutIfNeeded()
+                        let badge = card.livePhotoBadge
+                        #expect(!badge.isHidden)
+                        #expect(badge.bounds.size == CGSize(width: 18, height: 18))
+                        #expect(abs(badge.frame.minY - 12) < 0.5)
+                        let leading = semantic == .forceRightToLeft
+                            ? card.bounds.width - badge.frame.maxX : badge.frame.minX
+                        let expected: CGFloat = count == 1 && direction == .incoming ? 25 : 12
+                        #expect(abs(leading - expected) < 0.5)
+                        #expect(card.bounds.contains(badge.frame))
+                        #expect(card.hitTest(badge.center, with: nil) !== badge)
+                    }
+                    view.removeFromSuperview()
+                }
+            }
+        }
+    }
+
     @Test func draftVideoDurationKeepsContrastBackgroundWithQuickLayout() throws {
         guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 1, videoIndices: [0])
@@ -1804,6 +1862,7 @@ private final class MediaFixture {
         videoIndices: Set<Int> = [],
         pixelSizes: [CGSize]? = nil,
         animatedIndices: Set<Int> = [],
+        liveIndices: Set<Int> = [],
         hasAssetIdentifiers: Bool = true,
         parentDirectory: URL? = nil
     ) throws {
@@ -1826,7 +1885,8 @@ private final class MediaFixture {
                     kind: videoIndices.contains(index)
                         ? .video(duration: TimeInterval(index + 1))
                         : .image,
-                    isAnimatedImage: animatedIndices.contains(index)
+                    isAnimatedImage: animatedIndices.contains(index),
+                    livePhotoVideoURL: liveIndices.contains(index) ? directory.appendingPathComponent("paired-\(index).mov") : nil
                 )
             )
         }

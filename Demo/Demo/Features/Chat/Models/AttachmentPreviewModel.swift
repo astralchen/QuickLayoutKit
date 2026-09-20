@@ -28,6 +28,17 @@ nonisolated struct AttachmentPreviewItem: Sendable {
     let thumbnailURL: URL?
     let title: String
     let kind: Kind
+    let livePhotoVideoURL: URL?
+    var isLivePhoto: Bool { kind == .image && livePhotoVideoURL != nil }
+
+    init(id: UUID, url: URL, thumbnailURL: URL?, title: String, kind: Kind, livePhotoVideoURL: URL? = nil) {
+        self.id = id
+        self.url = url
+        self.thumbnailURL = thumbnailURL
+        self.title = title
+        self.kind = kind
+        self.livePhotoVideoURL = livePhotoVideoURL
+    }
 
     /// 在后台解析文件类型和有限大小文本，避免在主线程读取原件。
     static func prepare(_ attachment: Attachment) -> [Self] {
@@ -37,7 +48,8 @@ nonisolated struct AttachmentPreviewItem: Sendable {
                 Self(id: $0.id, url: $0.originalFileURL, thumbnailURL: $0.thumbnailFileURL,
                      title: "",
                      kind: FileManager.default.isReadableFile(atPath: $0.originalFileURL.path)
-                        ? ($0.kind.isVideo ? .video : .image) : .unavailable)
+                        ? ($0.kind.isVideo ? .video : .image) : .unavailable,
+                     livePhotoVideoURL: $0.livePhotoVideoURL)
             }
         case .file(let file):
             return [Self(id: file.id, url: file.fileURL, thumbnailURL: file.thumbnailURL,

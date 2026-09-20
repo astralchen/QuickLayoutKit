@@ -10,7 +10,7 @@ enum AttachmentSavePreviewFixtures {
     ///
     /// `resources` 使用全部 20 张图片，`resources-video` 使用 6 段视频，
     /// `resources-pdf` 使用 PDF，`resources-heic` 使用新增 HEIC 静态原件。
-    /// `resources-draft` 混合真实视频和图片，并模拟实况照片角标；不代表实况资源导入或播放验证。
+    /// `resources-draft` 混合真实视频和图片，并模拟动态图片角标；不代表实况资源导入或播放验证。
     /// Bundle 原件永远不登记到页面清理目录；每组仍遵守 20 项上限。
     @available(iOS 17.0, *)
     static func resourceAttachment(named name: String, store: any AttachmentStoring) async throws -> Attachment {
@@ -20,14 +20,19 @@ enum AttachmentSavePreviewFixtures {
         case "resources-heic": kind = "image"
         case "resources-video": kind = "video"
         case "resources-pdf": kind = "document"
-        case "resources-draft": kind = "mixed"
+        case "resources-draft", "resources-live", "resources-live-single": kind = "mixed"
         default: throw CocoaError(.fileReadUnsupportedScheme)
         }
         guard let directory = Bundle.main.url(forResource: "AttachmentPreviewResources", withExtension: "bundle") else {
             throw CocoaError(.fileNoSuchFile)
         }
         let sources: [URL]
-        if name == "resources-draft" {
+        if name == "resources-live-single" {
+            sources = [directory.appendingPathComponent("live-photo.jpg")]
+        } else if name == "resources-live" {
+            sources = ["live-photo.jpg", "preview-image-02.png", "preview-image-01.gif", "live-photo.jpg"]
+                .map { directory.appendingPathComponent($0) }
+        } else if name == "resources-draft" {
             sources = ["preview-video-01.mp4", "preview-image-08.png", "preview-image-09.png"]
                 .map { directory.appendingPathComponent($0) }
         } else {
@@ -61,12 +66,17 @@ enum AttachmentSavePreviewFixtures {
             created.append(thumbnail)
             let metadata = try await MediaImportProcessor.makeMetadata(originalURL: original,
                 thumbnailURL: thumbnail,
-                isVideo: kind == "video" || source.lastPathComponent.hasPrefix("preview-video-"),
-                isLivePhoto: name == "resources-draft" && source.lastPathComponent.hasPrefix("preview-image-"))
+                isVideo: kind == "video" || source.lastPathComponent.hasPrefix("preview-video-"))
             try Task.checkCancellation()
+            let pairedVideo: URL?
+            if ["resources-live", "resources-live-single"].contains(name), source.lastPathComponent == "live-photo.jpg" {
+                pairedVideo = try store.importFile(at: directory.appendingPathComponent("live-photo.mov"), prefix: "live-video", pathExtension: nil)
+                created.append(pairedVideo!)
+            } else { pairedVideo = nil }
             items.append(.init(assetIdentifier: nil, originalFileURL: original,
                 thumbnailFileURL: thumbnail, pixelSize: metadata.pixelSize, kind: metadata.kind,
-                isAnimatedImage: metadata.isAnimatedImage))
+                isAnimatedImage: metadata.isAnimatedImage || (name == "resources-draft" && !metadata.kind.isVideo),
+                livePhotoVideoURL: pairedVideo))
         }
         let attachment = Attachment.mediaGroup(.init(items: items))
         store.registerCommitted(attachment)

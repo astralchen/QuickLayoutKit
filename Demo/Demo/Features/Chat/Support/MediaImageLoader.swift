@@ -1,5 +1,6 @@
 import ImageIO
 import UIKit
+import UniformTypeIdentifiers
 import os
 
 /// 已完成后台解码的图像；原图方向由 UIImage 的 orientation 保留，避免再次分配旋转位图。
@@ -8,6 +9,8 @@ nonisolated struct MediaDecodedImage: Sendable {
     let image: CGImage
     /// 原件 EXIF 方向；缩略图已应用方向时为 up。
     let orientation: CGImagePropertyOrientation
+    /// 由文件内容识别多帧 GIF，不能仅凭扩展名判断。
+    var isAnimatedGIF = false
 }
 
 /// 页面共享的有界图片加载器；普通请求只读调用者提供的缩略图 URL。
@@ -152,9 +155,14 @@ final class MediaImageLoader {
 
     /// 完整原图专用入口；受页面调度器的单原图约束，不加入缓存。
     func original(url: URL) async throws -> UIImage {
+        try await originalContent(url: url).image
+    }
+
+    /// 原图与动画身份一次解码返回，避免预览再次打开文件检查类型。
+    func originalContent(url: URL) async throws -> (image: UIImage, isAnimatedGIF: Bool) {
         let decoded = try await scheduler.run(kind: .original) { try await Self.decodeOriginal(url) }
         try Task.checkCancellation()
-        return Self.makeImage(decoded)
+        return (Self.makeImage(decoded), decoded.isAnimatedGIF)
     }
 
     /// 在后台按显示矩形下采样，并应用方向、立即解码，保留透明通道。
@@ -199,7 +207,8 @@ final class MediaImageLoader {
             else { throw CocoaError(.fileReadCorruptFile) }
             let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
             let value = (properties?[kCGImagePropertyOrientation] as? NSNumber)?.uint32Value ?? 1
-            return MediaDecodedImage(image: image, orientation: CGImagePropertyOrientation(rawValue: value) ?? .up)
+            return MediaDecodedImage(image: image, orientation: CGImagePropertyOrientation(rawValue: value) ?? .up,
+                isAnimatedGIF: CGImageSourceGetType(source) == UTType.gif.identifier as CFString && CGImageSourceGetCount(source) > 1)
         }
         try Task.checkCancellation()
         return result

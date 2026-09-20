@@ -34,6 +34,7 @@ final class PhotoPickerController: NSObject,
         var task: Task<Void, Never>?
         /// 文件复制和取消竞争的单次状态机。
         var fileRequest: MediaFileRequest?
+        var livePhotoRequest: LivePhotoImportRequest?
         /// 正在导入的媒体原件目标 URL。
         var originalURL: URL?
         /// 媒体缩略图的目标 URL。
@@ -382,7 +383,7 @@ final class PhotoPickerController: NSObject,
 
     /// 控制器释放时停止所有请求；回调仍会清理未交付文件。
     isolated deinit {
-        entries.forEach { $0.fileRequest?.cancel(); $0.task?.cancel() }
+        entries.forEach { $0.fileRequest?.cancel(); $0.livePhotoRequest?.cancel(); $0.task?.cancel() }
     }
 
     /// 设置不低于 220 点的键盘高度档位及系统大档位。
