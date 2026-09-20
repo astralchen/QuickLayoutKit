@@ -110,6 +110,7 @@ extension MediaMessageView {
                 let physicalSide = relativeDirection * outwardSign
                 let rotationAngle = -physicalSide * Metrics.groupRotationAngle(depth: depth)
                 card.mask = nil
+                card.layer.cornerRadius = Metrics.cornerRadius
                 let restingFrame = CGRect(
                     x: CGFloat(visualPosition) * Metrics.groupOffset.x * scale,
                     y: cardY + CGFloat(depth) * Metrics.groupOffset.y * scale,
@@ -125,6 +126,8 @@ extension MediaMessageView {
             }
         } else {
             let card = cards[0]
+            // 单张媒体由完整气泡遮罩裁剪，卡片圆角不能再次截断尾巴。
+            card.layer.cornerRadius = 0
             card.transform = .identity
             card.restingFrame = bounds
             card.restingTransform = .identity
@@ -196,31 +199,48 @@ extension MediaMessageView {
 
     /// 返回指定区域的媒体气泡轮廓，并按物理方向选择尾部位置。
     nonisolated private static func bubblePath(in rect: CGRect, tailOnRight: Bool) -> CGPath {
-        let tail = Metrics.singleTailWidth
-        let body = tailOnRight
-            ? CGRect(x: 0, y: 0, width: rect.width - tail, height: rect.height)
-            : CGRect(x: tail, y: 0, width: rect.width - tail, height: rect.height)
-        let path = UIBezierPath(roundedRect: body, cornerRadius: Metrics.cornerRadius)
-        let tailPath = UIBezierPath()
+        guard rect.width > 0, rect.height > 0 else { return CGMutablePath() }
+        let width = rect.width
+        let height = rect.height
+        let scale = min(1, width / (Metrics.singleTailWidth + 2 * Metrics.cornerRadius),
+                        height / (2 * Metrics.cornerRadius))
+        let tail = Metrics.singleTailWidth * scale
+        let radius = Metrics.cornerRadius * scale
+        let path = UIBezierPath()
+
+        // 主体与尾巴沿同一条闭合轮廓绘制，避免叠加子路径的绕向抵消填充。
+        // 先绘制左尾气泡，再镜像整个轮廓，保证收发与 RTL 使用完全一致的几何。
+        path.move(to: CGPoint(x: tail + radius, y: 0))
+        path.addLine(to: CGPoint(x: width - radius, y: 0))
+        path.addArc(withCenter: CGPoint(x: width - radius, y: radius),
+                    radius: radius, startAngle: -.pi / 2, endAngle: 0, clockwise: true)
+        path.addLine(to: CGPoint(x: width, y: height - radius))
+        path.addArc(withCenter: CGPoint(x: width - radius, y: height - radius),
+                    radius: radius, startAngle: 0, endAngle: .pi / 2, clockwise: true)
+        path.addLine(to: CGPoint(x: tail + radius, y: height))
+        path.addCurve(
+            to: CGPoint(x: tail + 10 * scale, y: height - 6 * scale),
+            controlPoint1: CGPoint(x: tail + 16 * scale, y: height),
+            controlPoint2: CGPoint(x: tail + 13 * scale, y: height - 2 * scale)
+        )
+        path.addCurve(
+            to: CGPoint(x: 0, y: height - 2 * scale),
+            controlPoint1: CGPoint(x: 15 * scale, y: height),
+            controlPoint2: CGPoint(x: 7 * scale, y: height)
+        )
+        path.addCurve(
+            to: CGPoint(x: tail, y: height - radius),
+            controlPoint1: CGPoint(x: 10 * scale, y: height - 9 * scale),
+            controlPoint2: CGPoint(x: tail, y: height - 13 * scale)
+        )
+        path.addLine(to: CGPoint(x: tail, y: radius))
+        path.addArc(withCenter: CGPoint(x: tail + radius, y: radius),
+                    radius: radius, startAngle: .pi, endAngle: .pi * 1.5, clockwise: true)
+        path.close()
         if tailOnRight {
-            tailPath.move(to: CGPoint(x: body.maxX - 8, y: body.maxY - 22))
-            tailPath.addCurve(
-                to: CGPoint(x: rect.maxX, y: rect.maxY),
-                controlPoint1: CGPoint(x: body.maxX + 1, y: body.maxY - 9),
-                controlPoint2: CGPoint(x: rect.maxX - 6, y: rect.maxY - 1)
-            )
-            tailPath.addLine(to: CGPoint(x: body.maxX - 7, y: body.maxY - 5))
-        } else {
-            tailPath.move(to: CGPoint(x: body.minX + 8, y: body.maxY - 22))
-            tailPath.addCurve(
-                to: CGPoint(x: rect.minX, y: rect.maxY),
-                controlPoint1: CGPoint(x: body.minX - 1, y: body.maxY - 9),
-                controlPoint2: CGPoint(x: rect.minX + 6, y: rect.maxY - 1)
-            )
-            tailPath.addLine(to: CGPoint(x: body.minX + 7, y: body.maxY - 5))
+            path.apply(CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: width, ty: 0))
         }
-        tailPath.close()
-        path.append(tailPath)
+        path.apply(CGAffineTransform(translationX: rect.minX, y: rect.minY))
         return path.cgPath
     }
 }

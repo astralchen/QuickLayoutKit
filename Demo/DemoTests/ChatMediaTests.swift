@@ -17,6 +17,67 @@ import QuickLayoutKit
 @MainActor
 @Suite(.serialized, .enabled(if: ChatTestAvailability.isSupported))
 struct ChatMediaTests {
+    /// 实际卡片遮罩在尾部与主体相接处必须保持不透明，收发方向与 RTL 一并覆盖。
+    @Test(arguments: [false, true])
+    func singleMediaBubbleHasNoTransparentTailSeam(isVideo: Bool) throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 2, videoIndices: isVideo ? [0] : [])
+        defer { fixture.remove() }
+        let group = MediaGroupAttachment(items: [fixture.group.items[0]])
+        let view = makeStackView(group)
+        for size in [CGSize(width: 252, height: 360), CGSize(width: 252, height: 163),
+                     CGSize(width: 120, height: 172)] {
+            for direction in [MessageDirection.incoming, .outgoing] {
+                for rtl in [false, true] {
+                    view.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
+                    view.configure(messageID: 8, direction: direction, group: group,
+                                   frontIndex: 0, strings: mediaStrings)
+                    view.frame.size = size
+                    view.setNeedsLayout()
+                    view.layoutIfNeeded()
+                    let card = try #require(view.frontCard)
+                    card.imageView.backgroundColor = UIColor(red: 0.12, green: 0.14, blue: 0.20, alpha: 1)
+                    #expect(card.mask === view.singleMaskView)
+                    let layer = try #require(view.singleMaskView.layer as? CAShapeLayer)
+                    let path = try #require(layer.path)
+                    let tailOnRight = direction == .outgoing ? !rtl : rtl
+                    // 截图中缺口位于主体内、距离尾部边缘约 20pt 的位置。
+                    for x in 20...26 {
+                        for bottomInset in 10...18 {
+                            let point = CGPoint(x: tailOnRight ? size.width - CGFloat(x) : CGFloat(x),
+                                                y: size.height - CGFloat(bottomInset))
+                            #expect(path.contains(point), "气泡主体与尾巴的连接处不能穿透：\(point)")
+                        }
+                    }
+                    let format = UIGraphicsImageRendererFormat()
+                    format.scale = 2
+                    let image = UIGraphicsImageRenderer(bounds: view.bounds, format: format).image { context in
+                        UIColor.white.setFill()
+                        context.fill(view.bounds)
+                        view.layer.render(in: context.cgContext)
+                    }
+                    // 检查最终卡片像素，既覆盖遮罩缺口，也覆盖卡片圆角二次裁剪尾尖。
+                    for probe in [CGPoint(x: 20, y: size.height - 14), CGPoint(x: 5, y: size.height - 4)] {
+                        let x = tailOnRight ? size.width - probe.x : probe.x
+                        let pixel = try #require(image.cgImage?.cropping(to:
+                            CGRect(x: x * 2, y: probe.y * 2, width: 1, height: 1)))
+                        var rgba = [UInt8](repeating: 0, count: 4)
+                        rgba.withUnsafeMutableBytes { buffer in
+                            let context = CGContext(data: buffer.baseAddress, width: 1, height: 1,
+                                bitsPerComponent: 8, bytesPerRow: 4, space: CGColorSpaceCreateDeviceRGB(),
+                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                                    | CGBitmapInfo.byteOrder32Big.rawValue)!
+                            context.draw(pixel, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+                        }
+                        #expect(rgba[0] < 80 && rgba[1] < 80 && rgba[2] < 80 && rgba[3] == 255,
+                                "尾部应显示媒体内容，而不是白色背景：\(probe), \(rgba)")
+                    }
+                    Attachment.record(image, named: "bubble-\(isVideo ? "video" : "photo")-\(direction)-\(rtl ? "rtl" : "ltr")-\(Int(size.height)).png")
+                }
+            }
+        }
+    }
+
     /// 复用同一张卡片时，实况标志不能泄漏到普通照片、GIF 或视频。
     @Test func messageLivePhotoBadgeFollowsIdentityAndReuse() throws {
         guard #available(iOS 26.0, *) else { return }
@@ -1760,6 +1821,7 @@ struct ChatMediaTests {
         let video = try #require(view.cards.first)
         let mask = try #require(video.mask as? QuickLayoutShapeView)
         #expect(mask.bounds == video.bounds)
+        #expect(video.layer.cornerRadius == 0)
         #expect((mask.layer as? CAShapeLayer)?.path != nil)
         #expect(video.imageView.frame == video.bounds)
         #expect(video.playBackground.isDescendant(of: video))
@@ -1772,12 +1834,14 @@ struct ChatMediaTests {
 
         configure(fixture.group.items)
         #expect(view.cards.allSatisfy { $0.mask == nil && $0.isDescendant(of: view) })
+        #expect(view.cards.allSatisfy { $0.layer.cornerRadius == MediaMessageView.Metrics.cornerRadius })
         #expect(view.itemCountLabel.isDescendant(of: view))
         #expect(view.itemCountIcon.isDescendant(of: view))
 
         configure([fixture.group.items[1]])
         let image = try #require(view.cards.first)
         #expect(image.mask === mask)
+        #expect(image.layer.cornerRadius == 0)
         #expect(image.playBackground.superview == nil)
         #expect(view.itemCountLabel.superview == nil)
         #expect(view.itemCountIcon.superview == nil)
