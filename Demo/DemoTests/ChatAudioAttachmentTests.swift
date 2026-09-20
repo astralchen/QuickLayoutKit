@@ -188,11 +188,11 @@ struct ChatAudioAttachmentTests {
         let messages = page.viewModel.state.timeline.compactMap { item -> MessagePresentation? in
             if case .message(let message) = item.content { return message }; return nil
         }
-        let fileMessage = try #require(messages.first { $0.id == 3 })
+        let fileMessage = try #require(messages.first { $0.id == 0 })
         guard case .attachment(.file(let file)) = fileMessage.content else { Issue.record("Must send a file, not a waveform recording"); return }
         #expect(file.id == attachment.id)
         #expect(file.fileURL.pathExtension == "m4a")
-        #expect(messages.first { $0.id == 4 }?.text == "caption")
+        #expect(messages.first { $0.id == 1 }?.text == "caption")
         #expect(FileManager.default.fileExists(atPath: attachment.fileURL.path))
     }
 

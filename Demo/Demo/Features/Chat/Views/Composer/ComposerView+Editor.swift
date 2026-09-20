@@ -95,11 +95,14 @@ extension ComposerView {
     /// 在附件边界结束文字段，仅忽略由编辑器生成的排版字符。
     var draftSegments: [DraftSegment] {
         var result: [DraftSegment] = []
-        var body = ""
+        let body = NSMutableAttributedString(string: "")
         /// 将当前累计的非空文字追加为草稿段，并清空文字缓冲区。
         func flush() {
-            if !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { result.append(.text(body)) }
-            body = ""
+            let text = MessageText(attributedString: body)
+            if !text.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                result.append(text.hasFormatting ? .richText(text) : .text(text.text))
+            }
+            body.mutableString.setString("")
         }
         let storage = textView.textStorage
         storage.enumerateAttributes(in: NSRange(location: 0, length: storage.length)) { attributes, range, _ in
@@ -109,7 +112,8 @@ extension ComposerView {
             } else if attributes[.attachment] != nil {
                 flush()
             } else if attributes[TextAttachment.separatorKey] == nil {
-                body += (storage.string as NSString).substring(with: range).replacingOccurrences(of: "\u{FFFC}", with: "")
+                let text = (storage.string as NSString).substring(with: range).replacingOccurrences(of: "\u{FFFC}", with: "")
+                body.append(NSAttributedString(string: text, attributes: attributes))
             }
         }
         flush()
@@ -164,13 +168,13 @@ extension ComposerView {
         return ids
     }
 
-    /// 恢复普通文字的字体与颜色，防止继续输入时继承附件属性。
-    func resetTypingAttributes() {
+    /// 清理附件属性；正常编辑保留当前文字格式，发送后显式恢复普通正文。
+    func resetTypingAttributes(preservingFormatting: Bool = true) {
         guard textView.markedTextRange == nil else { return }
-        textView.typingAttributes = [
-            .font: textView.font ?? UIFont.preferredFont(forTextStyle: .body),
-            .foregroundColor: UIColor.label,
-        ]
+        let style = preservingFormatting ? MessageText.Style(attributes: textView.typingAttributes) : []
+        textView.typingAttributes = style.attributes(
+            font: .preferredFont(forTextStyle: .body, compatibleWith: traitCollection), color: .label
+        )
         inputBinding.refresh()
     }
 

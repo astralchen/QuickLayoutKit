@@ -120,6 +120,7 @@ ViewModel 不持有播放器、录音器或 UIKit 对象。输入栏通过单一
 
 - `.localized(key:)`：固定示例或模拟回复，运行时切换语言后重新解析。
 - `.userText`：用户输入或语音转写形成的原始文本，切换语言时不改写。
+- `.richText`：由 `MessageText` 保存有序文字片段与粗体、斜体、下划线、删除线，可局部叠加；不存储 UIKit 字体、颜色或附件。选中文字后，通过系统编辑菜单中的“文本格式”切换。发送、失败重试和语言切换保留格式；气泡按方向和 Dynamic Type 生成属性。混合附件草稿按原顺序拆段，并保留格式及用户空白。文字动画不在此格式模型内。
 - `.attachment(.audio)`：统一附件边界中的音频载荷，包含稳定附件 ID、本地可回放文件 URL、精确时长与归一化波形采样。用户录音为 AAC `.m4a`，模拟语音回复为 `.caf`。
 - `.attachment(.mediaGroup)`：一次有序选择形成的 1–20 项媒体，保存稳定组/项目 ID、资源标识、页面拥有的原文件与缩略图 URL、像素尺寸以及图片/视频类型；视频类型额外保存有效时长。
 
@@ -541,7 +542,7 @@ MainRoute.chat
 
 `AttachmentSaveCoordinator` 按消息和附件身份管理当前页面的保存状态，`SystemAttachmentSaver` 负责 Photos 添加权限和系统文件导出。导出副本独立于页面附件目录，系统操作结束后清理；退出页面仅停止 UI 回调，不取消已经提交的系统操作。保存状态不跨页面持久化，不扫描相册，也不增加语音过期规则。
 
-`ChatAttachmentSaveTests` 覆盖状态、截止时间、防重入、失败重试、整组原件保存、副本生命周期、窄屏／RTL 布局与 402 × 874 pt 截图。Debug 启动参数 `-imessage-save-fixture photo|group|audio|document` 在进入聊天时追加真实本地测试附件，用于手动验证系统授权和导出；`stack2|stack5|stack20` 追加不同颜色、带项目编号的媒体组，用于核对拖动换层及窗口顺序。正常启动不追加样例。
+`ChatAttachmentSaveTests` 覆盖状态、截止时间、防重入、失败重试、整组原件保存、副本生命周期、窄屏／RTL 布局与 402 × 874 pt 截图。Debug 启动参数 `-imessage-save-fixture photo|group|audio|document` 在进入聊天时追加真实本地测试附件，用于手动验证系统授权和导出；`stack2|stack5|stack20` 追加不同颜色、带项目编号的媒体组，用于核对拖动换层及窗口顺序。正常启动使用下文的「首次历史加载与样例数据」，不追加此处的专用测试附件。
 
 2026-09-09 保存入口验证：
 
@@ -798,3 +799,22 @@ CADisplayLink 按原片段时长推进，只替换像素，不改变图片缩放
 追加 `-imessage-preview-draft` 则从草稿入口验证。测试资源由 `Scripts/make-live-photo-fixture.swift` 生成，
 是原创 480 × 640、3 秒无声合成画面，具有匹配的照片标识和视频关键照片时间元数据。
 它可验证系统重建和动态播放，不代表真实相册选择器、iCloud 下载或真机音频验证。
+
+
+## 首次历史加载与样例数据
+
+ChatViewModel 从空列表开始；正常新建 Chat 页面异步加载普通文本、富文本、图片、GIF、Live Photo、视频、语音、PDF 和链接的收发样例，共 26 条消息。Debug 和 Release 均启用。全部样例作为历史插入，不启动发送、回复、录音授权或自动播放；加载期间新增的消息保持原身份并排在历史之后。
+
+`loadInitialHistory()` 负责页面首次历史加载，完成后通过 `insertInitialHistory(_:)` 批量插入，并发布 `.historyLoaded` 更新原因。ViewModel 接收独立的 `MessageHistoryEntry`，不依赖样例生成器的嵌套类型。当前临时数据来源为 `SampleChatHistory`；后续数据库接入属于数据来源的替换，不改变历史加载的更新语义。
+
+`SampleChatHistory` 复用 `AttachmentPreviewResources.bundle` 的真实资源，生成页面独立副本和缩略图。收发附件使用独立身份并共享只读副本，退出页面统一清理。单项资源失败只跳过对应的一对样例，取消加载回收整个未完成批次。用户已经滚动或发送时，加载完成保留阅读锚点；否则滚动到最新消息。长历史中主动发送后，送达／已读刷新保留尚未完成的底部滚动，用户开始拖动则取消跟随。
+
+样例富文本和链接标题按进入页面时的简体中文、英语或阿拉伯语生成；语音的中文转写忠实对应录音，不作为界面文案翻译。新增的 `default-message.caf` 是 5.35 秒的系统 Tingting 合成语音，原文为“你好，这是一条语音消息。点击播放，听听效果。”，时长与波形在导入时从真实 PCM 读取。可在 macOS 使用以下命令重新生成（运行时不合成语音）：
+
+```sh
+say -v Tingting -r 175 -o Demo/Demo/Resources/AttachmentPreviewResources.bundle/default-message.caf --file-format=caff --data-format=LEI16@22050 '你好，这是一条语音消息。点击播放，听听效果。'
+```
+
+注入 `ChatViewModel` 的页面入口从空会话开始。`-imessage-save-fixture`、`preview-video`、`-media-benchmark` 场景不追加完整样例；`-imessage-basic-history` 保留为跳过样例加载的兼容启动参数。专用附件 fixture 自身仍按原逻辑追加。
+
+普通文本样例包含日常文字、演示电话号码、地址、正文网址，以及含邮箱的混合信息，五组均覆盖收发两侧。文案在进入页面时按当前语言生成。正文使用只读 `UITextView` 的系统数据识别（电话、链接、地址），点击与长按沿用 iOS 行为；发出气泡中的可交互文字保持白色并添加下划线。正文网址不会自动转成附件卡片，也不会在历史加载时打开网页、地图或拨号。

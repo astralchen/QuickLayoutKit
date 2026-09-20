@@ -208,5 +208,12 @@
     "kind": "live-photo-video",
     "bytes": 134073,
     "sha256": "eb2aec1e7e7296dcce39186324ddd4553bab2d8d4315608c170a6cda6df6645a"
+  },
+  {
+    "file": "default-message.caf",
+    "original": "Generated with macOS Tingting; transcript and reproduction command in Chat README",
+    "kind": "audio",
+    "bytes": 239896,
+    "sha256": "bf001d015a9489c620ff2d400c546f7cf9441639dc2f59f488188df28fbe0c44"
   }
 ]

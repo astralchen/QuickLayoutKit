@@ -47,7 +47,7 @@ extension DemoTests {
             return message
         }
         let sendingMessage = try #require(sendingMessages.last)
-        #expect(sendingMessage.id == 3)
+        #expect(sendingMessage.id == 0)
         #expect(sendingMessage.text == "hello\nworld")
         #expect(
             sendingMessage.deliveryText
@@ -71,11 +71,11 @@ extension DemoTests {
             return message
         }
         let readMessage = try #require(
-            repliedMessages.first(where: { $0.id == 3 })
+            repliedMessages.first(where: { $0.id == 0 })
         )
         let reply = try #require(repliedMessages.last)
         #expect(readMessage.deliveryText == "localized.imessage.status.read")
-        #expect(reply.id == 4)
+        #expect(reply.id == 1)
         #expect(reply.direction == .incoming)
         #expect(reply.text == "localized.imessage.reply.1")
         #expect(
@@ -97,6 +97,8 @@ extension DemoTests {
             }
         )
 
+        viewModel.insertInitialHistory([.init(direction: .incoming,
+            content: .localized(key: "imessage.seed.incoming.1"))])
         #expect(viewModel.send("用户原始文本\nsecond line"))
         viewModel.cancelPendingReply()
         localization.prefix = "second"
@@ -113,14 +115,14 @@ extension DemoTests {
             messages.first(where: { $0.id == 0 })
         )
         let userMessage = try #require(
-            messages.first(where: { $0.id == 3 })
+            messages.first(where: { $0.id == 1 })
         )
         #expect(
             localizedSeed.text == "second.imessage.seed.incoming.1"
         )
         #expect(userMessage.text == "用户原始文本\nsecond line")
         #expect(!viewModel.state.isTyping)
-        #expect(viewModel.state.timeline.last?.id == .message(3))
+        #expect(viewModel.state.timeline.last?.id == .message(1))
     }
 
     @Test(.enabled(if: ChatTestAvailability.isSupported)) func chatAudioUsesOutgoingReplyAndReadLifecycle() async throws {
@@ -157,7 +159,7 @@ extension DemoTests {
             viewModel.state.timeline.compactMap {
                 item -> MessagePresentation? in
                 guard case .message(let message) = item.content,
-                      message.id == 3 else { return nil }
+                      message.id == 0 else { return nil }
                 return message
             }.first
         )
@@ -176,13 +178,13 @@ extension DemoTests {
             viewModel.state.timeline.compactMap {
                 item -> MessagePresentation? in
                 guard case .message(let message) = item.content,
-                      message.id == 3 else { return nil }
+                      message.id == 0 else { return nil }
                 return message
             }.first
         )
         #expect(readMessage.audio == attachment)
         #expect(readMessage.deliveryText == "localized.imessage.status.read")
-        #expect(viewModel.state.timeline.last?.id == .message(4))
+        #expect(viewModel.state.timeline.last?.id == .message(1))
     }
 
     @Test(.enabled(if: ChatTestAvailability.isSupported)) func chatTextReplyDoesNotStartAudioSynthesis() async throws {
@@ -283,8 +285,8 @@ extension DemoTests {
             guard case .message(let message) = item.content else { return nil }
             return message
         }
-        let sentMessage = try #require(messages.first(where: { $0.id == 3 }))
-        let reply = try #require(messages.first(where: { $0.id == 4 }))
+        let sentMessage = try #require(messages.first(where: { $0.id == 0 }))
+        let reply = try #require(messages.first(where: { $0.id == 1 }))
         #expect(sentMessage.deliveryText == "localized.imessage.status.read")
         #expect(reply.direction == .incoming)
         #expect(reply.audio == replyAttachment)
@@ -334,7 +336,7 @@ extension DemoTests {
             viewModel.state.timeline.compactMap {
                 item -> MessagePresentation? in
                 guard case .message(let message) = item.content,
-                      message.id == 4 else { return nil }
+                      message.id == 1 else { return nil }
                 return message
             }.first
         )
@@ -390,14 +392,14 @@ extension DemoTests {
         #expect(!viewModel.state.isProcessingMessages)
         #expect(
             !viewModel.state.timeline.contains(where: {
-                $0.id == .message(4)
+                $0.id == .message(1)
             })
         )
         let sentMessage = try #require(
             viewModel.state.timeline.compactMap {
                 item -> MessagePresentation? in
                 guard case .message(let message) = item.content,
-                      message.id == 3 else { return nil }
+                      message.id == 0 else { return nil }
                 return message
             }.first
         )
@@ -488,11 +490,11 @@ extension DemoTests {
             }
             return message
         }
-        #expect(messages.filter { $0.id >= 3 }.count == 4)
-        #expect(messages.filter { $0.id >= 3 && $0.direction == .incoming }
-            .map(\.id) == [5, 6])
-        #expect(messages.first(where: { $0.id == 5 })?.audio?.fileURL == firstURL)
-        #expect(messages.first(where: { $0.id == 6 })?.audio?.fileURL == replyURL)
+        #expect(messages.count == 4)
+        #expect(messages.filter { $0.direction == .incoming }
+            .map(\.id) == [2, 3])
+        #expect(messages.first(where: { $0.id == 2 })?.audio?.fileURL == firstURL)
+        #expect(messages.first(where: { $0.id == 3 })?.audio?.fileURL == replyURL)
     }
 
     @Test(.enabled(if: ChatTestAvailability.isSupported)) func chatRejectsInvalidAudioAndPreservesAudioOnLocalization()
@@ -536,7 +538,7 @@ extension DemoTests {
             viewModel.state.timeline.compactMap {
                 item -> AudioAttachment? in
                 guard case .message(let message) = item.content,
-                      message.id == 3 else { return nil }
+                      message.id == 0 else { return nil }
                 return message.audio
             }.first
         )

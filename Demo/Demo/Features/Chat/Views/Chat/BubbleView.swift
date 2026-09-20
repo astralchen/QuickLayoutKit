@@ -10,16 +10,17 @@ import UIKit
 /// 根据消息方向显示文本与圆角气泡轮廓的视图。
 final class BubbleView: QuickLayoutView {
 
-    /// 显示消息正文并支持动态字体的标签。
-    let messageLabel = UILabel()
+    /// 显示消息正文，并由系统识别电话、地址、网址和邮箱。
+    let messageTextView = MessageBodyTextView()
     /// 按消息方向裁剪气泡圆角的形状遮罩。
     private let bubbleMask = QuickLayoutShapeView(frame: .zero)
     /// 当前消息的接收或发出方向，用于确定气泡外观与语义对齐。
     private var direction: MessageDirection = .incoming
+    private var formattedText: MessageText?
 
     /// 定义 `BubbleView` 的布局层级、间距和对齐方式。
     override var body: Layout {
-        messageLabel
+        messageTextView
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
     }
@@ -29,13 +30,12 @@ final class BubbleView: QuickLayoutView {
     /// - Parameter frame: 在父视图坐标系中指定的初始边框。
     override init(frame: CGRect) {
         super.init(frame: frame)
-        messageLabel.font = .preferredFont(forTextStyle: .body)
-        messageLabel.adjustsFontForContentSizeCategory = true
-        messageLabel.numberOfLines = 0
-        messageLabel.textAlignment = .natural
+        messageTextView.font = .preferredFont(forTextStyle: .body)
+        messageTextView.adjustsFontForContentSizeCategory = true
+        messageTextView.textAlignment = .natural
         bubbleMask.fillColor = .black
         mask = bubbleMask
-        isAccessibilityElement = true
+        isAccessibilityElement = false
     }
 
     /// 不支持从归档创建 `BubbleView`。
@@ -54,15 +54,24 @@ final class BubbleView: QuickLayoutView {
     /// 应用消息文本、收发方向和辅助功能信息，并请求重新布局。
     func configure(_ message: MessagePresentation) {
         direction = message.direction
-        messageLabel.text = message.text
+        if case .richText(let text) = message.content { formattedText = text } else { formattedText = nil }
+        messageTextView.attributedText = nil
+        messageTextView.font = .preferredFont(forTextStyle: .body, compatibleWith: traitCollection)
+        messageTextView.text = message.text
         switch message.direction {
         case .incoming:
             backgroundColor = .secondarySystemFill
-            messageLabel.textColor = .label
+            messageTextView.textColor = .label
         case .outgoing:
             backgroundColor = .systemBlue
-            messageLabel.textColor = .white
+            messageTextView.textColor = .white
         }
+        messageTextView.linkTextAttributes = [
+            .foregroundColor: message.direction == .outgoing ? UIColor.white : UIColor.link,
+            .underlineStyle: NSUnderlineStyle.single.rawValue,
+        ]
+        renderFormattedText()
+        messageTextView.accessibilityLabel = message.text
         accessibilityLabel = message.text
         setNeedsQuickLayout()
         setNeedsLayout()
@@ -71,12 +80,31 @@ final class BubbleView: QuickLayoutView {
     /// 清空文本与辅助功能信息，恢复未配置的气泡状态。
     func reset() {
         direction = .incoming
-        messageLabel.text = nil
+        formattedText = nil
+        messageTextView.attributedText = nil
+        messageTextView.text = nil
+        messageTextView.accessibilityLabel = nil
         accessibilityLabel = nil
         backgroundColor = .clear
         bubbleMask.shape = nil
         bubbleMask.layoutIfNeeded()
         setNeedsQuickLayout()
+    }
+
+    private func renderFormattedText() {
+        guard let formattedText else { return }
+        messageTextView.attributedText = formattedText.attributedString(
+            font: .preferredFont(forTextStyle: .body, compatibleWith: traitCollection),
+            color: direction == .outgoing ? .white : .label
+        )
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        if previousTraitCollection?.preferredContentSizeCategory != traitCollection.preferredContentSizeCategory {
+            renderFormattedText()
+            setNeedsQuickLayout()
+        }
     }
 
     /// 根据当前边界和收发方向更新气泡遮罩路径。

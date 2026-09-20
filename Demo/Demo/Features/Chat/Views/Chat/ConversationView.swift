@@ -60,8 +60,10 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
     )
     /// 当前渲染版本，用于使旧列表完成回调失效。
     private var renderGeneration = 0
-    /// 指示首次加载或主动发送触发的滚动请求尚未执行的布尔值。
+    /// 初始加载或发送触发的底部滚动请求；跨越状态刷新保留至滚动完成。
     private var pendingExplicitScroll = false
+    /// 首次历史等待期间发生过拖动或发送时，批量插入应保留阅读位置。
+    private var hasInteractedWithTimeline = false
     /// 按消息和附件组合身份查询权威保存状态的回调。
     var attachmentSaveState: ((AttachmentSaveKey) -> AttachmentSaveState)?
     /// 最近一次渲染的完整状态，用于附件保存状态变化时重新配置列表。
@@ -169,6 +171,17 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
         MediaImageView.setContentActive(false, in: cell)
     }
 
+    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        hasInteractedWithTimeline = true
+        pendingExplicitScroll = false
+    }
+
+    /// 自适应高度可能在动画期间变化，完成后再对齐一次最终底部。
+    func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
+        guard pendingExplicitScroll else { return }
+        scrollToBottom(animated: false)
+    }
+
     /// 将完整时间线状态串行应用到列表，并按更新原因选择滚动与阅读锚点策略。
     ///
     /// 列表完成回调只应用最新渲染版本；局部状态更新不会丢弃尚未执行的主动滚动请求。
@@ -176,12 +189,27 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
         _ state: ChatViewModel.State,
         reason: ChatViewModel.UpdateReason
     ) {
+        let previousState = lastState
         lastState = state
+        if reason == .sentMessage { hasInteractedWithTimeline = true }
+        let preservesHistoryPosition = reason == .historyLoaded && hasInteractedWithTimeline
         if reason == .initial || reason == .sentMessage { pendingExplicitScroll = true }
-        let wasNearBottom = timelineCount == 0 || isNearBottom
-        let localizationAnchor = (reason == .attachmentSave || ((reason == .localization || reason == .audioTranscript || reason == .messageStatus) && !wasNearBottom))
+        if reason == .historyLoaded && !preservesHistoryPosition { pendingExplicitScroll = true }
+        let wasNearBottom = timelineCount == 0 || pendingExplicitScroll || isNearBottom
+        var localizationAnchor = (preservesHistoryPosition || reason == .attachmentSave || ((reason == .localization || reason == .audioTranscript || reason == .messageStatus) && !wasNearBottom))
             ? collectionView.captureLocalizationAnchor()
             : nil
+        // 历史插入会改变 IndexPath，必须先用旧时间线身份定位同一条消息。
+        if preservesHistoryPosition, let anchor = localizationAnchor {
+            if let previousState, previousState.timeline.indices.contains(anchor.indexPath.item),
+               let item = state.timeline.firstIndex(where: {
+                   $0.id == previousState.timeline[anchor.indexPath.item].id
+               }) {
+                localizationAnchor = .init(indexPath: IndexPath(item: item, section: 0),
+                    offsetFromViewportTop: anchor.offsetFromViewportTop,
+                    offsetFromViewportLeading: anchor.offsetFromViewportLeading)
+            } else { localizationAnchor = nil }
+        }
         timelineCount = state.timeline.count
         let mediaMessageIDs = Set(state.timeline.compactMap { item -> Int? in
             guard case .message(let message) = item.content,
@@ -219,6 +247,8 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
                 let shouldScroll: Bool = switch reason {
                 case .attachmentSave:
                     false
+                case .historyLoaded:
+                    !preservesHistoryPosition
                 case .initial, .sentMessage:
                     true
                 case .receivedMessage, .localization, .audioTranscript, .messageStatus:
@@ -245,7 +275,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
 
                     case .message(let message):
                         switch message.content {
-                        case .text:
+                        case .text, .richText:
                             Row(
                                 model: message,
                                 cell: BubbleCell.self
@@ -417,6 +447,8 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate {
         let section = collectionView.numberOfSections - 1
         let itemCount = collectionView.numberOfItems(inSection: section)
         guard itemCount > 0 else { return }
+        // 长历史中的滚动尚未抵达底部时，送达/已读刷新不得恢复中途的阅读锚点。
+        pendingExplicitScroll = animated && !isNearBottom
         collectionView.scrollToItem(
             at: IndexPath(item: itemCount - 1, section: section),
             at: .bottom,

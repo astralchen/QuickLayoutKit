@@ -27,6 +27,10 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
     /// 页面退出时取消测试资源导入，迟到结果不得插入已清理的会话。
     private var resourceFixtureTask: Task<Void, Never>?
     #endif
+    /// 只有正常页面入口加载完整历史；注入依赖的测试入口从空会话开始。
+    private var loadsInitialHistory = false
+    /// 首次历史加载任务；页面退出或释放时取消。
+    private var historyLoadingTask: Task<Void, Never>?
     var attachmentPreviewGeneration = 0
     weak var attachmentPreviewController: UIViewController?
     var attachmentPreviewSource: AttachmentPreviewRequest.Source?
@@ -86,6 +90,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
             audioController: audioController,
             attachmentStore: attachmentStore
         )
+        loadsInitialHistory = SampleChatHistory.isEnabled(arguments: ProcessInfo.processInfo.arguments)
     }
 
     /// 使用指定的视图模型和真实媒体控制器创建聊天视图控制器。
@@ -159,6 +164,38 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
         )
         super.init(coder: coder)
         (attachmentStore as? PageAttachmentStore)?.imageLoader = mediaImageLoader
+        loadsInitialHistory = SampleChatHistory.isEnabled(arguments: ProcessInfo.processInfo.arguments)
+    }
+
+    isolated deinit {
+        historyLoadingTask?.cancel()
+        // 正常入口独占页面目录；外部保留 ViewModel 时也不能延长附件文件生命周期。
+        if loadsInitialHistory { attachmentStore.removeAll() }
+    }
+
+    /// 异步准备历史资源，完成时仅向仍存活的页面提交一次。
+    private func loadInitialHistory() {
+        guard loadsInitialHistory, historyLoadingTask == nil else { return }
+        let store = attachmentStore
+        let localizer = viewModel.localizer
+        historyLoadingTask = Task { [weak self] in
+            do {
+                let entries = try await SampleChatHistory.load(store: store, localizer: localizer)
+                guard !Task.isCancelled, let self, !hasCleanedUpChat else {
+                    for entry in entries {
+                        if case .attachment(let attachment) = entry.content {
+                            attachment.localFileURLs.forEach { store.removeFile(at: $0) }
+                        }
+                    }
+                    return
+                }
+                viewModel.insertInitialHistory(entries)
+            } catch is CancellationError {
+                // 构建器负责删除当前批次尚未提交的文件。
+            } catch {
+                NSLog("[SampleChatHistory] load failed: %@", String(describing: error))
+            }
+        }
     }
 
     /// 定义 `ChatViewController` 的布局层级、间距和对齐方式。
@@ -230,6 +267,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
         }
         #endif
         bindViewModel()
+        loadInitialHistory()
         observeKeyboard()
         configureBottomObstruction()
         #if MEDIA_BENCHMARK
@@ -283,6 +321,8 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
         guard isLeavingChat, transitionCoordinator?.isCancelled != true,
               !hasCleanedUpChat else { return }
         hasCleanedUpChat = true
+        historyLoadingTask?.cancel()
+        historyLoadingTask = nil
         #if MEDIA_BENCHMARK
         mediaBenchmark?.cancel()
         mediaBenchmark = nil

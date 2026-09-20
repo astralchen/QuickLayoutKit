@@ -268,6 +268,8 @@ extension ChatViewController {
             case .attachment(let id):
                 guard let attachment = documentsByID[id] else { return false }
                 contents.append(.attachment(attachment))
+            case .richText(let text):
+                contents.append(.richText(text))
             case .text(let text):
                 if let url = PasteSource.webURL(in: text) {
                     contents.append(.attachment(.link(.init(url: url))))

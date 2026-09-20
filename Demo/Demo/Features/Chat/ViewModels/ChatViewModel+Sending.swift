@@ -76,6 +76,8 @@ extension ChatViewModel {
                 payloads.append(content)
             case .userText(let text):
                 if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { payloads.append(content) }
+            case .richText(let text):
+                if !text.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { payloads.append(content) }
             case .localized: return false
             }
         }

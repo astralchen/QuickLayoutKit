@@ -170,7 +170,7 @@ struct ChatPasteTests {
             card.frame = CGRect(x: 0, y: 0, width: 310, height: TextAttachment.height(for: card.traitCollection))
             card.setNeedsQuickLayout()
             card.layoutIfNeeded()
-            let button = try #require(descendants(card).compactMap { $0 as? UIButton }.first { $0.accessibilityIdentifier == "imessage.attachment.remove" })
+            let button = try #require(descendants(card).compactMap { $0 as? DraftRemoveButton }.first { $0.accessibilityIdentifier == "imessage.attachment.remove" })
             #expect(button.bounds.width >= 44 && button.bounds.height >= 44)
             let frame = button.convert(button.bounds, to: card)
             #expect(frame.maxX <= card.bounds.maxX && frame.maxX >= card.bounds.maxX - 8)

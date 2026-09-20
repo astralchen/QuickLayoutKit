@@ -57,6 +57,8 @@ nonisolated enum AttachmentKind: Equatable, Sendable {
 nonisolated enum DraftSegment: Equatable, Sendable {
     /// 编辑器中保留原始空格与换行的文字段。
     case text(String)
+    /// 保留原始空格、换行及局部文字格式的正文段。
+    case richText(MessageText)
     /// 按稳定标识符引用的内联附件段。
     case attachment(UUID)
 }

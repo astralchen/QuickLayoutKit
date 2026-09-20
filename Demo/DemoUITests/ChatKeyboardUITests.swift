@@ -9,6 +9,55 @@ final class ChatKeyboardUITests: XCTestCase {
     }
 
     @MainActor
+    func testFormattedTextMenuAndSending() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments += ["-imessage-basic-history"]
+        app.launchArguments += ["-AppleLanguages", "(en)", "-quicklayoutkit.demo.locale.identifier", "en"]
+        app.launch()
+        let route = app.cells["demo.imessage.title"]
+        XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
+        for _ in 0..<8 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
+        XCTAssertTrue(route.waitForExistence(timeout: 5))
+        route.tap()
+        let editor = app.textViews["imessage.composer.text"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        editor.tap()
+        editor.typeText("Hello rich text")
+        editor.press(forDuration: 1.2)
+        let selectAll = app.menuItems["Select All"]
+        if selectAll.waitForExistence(timeout: 2) { selectAll.tap() }
+        else {
+            let button = app.buttons["Select All"]
+            if button.waitForExistence(timeout: 1) { button.tap() }
+        }
+        let format = app.descendants(matching: .any).matching(identifier: "Text Format").firstMatch
+        for _ in 0..<3 where !format.exists {
+            let more = app.buttons["Next Page"]
+            if more.exists { more.tap() } else { break }
+        }
+        XCTAssertTrue(format.waitForExistence(timeout: 3))
+        format.tap()
+        let menuScreenshot = XCTAttachment(screenshot: app.screenshot())
+        menuScreenshot.name = "Text format selection menu"
+        menuScreenshot.lifetime = .keepAlways
+        add(menuScreenshot)
+        let bold = app.descendants(matching: .any).matching(identifier: "Bold").firstMatch
+        XCTAssertTrue(bold.waitForExistence(timeout: 3))
+        bold.tap()
+        let send = app.buttons["imessage.composer.send"]
+        XCTAssertTrue(send.waitForExistence(timeout: 3))
+        send.tap()
+        XCTAssertTrue(app.staticTexts["Hello rich text"].waitForExistence(timeout: 5)
+                      || app.otherElements["Hello rich text"].waitForExistence(timeout: 3))
+        XCTAssertEqual(editor.value as? String, "")
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Formatted message sent through selection menu"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
+    @MainActor
     func testLinkAttachmentRecordingHintRestoresCardAndKeyboard() throws {
         try verifyRecordingHint(language: "zh-Hans", audioTitle: "音频", draft: "", linkTitle: "链接")
     }
@@ -38,6 +87,7 @@ final class ChatKeyboardUITests: XCTestCase {
     ) throws {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchArguments += ["-imessage-basic-history"]
         app.launchArguments += [
             "-AppleLanguages", "(\(language))",
             "-quicklayoutkit.demo.locale.identifier", language,
@@ -110,6 +160,7 @@ final class ChatKeyboardUITests: XCTestCase {
     func testKeyboardToPhotoMenu() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchArguments += ["-imessage-basic-history"]
         app.launchArguments += [
             "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN",
             "-quicklayoutkit.demo.locale.identifier", "zh-Hans",

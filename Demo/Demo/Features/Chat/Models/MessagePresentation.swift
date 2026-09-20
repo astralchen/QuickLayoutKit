@@ -40,6 +40,16 @@ nonisolated struct MessagePresentation: Equatable, Sendable {
         self.deliveryState = direction == .outgoing ? deliveryState : nil
     }
 
+    /// 创建保留局部格式的文本展示模型。
+    init(id: Int, direction: MessageDirection, richText: MessageText, deliveryText: String?,
+         deliveryState: MessageDeliveryState? = nil) {
+        self.id = id
+        self.direction = direction
+        content = .richText(richText)
+        self.deliveryText = deliveryText
+        self.deliveryState = direction == .outgoing ? deliveryState : nil
+    }
+
     /// 创建附件消息的展示模型。
     ///
     /// - Parameters:
@@ -64,8 +74,11 @@ nonisolated struct MessagePresentation: Equatable, Sendable {
 
     /// 解析后的文本；消息包含任意附件时为空字符串。
     var text: String {
-        guard case .text(let text) = content else { return "" }
-        return text
+        switch content {
+        case .text(let text): text
+        case .richText(let text): text.text
+        case .attachment: ""
+        }
     }
 
     /// 音频附件；文本或其他类型附件返回 `nil`。
@@ -90,6 +103,8 @@ nonisolated struct MessagePresentation: Equatable, Sendable {
                 direction: direction,
                 deliveryState: deliveryState
             )
+        case .richText(let text):
+            .richText(value: text, deliveryText: deliveryText, direction: direction, deliveryState: deliveryState)
         case .attachment(let attachment):
             .attachment(
                 value: attachment,
@@ -105,6 +120,8 @@ nonisolated struct MessagePresentation: Equatable, Sendable {
 nonisolated enum MessagePresentationContent: Equatable, Sendable {
     /// 已经解析完成、可直接显示的文本。
     case text(String)
+    /// 已解析的局部格式文本。
+    case richText(MessageText)
     /// 由对应类型的消息单元格呈现的附件。
     case attachment(Attachment)
 }
@@ -124,6 +141,9 @@ nonisolated enum MessageRefreshIdentity:
         direction: MessageDirection,
         deliveryState: MessageDeliveryState? = nil
     )
+    /// 格式变化同样触发单元格刷新与重新测量。
+    case richText(value: MessageText, deliveryText: String?, direction: MessageDirection,
+                  deliveryState: MessageDeliveryState? = nil)
     /// 以附件值、送达文字、收发方向和发送状态共同判断附件消息是否需要刷新。
     case attachment(
         value: Attachment,

@@ -22,10 +22,10 @@ struct ChatEquivalentReplyTests {
         #expect(model.sendContents(payloads))
         #expect(model.send("后续消息"))
         #expect(await eventually { !model.state.isProcessingMessages })
-        let received = messages(model).filter { $0.id >= 3 && $0.direction == .incoming }
-        let outgoing = messages(model).filter { $0.id >= 3 && $0.direction == .outgoing }
+        let received = messages(model).filter { $0.direction == .incoming }
+        let outgoing = messages(model).filter { $0.direction == .outgoing }
         #expect(received.count == 6)
-        #expect(received.map(\.id) == [9, 10, 11, 12, 13, 14])
+        #expect(received.map(\.id) == [6, 7, 8, 9, 10, 11])
         guard received.count == 6 else { return }
         let media = try #require(received[0].attachment?.mediaGroup)
         #expect(media.id != group.id)
@@ -55,7 +55,7 @@ struct ChatEquivalentReplyTests {
         #expect(outgoing.last?.deliveryText == "imessage.status.read")
         let snapshot = received.map(\.attachment)
         model.refreshLocalizedContent()
-        #expect(messages(model).filter { $0.id >= 3 && $0.direction == .incoming }.map(\.attachment) == snapshot)
+        #expect(messages(model).filter { $0.direction == .incoming }.map(\.attachment) == snapshot)
     }
 
     @Test(arguments: [false, true])
@@ -106,7 +106,7 @@ struct ChatEquivalentReplyTests {
         #expect(await eventually { await gate.count == 3 })
         await gate.releaseFirst()
         #expect(await eventually { !model.state.isProcessingMessages })
-        #expect(messages(model).filter { $0.id >= 3 && $0.direction == .incoming }.map(\.id) == [6])
+        #expect(messages(model).filter { $0.direction == .incoming }.map(\.id) == [3])
     }
 
     @Test func invalidBatchDoesNotQueuePartialReplies() async throws {
@@ -119,7 +119,7 @@ struct ChatEquivalentReplyTests {
         defer { model.cancelPendingReply() }
         #expect(!model.sendContents([.userText("text"), .attachment(.file(invalid))]))
         #expect(!model.state.isProcessingMessages)
-        #expect(messages(model).count == 3)
+        #expect(messages(model).isEmpty)
     }
 
     @available(iOS 26.0, *)

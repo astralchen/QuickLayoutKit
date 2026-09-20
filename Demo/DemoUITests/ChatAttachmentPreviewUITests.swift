@@ -121,7 +121,9 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         XCTAssertTrue(badge.waitForExistence(timeout: 5))
         XCTAssertEqual(badge.value as? String, "实况")
         app.cells["imessage.preview.thumbnail.0"].tap()
-        XCTAssertEqual(badge.value as? String, "实况已关闭")
+        // 切页动画完成后才提交当前项目，徽标在相邻实况页上也一直存在。
+        expectation(for: NSPredicate(format: "value == %@", "实况已关闭"), evaluatedWith: badge)
+        waitForExpectations(timeout: 5)
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         XCTAssertTrue(badge.waitForNonExistence(timeout: 5))
         captureLivePhoto(app, "实况-iPhoneSE-沉浸")

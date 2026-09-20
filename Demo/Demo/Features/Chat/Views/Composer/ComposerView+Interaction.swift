@@ -49,8 +49,10 @@ extension ComposerView {
             guard !isShowingRecordingUnavailableHint, hasSendableContent else { return }
             let text = plainDraftText
             let accepted: Bool
-            if !textAttachments.isEmpty {
-                accepted = actionRequested?(.sendDocuments(draftSegments)) == true
+            let segments = draftSegments
+            let hasFormatting = segments.contains { if case .richText = $0 { return true }; return false }
+            if !textAttachments.isEmpty || hasFormatting {
+                accepted = actionRequested?(.sendDocuments(segments)) == true
             } else if mediaDraft != nil {
                 accepted = actionRequested?(.sendMediaDraft(text)) == true
             } else {
@@ -60,7 +62,7 @@ extension ComposerView {
             for attachment in textAttachments.values { attachment.open = nil; attachment.remove = nil }
             textAttachments.removeAll()
             textView.text = nil
-            resetTypingAttributes()
+            resetTypingAttributes(preservingFormatting: false)
             updateComposerState()
             updateTextHeight(animated: true)
         }

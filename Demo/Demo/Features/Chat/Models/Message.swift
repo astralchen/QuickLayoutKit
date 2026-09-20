@@ -34,6 +34,8 @@ nonisolated enum MessageContent: Equatable, Hashable, Sendable {
     case localized(key: String)
     /// 保留用户输入内容的普通文本。
     case userText(String)
+    /// 保留局部格式的用户文本。
+    case richText(MessageText)
     /// 由页面附件存储管理的本地附件。
     case attachment(Attachment)
 }
@@ -50,4 +52,12 @@ nonisolated struct Message: Equatable, Hashable, Sendable {
     let sentAt: Date
     /// 发出消息的发送状态；收到的消息通常为 `nil`。
     var deliveryState: MessageDeliveryState?
+}
+
+/// 待插入当前会话的历史消息内容，由视图模型分配本地身份和时间线位置。
+///
+/// 与历史数据来源无关；加载历史不会触发发送或模拟回复。
+nonisolated struct MessageHistoryEntry: Sendable {
+    let direction: MessageDirection
+    let content: MessageContent
 }

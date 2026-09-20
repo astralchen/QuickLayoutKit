@@ -29,6 +29,8 @@ final class ChatViewModel {
     enum UpdateReason: Equatable {
         /// 首次绑定时发布完整初始状态。
         case initial
+        /// 首次历史准备完成，按用户是否已交互决定保持锚点或滚动到底部。
+        case historyLoaded
         /// 当前用户追加了发出消息。
         case sentMessage
         /// 时间线追加了收到的消息。
@@ -81,6 +83,8 @@ final class ChatViewModel {
     var messages: [Message]
     /// 下一条新增消息将使用的递增标识符。
     var nextMessageID: Int
+    /// 防止首次历史加载重复完成时再次插入消息。
+    private var hasInsertedInitialHistory = false
     /// 串行处理模拟回复队列的任务；空闲时为 `nil`。
     var pendingReplyTask: Task<Void, Never>?
     /// 按发送顺序保存的待回复消息身份与回复类型。
@@ -137,7 +141,7 @@ final class ChatViewModel {
         )
     }
 
-    /// 使用可注入依赖创建聊天视图模型，并生成初始示例消息。
+    /// 使用可注入依赖创建聊天视图模型，初始消息列表为空。
     ///
     /// - Parameters:
     ///   - localizer: 用于解析资源键的本地化服务。
@@ -166,31 +170,8 @@ final class ChatViewModel {
         self.messageSender = messageSender ?? SimulatedMessageSender.liveDemo()
         self.readReceiptsEnabled = readReceiptsEnabled
 
-        let now = clock()
-        messages = [
-            Message(
-                id: 0,
-                direction: .incoming,
-                content: .localized(key: "imessage.seed.incoming.1"),
-                sentAt: now.addingTimeInterval(-8 * 60),
-                deliveryState: nil
-            ),
-            Message(
-                id: 1,
-                direction: .outgoing,
-                content: .localized(key: "imessage.seed.outgoing.1"),
-                sentAt: now.addingTimeInterval(-7 * 60),
-                deliveryState: .read
-            ),
-            Message(
-                id: 2,
-                direction: .incoming,
-                content: .localized(key: "imessage.seed.incoming.2"),
-                sentAt: now.addingTimeInterval(-6 * 60),
-                deliveryState: nil
-            ),
-        ]
-        nextMessageID = 3
+        messages = []
+        nextMessageID = 0
         state = State(timeline: [], isTyping: false)
         state = makeState()
     }
@@ -199,6 +180,21 @@ final class ChatViewModel {
     deinit {
         pendingReplyTask?.cancel()
         sendTasks.values.forEach { $0.cancel() }
+    }
+
+    /// 在会话开头批量插入首次加载的历史，保留期间新增的消息和发送任务。
+    func insertInitialHistory(_ entries: [MessageHistoryEntry]) {
+        guard !hasInsertedInitialHistory else { return }
+        hasInsertedInitialHistory = true
+        let date = messages.first?.sentAt ?? clock()
+        let history = entries.enumerated().map { offset, entry in
+            Message(id: nextMessageID + offset, direction: entry.direction, content: entry.content,
+                    sentAt: date.addingTimeInterval(Double(offset - entries.count)),
+                    deliveryState: entry.direction == .outgoing ? .read : nil)
+        }
+        nextMessageID += history.count
+        messages.insert(contentsOf: history, at: 0)
+        publish(reason: .historyLoaded)
     }
 
     #if DEBUG

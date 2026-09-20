@@ -495,8 +495,8 @@ struct ChatMediaTests {
         )
 
         let messages = messagePresentations(in: viewModel.state)
-        let media = try #require(messages.first(where: { $0.id == 3 }))
-        let text = try #require(messages.first(where: { $0.id == 4 }))
+        let media = try #require(messages.first(where: { $0.id == 0 }))
+        let text = try #require(messages.first(where: { $0.id == 1 }))
         #expect(media.mediaGroup == fixture.group)
         #expect(media.deliveryText == "localized.imessage.status.sending")
         #expect(text.text == "  caption  ")
@@ -522,11 +522,11 @@ struct ChatMediaTests {
 
         let sent = try #require(
             messagePresentations(in: viewModel.state)
-                .first(where: { $0.id == 3 })
+                .first(where: { $0.id == 0 })
         )
         #expect(sent.mediaGroup == fixture.group)
         #expect(sent.deliveryText == "localized.imessage.status.sending")
-        #expect(!messagePresentations(in: viewModel.state).contains { $0.id == 4 })
+        #expect(!messagePresentations(in: viewModel.state).contains { $0.id == 1 })
         viewModel.cancelPendingReply()
     }
 
@@ -539,7 +539,7 @@ struct ChatMediaTests {
         #expect(viewModel.sendMediaGroup(fixture.group, followedByText: ""))
         let sent = try #require(
             messagePresentations(in: viewModel.state)
-                .first(where: { $0.id == 3 })
+                .first(where: { $0.id == 0 })
         )
         #expect(sent.mediaGroup?.items.count == 20)
         #expect(sent.mediaGroup?.items.map(\.id) == fixture.group.items.map(\.id))

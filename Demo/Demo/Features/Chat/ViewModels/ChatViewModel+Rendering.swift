@@ -68,6 +68,11 @@ extension ChatViewModel {
                     deliveryText: deliveryText,
                     deliveryState: message.deliveryState
                 )
+            case .richText(let text):
+                presentation = MessagePresentation(
+                    id: message.id, direction: message.direction, richText: text,
+                    deliveryText: deliveryText, deliveryState: message.deliveryState
+                )
             case .localized, .userText:
                 presentation = MessagePresentation(
                     id: message.id,
@@ -110,6 +115,8 @@ extension ChatViewModel {
             localizer.text(key)
         case .userText(let text):
             text
+        case .richText(let text):
+            text.text
         case .attachment:
             ""
         }

@@ -13,6 +13,7 @@ final class ChatAudioCardUITests: XCTestCase {
     func testTypingAfterTwoLoadedLinkPreviews() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchArguments += ["-imessage-basic-history"]
         app.launchArguments += ["-AppleLanguages", "(en)", "-quicklayoutkit.demo.locale.identifier", "zh-Hans"]
         app.launch()
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
@@ -77,6 +78,7 @@ final class ChatAudioCardUITests: XCTestCase {
             if pasteboard.changeCount == fixtureChange { pasteboard.items = originalItems }
         }
         let app = XCUIApplication()
+        app.launchArguments += ["-imessage-basic-history"]
         app.launchArguments += ["-AppleLanguages", "(en)", "-quicklayoutkit.demo.locale.identifier", language]
         if largeText { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
         app.launch()
@@ -150,6 +152,7 @@ final class ChatAudioCardUITests: XCTestCase {
     func testLinkCardAndTextSendAsSeparateMessages() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchArguments += ["-imessage-basic-history"]
         app.launchArguments += ["-AppleLanguages", "(zh-Hans)", "-quicklayoutkit.demo.locale.identifier", "zh-Hans"]
         app.launch()
         let route = app.cells["demo.imessage.title"]
@@ -186,6 +189,7 @@ final class ChatAudioCardUITests: XCTestCase {
     func testInterleavedTextAndAttachmentsSendInEditorOrder() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchArguments += ["-imessage-basic-history"]
         app.launchArguments += ["-AppleLanguages", "(en)", "-quicklayoutkit.demo.locale.identifier", "zh-Hans"]
         app.launch()
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
@@ -239,6 +243,7 @@ final class ChatAudioCardUITests: XCTestCase {
     ) throws {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchArguments += ["-imessage-basic-history"]
         app.launchArguments += ["-AppleLanguages", "(zh-Hans)", "-quicklayoutkit.demo.locale.identifier", language]
         if largeText {
             app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
