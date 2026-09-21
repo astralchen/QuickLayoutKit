@@ -127,6 +127,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
 
     /// 消息 Cell 请求页面级操作时调用。
     var actionRequested: ((MessageAction) -> Void)?
+    var menuPreviewCoordinator: MessageMenuPreviewCoordinator?
     var menuSaveState: ((MessageMenuTarget) -> AttachmentSaveState)?
 
     /// 重新查询可见 Cell；收回媒体组前同步封面而不移动列表。
@@ -610,7 +611,11 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         menu.configure(host: host, accessibilityView: accessibilityView, source: source, items: { [weak self] target in
             guard let self, let message = self.message(for: target) else { return [] }
             return MessageMenuPolicy.items(for: message, target: target, saveState: menuSaveState?(target) ?? .available)
-        }, perform: { [weak self] operation, target in
+        }, previewProvider: { [weak self] target, source in
+            self?.menuPreviewCoordinator?.makePreview(target, source: source)
+        }, canPreview: { [weak self] in self?.menuPreviewCoordinator?.canPreview($0) == true },
+           openPreview: { [weak self] in self?.menuPreviewCoordinator?.openAccessiblePreview($0) },
+           perform: { [weak self] operation, target in
             self?.actionRequested?(.menu(operation, target))
         })
     }

@@ -19,6 +19,7 @@ extension ChatViewController {
         viewModel.bind { [weak self] state, reason in
             guard let self else { return }
             conversationView.render(state, reason: reason)
+            menuPreviewCoordinator.validate()
             audioTranscription.enqueue(state, locale: SpeechConfiguration.recognitionLocale(
                 for: Localization.localizationController.currentLocale.locale
             ))

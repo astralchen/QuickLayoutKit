@@ -37,8 +37,10 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
             loading.resizable().frame(width: 44, height: 44)
         }
     }
-    private var documentTop: CGFloat { max(documentTopInset, max(88, safeAreaInsets.top + 72)) }
-    private var documentBottom: CGFloat { max(24, safeAreaInsets.bottom + 12) }
+    var isMenuPreview = false
+    private var liveAutoplayAllowed: (() -> Bool)?
+    private var documentTop: CGFloat { isMenuPreview ? 0 : max(documentTopInset, max(88, safeAreaInsets.top + 72)) }
+    private var documentBottom: CGFloat { isMenuPreview ? 0 : max(24, safeAreaInsets.bottom + 12) }
     private(set) var pdfView: PDFView?
     private(set) var textView: UITextView?
     private let messageLabel = UILabel()
@@ -129,6 +131,7 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
         if item.isLivePhoto, let playbackCoordinator {
             let player = AttachmentLivePhotoPlayer(coordinator: playbackCoordinator)
             player.didFail = { [weak self] in self?.showLivePhotoError() }
+            player.didBecomeReady = { [weak self] in self?.attemptLiveAutoplay() }
             livePhotoPlayer = player
             imageView.addSubview(player.view)
             imageView.addSubview(player.effect.view)
@@ -335,7 +338,36 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
         updateLivePhotoEligibility()
     }
 
-    func stopLivePhotoPlayback() { livePhotoPlayer?.stop() }
+    func stopLivePhotoPlayback() { liveAutoplayAllowed = nil; livePhotoPlayer?.stop() }
+
+    func autoplayLivePhotoOnce(whenAllowed: @escaping () -> Bool) {
+        liveAutoplayAllowed = whenAllowed
+        attemptLiveAutoplay()
+    }
+
+    private func attemptLiveAutoplay() {
+        guard isOriginalActive, livePhotoPlayer?.isReady == true, let allowed = liveAutoplayAllowed else { return }
+        liveAutoplayAllowed = nil
+        if allowed() { livePhotoPlayer?.play() }
+    }
+
+    /// 菜单退出时结束原件、GIF、PDF 与实况任务，保留最后画面供系统收回动画使用。
+    func cancelLoadingPreservingDisplay() {
+        // ImageIO 的逐帧图像可能复用解码缓冲区；退出动画需要独立像素快照。
+        let image = imageView.image.map { image in
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = max(1, traitCollection.displayScale)
+            let scale = min(1, min(max(1, bounds.width) / image.size.width, max(1, bounds.height) / image.size.height))
+            let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+            return UIGraphicsImageRenderer(size: size, format: format).image { _ in
+                image.draw(in: CGRect(origin: .zero, size: size))
+            }
+        }
+        suspendImages()
+        imageView.image = image
+        imageTask?.cancel(); imageTask = nil
+        stopLivePhotoPlayback()
+    }
 
     private func updateLivePhotoEligibility() {
         let active = isOriginalActive && livePhotoMode != .off && representedItem?.isLivePhoto == true
@@ -425,6 +457,7 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
     }
     /// 取消页面加载并清除仅属于当前项目的观察者。
     func reset() {
+        liveAutoplayAllowed = nil
         suspendImages()
         livePhotoPlayer?.unload()
         livePhotoPlayer?.view.removeFromSuperview()

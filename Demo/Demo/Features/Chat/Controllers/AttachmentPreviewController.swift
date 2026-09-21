@@ -87,6 +87,7 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     private var didCompleteDismissal = false
     /// 首次展开完成时仅消费一次自动播放机会，避免取消关闭或返回页面时覆盖手动暂停。
     private var didCompleteInitialAppearance = false
+    var initialPlayback: MessagePreviewPlayback?
     private var accessibilityObservers: [NSObjectProtocol] = []
     /// 当前项目对应的可见来源，转场发生时重新求值。
     var sourceResolver: ((Int, Bool) -> UIView?)?
@@ -185,7 +186,13 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
         updateOriginalEligibility()
         if !didCompleteInitialAppearance {
             didCompleteInitialAppearance = true
-            autoplayCurrentVideo()
+            if let initialPlayback, currentItem?.isLivePhoto == true {
+                self.initialPlayback = nil
+                if initialPlayback.playLivePhoto {
+                    currentPage?.autoplayLivePhotoOnce { [weak self] in self?.view.window != nil && self?.didCompleteDismissal == false }
+                }
+            } else if initialPlayback != nil { applyInitialPlaybackIfReady() }
+            else { autoplayCurrentVideo() }
         }
         UIAccessibility.post(notification: .screenChanged, argument: chrome.closeButton)
     }
@@ -400,7 +407,15 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
         chrome.updateMenu(UIMenu(children: actions))
     }
     /// 只传递播放器状态快照，UI 更新不得重新绑定视频输出。
+    private func applyInitialPlaybackIfReady() {
+        guard didCompleteInitialAppearance, let initialPlayback, currentItem?.kind == .video,
+              playback.player?.currentItem?.status == .readyToPlay else { return }
+        self.initialPlayback = nil
+        playback.restore(initialPlayback)
+    }
+
     private func refreshPlayback() {
+        applyInitialPlaybackIfReady()
         chrome.updatePlayback(time: playback.time, duration: playback.duration,
                               isPlaying: playback.isPlaying, isMuted: playback.isMuted, isSeeking: playback.isSeeking)
     }

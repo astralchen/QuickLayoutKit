@@ -5406,6 +5406,29 @@
         }
       }
     },
+    "imessage.menu.webUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تعذرت معاينة صفحة الويب"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to Preview Webpage"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法预览网页"
+          }
+        }
+      }
+    },
     "imessage.menu.share" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -29,6 +29,18 @@ extension ChatViewController {
         }
     }
 
+    func openMenuPreview(_ target: MessageMenuTarget, playback: MessagePreviewPlayback?) {
+        guard !hasCleanedUpChat, let message = conversationView.message(for: target),
+              case .attachment(let attachment) = message.content else { return }
+        let index: Int
+        if case .mediaGroup(let group) = attachment {
+            guard let selected = group.items.firstIndex(where: { $0.id == target.mediaItemID }) else { return }
+            index = selected
+        } else { index = 0 }
+        openAttachmentPreview(.init(attachment: attachment, initialIndex: index,
+                                    source: .message(target.messageID), initialPlayback: playback))
+    }
+
     private func shareMessage(_ message: MessagePresentation, target: MessageMenuTarget) {
         guard presentedViewController == nil, view.window != nil else { return }
         do {

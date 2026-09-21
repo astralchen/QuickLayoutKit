@@ -37,7 +37,12 @@ final class ChatMessageMenuUITests: XCTestCase {
     }
 
     @MainActor private func capture(_ app: XCUIApplication, _ name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
+        if name.contains("preview") {
+            let settled = expectation(description: "Preview drawing completes")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { settled.fulfill() }
+            wait(for: [settled], timeout: 2)
+        }
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = "MessageMenu-" + name
         attachment.lifetime = .keepAlways
         add(attachment)
@@ -190,6 +195,175 @@ final class ChatMessageMenuUITests: XCTestCase {
         text.press(forDuration: 1.1)
         XCTAssertTrue(menu("copy", in: app).waitForExistence(timeout: 4))
         XCTAssertFalse(app.buttons["Send Again"].exists)
+    }
+
+    @MainActor private func preview(in app: XCUIApplication) -> XCUIElement {
+        let content = app.descendants(matching: .any).matching(identifier: "imessage.menu.preview").firstMatch
+        // iOS 26 的菜单只向 UI 自动化暴露系统预览容器；iOS 27 还包含离屏内容控制器。
+        return content.exists ? content : app.otherElements.matching(NSPredicate(format: "label IN %@", ["Preview", "预览"])).firstMatch
+    }
+
+    @MainActor private func tapPreview(in app: XCUIApplication) {
+        // UIKit 将内容控制器放在屏幕外渲染，实际命中对象是系统预览容器。
+        let container = app.otherElements.matching(NSPredicate(format: "label IN %@", ["Preview", "预览"])).firstMatch
+        XCTAssertTrue(container.waitForExistence(timeout: 4))
+        container.tap()
+    }
+
+    @MainActor private func assertPreviewAspectRatio(_ ratio: CGFloat, in app: XCUIApplication) {
+        let container = app.otherElements.matching(NSPredicate(format: "label IN %@", ["Preview", "预览"])).firstMatch
+        XCTAssertTrue(container.waitForExistence(timeout: 5))
+        expectation(for: NSPredicate { _, _ in
+            let frame = container.frame
+            return frame.height > 0 && abs(frame.width / frame.height - ratio) < 0.015
+        }, evaluatedWith: container)
+        waitForExpectations(timeout: 10)
+    }
+
+    @MainActor func testImageGIFAndRotatedVideoFilePreviewAspectRatios() throws {
+        for (fixture, ratio) in [("preview-image-file", 0.75), ("preview-gif-file", 1.0), ("preview-video-file", 0.75)] {
+            let app = open(["-imessage-save-fixture", fixture])
+            let file = app.buttons["imessage.attachment.file.card"]
+            XCTAssertTrue(file.waitForExistence(timeout: 10))
+            file.press(forDuration: 1.1)
+            assertPreviewAspectRatio(ratio, in: app)
+            XCTAssertTrue(menu("share", in: app).exists)
+            capture(app, fixture + "-aspect-preview")
+            tapPreview(in: app)
+            XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 8))
+            app.terminate()
+        }
+    }
+
+    @MainActor private func waitForPreviewMotion(in app: XCUIApplication) {
+        let container = app.otherElements.matching(NSPredicate(format: "label IN %@", ["Preview", "预览"])).firstMatch
+        XCTAssertTrue(container.waitForExistence(timeout: 6))
+        let first = container.screenshot().pngRepresentation
+        expectation(for: NSPredicate { _, _ in container.screenshot().pngRepresentation != first }, evaluatedWith: container)
+        waitForExpectations(timeout: 8)
+    }
+
+    @MainActor func testPhotoPreviewCommitsCurrentGroupItem() throws {
+        let app = open(["-imessage-save-fixture", "stack5"])
+        let media = app.descendants(matching: .any).matching(identifier: "imessage.media.message").firstMatch
+        XCTAssertTrue(media.waitForExistence(timeout: 10))
+        media.swipeLeft()
+        media.press(forDuration: 1.1)
+        XCTAssertTrue(preview(in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(menu("save", in: app).exists)
+        capture(app, "photo-content-preview")
+        tapPreview(in: app)
+        XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 8))
+        XCTAssertEqual(app.staticTexts["imessage.preview.position"].label, "Item 2 of 5")
+        capture(app, "photo-preview-committed")
+        app.buttons["imessage.media.preview.close"].tap()
+        XCTAssertTrue(media.waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testVideoPreviewAutoplaysAndCommits() throws {
+        let app = open(["-imessage-save-fixture", "resources-draft"])
+        let media = app.descendants(matching: .any).matching(identifier: "imessage.media.message").firstMatch
+        XCTAssertTrue(media.waitForExistence(timeout: 15))
+        media.press(forDuration: 1.1)
+        let content = preview(in: app)
+        XCTAssertTrue(content.waitForExistence(timeout: 6))
+        waitForPreviewMotion(in: app)
+        capture(app, "video-playing-preview")
+        tapPreview(in: app)
+        XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 8))
+        capture(app, "video-preview-committed")
+        app.buttons["imessage.media.preview.close"].tap()
+    }
+
+    @MainActor func testBundledVideoWithAudioPreviewStopsOnDismissal() throws {
+        let app = open(["-imessage-save-fixture", "resources-draft"])
+        let media = app.descendants(matching: .any).matching(identifier: "imessage.media.message").firstMatch
+        XCTAssertTrue(media.waitForExistence(timeout: 20))
+        media.press(forDuration: 1.1)
+        let content = preview(in: app)
+        XCTAssertTrue(content.waitForExistence(timeout: 6))
+        waitForPreviewMotion(in: app)
+        capture(app, "audible-video-playing")
+        app.navigationBars.firstMatch.tap()
+        XCTAssertTrue(content.waitForNonExistence(timeout: 5))
+        capture(app, "audible-video-dismissed")
+    }
+
+    @MainActor func testMediaPreviewLandscapeRTLAndLargeText() throws {
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let app = open(["-imessage-save-fixture", "stack5",
+                        "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"], locale: "ar")
+        let media = app.descendants(matching: .any).matching(identifier: "imessage.media.message").firstMatch
+        XCTAssertTrue(media.waitForExistence(timeout: 15))
+        let visible = media.frame.intersection(app.collectionViews["imessage.timeline"].frame)
+        XCTAssertFalse(visible.isNull)
+        app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: visible.midX, dy: visible.midY)).press(forDuration: 1.1)
+        XCTAssertTrue(preview(in: app).waitForExistence(timeout: 6))
+        capture(app, "landscape-rtl-large-preview")
+        tapPreview(in: app)
+        XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 8))
+        app.buttons["imessage.media.preview.close"].tap()
+        XCTAssertTrue(media.waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testLivePhotoWithAudioPreviewAndDismissal() throws {
+        let app = open(["-imessage-save-fixture", "resources-live-audio"])
+        let media = app.descendants(matching: .any).matching(identifier: "imessage.media.message").firstMatch
+        XCTAssertTrue(media.waitForExistence(timeout: 20))
+        media.press(forDuration: 1.1)
+        XCTAssertTrue(preview(in: app).waitForExistence(timeout: 6))
+        XCTAssertTrue(app.buttons["Share Originals"].exists)
+        let container = app.otherElements.matching(NSPredicate(format: "label IN %@", ["Preview", "预览"])).firstMatch
+        XCTAssertTrue(container.waitForExistence(timeout: 4))
+        // 包内实况照片为 480 × 640；系统最终展示的预览也必须保持 3:4。
+        XCTAssertEqual(container.frame.width / container.frame.height, 0.75, accuracy: 0.015)
+        capture(app, "audible-live-preview")
+        app.navigationBars.firstMatch.tap()
+        XCTAssertTrue(preview(in: app).waitForNonExistence(timeout: 4))
+        capture(app, "audible-live-dismissed")
+        media.press(forDuration: 1.1)
+        XCTAssertTrue(preview(in: app).waitForExistence(timeout: 6))
+        tapPreview(in: app)
+        XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 8))
+        capture(app, "audible-live-committed")
+        app.buttons["imessage.media.preview.close"].tap()
+    }
+
+    @MainActor func testPDFPreviewAndAudioFileFallback() throws {
+        var app = open(["-imessage-save-fixture", "document"])
+        var file = app.buttons["imessage.attachment.file.card"]
+        XCTAssertTrue(file.waitForExistence(timeout: 8))
+        file.press(forDuration: 1.1)
+        XCTAssertTrue(preview(in: app).waitForExistence(timeout: 5))
+        assertPreviewAspectRatio(1.5, in: app)
+        capture(app, "pdf-content-preview")
+        tapPreview(in: app)
+        XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 8))
+        app.terminate()
+        app = open(["-imessage-save-fixture", "audio"])
+        file = app.buttons["imessage.attachment.file.card"]
+        XCTAssertTrue(file.waitForExistence(timeout: 8))
+        file.press(forDuration: 1.1)
+        XCTAssertTrue(menu("share", in: app).waitForExistence(timeout: 4))
+        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "imessage.menu.preview").firstMatch.exists)
+        capture(app, "audio-file-no-preview")
+    }
+
+    @MainActor func testWebPreviewLoadsRealPageAndCancels() throws {
+        let app = open(["-imessage-menu-fixture", "-imessage-menu-web"])
+        let card = app.buttons["imessage.attachment.link.card"]
+        XCTAssertTrue(card.waitForExistence(timeout: 8))
+        card.press(forDuration: 1.1)
+        XCTAssertTrue(preview(in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Open Link"].exists)
+        let web = app.webViews["imessage.menu.preview.web"]
+        XCTAssertTrue(web.waitForExistence(timeout: 20))
+        XCTAssertTrue(web.links.firstMatch.waitForExistence(timeout: 20), "The actual webpage must load beyond the title placeholder")
+        capture(app, "web-content-preview")
+        app.navigationBars.firstMatch.tap()
+        XCTAssertTrue(preview(in: app).waitForNonExistence(timeout: 5))
+        XCTAssertTrue(card.exists)
     }
 
     /// 使用包内生成的实况／GIF 原件，真实等待 Photos 写入成功后的菜单完成反馈。

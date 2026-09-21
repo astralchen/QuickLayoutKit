@@ -839,3 +839,27 @@ UI 用例已加入 `ChatRegression`；`-imessage-menu-fixture` 仅在 Debug 中�
 
 真实 Photos 写入用例默认跳过；显式设置 `TEST_RUNNER_CHAT_MENU_PHOTOS_WRITE=1` 后，
 `testSaveCurrentLivePhotoAndGIFToPhotos` 会向所选设备相册新增两项测试资源（实况照片与 GIF）。
+
+### 菜单内内容预览
+
+`MessageMenuPreviewPolicy` 独立决定内容预览能力，`MessageMenuPreviewCoordinator` 为菜单锁定目标，
+`MessageMenuPreviewController` 通过原生 `previewProvider` 承载单项内容。文字及音频气泡只高亮原气泡。
+图片读取原件、GIF 自动循环、视频和实况在预览显示且准备完成后自动带声音播放一次；
+录音、听写及语音准备期间不抢占采集会话。菜单关闭、页面退出、后台或中断均结束播放与加载。
+
+预览复用现有附件内容页、图片加载器和播放协调器；PDF／文本展示首页／首屏，其他系统支持的
+文件使用 Quick Look 内容缩略图，音频文件及不支持的类型保留卡片。文件菜单仍使用文件导出语义。
+媒体预览外框按原始显示尺寸等比约束到窗口可用范围；文件加载后使用已处理方向的图片尺寸、
+视频 `presentationSize`、旋转后的 PDF 首页或 Quick Look 缩略图尺寸更新。文本和网页保留阅读视口。
+点击预览等待菜单动画结束后进入完整浏览器，媒体组按稳定项目身份定位；视频交接播放时间和状态，
+实况重新播放一次。VoiceOver 通过“打开预览”进入完整内容。
+
+链接卡片使用独立的非持久化 `WKWebView` 加载 HTTP(S) 网页，15 秒超时后展示局部失败状态。
+预览不接受网页内部操作，不启动下载、外部 App、登录弹窗或网页自动音视频；点击预览由系统浏览器
+打开原始 URL。菜单关闭即停止加载并释放 WebView；正文识别链接继续沿用原有点击／长按规则。
+
+`ChatMessageMenuPreviewTests` 检查实际播放器、GIF 帧、实况原声配置、网页内容与生命周期；
+`ChatMessageMenuUITests` 覆盖原生内容预览、点击展开、当前项目、文件回退和真实网页加载。
+调试参数 `-imessage-menu-fixture -imessage-menu-web` 增加 Apple 链接卡片用于真实网页验收。
+`-imessage-save-fixture resources-live-audio` 为包内无声实况样例追加已有示例音轨，并保留照片／视频配对元数据，
+用于验证有声实况路径；包内原始资源保持不变。

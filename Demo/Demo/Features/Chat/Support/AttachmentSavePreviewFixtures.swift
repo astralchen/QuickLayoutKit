@@ -20,14 +20,14 @@ enum AttachmentSavePreviewFixtures {
         case "resources-heic": kind = "image"
         case "resources-video": kind = "video"
         case "resources-pdf": kind = "document"
-        case "resources-draft", "resources-live", "resources-live-single": kind = "mixed"
+        case "resources-draft", "resources-live", "resources-live-single", "resources-live-audio": kind = "mixed"
         default: throw CocoaError(.fileReadUnsupportedScheme)
         }
         guard let directory = Bundle.main.url(forResource: "AttachmentPreviewResources", withExtension: "bundle") else {
             throw CocoaError(.fileNoSuchFile)
         }
         let sources: [URL]
-        if name == "resources-live-single" {
+        if name == "resources-live-single" || name == "resources-live-audio" {
             sources = [directory.appendingPathComponent("live-photo.jpg")]
         } else if name == "resources-live" {
             sources = ["live-photo.jpg", "preview-image-02.png", "preview-image-01.gif", "live-photo.jpg"]
@@ -69,9 +69,16 @@ enum AttachmentSavePreviewFixtures {
                 isVideo: kind == "video" || source.lastPathComponent.hasPrefix("preview-video-"))
             try Task.checkCancellation()
             let pairedVideo: URL?
-            if ["resources-live", "resources-live-single"].contains(name), source.lastPathComponent == "live-photo.jpg" {
+            if ["resources-live", "resources-live-single", "resources-live-audio"].contains(name), source.lastPathComponent == "live-photo.jpg" {
                 pairedVideo = try store.importFile(at: directory.appendingPathComponent("live-photo.mov"), prefix: "live-video", pathExtension: nil)
                 created.append(pairedVideo!)
+                if name == "resources-live-audio", let pairedVideo {
+                    let output = store.makeFileURL(prefix: "audible-live", pathExtension: "mov")
+                    created.append(output)
+                    try await addLivePhotoAudio(video: pairedVideo, audio: directory.appendingPathComponent("default-message.caf"), output: output)
+                    try FileManager.default.removeItem(at: pairedVideo)
+                    try FileManager.default.moveItem(at: output, to: pairedVideo)
+                }
             } else { pairedVideo = nil }
             items.append(.init(assetIdentifier: nil, originalFileURL: original,
                 thumbnailFileURL: thumbnail, pixelSize: metadata.pixelSize, kind: metadata.kind,
@@ -84,14 +91,44 @@ enum AttachmentSavePreviewFixtures {
         return attachment
     }
 
+    /// 原始实况示例没有音轨；验收样例保留照片标识和 timed metadata，加入随包语音的前三秒。
+    @available(iOS 17.0, *)
+    private static func addLivePhotoAudio(video: URL, audio: URL, output: URL) async throws {
+        let asset = AVURLAsset(url: video)
+        let voice = AVURLAsset(url: audio)
+        let composition = AVMutableComposition()
+        let duration = try await asset.load(.duration)
+        for track in try await asset.load(.tracks) {
+            guard let destination = composition.addMutableTrack(withMediaType: track.mediaType, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+                throw CocoaError(.fileWriteUnknown)
+            }
+            let range = try await track.load(.timeRange)
+            try destination.insertTimeRange(range, of: track, at: range.start)
+            destination.preferredTransform = try await track.load(.preferredTransform)
+        }
+        guard let voiceTrack = try await voice.loadTracks(withMediaType: .audio).first,
+              let destination = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid),
+              let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        let voiceDuration = try await voice.load(.duration)
+        try destination.insertTimeRange(CMTimeRange(start: .zero, duration: CMTimeMinimum(duration, voiceDuration)), of: voiceTrack, at: .zero)
+        exporter.metadata = try await asset.load(.metadata)
+        exporter.outputURL = output
+        exporter.outputFileType = .mov
+        await exporter.export()
+        guard exporter.status == .completed else { throw exporter.error ?? CocoaError(.fileWriteUnknown) }
+    }
+
     /// 为页内播放 UI 测试生成固定十秒视频，不读取相册或网络。
-    static func videoAttachment(store: any AttachmentStoring) async throws -> Attachment {
+    static func videoAttachment(store: any AttachmentStoring, transform: CGAffineTransform = .identity) async throws -> Attachment {
         let url = store.makeFileURL(prefix: "preview-video", pathExtension: "mov")
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
         defer { if writer.status == .writing { writer.cancelWriting() } }
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
             AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: 320, AVVideoHeightKey: 240,
         ])
+        input.transform = transform
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
             kCVPixelBufferWidthKey as String: 320, kCVPixelBufferHeightKey as String: 240,
@@ -119,7 +156,9 @@ enum AttachmentSavePreviewFixtures {
             UIColor.gray.setFill(); context.fill(CGRect(x: 0, y: 0, width: 320, height: 240))
         }
         try image.pngData()?.write(to: thumbnail)
-        let attachment = Attachment.mediaGroup(.init(items: [.init(assetIdentifier: nil, originalFileURL: url, thumbnailFileURL: thumbnail, pixelSize: image.size, kind: .video(duration: 10))]))
+        let displayed = image.size.applying(transform)
+        let attachment = Attachment.mediaGroup(.init(items: [.init(assetIdentifier: nil, originalFileURL: url, thumbnailFileURL: thumbnail,
+            pixelSize: CGSize(width: abs(displayed.width), height: abs(displayed.height)), kind: .video(duration: 10))]))
         store.registerCommitted(attachment)
         return attachment
     }
@@ -180,6 +219,15 @@ enum AttachmentSavePreviewFixtures {
             try audio.write(from: buffer)
             attachment = .file(.init(id: UUID(), fileURL: url, displayName: "Audio Message.caf",
                 typeIdentifier: "com.apple.coreaudio-format", byteCount: 64_000))
+        case "preview-image-file", "preview-gif-file":
+            let isGIF = arguments[index + 1] == "preview-gif-file"
+            guard let directory = Bundle.main.url(forResource: "AttachmentPreviewResources", withExtension: "bundle") else {
+                throw CocoaError(.fileNoSuchFile)
+            }
+            let source = directory.appendingPathComponent(isGIF ? "preview-image-01.gif" : "live-photo.jpg")
+            let url = try store.importFile(at: source, prefix: "preview-file", pathExtension: nil)
+            attachment = .file(.init(id: UUID(), fileURL: url, displayName: source.lastPathComponent,
+                typeIdentifier: isGIF ? "com.compuserve.gif" : "public.jpeg", byteCount: 0))
         case "preview-rtf":
             let url = store.makeFileURL(prefix: "preview-system", pathExtension: "rtf")
             let data = Data("{\\rtf1\\ansi Quick Look compatibility preview.}".utf8)

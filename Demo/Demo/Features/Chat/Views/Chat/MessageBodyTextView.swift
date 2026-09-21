@@ -24,7 +24,7 @@ final class MessageBodyTextView: UITextView, UITextViewDelegate {
         isSelectingMessageText = false
         if #available(iOS 16.0, *) { (selectionMenu as? UIEditMenuInteraction)?.dismissMenu() }
         selectedTextRange = nil
-        resignFirstResponder()
+        _ = resignFirstResponder()
     }
 
     override func resignFirstResponder() -> Bool {

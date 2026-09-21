@@ -18,6 +18,10 @@ final class MessageMenuInteraction: NSObject, UIContextMenuInteractionDelegate {
     private var items: ((MessageMenuTarget) -> [MessageMenuItem])?
     private var perform: ((MessageMenuOperation, MessageMenuTarget) -> Void)?
     private var preview: UITargetedPreview?
+    private var contentPreview: MessageMenuPreviewController?
+    private var previewProvider: ((MessageMenuTarget, UIView) -> MessageMenuPreviewController?)?
+    private var canPreview: ((MessageMenuTarget) -> Bool)?
+    private var openPreview: ((MessageMenuTarget) -> Void)?
     private var displayedTarget: MessageMenuTarget?
     private var accessibilityActions: [UIAccessibilityCustomAction] = []
     private var pendingAction: (() -> Void)?
@@ -25,6 +29,9 @@ final class MessageMenuInteraction: NSObject, UIContextMenuInteractionDelegate {
     func configure(host: UIView, accessibilityView: UIView? = nil,
                    source: @escaping () -> Source?,
                    items: @escaping (MessageMenuTarget) -> [MessageMenuItem],
+                   previewProvider: ((MessageMenuTarget, UIView) -> MessageMenuPreviewController?)? = nil,
+                   canPreview: ((MessageMenuTarget) -> Bool)? = nil,
+                   openPreview: ((MessageMenuTarget) -> Void)? = nil,
                    perform: @escaping (MessageMenuOperation, MessageMenuTarget) -> Void) {
         if self.host !== host {
             self.host?.removeInteraction(interaction)
@@ -34,11 +41,19 @@ final class MessageMenuInteraction: NSObject, UIContextMenuInteractionDelegate {
         self.source = source
         self.items = items
         self.perform = perform
+        self.previewProvider = previewProvider
+        self.canPreview = canPreview
+        self.openPreview = openPreview
         self.accessibilityView = accessibilityView ?? host
         refreshAccessibility()
     }
 
     func reset() {
+        contentPreview?.finish()
+        contentPreview = nil
+        previewProvider = nil
+        canPreview = nil
+        openPreview = nil
         source = nil
         items = nil
         perform = nil
@@ -55,6 +70,13 @@ final class MessageMenuInteraction: NSObject, UIContextMenuInteractionDelegate {
                 self.perform?(item.operation, current.target)
                 return true
             }
+        }
+        if canPreview?(source.target) == true {
+            accessibilityActions.append(UIAccessibilityCustomAction(name: Localization.text("imessage.media.openPreview")) { [weak self] _ in
+                guard let self, let source = self.source?(), source.canPresent else { return false }
+                self.openPreview?(source.target)
+                return true
+            })
         }
         accessibilityView?.accessibilityCustomActions = (accessibilityView?.accessibilityCustomActions ?? []) + accessibilityActions
         if let displayedTarget {
@@ -76,7 +98,11 @@ final class MessageMenuInteraction: NSObject, UIContextMenuInteractionDelegate {
         parameters.visiblePath = source.path
         preview = UITargetedPreview(view: source.view, parameters: parameters)
         displayedTarget = source.target
-        return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+        return UIContextMenuConfiguration(identifier: nil, previewProvider: { [weak self] in
+            guard let self else { return nil }
+            if contentPreview == nil { contentPreview = previewProvider?(source.target, source.view) }
+            return contentPreview
+        }) { [weak self] _ in
             self?.makeMenu(for: source.target)
         }
     }
@@ -109,8 +135,18 @@ final class MessageMenuInteraction: NSObject, UIContextMenuInteractionDelegate {
         return preview
     }
 
+    func contextMenuInteraction(_ interaction: UIContextMenuInteraction,
+                                willPerformPreviewActionForMenuWith configuration: UIContextMenuConfiguration,
+                                animator: any UIContextMenuInteractionCommitAnimating) {
+        guard let action = contentPreview?.commitAction() else { return }
+        animator.preferredCommitStyle = .dismiss
+        animator.addCompletion(action)
+    }
+
     func contextMenuInteraction(_ interaction: UIContextMenuInteraction, willEndFor configuration: UIContextMenuConfiguration,
                                 animator: (any UIContextMenuInteractionAnimating)?) {
+        contentPreview?.finish()
+        contentPreview = nil
         let action = pendingAction
         pendingAction = nil
         displayedTarget = nil

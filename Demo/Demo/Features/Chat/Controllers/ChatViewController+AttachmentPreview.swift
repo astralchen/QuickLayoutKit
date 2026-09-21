@@ -49,7 +49,12 @@ extension ChatViewController {
             switch request.source {
             case .documentDraft(let id): guard documentController.drafts[id]?.status == .ready else { return }
             case .photoDraft(let id): guard photoController.draft?.groupID == id else { return }
-            case .message: break
+            case .message(let id):
+                guard let message = viewModel.state.timeline.compactMap({ row -> MessagePresentation? in
+                    guard case .message(let message) = row.content, message.id == id else { return nil }; return message
+                }).first, case .attachment(let current) = message.content, current.id == request.attachment.id else { return }
+                if items.indices.contains(request.initialIndex), case .mediaGroup(let group) = current,
+                   !group.items.contains(where: { $0.id == items[request.initialIndex].id }) { return }
             }
             let restore: () -> Void = { [weak self] in
                 guard let self else { return }
@@ -72,6 +77,7 @@ extension ChatViewController {
                     items[0] = .init(id: item.id, url: item.url, thumbnailURL: item.thumbnailURL, title: item.title, kind: .unavailable)
                 }
                 let preview = AttachmentPreviewController(items: items, initialIndex: request.initialIndex, playbackCoordinator: audioController.playbackCoordinator, imageLoader: mediaImageLoader)
+                preview.initialPlayback = request.initialPlayback
                 preview.didClose = restore
                 preview.sourceResolver = { [weak self] index, synchronize in
                     guard let self else { return nil }

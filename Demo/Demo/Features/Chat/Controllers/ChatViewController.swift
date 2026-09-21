@@ -230,6 +230,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
             }
         }
         attachmentSaveCoordinator.failed = { [weak self] error in self?.presentAttachmentSaveFailure(error) }
+        conversationView.menuPreviewCoordinator = menuPreviewCoordinator
         conversationView.menuSaveState = { [weak self] in self?.menuSaveCoordinator.state(for: $0) ?? .available }
         menuSaveCoordinator.failed = { [weak self] in self?.presentAttachmentSaveFailure($0) }
         menuSaveCoordinator.changed = { [weak self] in self?.conversationView.refreshMenuAccessibility() }
@@ -242,9 +243,13 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
                 .init(direction: .outgoing, content: .richText(.init(runs: [.init("Bold menu text", style: .bold)])))
             ])
         }
+        if arguments.contains("-imessage-menu-web") {
+            let url = URL(string: "https://www.apple.com")!
+            viewModel.appendSavePreviewAttachment(.link(.init(url: url, title: "Apple")))
+        }
         if let index = arguments.firstIndex(of: "-imessage-save-fixture"),
            arguments.indices.contains(index + 1),
-           ["resources", "resources-video", "resources-pdf", "resources-heic", "resources-draft", "resources-live", "resources-live-single"].contains(arguments[index + 1]) {
+           ["resources", "resources-video", "resources-pdf", "resources-heic", "resources-draft", "resources-live", "resources-live-single", "resources-live-audio"].contains(arguments[index + 1]) {
             resourceFixtureTask = Task { [weak self] in
                 guard let self else { return }
                 do {
@@ -268,10 +273,16 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
                 else if case .file(let file) = fixture { documentController.importDocument(file.fileURL) }
             } else { viewModel.appendSavePreviewAttachment(fixture) }
         }
-        if ProcessInfo.processInfo.arguments.contains("preview-video") {
+        let previewVideoFile = ProcessInfo.processInfo.arguments.contains("preview-video-file")
+        if ProcessInfo.processInfo.arguments.contains("preview-video") || previewVideoFile {
             Task { [weak self] in
-                guard let self, let fixture = try? await AttachmentSavePreviewFixtures.videoAttachment(store: attachmentStore), !hasCleanedUpChat else { return }
-                viewModel.appendSavePreviewAttachment(fixture)
+                guard let self, let fixture = try? await AttachmentSavePreviewFixtures.videoAttachment(
+                    store: attachmentStore, transform: previewVideoFile ? CGAffineTransform(rotationAngle: .pi / 2) : .identity),
+                    !hasCleanedUpChat else { return }
+                if previewVideoFile, let item = fixture.mediaGroup?.items.first {
+                    viewModel.appendSavePreviewAttachment(.file(.init(id: UUID(), fileURL: item.originalFileURL,
+                        displayName: "Portrait.mov", typeIdentifier: "com.apple.quicktime-movie", byteCount: 0)))
+                } else { viewModel.appendSavePreviewAttachment(fixture) }
             }
         }
         #endif
@@ -296,6 +307,15 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
     /// 管理附件保存操作、状态反馈和页面退出失效的协调器。
     let attachmentSaveCoordinator = AttachmentSaveCoordinator()
     let menuSaveCoordinator = MessageMenuSaveCoordinator()
+    lazy var menuPreviewCoordinator = MessageMenuPreviewCoordinator(
+        imageLoader: mediaImageLoader, playbackCoordinator: audioController.playbackCoordinator,
+        resolve: { [weak self] target in
+            guard let self, !hasCleanedUpChat else { return nil }
+            return conversationView.message(for: target)
+        }, allowsAutoplay: { [weak self] in
+            guard let self, !hasCleanedUpChat else { return false }
+            return MessageMenuPreviewPolicy.allowsAutoplay(composer: audioController.state)
+        }, open: { [weak self] target, playback in self?.openMenuPreview(target, playback: playback) })
     /// 指示页面或其父容器正在退出聊天层级的布尔值。
     private var isLeavingChat = false
     /// 指示页面退出清理已经执行的布尔值，防止重复取消和删除资源。
@@ -347,6 +367,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
         (activePreview as? AttachmentPreviewController)?.completeDismissal()
         activePreview?.dismiss(animated: false)
         attachmentSaveCoordinator.invalidate()
+        menuPreviewCoordinator.invalidate()
         menuSaveCoordinator.invalidate()
         composerView.dismissRecordingUnavailableHint()
         composerView.pasteCoordinator.invalidate()
