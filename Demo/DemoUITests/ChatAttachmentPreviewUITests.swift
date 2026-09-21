@@ -738,6 +738,77 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         missing.buttons["imessage.media.preview.close"].tap()
     }
 
+    @MainActor func testPhotoSheetPullDownPreservesDraftAndReopens() {
+        let app = chat(fixture: "stack2", extra: ["-imessage-preview-draft"])
+        let composer = app.otherElements["imessage.composer"]
+        let restingBottom = composer.frame.maxY
+        let text = app.textViews["imessage.composer.text"]
+        text.tap()
+        text.typeText("Keep draft after dismissal")
+        app.buttons["imessage.composer.attachment"].tap()
+        app.buttons["照片"].tap()
+        let grabber = app.buttons["表单控制柄"]
+        XCTAssertTrue(grabber.waitForExistence(timeout: 10))
+        let originalY = grabber.frame.midY
+        let originalComposerBottom = composer.frame.maxY
+        let thumbnail = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "imessage.composer.media.preview.")).firstMatch
+        let thumbnailID = thumbnail.identifier
+        capture(app, "下拉收起-展开与草稿")
+
+        // 小幅慢拖后停留，系统应取消关闭并恢复原位。
+        let start = grabber.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5))
+        start.press(forDuration: 0.05, thenDragTo: start.withOffset(.init(dx: 0, dy: 20)),
+                    withVelocity: .slow, thenHoldForDuration: 0.5)
+        XCTAssertTrue(grabber.exists)
+        XCTAssertEqual(grabber.frame.midY, originalY, accuracy: 2)
+        XCTAssertEqual(composer.frame.maxY, originalComposerBottom, accuracy: 2)
+        capture(app, "下拉收起-短拖回弹")
+
+        let bottom = app.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.98))
+        grabber.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.05, thenDragTo: bottom, withVelocity: .slow, thenHoldForDuration: 0.2)
+        XCTAssertTrue(grabber.waitForNonExistence(timeout: 5))
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        XCTAssertEqual(composer.frame.maxY, restingBottom, accuracy: 2)
+        XCTAssertEqual(text.value as? String, "Keep draft after dismissal")
+        XCTAssertTrue(app.buttons[thumbnailID].exists)
+        capture(app, "下拉收起-保留草稿与底部安全区")
+
+        app.buttons["imessage.composer.attachment"].tap()
+        app.buttons["照片"].tap()
+        XCTAssertTrue(grabber.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons[thumbnailID].exists)
+        XCTAssertEqual(grabber.frame.midY, originalY, accuracy: 2)
+        capture(app, "下拉收起-重新打开")
+        // 展开到大档，慢拖回原来的小档，再继续拖动关闭。
+        grabber.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.15)),
+                   withVelocity: .slow, thenHoldForDuration: 0.3)
+        XCTAssertLessThan(grabber.frame.midY, originalY - 100)
+        capture(app, "下拉收起-大档")
+        grabber.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: .zero)
+                .withOffset(.init(dx: app.frame.midX, dy: originalY)),
+                   withVelocity: .slow, thenHoldForDuration: 0.5)
+        XCTAssertTrue(grabber.exists)
+        XCTAssertEqual(grabber.frame.midY, originalY, accuracy: 2)
+        grabber.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.05, thenDragTo: bottom, withVelocity: .slow, thenHoldForDuration: 0.2)
+        XCTAssertTrue(grabber.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(composer.frame.maxY, restingBottom, accuracy: 2)
+        XCTAssertTrue(app.buttons[thumbnailID].exists)
+
+        // 再次打开后切换回文字键盘，验证主动关闭仍使用相同的收尾路径。
+        app.buttons["imessage.composer.attachment"].tap()
+        app.buttons["照片"].tap()
+        XCTAssertTrue(grabber.waitForExistence(timeout: 10))
+        text.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(grabber.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(text.value as? String, "Keep draft after dismissal")
+        capture(app, "下拉收起-重开后切键盘")
+    }
+
     @MainActor func testPhotoSheetRemainsAtItsDetent() {
         let app = chat(fixture: "stack2", extra: ["-imessage-preview-draft"])
         let text = app.textViews["imessage.composer.text"]
@@ -750,7 +821,11 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         let before = grabber.frame.midY
         let thumbnail = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "imessage.composer.media.preview.")).firstMatch
         XCTAssertTrue(thumbnail.waitForExistence(timeout: 5))
-        thumbnail.tap()
+        // 系统照片扩展展示时 AX 可能把未被遮挡的输入栏标记为不可点击。
+        // 先确认缩略图完整处于面板上方，再按可见屏幕坐标点击。
+        XCTAssertLessThan(thumbnail.frame.maxY, grabber.frame.minY)
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(.init(dx: thumbnail.frame.midX, dy: thumbnail.frame.midY)).tap()
         XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 10))
         capture(app, "照片面板上打开预览")
         app.buttons["imessage.media.preview.close"].tap()
@@ -798,6 +873,21 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
             XCTAssertEqual(grabber.frame.midY, before, accuracy: 1)
             capture(app, "连续选图-第\(batch)批后")
         }
+    }
+
+    /// 输入栏使用真实的实况、静态图和 GIF 混排，角标只属于实况照片。
+    @MainActor func testComposerLivePhotoBadgesExcludeGIFAndStillImages() {
+        let app = chat(fixture: "resources-live", extra: ["-imessage-preview-draft"])
+        let previews = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "imessage.composer.media.preview."))
+        XCTAssertTrue(previews.firstMatch.waitForExistence(timeout: 10))
+        let strip = app.otherElements["imessage.composer.mediaStrip"]
+        XCTAssertTrue(strip.exists)
+        // 初始展示队尾的 GIF 和实况照片，再滚到队首检查实况与普通图片。
+        capture(app, "输入栏角标-GIF与实况")
+        strip.swipeRight()
+        capture(app, "输入栏角标-实况与普通图片")
+        let badges = app.images.matching(identifier: "imessage.composer.media.livePhotoBadge")
+        XCTAssertTrue(badges.firstMatch.exists)
     }
 
     /// 真实资源混排与键盘显示状态下，删除到空的高度变化及 RTL 外观。

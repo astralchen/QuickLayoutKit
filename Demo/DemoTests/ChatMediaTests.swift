@@ -136,6 +136,63 @@ struct ChatMediaTests {
         }
     }
 
+    /// 同一草稿身份从实况切换到 GIF、静态图、视频或导入占位时，不得残留实况角标。
+    @Test(arguments: [false, true])
+    func draftLivePhotoBadgeClearsAcrossContentChanges(rtl: Bool) async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 4, videoIndices: [3], animatedIndices: [1], liveIndices: [0])
+        defer { fixture.remove() }
+        let strip = MediaDraftStripView(frame: CGRect(x: 0, y: 100, width: 240, height: 156))
+        strip.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
+        let window = try makeDraftTestWindow()
+        defer { window.isHidden = true }
+        window.rootViewController!.view.addSubview(strip)
+        let id = UUID()
+        func apply(_ content: MediaDraftItemContent) async throws {
+            strip.configure(.init(groupID: fixture.group.id, items: [.init(id: id, assetIdentifier: nil, content: content)]),
+                            strings: mediaStrings, animated: false)
+            for _ in 0..<20 where strip.isUpdatingPresentation {
+                strip.layoutIfNeeded()
+                try await Task.sleep(for: .milliseconds(10))
+            }
+            strip.layoutIfNeeded()
+            #expect(!strip.isUpdatingPresentation)
+        }
+        func badge(in view: UIView) -> UIView? {
+            if view.accessibilityIdentifier == "imessage.composer.media.livePhotoBadge" { return view }
+            return view.subviews.lazy.compactMap { badge(in: $0) }.first
+        }
+        try await apply(.ready(fixture.group.items[0]))
+        let liveCard = try #require(strip.previewSource(id: id))
+        liveCard.layoutIfNeeded()
+        let liveBadge = try #require(badge(in: liveCard))
+        #expect(!liveBadge.isHidden)
+        #expect(strip.livePhotoBadgeItemIDs == [id])
+        let frame = liveBadge.convert(liveBadge.bounds, to: liveCard)
+        #expect(liveCard.bounds.contains(frame))
+        #expect(rtl ? frame.midX > liveCard.bounds.midX : frame.midX < liveCard.bounds.midX)
+
+        for index in [1, 2, 3] {
+            try await apply(.ready(fixture.group.items[index]))
+            let card = try #require(strip.previewSource(id: id))
+            card.layoutIfNeeded()
+            #expect(strip.livePhotoBadgeItemIDs.isEmpty)
+            #expect(liveBadge.isHidden || !liveBadge.isDescendant(of: card))
+            #expect(badge(in: card).map(\.isHidden) ?? true)
+            if index == 1 { #expect(card.accessibilityLabel?.contains(mediaStrings.animatedImage) == true) }
+            if index == 2 { #expect(card.accessibilityLabel?.contains(mediaStrings.image) == true) }
+        }
+        try await apply(.ready(fixture.group.items[0]))
+        let restoredCard = try #require(strip.previewSource(id: id))
+        restoredCard.layoutIfNeeded()
+        let restoredBadge = try #require(badge(in: restoredCard))
+        #expect(!restoredBadge.isHidden)
+        try await apply(.importing)
+        #expect(strip.previewSource(id: id) == nil)
+        #expect(strip.livePhotoBadgeItemIDs.isEmpty)
+        #expect(restoredBadge.isHidden || !restoredBadge.isDescendant(of: strip))
+    }
+
     @Test func draftVideoDurationKeepsContrastBackgroundWithQuickLayout() throws {
         guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 1, videoIndices: [0])
@@ -711,7 +768,7 @@ struct ChatMediaTests {
         )
     }
 
-    @Test func composerRendersScaledDraftItemsAnimatedBadgeAndHairline() throws {
+    @Test func composerRendersScaledDraftItemsLivePhotoBadgeAndHairline() throws {
         guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(
             itemCount: 3,
@@ -720,7 +777,8 @@ struct ChatMediaTests {
                 CGSize(width: 1000, height: 1000),
                 CGSize(width: 1600, height: 900),
             ],
-            animatedIndices: [1]
+            animatedIndices: [1],
+            liveIndices: [2]
         )
         defer { fixture.remove() }
         let draft = MediaDraftPresentation(
@@ -754,8 +812,8 @@ struct ChatMediaTests {
         #expect(itemFrames[1].minX - itemFrames[0].maxX == 6)
         #expect(itemFrames[2].minX - itemFrames[1].maxX == 6)
         #expect(
-            composer.mediaDraftStripView.animatedBadgeItemIDs
-                == [fixture.group.items[1].id]
+            composer.mediaDraftStripView.livePhotoBadgeItemIDs
+                == [fixture.group.items[2].id]
         )
 
         let stripFrame = composer.mediaDraftStripView.convert(
@@ -1360,6 +1418,85 @@ struct ChatMediaTests {
         controller.picker = PHPickerViewController(configuration: PHPickerConfiguration())
         controller.picker(oldPicker, didFinishPicking: [])
         #expect(controller.draft?.items.map(\.id) == fixture.group.items.map(\.id))
+    }
+
+    /// 系统关闭和主动关闭都只隐藏面板，保留已选资源及尚未完成的导入。
+    @Test(arguments: [false, true])
+    func photoDismissalPreservesDraftAndIgnoresStaleCallbacks(interactive: Bool) async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 2)
+        defer { fixture.remove() }
+        let store = PageAttachmentStore()
+        defer { store.removeAll() }
+        let controller = PhotoPickerController(attachmentStore: store)
+        controller.applyPreviewFixture(fixture.group)
+        let entry = try #require(controller.entries.last)
+        let progress = Progress(totalUnitCount: 100)
+        entry.content = .importing
+        entry.progress = progress
+        let task = Task<Void, Never> { try? await Task.sleep(for: .seconds(60)) }
+        entry.task = task
+        defer { task.cancel() }
+        controller.pendingImports = [.init(provider: NSItemProvider(), entry: entry, generation: controller.generation)]
+        let originalDraft = try #require(controller.draft)
+        let generation = controller.generation
+        let presenter = UIViewController()
+        let window = try makeVisibleTestWindow(rootViewController: presenter)
+        defer { window.isHidden = true }
+        var dismissCount = 0
+        var stateChangeCount = 0
+        controller.pickerDidDismiss = {
+            dismissCount += 1
+            #expect(!controller.isPresented)
+            #expect(controller.picker == nil)
+        }
+        controller.stateDidChange = { _ in stateChangeCount += 1 }
+        controller.present(from: presenter, keyboardHeight: 300)
+        try await Task.sleep(for: .milliseconds(600))
+        let host = try #require(presenter.presentedViewController)
+        let presentation = try #require(host.presentationController)
+        let oldPicker = try #require(controller.picker)
+        #expect(!host.isModalInPresentation)
+        if interactive {
+            // 手势本身由 UI 测试覆盖；这里验证系统关闭完成回调的生命周期语义。
+            await withCheckedContinuation { continuation in
+                host.dismiss(animated: false) { continuation.resume() }
+            }
+            controller.presentationControllerDidDismiss(presentation)
+        } else {
+            await withCheckedContinuation { continuation in
+                controller.dismissPicker(animated: false) { continuation.resume() }
+            }
+        }
+        controller.presentationControllerDidDismiss(presentation)
+        controller.picker(oldPicker, didFinishPicking: [])
+        #expect(dismissCount == 1)
+        #expect(stateChangeCount == 0)
+        #expect(!controller.isPresented)
+        #expect(controller.picker == nil)
+        #expect(controller.draft?.groupID == originalDraft.groupID)
+        #expect(controller.draft?.items.map(\.id) == originalDraft.items.map(\.id))
+        #expect(controller.generation == generation)
+        #expect(controller.pendingImports.count == 1)
+        #expect(!progress.isCancelled)
+        #expect(!task.isCancelled)
+        #expect(fixture.group.localFileURLs.allSatisfy { FileManager.default.fileExists(atPath: $0.path) })
+
+        controller.present(from: presenter, keyboardHeight: 300)
+        try await Task.sleep(for: .milliseconds(600))
+        let newPicker = try #require(controller.picker)
+        #expect(newPicker !== oldPicker)
+        #expect(newPicker.configuration.preselectedAssetIdentifiers == controller.entries.compactMap(\.assetIdentifier))
+        controller.presentationControllerDidDismiss(presentation)
+        controller.picker(oldPicker, didFinishPicking: [])
+        #expect(controller.isPresented)
+        #expect(controller.picker === newPicker)
+        #expect(dismissCount == 1)
+        #expect(stateChangeCount == 0)
+        await withCheckedContinuation { continuation in
+            controller.dismissPicker(animated: false) { continuation.resume() }
+        }
+        #expect(dismissCount == 2)
     }
 
     /// 提交消费草稿并保留面板实例与档位，后续丢弃空草稿不能删除已发送原件。

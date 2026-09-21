@@ -200,7 +200,6 @@ final class PhotoPickerController: NSObject,
         let picker = PHPickerViewController(configuration: configuration)
         picker.delegate = self
         let sheetHost = SheetHostController(picker: picker)
-        sheetHost.isModalInPresentation = true
         sheetHost.modalPresentationStyle = .pageSheet
         if let sheet = sheetHost.sheetPresentationController {
             configureDetents(of: sheet)
@@ -234,9 +233,7 @@ final class PhotoPickerController: NSObject,
         }
         sheetHost.dismiss(animated: animated) { [weak self] in
             // 动画完成前保留面板引用，供协调器逐帧读取位置，避免关闭开始时直接落底。
-            self?.pickerDidDismiss?()
-            self?.picker = nil
-            self?.sheetHost = nil
+            self?.finishDismissing(sheetHost)
             completion?()
         }
     }
@@ -313,6 +310,15 @@ final class PhotoPickerController: NSObject,
 
     /// 将系统面板关闭事件转发给页面协调层。
     func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        finishDismissing(presentationController.presentedViewController)
+    }
+
+    /// 系统手势和主动关闭共用收尾；取消手势不进入这里，旧面板也不能清理新面板。
+    private func finishDismissing(_ dismissedHost: UIViewController) {
+        guard sheetHost === dismissedHost else { return }
+        picker = nil
+        sheetHost = nil
+        // 先清理再通知，允许观察者在回调中重新打开面板。
         pickerDidDismiss?()
     }
 

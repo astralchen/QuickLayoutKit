@@ -4,6 +4,7 @@
 //
 
 import AVKit
+import AppLocalization
 import ImageIO
 import QuickLayout
 import QuickLayoutKit
@@ -62,8 +63,8 @@ final class MediaDraftStripView: QuickLayoutView, MediaDraftCollectionViewLayout
         }
     }
     var renderedItemIDs: [UUID] { dataSource.snapshot().itemIdentifiers }
-    var animatedBadgeItemIDs: Set<UUID> {
-        Set(displayedItems.compactMap { $0.mediaItem?.showsAnimatedBadge == true ? $0.id : nil })
+    var livePhotoBadgeItemIDs: Set<UUID> {
+        Set(displayedItems.compactMap { $0.mediaItem?.isLivePhoto == true ? $0.id : nil })
     }
 
     override init(frame: CGRect) {
@@ -322,10 +323,10 @@ final class MediaDraftStripView: QuickLayoutView, MediaDraftCollectionViewLayout
         }
         /// 显示视频时长的标签。
         let durationLabel = UILabel()
-        /// 动态图像标记的背景容器。
-        let animatedBadgeView = UIView()
-        /// 标示动态图像或 Live Photo 的符号视图。
-        let animatedBadgeImageView = UIImageView()
+        /// 仅实况照片显示的角标背景容器。
+        let livePhotoBadgeView = UIView()
+        /// 标示实况照片的符号视图；GIF 和普通图片不显示。
+        let livePhotoBadgeImageView = UIImageView()
         /// 删除当前媒体草稿项目的按钮。
         let removeButton = DraftRemoveButton(frame: .zero)
         /// 用户点击本项目删除按钮时调用的闭包。
@@ -365,18 +366,22 @@ final class MediaDraftStripView: QuickLayoutView, MediaDraftCollectionViewLayout
             durationLabel.font = .monospacedDigitSystemFont(ofSize: 13, weight: .regular)
             durationLabel.textColor = .white
 
-            animatedBadgeView.backgroundColor = .white
-            animatedBadgeView.layer.cornerRadius = 13
-            animatedBadgeView.layer.cornerCurve = .continuous
-            animatedBadgeImageView.image = UIImage(
+            livePhotoBadgeView.isHidden = true
+            livePhotoBadgeView.isUserInteractionEnabled = false
+            livePhotoBadgeImageView.isHidden = true
+            livePhotoBadgeImageView.accessibilityIdentifier = "imessage.composer.media.livePhotoBadge"
+            livePhotoBadgeView.backgroundColor = .white
+            livePhotoBadgeView.layer.cornerRadius = 13
+            livePhotoBadgeView.layer.cornerCurve = .continuous
+            livePhotoBadgeImageView.image = UIImage(
                 systemName: "livephoto",
                 withConfiguration: UIImage.SymbolConfiguration(
                     pointSize: 18,
                     weight: .regular
                 )
             )
-            animatedBadgeImageView.tintColor = .systemBlue
-            animatedBadgeImageView.contentMode = .scaleAspectFit
+            livePhotoBadgeImageView.tintColor = .systemBlue
+            livePhotoBadgeImageView.contentMode = .scaleAspectFit
 
             removeButton.addTarget(self, action: #selector(removeTapped), for: .touchUpInside)
         }
@@ -396,10 +401,10 @@ final class MediaDraftStripView: QuickLayoutView, MediaDraftCollectionViewLayout
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 removeButton.frame(width: 44, height: 44)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                if !animatedBadgeView.isHidden {
+                if !livePhotoBadgeView.isHidden {
                     ZStack {
-                        animatedBadgeView.resizable()
-                        animatedBadgeImageView.resizable().padding(4)
+                        livePhotoBadgeView.resizable()
+                        livePhotoBadgeImageView.resizable().padding(4)
                     }
                     .frame(width: 26, height: 26)
                     .padding(.leading, 6).padding(.top, 4)
@@ -424,6 +429,12 @@ final class MediaDraftStripView: QuickLayoutView, MediaDraftCollectionViewLayout
             imageView.isAccessibilityElement = false
             imageView.accessibilityIdentifier = nil
             activityIndicator.stopAnimating()
+            livePhotoBadgeView.isHidden = true
+            livePhotoBadgeImageView.isHidden = true
+            videoBadge.isHidden = true
+            durationLabel.isHidden = true
+            durationBackgroundView.isHidden = true
+            accessibilityLabel = nil
             removeRequested = nil
             previewRequested = nil
             isReady = false
@@ -441,7 +452,8 @@ final class MediaDraftStripView: QuickLayoutView, MediaDraftCollectionViewLayout
             videoBadge.isHidden = true
             durationLabel.isHidden = true
             durationBackgroundView.isHidden = true
-            animatedBadgeView.isHidden = true
+            livePhotoBadgeView.isHidden = true
+            livePhotoBadgeImageView.isHidden = true
             isReady = false
             switch item.content {
             case .importing:
@@ -463,10 +475,11 @@ final class MediaDraftStripView: QuickLayoutView, MediaDraftCollectionViewLayout
                 )
                 switch media.kind {
                 case .image:
-                    animatedBadgeView.isHidden = !media.showsAnimatedBadge
-                    let imageDescription = media.showsAnimatedBadge
-                        ? strings.animatedImage
-                        : strings.image
+                    livePhotoBadgeView.isHidden = !media.isLivePhoto
+                    livePhotoBadgeImageView.isHidden = !media.isLivePhoto
+                    let imageDescription = media.isLivePhoto
+                        ? Localization.text("imessage.media.livePhoto")
+                        : media.isAnimatedImage ? strings.animatedImage : strings.image
                     accessibilityLabel = "\(position), \(imageDescription)"
                 case .video(let duration):
                     videoBadge.isHidden = false
