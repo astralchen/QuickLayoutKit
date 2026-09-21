@@ -15,10 +15,11 @@ extension ComposerView {
     /// 将内容、按钮和最终高度一起提交；嵌套的附件回调只参与当前事务。
     /// 新操作从当前呈现位置接续，过期完成回调不能隐藏新状态的提示文字。
     func performPresentationUpdate(duration: TimeInterval = 0.22,
+                                   animated shouldAnimate: Bool = true,
                                    _ updates: @escaping @MainActor () -> Void) {
         guard !isUpdatingPresentation else { updates(); return }
         superview?.layoutIfNeeded()
-        let animated = window != nil && UIView.areAnimationsEnabled
+        let animated = shouldAnimate && window != nil && UIView.areAnimationsEnabled
             && !UIAccessibility.isReduceMotionEnabled
         if animated {
             // 隐藏标签先以原 alpha 参与渲染，下一事务才有可插值的透明起点。

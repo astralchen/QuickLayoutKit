@@ -210,7 +210,9 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         if reason == .initial || reason == .sentMessage { pendingExplicitScroll = true }
         if reason == .historyLoaded && !preservesHistoryPosition { pendingExplicitScroll = true }
         let wasNearBottom = timelineCount == 0 || pendingExplicitScroll || isNearBottom
-        var localizationAnchor = (preservesHistoryPosition || reason == .attachmentSave || reason == .messageDeleted || ((reason == .localization || reason == .audioTranscript || reason == .messageStatus) && !wasNearBottom))
+        // 回复落地后还会立即刷新“正在输入”状态；跟随意图必须保留到最新一次提交完成。
+        if reason == .receivedMessage && wasNearBottom { pendingExplicitScroll = true }
+        var localizationAnchor = (preservesHistoryPosition || reason == .attachmentSave || reason == .messageDeleted || ((reason == .localization || reason == .audioTranscript || reason == .messageStatus || reason == .receivedMessage) && !wasNearBottom))
             ? collectionView.captureLocalizationAnchor()
             : nil
         // 历史插入会改变 IndexPath，必须先用旧时间线身份定位同一条消息。
@@ -244,8 +246,18 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         let generation = renderGeneration
         // 送达、已读和键入可连续发生。必须完成前一份可见内容刷新，避免
         // coalesceLatest 取代结构提交后丢失旧 Cell 的状态变更。
+        let receivesText: Bool
+        if reason == .receivedMessage, let last = state.timeline.last,
+           case .message(let message) = last.content, message.direction == .incoming {
+            switch message.content {
+            case .text, .richText: receivesText = true
+            case .attachment: receivesText = false
+            }
+        } else { receivesText = false }
+        let animatesReceivedMessage = reason == .receivedMessage && !receivesText
         let transaction = ListTransaction(
-            animation: reason == .sentMessage || reason == .receivedMessage ? .automatic : .disabled,
+            // 收发文本立即完成插入与底部定位，避免长文本等待动画或下一次状态刷新才显示。
+            animation: animatesReceivedMessage ? .automatic : .disabled,
             updatePolicy: .serial
         )
 
@@ -283,8 +295,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                 }
                 guard explicitScroll || shouldScroll else { return }
                 self.scrollToBottom(
-                    animated: reason == .sentMessage
-                        || reason == .receivedMessage
+                    animated: animatesReceivedMessage
                 )
             }
         ) {
@@ -429,6 +440,13 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                     )
                 )
             )
+        }
+        if receivesText && wasNearBottom {
+            // 无动画 snapshot 已提交，但 ListKit 的完成回调会延迟到下一次主线程调度。
+            // 在首帧绘制前先完成自适应测量和定位，后续状态提交仍保留底部跟随。
+            collectionView.layoutIfNeeded()
+            scrollToBottom(animated: false)
+            pendingExplicitScroll = true
         }
     }
 

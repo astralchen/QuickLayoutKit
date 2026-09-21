@@ -85,6 +85,15 @@ final class BubbleCell: QuickLayoutCollectionViewCell {
         fatalError("init(coder:) has not been implemented")
     }
 
+    /// Cell 的移动由列表动画负责，内部气泡不能从复用或估算尺寸展开后再显示正文。
+    override func layoutSubviews() {
+        UIView.performWithoutAnimation {
+            super.layoutSubviews()
+            bubbleView.layoutIfNeeded()
+            deliveryStatusView.layoutIfNeeded()
+        }
+    }
+
     /// 根据列表提供的宽度更新内容宽度限制，并返回自适应高度的布局属性。
     override func preferredLayoutAttributesFitting(
         _ layoutAttributes: UICollectionViewLayoutAttributes

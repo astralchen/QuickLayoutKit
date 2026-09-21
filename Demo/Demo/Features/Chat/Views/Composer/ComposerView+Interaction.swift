@@ -45,7 +45,7 @@ extension ComposerView {
 
     /// 按草稿内容类型转发发送动作，并在上层受理后清空对应内容。
     @objc func sendButtonDidTap() {
-        performPresentationUpdate { [self] in
+        performPresentationUpdate(animated: false) { [self] in
             guard !isShowingRecordingUnavailableHint, hasSendableContent else { return }
             let text = plainDraftText
             let accepted: Bool
@@ -64,7 +64,8 @@ extension ComposerView {
             textView.text = nil
             resetTypingAttributes(preservingFormatting: false)
             updateComposerState()
-            updateTextHeight(animated: true)
+            // 发送后的空草稿与新消息同步布局，避免收起过程继续遮住刚发送的长文本。
+            updateTextHeight(animated: false)
         }
     }
 

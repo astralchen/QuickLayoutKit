@@ -54,8 +54,14 @@ final class BubbleView: QuickLayoutView {
 
     /// 根据当前边界更新 `BubbleView` 的子视图布局与图层几何。
     override func layoutSubviews() {
-        super.layoutSubviews()
-        updateBubbleMask()
+        // 插入消息与输入栏收起会在 UIView 动画事务中布局。正文已按最终宽度换行，
+        // 若文本视图及 TextKit 子视图仍从旧尺寸展开，长文本会暂时被裁剪。
+        // 内部几何同步到最终尺寸，位置过渡继续交给外层气泡和 Cell。
+        UIView.performWithoutAnimation {
+            super.layoutSubviews()
+            messageTextView.layoutIfNeeded()
+            updateBubbleMask()
+        }
     }
 
     /// 应用消息文本、收发方向和辅助功能信息，并请求重新布局。
