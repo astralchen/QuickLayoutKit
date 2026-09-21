@@ -1,6 +1,5 @@
 import AppLocalization
 import AVFoundation
-import PhotosUI
 import PDFKit
 import QuickLayout
 import QuickLayoutKit
@@ -30,7 +29,6 @@ final class MessageMenuPreviewController: QuickLayoutHostingController, WKNaviga
     private var videoSizeObservation: NSKeyValueObservation?
     private let placeholder = UIImageView()
     private let status = UILabel()
-    private let liveBadge = UIImageView(image: PHLivePhotoView.livePhotoBadgeImage(options: .overContent))
     private let loading = UIActivityIndicatorView(style: .medium)
     private var preparation: Task<Void, Never>?
     private var webTimeout: Task<Void, Never>?
@@ -48,12 +46,6 @@ final class MessageMenuPreviewController: QuickLayoutHostingController, WKNaviga
             if let webView { webView.resizable() }
             status.resizable().padding(20)
             loading.resizable().frame(width: 32, height: 32)
-            if kind == .livePhoto {
-                VStack(alignment: .leading) {
-                    liveBadge.resizable().frame(width: 28, height: 28)
-                    Spacer()
-                }.padding(12)
-            }
         }
     }
 
@@ -116,9 +108,6 @@ final class MessageMenuPreviewController: QuickLayoutHostingController, WKNaviga
         status.textAlignment = .center
         status.isHidden = true
         status.accessibilityIdentifier = "imessage.menu.preview.status"
-        liveBadge.contentMode = .scaleAspectFit
-        liveBadge.accessibilityLabel = Localization.text("imessage.media.livePhoto")
-        liveBadge.isAccessibilityElement = true
         loading.hidesWhenStopped = true
         playback.didChange = { [weak self] in self?.startVideoIfReady() }
         playback.didFail = { [weak self] in self?.showFailure() }
