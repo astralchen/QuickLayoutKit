@@ -204,16 +204,17 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
 
     /// 定义 `ChatViewController` 的布局层级、间距和对齐方式。
     override var body: Layout {
-        VStack(spacing: 0) {
+        ZStack(alignment: .bottom) {
             conversationView
                 .resizable()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             composerView
                 .resizable(axis: .horizontal)
                 .fixedSize(axis: .vertical)
+                .padding(.bottom, bottomObstruction)
+                .safeAreaPadding([.horizontal, .bottom], 0)
         }
-        .padding(.bottom, bottomObstruction)
-        .safeAreaPadding(.all, 0)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     /// 配置导航标题、保存状态与交互绑定，并开始观察消息和底部遮挡变化。
@@ -223,6 +224,9 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
 
         contactTitleView.sizeToFit()
         navigationItem.titleView = contactTitleView
+        setContentScrollView(conversationView.collectionView, for: .top)
+        conversationView.viewportDidLayout = { [weak self] in self?.updateConversationViewport() }
+        composerView.geometryDidLayout = { [weak self] in self?.updateConversationViewport() }
         view.backgroundColor = .systemBackground
         conversationView.attachmentSaveState = { [weak self] key in
             self?.attachmentSaveCoordinator.state(for: key) ?? .available
@@ -309,6 +313,40 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         bottomObstructionCoordinator.refreshGeometry()
+        updateConversationViewport()
+    }
+
+    override func viewWillTransition(to size: CGSize, with coordinator: any UIViewControllerTransitionCoordinator) {
+        conversationView.prepareForViewportChange()
+        super.viewWillTransition(to: size, with: coordinator)
+    }
+
+    override func viewSafeAreaInsetsDidChange() {
+        conversationView.prepareForViewportChange()
+        super.viewSafeAreaInsetsDidChange()
+        view.setNeedsLayout()
+    }
+
+    /// 输入栏的实际顶部是列表可见区域的底边；键盘只移动输入栏，不缩小列表。
+    func updateConversationViewport() {
+        let list = conversationView.collectionView
+        guard list.superview != nil, composerView.superview != nil,
+              list.bounds.height > 0, composerView.bounds.height > 0 else { return }
+        let listFrame = list.convert(list.bounds, to: view)
+        let composerFrame = composerView.convert(composerView.bounds, to: view)
+        let safeFrame = view.safeAreaLayoutGuide.layoutFrame
+        conversationView.updateViewportInsets(UIEdgeInsets(
+            top: max(0, safeFrame.minY - listFrame.minY),
+            left: max(0, safeFrame.minX - listFrame.minX),
+            bottom: max(0, listFrame.maxY - composerFrame.minY),
+            right: max(0, listFrame.maxX - safeFrame.maxX)
+        ))
+    }
+
+    /// 高度与遮挡变化共用一个布局事务，避免独立回调重复滚动。
+    func layoutChatContent() {
+        quickLayoutIfNeeded()
+        updateConversationViewport()
     }
 
     /// 管理附件保存操作、状态反馈和页面退出失效的协调器。

@@ -177,8 +177,11 @@ final class ChatAudioCardUITests: XCTestCase {
         add(draft)
         app.buttons["imessage.composer.send"].tap()
         XCTAssertTrue(app.otherElements["Link caption"].waitForExistence(timeout: 10))
-        XCTAssertTrue(card.exists)
-        XCTAssertLessThan(card.frame.maxY, text.frame.minY)
+        // 回复可能已带回同一链接；全屏列表会同时暴露收发两张卡片。
+        let sentCard = app.collectionViews["imessage.timeline"].buttons
+            .matching(identifier: "imessage.attachment.link.card").firstMatch
+        XCTAssertTrue(sentCard.exists)
+        XCTAssertLessThan(sentCard.frame.maxY, text.frame.minY)
         let sent = XCTAttachment(screenshot: app.screenshot())
         sent.name = "先网页附件后正文的独立消息"
         sent.lifetime = .keepAlways
@@ -300,7 +303,12 @@ final class ChatAudioCardUITests: XCTestCase {
             // 交互式收键盘需将手势拖过键盘区域，普通列表内 swipeDown 不够。
             app.coordinate(withNormalizedOffset: .init(dx: 0.9, dy: 0.42))
                 .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: .init(dx: 0.9, dy: 0.96)))
-            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+            // 外接键盘模式可能保留屏幕外 AX Keyboard 节点；检查实际屏幕遮挡。
+            let keyboardHidden = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                let keyboard = app.keyboards.firstMatch
+                return !keyboard.exists || keyboard.frame.intersection(app.frame).height < 100
+            }, object: app)
+            XCTAssertEqual(XCTWaiter.wait(for: [keyboardHidden], timeout: 5), .completed)
             for _ in 0..<3 where !reply.isHittable { timeline.swipeUp() }
             XCTAssertTrue(reply.waitForExistence(timeout: 15))
             let files = app.buttons.matching(identifier: "imessage.attachment.file.card")

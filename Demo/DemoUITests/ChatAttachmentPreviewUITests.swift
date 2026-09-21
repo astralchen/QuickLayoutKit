@@ -1024,16 +1024,23 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
             XCTAssertEqual(grabber.frame.midY, panelY, accuracy: 1)
             capture(app, "草稿-系统选择第\(column + 1)张")
         }
-        let source = preview.allElementsBoundByIndex.first(where: \.isHittable)
+        // PHPicker 的模态 AX 层级可能把下层可交互草稿报告为不可命中。
+        // 使用输入栏内实际可见的中心点点击，并以真实打开预览作为验收。
+        let composerFrame = app.otherElements["imessage.composer"].frame
+        let source = preview.allElementsBoundByIndex.first {
+            composerFrame.contains(CGPoint(x: $0.frame.midX, y: $0.frame.midY))
+        }
         XCTAssertNotNil(source)
-        source?.tap()
+        source?.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 10))
         app.buttons["imessage.media.preview.close"].tap()
         XCTAssertTrue(grabber.waitForExistence(timeout: 5))
         for _ in 0..<3 {
-            let visible = remove.allElementsBoundByIndex.first(where: \.isHittable)
+            let visible = remove.allElementsBoundByIndex.first {
+                composerFrame.contains(CGPoint(x: $0.frame.midX, y: $0.frame.midY))
+            }
             XCTAssertNotNil(visible)
-            visible?.tap()
+            visible?.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         }
         XCTAssertTrue(remove.firstMatch.waitForNonExistence(timeout: 5))
         XCTAssertEqual(grabber.frame.midY, panelY, accuracy: 1)

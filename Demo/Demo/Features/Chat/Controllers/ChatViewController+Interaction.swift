@@ -78,11 +78,10 @@ extension ChatViewController {
         }
         composerView.heightDidChange = { [weak self] change in
             guard let self else { return }
-            let shouldFollow = conversationView.isNearBottom
+            conversationView.prepareForViewportChange()
             setNeedsQuickLayout()
             let updates = { [self] in
-                quickLayoutIfNeeded()
-                if shouldFollow { conversationView.scrollToBottom(animated: false) }
+                layoutChatContent()
             }
             switch change {
             case .immediate:

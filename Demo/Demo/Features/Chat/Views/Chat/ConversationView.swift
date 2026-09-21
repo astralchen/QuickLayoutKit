@@ -53,6 +53,8 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
 
     /// 首次展示与后续消息滚动分开管理；隐藏期间集合视图仍参与真实布局。
     private(set) lazy var initialPresentation = ConversationInitialPresentation(collectionView: collectionView)
+    /// 子视图首次挂载可能晚于控制器布局回调，展示前必须先同步最终边距。
+    var viewportDidLayout: (() -> Void)?
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
@@ -61,6 +63,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        viewportDidLayout?()
         // QuickLayout 可能在容器进入窗口之后才挂载集合视图，空快照尤其容易先完成。
         initialPresentation.resumeIfNeeded()
     }
@@ -84,6 +87,72 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     var attachmentSaveState: ((AttachmentSaveKey) -> AttachmentSaveState)?
     /// 最近一次渲染的完整状态，用于附件保存状态变化时重新配置列表。
     private var lastState: ChatViewModel.State?
+    private struct ViewportPosition {
+        let followsBottom: Bool
+        let itemID: TimelineItemID?
+        let anchor: UICollectionViewLocalizationAnchor?
+    }
+    private var pendingViewportPosition: ViewportPosition?
+    private var viewportSize: CGSize = .zero
+    private var isUpdatingViewport = false
+
+    /// 在改变输入栏高度或容器尺寸前捕获阅读位置；身份独立于历史插入后的索引。
+    func prepareForViewportChange() {
+        guard pendingViewportPosition == nil, !isUpdatingViewport else { return }
+        let anchor = collectionView.captureLocalizationAnchor()
+        let itemID = anchor.flatMap { anchor in
+            lastState?.timeline.indices.contains(anchor.indexPath.item) == true
+                ? lastState?.timeline[anchor.indexPath.item].id : nil
+        }
+        pendingViewportPosition = ViewportPosition(
+            followsBottom: pendingExplicitScroll || isNearBottom, itemID: itemID, anchor: anchor
+        )
+    }
+
+    /// 列表 frame 始终全屏，只有内容及指示器避让覆盖在其上方的界面。
+    func updateViewportInsets(_ insets: UIEdgeInsets) {
+        guard !isUpdatingViewport else { return }
+        let old = collectionView.contentInset
+        guard abs(old.top - insets.top) > 0.5 || abs(old.bottom - insets.bottom) > 0.5
+            || abs(old.left - insets.left) > 0.5 || abs(old.right - insets.right) > 0.5
+            || abs(viewportSize.width - collectionView.bounds.width) > 0.5
+            || abs(viewportSize.height - collectionView.bounds.height) > 0.5 else {
+            pendingViewportPosition = nil
+            return
+        }
+        prepareForViewportChange()
+        let position = pendingViewportPosition
+        pendingViewportPosition = nil
+        isUpdatingViewport = true
+        defer { isUpdatingViewport = false }
+        viewportSize = collectionView.bounds.size
+        collectionView.contentInset = insets
+        collectionView.scrollIndicatorInsets = insets
+        collectionView.layoutIfNeeded()
+        // 首次展示协调器负责最终底部定位，不能提前显示尚未稳定的历史。
+        guard initialPresentation.isPresented else { return }
+        if position?.followsBottom == true {
+            scrollToBottom(animated: false)
+        } else if let id = position?.itemID, let anchor = position?.anchor,
+                  let item = lastState?.timeline.firstIndex(where: { $0.id == id }) {
+            let restored = UICollectionViewLocalizationAnchor(
+                indexPath: IndexPath(item: item, section: 0),
+                offsetFromViewportTop: anchor.offsetFromViewportTop,
+                offsetFromViewportLeading: anchor.offsetFromViewportLeading
+            )
+            collectionView.restoreLocalizationAnchor(restored)
+            collectionView.layoutIfNeeded()
+            collectionView.restoreLocalizationAnchor(restored)
+        }
+    }
+
+    /// 全屏列表中的 cell 可能仍处于导航栏或输入栏后方，预览转场只使用完整可见来源。
+    func isUnobscuredPreviewSource(_ source: UIView) -> Bool {
+        guard source.window != nil, source.isDescendant(of: collectionView) else { return false }
+        let viewport = collectionView.bounds.inset(by: collectionView.adjustedContentInset)
+        let frame = source.convert(source.bounds, to: collectionView)
+        return !frame.isEmpty && viewport.contains(frame)
+    }
     /// 收到保存状态通知后记录的附件状态缓存。
     private var saveStates: [AttachmentSaveKey: AttachmentSaveState] = [:]
 
@@ -158,9 +227,12 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                 cell.layoutIfNeeded()
                 cell.mediaView.layoutIfNeeded()
             }
-            return cell.mediaView.previewSourceView
+            guard let source = cell.mediaView.previewSourceView else { return nil }
+            return isUnobscuredPreviewSource(source) ? source : nil
         }
-        return collectionView.visibleCells.compactMap { $0 as? DocumentBubbleCell }.first { $0.previewMessageID == messageID }?.card
+        guard let source = collectionView.visibleCells.compactMap({ $0 as? DocumentBubbleCell })
+            .first(where: { $0.previewMessageID == messageID })?.card else { return nil }
+        return isUnobscuredPreviewSource(source) ? source : nil
     }
 
     /// 使用指定初始边框创建 `ConversationView`，并配置其子视图和默认外观。
@@ -265,15 +337,15 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         }
         // 送达、已读和键入可连续发生。必须完成前一份可见内容刷新，避免
         // coalesceLatest 取代结构提交后丢失旧 Cell 的状态变更。
-        let receivesText: Bool
-        if reason == .receivedMessage, let last = state.timeline.last,
-           case .message(let message) = last.content, message.direction == .incoming {
+        let insertsText: Bool
+        if reason == .receivedMessage || reason == .sentMessage, let last = state.timeline.last,
+           case .message(let message) = last.content {
             switch message.content {
-            case .text, .richText: receivesText = true
-            case .attachment: receivesText = false
+            case .text, .richText: insertsText = true
+            case .attachment: insertsText = false
             }
-        } else { receivesText = false }
-        let animatesReceivedMessage = reason == .receivedMessage && !receivesText
+        } else { insertsText = false }
+        let animatesReceivedMessage = reason == .receivedMessage && !insertsText
         let transaction = ListTransaction(
             // 收发文本立即完成插入与底部定位，避免长文本等待动画或下一次状态刷新才显示。
             animation: animatesReceivedMessage ? .automatic : .disabled,
@@ -466,7 +538,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                 )
             )
         }
-        if receivesText && wasNearBottom {
+        if insertsText && (reason == .sentMessage || wasNearBottom) {
             // 无动画 snapshot 已提交，但 ListKit 的完成回调会延迟到下一次主线程调度。
             // 在首帧绘制前先完成自适应测量和定位，后续状态提交仍保留底部跟随。
             collectionView.layoutIfNeeded()
@@ -670,6 +742,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         collectionView.alwaysBounceVertical = true
         collectionView.keyboardDismissMode = .interactive
         collectionView.contentInsetAdjustmentBehavior = .never
+        collectionView.automaticallyAdjustsScrollIndicatorInsets = false
         collectionView.accessibilityIdentifier = "imessage.timeline"
         collectionView.collectionViewLayout = makeCollectionViewLayout()
     }

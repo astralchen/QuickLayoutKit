@@ -62,6 +62,8 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
 
     /// 输入栏固有高度发生变化时调用。
     var heightDidChange: ((HeightChange) -> Void)?
+    /// 实际 frame 已安装后，通知页面同步全屏列表的覆盖范围。
+    var geometryDidLayout: (() -> Void)?
     enum HeightChange {
         case immediate
         case textInput
@@ -383,6 +385,7 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
     /// 根据当前边界更新 `ComposerView` 的子视图布局与图层几何。
     override func layoutSubviews() {
         super.layoutSubviews()
+        geometryDidLayout?()
         if !isShowingRecordingUnavailableHint, let retainedTextContentOffset {
             textView.setContentOffset(retainedTextContentOffset, animated: false)
             self.retainedTextContentOffset = nil
@@ -422,6 +425,12 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
             width: size.width,
             height: resolvedContentHeight + Metrics.verticalPadding * 2
         )
+    }
+
+    /// 悬浮输入栏周围的透明留白允许触摸到达下方时间线。
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let target = super.hitTest(point, with: event)
+        return target === self ? nil : target
     }
 }
 

@@ -32,7 +32,7 @@ extension ChatViewController {
             .dropFirst()
             .sink { [weak self] context in
                 guard let self else { return }
-                let shouldApplyKeyboardLayout = bottomObstructionCoordinator.updateKeyboard(
+                _ = bottomObstructionCoordinator.updateKeyboard(
                     context
                 )
                 // 已展示的面板保留原有档位；尤其不能在切回键盘的关闭动画中重算高度。
@@ -41,15 +41,6 @@ extension ChatViewController {
                     bottomObstructionCoordinator.storedKeyboardContentHeight,
                     invalidatingPresentedDetent: !photoController.isPresented
                 )
-                guard shouldApplyKeyboardLayout else { return }
-                let shouldFollow = conversationView.isNearBottom
-                DispatchQueue.main.async { [weak self] in
-                    guard let self, shouldFollow else { return }
-                    quickLayoutIfNeeded()
-                    conversationView.scrollToBottom(
-                        animated: context.animationDuration > 0
-                    )
-                }
             }
             .store(in: &cancellables)
     }
@@ -58,11 +49,11 @@ extension ChatViewController {
     func configureBottomObstruction() {
         bottomObstructionCoordinator.heightDidChange = { [weak self] height, context in
             guard let self else { return }
-            let wasNearBottom = conversationView.isNearBottom
+            conversationView.prepareForViewportChange()
             bottomObstruction = height
             setNeedsQuickLayout()
             let updates: () -> Void = { [weak self] in
-                self?.quickLayoutIfNeeded()
+                self?.layoutChatContent()
             }
             if let context, context.animationDuration > 0 {
                 // 只有键盘通知携带动画目标；beginFromCurrentState 允许新通知接续正在进行的动画。
@@ -75,10 +66,6 @@ extension ChatViewController {
             } else {
                 // 显示链接提供的是当前呈现位置，必须立即布局，不能逐帧叠加新动画导致滞后。
                 updates()
-            }
-            // 用户正在阅读历史消息时保留当前位置；仅在变化前接近底部时继续跟随新布局。
-            if wasNearBottom {
-                conversationView.scrollToBottom(animated: false)
             }
         }
         bottomObstructionCoordinator.refreshGeometry()
