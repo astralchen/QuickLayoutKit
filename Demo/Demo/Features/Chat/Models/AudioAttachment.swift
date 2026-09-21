@@ -7,10 +7,10 @@ import Foundation
 
 /// 本地音频文件及时间线展示所需的元数据。
 ///
-/// 附件不持有播放器或其他 UIKit 对象。附件文件由页面级附件存储管理，且仅在
-/// 聊天页面生命周期内有效。用户录音使用 AAC `.m4a`，模拟语音回复使用本地
+/// 附件不持有播放器或其他 UIKit 对象。页面中的附件文件由页面级存储管理；
+/// 草稿存储另持有独立副本，恢复时再复制到新页面。用户录音使用 AAC `.m4a`，模拟语音回复使用本地
 /// `.caf` 文件；两种格式使用相同的播放和展示模型。
-nonisolated struct AudioAttachment: Equatable, Hashable, Sendable {
+nonisolated struct AudioAttachment: Codable, Equatable, Hashable, Sendable {
     /// 用于播放和 ListKit 刷新身份的稳定标识符。
     let id: UUID
 

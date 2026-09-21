@@ -17,13 +17,32 @@ extension ChatViewController {
     /// 连接输入栏动作、媒体状态、文档插入和消息交互到页面控制器。
     func configureInteractions() {
         composerView.actionRequested = { [weak self] action in
-            self?.handleComposerAction(action) ?? false
+            guard let self, !isRestoringDraft, !hasCleanedUpChat else { return false }
+            isHandlingDraftAction = true
+            defer {
+                isHandlingDraftAction = false
+                switch action {
+                // 正文由 Composer 在受理返回后清空，届时统一报告最终快照。
+                case .sendText, .sendMediaDraft, .sendDocuments: break
+                default: draftContentDidChange(immediately: true)
+                }
+            }
+            return handleComposerAction(action)
         }
         conversationView.actionRequested = { [weak self] action in
             self?.handleMessageAction(action)
         }
         audioController.stateDidChange = { [weak self] state in
-            self?.applyAudioComposerState(state)
+            guard let self else { return }
+            let previous = composerView.composerState
+            applyAudioComposerState(state)
+            // 录音计时和同一预览的播放进度不改变草稿；听写只保存已经进入编辑器的文字。
+            switch (previous, state) {
+            case (.recording, .recording): break
+            case (.audioPreview(let before, _, _), .audioPreview(let after, _, _)) where before == after: break
+            case (_, .dictating): draftContentDidChange()
+            default: draftContentDidChange(immediately: true)
+            }
         }
         audioController.playbackDidChange = { [weak self] playback in
             self?.conversationView.updateAudioPlayback(playback)
@@ -56,6 +75,7 @@ extension ChatViewController {
         }
         documentController.draftUpdated = { [weak self] draft in
             self?.composerView.updateDocument(draft)
+            self?.draftContentDidChange(immediately: true)
         }
         photoController.stateDidChange = { [weak self] draft in
             guard let self else { return }
@@ -63,6 +83,7 @@ extension ChatViewController {
                 prepareForDocumentSelection()
             }
             composerView.applyMediaDraft(draft)
+            draftContentDidChange(immediately: true)
         }
         photoController.failureDidOccur = { [weak self] in
             self?.presentMediaFailure(.mediaImportFailed)

@@ -56,6 +56,21 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
     /// 由页面所有附件功能共享的文件存储。
     let attachmentStore: any AttachmentStoring
 
+    /// 当前聊天的稳定草稿标识；Demo 默认使用 `demo.chat`，可通过初始化参数隔离其他会话。
+    var conversationID = "demo.chat"
+    /// 可注入的草稿存储；`nil` 表示本页面不读取或保存持久化草稿。
+    var draftStore: (any ChatDraftStoring)?
+    /// 负责快照去重、防抖提交及文件租约的协调器；启用持久化后创建。
+    var draftCoordinator: ChatDraftCoordinator?
+    /// 当前批量恢复任务，结束后置为 `nil`，供生命周期测试等待恢复完成。
+    var draftRestoreTask: Task<Void, Never>?
+    /// 是否正在恢复草稿；此期间禁止输入及自动保存中间状态。
+    var isRestoringDraft = false
+    /// 是否正在执行可能触发多个控制器回调的输入栏动作，用于合并为最终内容变更。
+    var isHandlingDraftAction = false
+    /// 等待页面可展示时消费的本地化草稿错误键；没有待提示错误时为 `nil`。
+    var pendingDraftNotice: String?
+
     /// 识别已提交音频文件的服务，与输入栏实时听写分开运行。
     private var audioFileTranscriber: any AudioFileTranscribing = AudioFileTranscriber()
 
@@ -92,6 +107,15 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
             attachmentStore: attachmentStore
         )
         loadsInitialHistory = SampleChatHistory.isEnabled(arguments: ProcessInfo.processInfo.arguments)
+        // 注入入口和 XCTest 宿主默认不访问用户草稿；草稿 UI 测试显式选择独立会话。
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-chat-draft-session"), arguments.indices.contains(index + 1) {
+            conversationID = arguments[index + 1]
+            draftStore = ChatDraftStore.shared
+        } else if loadsInitialHistory, NSClassFromString("XCTestCase") == nil,
+                  ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+            draftStore = ChatDraftStore.shared
+        }
     }
 
     /// 使用指定的视图模型和真实媒体控制器创建聊天视图控制器。
@@ -113,11 +137,18 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
     /// - Parameters:
     ///   - viewModel: 管理消息时间线的视图模型。
     ///   - audioController: 管理页面音频操作的控制器。
+    ///   - audioFileTranscriber: 已提交语音的转写服务；`nil` 使用默认服务，与输入栏实时听写分离。
+    ///   - conversationID: 草稿隔离标识，默认为 `demo.chat`。
+    ///   - draftStore: 持久化草稿的存储；默认为 `nil`，注入后启用自动保存与恢复。
     init(
         viewModel: ChatViewModel,
         audioController: AudioController,
-        audioFileTranscriber: (any AudioFileTranscribing)? = nil
+        audioFileTranscriber: (any AudioFileTranscribing)? = nil,
+        conversationID: String = "demo.chat",
+        draftStore: (any ChatDraftStoring)? = nil
     ) {
+        self.conversationID = conversationID
+        self.draftStore = draftStore
         let attachmentStore = audioController.attachmentStore
         self.viewModel = viewModel
         self.audioFileTranscriber = audioFileTranscriber ?? AudioFileTranscriber()
@@ -132,11 +163,22 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
     }
 
     /// 使用指定消息模型、音频控制器和附件存储组装页面依赖。
+    ///
+    /// - Parameters:
+    ///   - viewModel: 管理消息时间线的视图模型。
+    ///   - audioController: 管理页面录音、听写及播放的控制器。
+    ///   - attachmentStore: 页面附件存储，应与音频控制器的存储共享文件所有权。
+    ///   - conversationID: 草稿隔离标识，默认为 `demo.chat`。
+    ///   - draftStore: 可注入的草稿存储；默认为 `nil`，不启用持久化。
     init(
         viewModel: ChatViewModel,
         audioController: AudioController,
-        attachmentStore: any AttachmentStoring
+        attachmentStore: any AttachmentStoring,
+        conversationID: String = "demo.chat",
+        draftStore: (any ChatDraftStoring)? = nil
     ) {
+        self.conversationID = conversationID
+        self.draftStore = draftStore
         self.viewModel = viewModel
         self.audioController = audioController
         self.attachmentStore = attachmentStore
@@ -283,6 +325,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
             conversationView.initialPresentation.waitForHistory(in: conversationView)
         }
         bindViewModel()
+        configureDraftPersistence()
         loadInitialHistory()
         observeKeyboard()
         configureBottomObstruction()
@@ -357,6 +400,12 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
         isLeavingChat = false
     }
 
+    /// 页面完成显示后尝试展示恢复错误或此前保存失败的提示。
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        presentPendingDraftNotice()
+    }
+
     /// 停止当前音频播放，并沿父控制器层级判断是否正在退出聊天。
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
@@ -380,6 +429,8 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
         // 临时覆盖只停播放；交互式返回取消后仍需要这些附件和页面任务。
         guard isLeavingChat, transitionCoordinator?.isCancelled != true,
               !hasCleanedUpChat else { return }
+        // 先冻结快照并取得文件租约，再关闭回调和清理页面，防止复制源被提前删除。
+        flushDraftBeforeLeaving()
         hasCleanedUpChat = true
         viewModel.cancelHistory()
         #if MEDIA_BENCHMARK

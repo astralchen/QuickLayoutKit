@@ -7,7 +7,7 @@ import Foundation
 import CoreGraphics
 
 /// 照片消息中单个媒体项目的类型专属元数据。
-nonisolated enum MediaKind: Equatable, Hashable, Sendable {
+nonisolated enum MediaKind: Codable, Equatable, Hashable, Sendable {
     /// 静态或以静态缩略图呈现的图像媒体。
     case image
     /// 包含以秒计的有效时长的视频媒体。
@@ -27,7 +27,10 @@ nonisolated enum MediaKind: Equatable, Hashable, Sendable {
 }
 
 /// 已导入页面附件目录、可以进入照片消息的单个媒体项目。
-nonisolated struct MediaItem: Equatable, Hashable, Sendable,
+///
+/// 草稿持久化保留身份、像素尺寸及动态媒体类型，并将所有本地资源映射为独立副本。
+/// 恢复到页面前须重新映射文件 URL；Live Photo 原件与配对视频共同组成一个完整条目。
+nonisolated struct MediaItem: Codable, Equatable, Hashable, Sendable,
     Identifiable {
     /// 媒体项目的稳定标识符，与照片库资源身份分离。
     let id: UUID
@@ -84,7 +87,7 @@ nonisolated struct MediaItem: Equatable, Hashable, Sendable,
 
 /// 一次选择并发送的有序照片和视频集合。
 nonisolated struct MediaGroupAttachment:
-    Equatable,
+    Codable, Equatable,
     Hashable,
     Sendable {
     /// 系统照片选择器单次允许选择的最大项目数量。

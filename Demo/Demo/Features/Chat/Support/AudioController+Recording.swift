@@ -12,6 +12,15 @@ import UIKit
 @available(iOS 26.0, *)
 extension AudioController {
 
+    /// 恢复已结束录音的预览，不激活音频会话或开始播放。
+    ///
+    /// 用于新页面批量恢复草稿，预览暂停且进度归零，不恢复录音或麦克风会话。
+    /// - Parameter attachment: 文件已复制到页面存储目录的有效语音附件，保留原身份、时长及波形。
+    func restoreDraft(_ attachment: AudioAttachment) {
+        attachmentStore.registerDraft(.audio(attachment))
+        state = .audioPreview(attachment: attachment, isPlaying: false, progress: 0)
+    }
+
     /// 请求麦克风访问权限并开始录制音频消息。
     func startRecording() {
         guard state == .idle else { return }

@@ -6,7 +6,7 @@
 import Foundation
 
 /// 文件草稿与消息共享值模型；录音转换后不再携带录音会话或波形状态。
-nonisolated struct FileAttachment: Equatable, Hashable, Sendable {
+nonisolated struct FileAttachment: Codable, Equatable, Hashable, Sendable {
     /// 文件附件的稳定标识符。
     let id: UUID
     /// 页面拥有的文件原件 URL。
@@ -22,7 +22,7 @@ nonisolated struct FileAttachment: Equatable, Hashable, Sendable {
 }
 
 /// 网页元数据失败时仍可按原始 URL 发送，不伪造应用协作身份。
-nonisolated struct LinkAttachment: Equatable, Hashable, Sendable {
+nonisolated struct LinkAttachment: Codable, Equatable, Hashable, Sendable {
     /// 链接附件的稳定标识符，默认生成新身份。
     var id = UUID()
     /// 用户输入或粘贴的原始网页 URL。
@@ -46,7 +46,8 @@ nonisolated struct LinkAttachment: Equatable, Hashable, Sendable {
 /// 附件枚举是消息层与具体媒体实现之间的值类型边界。音频、媒体组、文件与链接
 /// 由各自的值模型描述，时间线渲染层按类型选择单元格。模型仅保存身份、元数据和
 /// 本地 URL，不持有图像视图、资源选择器结果或播放器。
-nonisolated enum Attachment: Equatable, Hashable, Sendable {
+/// 持久化草稿时由快照统一映射本地 URL，清单仅引用草稿存储拥有的相对路径。
+nonisolated enum Attachment: Codable, Equatable, Hashable, Sendable {
     /// 包含本地录音或文本合成语音的音频附件。
     case audio(AudioAttachment)
 

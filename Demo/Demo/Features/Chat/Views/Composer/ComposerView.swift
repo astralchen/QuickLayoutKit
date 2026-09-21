@@ -60,6 +60,12 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
     /// 会保留当前文本或附件预览，避免验证、导入或文件失效导致草稿丢失。
     var actionRequested: ((ComposerAction) -> Bool)?
 
+    /// 完成一次正文编辑事务后报告语义内容变化。
+    ///
+    /// 覆盖用户编辑、格式变更、附件插入删除、听写写入及受理发送后的清空。
+    /// 不因光标移动或播放进度变化而调用；页面在批量恢复期间应忽略此回调。
+    var draftDidChange: (() -> Void)?
+
     /// 输入栏固有高度发生变化时调用。
     var heightDidChange: ((HeightChange) -> Void)?
     /// 实际 frame 已安装后，通知页面同步全屏列表的覆盖范围。

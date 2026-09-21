@@ -1,6 +1,75 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "imessage.draft.saveFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "草稿保存失败"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t save draft"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تعذر حفظ المسودة"
+          }
+        }
+      }
+    },
+    "imessage.draft.restoreFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "草稿无法恢复"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t restore draft"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تعذر استعادة المسودة"
+          }
+        }
+      }
+    },
+    "imessage.draft.partialRestore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分草稿附件无法恢复"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some draft attachments couldn’t be restored"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تعذر استعادة بعض مرفقات المسودة"
+          }
+        }
+      }
+    },
     "app.name" : {
       "extractionState" : "manual",
       "localizations" : {

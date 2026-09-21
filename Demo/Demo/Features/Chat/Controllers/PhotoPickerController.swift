@@ -126,9 +126,11 @@ final class PhotoPickerController: NSObject,
         super.init()
     }
 
-    #if DEBUG
-    /// 使用真实本地样例覆盖导入步骤，以确定性验证照片草稿入口。
-    func applyPreviewFixture(_ group: MediaGroupAttachment) {
+    /// 恢复完整媒体条目及文件所有权，不重新请求照片库访问。
+    ///
+    /// 丢弃当前选择及未完成导入，按原顺序建立就绪条目，并发布恢复后的媒体草稿状态。
+    /// - Parameter group: 原件、缩略图及 Live Photo 配对视频均已复制到页面目录的媒体组。
+    func restoreDraft(_ group: MediaGroupAttachment) {
         discardDraft()
         groupID = group.id
         entries = group.items.map { item in
@@ -141,6 +143,12 @@ final class PhotoPickerController: NSObject,
         registerReadyDraftIfPossible()
         publishDraft()
     }
+
+    #if DEBUG
+    /// 将本地样例安装为就绪媒体草稿，供界面测试绕过照片库选择与导入过程。
+    ///
+    /// - Parameter group: 已准备好本地资源的样例媒体组。
+    func applyPreviewFixture(_ group: MediaGroupAttachment) { restoreDraft(group) }
     #endif
 
     /// 当前媒体草稿的有序展示快照；没有条目时为 `nil`。

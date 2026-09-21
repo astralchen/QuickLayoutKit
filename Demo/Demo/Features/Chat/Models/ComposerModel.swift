@@ -53,8 +53,10 @@ nonisolated enum AttachmentKind: Equatable, Sendable {
     case link
 }
 
-/// 按 TextKit 文档位置排列的发送片段，不携带文件所有权。
-nonisolated enum DraftSegment: Equatable, Sendable {
+/// 按 TextKit 文档位置排列的语义片段，供发送与草稿持久化共用，不携带文件所有权。
+///
+/// 附件只编码稳定身份，其元数据由快照另行保存；编辑器生成的排版分隔字符不进入片段。
+nonisolated enum DraftSegment: Codable, Equatable, Sendable {
     /// 编辑器中保留原始空格与换行的文字段。
     case text(String)
     /// 保留原始空格、换行及局部文字格式的正文段。

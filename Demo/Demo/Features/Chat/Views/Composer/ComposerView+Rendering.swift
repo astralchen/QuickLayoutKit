@@ -122,6 +122,8 @@ extension ComposerView {
             isApplyingTranscription = false
             inputBinding.refresh()
             updateTextHeight()
+            // 只报告已写入编辑器的听写结果，麦克风会话和录音计时不参与持久化。
+            draftDidChange?()
         case .recording(let elapsed, let waveform):
             recordingWaveformView.samples = waveform
             recordingWaveformView.progress = 1

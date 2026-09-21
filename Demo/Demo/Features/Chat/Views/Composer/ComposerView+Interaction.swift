@@ -66,6 +66,8 @@ extension ComposerView {
             updateComposerState()
             // 发送后的空草稿与新消息同步布局，避免收起过程继续遮住刚发送的长文本。
             updateTextHeight(animated: false)
+            // 仅在模型受理且输入栏清空后报告空快照；被拒绝的发送保留原草稿。
+            draftDidChange?()
         }
     }
 

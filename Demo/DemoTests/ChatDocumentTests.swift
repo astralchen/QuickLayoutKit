@@ -558,15 +558,16 @@ struct ChatDocumentTests {
         )])
         let link = LinkAttachment(url: URL(string: "https://developer.apple.com")!, title: "Apple Developer")
         let model = ChatViewModel()
+        let firstMessageID = model.nextMessageID
         defer { model.cancelPendingReply() }
         var sentUpdates = 0
         model.bind { _, reason in if reason == .sentMessage { sentUpdates += 1 } }
         let attachments: [Demo.Attachment] = [.mediaGroup(group), .file(file), .link(link)]
         #expect(model.sendAttachments(attachments, followedByText: "caption"))
         let messages = model.state.timeline.compactMap { item -> MessagePresentation? in
-            guard case .message(let message) = item.content, message.id >= 3 else { return nil }; return message
+            guard case .message(let message) = item.content, message.id >= firstMessageID else { return nil }; return message
         }
-        #expect(messages.map(\.id) == [3, 4, 5, 6])
+        #expect(messages.map(\.id) == Array(firstMessageID..<(firstMessageID + 4)))
         #expect(Array(messages.prefix(3)).map(\.content) == attachments.map { .attachment($0) })
         #expect(messages.last?.text == "caption")
         #expect(sentUpdates == 1)
@@ -802,13 +803,14 @@ struct ChatDocumentTests {
         let file = try makeFile(in: store)
         let link = LinkAttachment(url: URL(string: "https://example.invalid")!)
         let model = ChatViewModel()
+        let firstMessageID = model.nextMessageID
         defer { model.cancelPendingReply() }
         var updates = 0
         model.bind { _, reason in if reason == .sentMessage { updates += 1 } }
         let contents: [MessageContent] = [.userText("  A\n"), .attachment(.file(file)), .userText(" B "), .attachment(.link(link)), .userText("\nC  ")]
         #expect(model.sendContents(contents))
         let sent = model.state.timeline.compactMap { item -> MessagePresentation? in
-            if case .message(let message) = item.content, message.id >= 3 { return message }; return nil
+            if case .message(let message) = item.content, message.id >= firstMessageID { return message }; return nil
         }
         #expect(sent.map(\.content) == [.text("  A\n"), .attachment(.file(file)), .text(" B "), .attachment(.link(link)), .text("\nC  ")])
         #expect(updates == 1)
@@ -824,6 +826,7 @@ struct ChatDocumentTests {
         let store = PageAttachmentStore()
         let page = ChatViewController(viewModel: ChatViewModel(), audioController: AudioController(attachmentStore: store))
         page.loadViewIfNeeded()
+        let firstMessageID = page.viewModel.nextMessageID
         defer { page.documentController.discardAll(); page.viewModel.cancelPendingReply(); store.removeAll() }
         page.composerView.textView.text = "  A "
         page.composerView.textView.selectedRange = NSRange(location: 4, length: 0)
@@ -836,7 +839,7 @@ struct ChatDocumentTests {
         #expect(editor.draftSegments == segments)
         editor.sendButton.sendActions(for: .touchUpInside)
         let sent = page.viewModel.state.timeline.compactMap { item -> MessagePresentation? in
-            if case .message(let message) = item.content, message.id >= 3 { return message }; return nil
+            if case .message(let message) = item.content, message.id >= firstMessageID { return message }; return nil
         }
         #expect(sent.count == 5)
         #expect(sent.first?.text == "  A ")

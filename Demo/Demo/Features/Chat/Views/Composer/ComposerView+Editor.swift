@@ -84,6 +84,7 @@ extension ComposerView {
             updateTextHeight(animated: true)
             refreshTextAttachments()
             refreshRecordingHintLayout()
+            draftDidChange?()
         }
     }
 
@@ -93,13 +94,22 @@ extension ComposerView {
     }
 
     /// 在附件边界结束文字段，仅忽略由编辑器生成的排版字符。
-    var draftSegments: [DraftSegment] {
+    var draftSegments: [DraftSegment] { editorSegments(preservingWhitespace: false) }
+
+    /// 持久化保留纯空白段，发送仍沿用已有空白过滤规则。
+    var persistentDraftSegments: [DraftSegment] { editorSegments(preservingWhitespace: true) }
+
+    /// 在内联附件边界拆分正文，提取语义富文本并排除编辑器生成的附件分隔字符。
+    ///
+    /// - Parameter preservingWhitespace: 为 `true` 时保留纯空白文字段，用于持久化；发送时为 `false`。
+    /// - Returns: 按编辑器顺序排列的文字、富文本和附件身份片段。
+    private func editorSegments(preservingWhitespace: Bool) -> [DraftSegment] {
         var result: [DraftSegment] = []
         let body = NSMutableAttributedString(string: "")
-        /// 将当前累计的非空文字追加为草稿段，并清空文字缓冲区。
+        /// 按当前空白保留规则追加累计文字段，并清空文字缓冲区。
         func flush() {
             let text = MessageText(attributedString: body)
-            if !text.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if preservingWhitespace ? !text.text.isEmpty : !text.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 result.append(text.hasFormatting ? .richText(text) : .text(text.text))
             }
             body.mutableString.setString("")
@@ -118,6 +128,40 @@ extension ComposerView {
         }
         flush()
         return result
+    }
+
+    /// 从语义片段一次性恢复编辑器，不请求焦点、不恢复撤销栈。
+    ///
+    /// 调用方应在批量恢复期间抑制自动保存，避免状态与高度更新触发中间快照。
+    /// - Parameters:
+    ///   - segments: 保留原始空白、格式和内联附件位置的有序正文片段。
+    ///   - documents: 已登记的就绪附件索引；缺失身份对应的片段被跳过。
+    func restoreDraft(segments: [DraftSegment], documents: [UUID: DocumentDraft]) {
+        for attachment in textAttachments.values { attachment.open = nil; attachment.remove = nil }
+        textAttachments.removeAll()
+        let body = NSMutableAttributedString(string: "")
+        let font = UIFont.preferredFont(forTextStyle: .body, compatibleWith: traitCollection)
+        for segment in segments {
+            switch segment {
+            case .text(let text): body.append(MessageText(runs: [.init(text)]).attributedString(font: font, color: .label))
+            case .richText(let text): body.append(text.attributedString(font: font, color: .label))
+            case .attachment(let id):
+                guard let draft = documents[id] else { continue }
+                if body.length > 0, !body.string.hasSuffix("\n") { body.append(documentSeparator(id)) }
+                body.append(NSAttributedString(attachment: makeTextAttachment(draft)))
+                body.append(documentSeparator(id))
+            }
+        }
+        // 一次替换正文并重置旧撤销记录，避免恢复过程成为可撤销的用户输入。
+        isInsertingContents = true
+        textView.textStorage.setAttributedString(body)
+        textView.selectedRange = NSRange(location: body.length, length: 0)
+        isInsertingContents = false
+        textView.undoManager?.removeAllActions()
+        resetTypingAttributes(preservingFormatting: false)
+        updateComposerState()
+        refreshTextAttachments()
+        updateTextHeight(animated: false)
     }
 
     /// 创建带附件身份标记的分隔换行，使发送时可排除编辑器生成的排版字符。
@@ -216,6 +260,7 @@ extension ComposerView {
             if notify { _ = actionRequested?(.removeDocument(id)) }
             updateTextHeight()
             refreshRecordingHintLayout()
+            draftDidChange?()
         }
     }
 
@@ -254,6 +299,7 @@ extension ComposerView {
             placeholderLabel.textAlignment = textView.textAlignment
             updateComposerState()
             updateTextHeight(animated: true)
+            draftDidChange?()
         }
     }
 

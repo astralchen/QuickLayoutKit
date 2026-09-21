@@ -79,7 +79,33 @@ final class PageAttachmentStore: AttachmentStoring {
     private var drafts: [UUID: Attachment] = [:]
     /// 按稳定标识符索引的已提交附件；文件保留至页面清理。
     private var committed: [UUID: Attachment] = [:]
-    /// 指示是否已执行整目录清理的布尔值，避免重复删除。
+    /// 仍在使用页面源文件的异步操作数量；非零时延迟物理删除文件。
+    private var fileLeaseCount = 0
+    /// 租约存续期间收到的单文件删除请求，在最后一个租约释放时处理。
+    private var deferredRemovals: Set<URL> = []
+
+    /// 保存任务持有页面文件，删除操作延迟到最后一个任务结束。
+    ///
+    /// 应在异步文件任务入队前调用，并在任务结束后于主 Actor 释放。
+    /// - Returns: 强持有此存储的幂等释放闭包；调用方必须在成功或失败路径上都调用它。
+    func acquireFileLease() -> () -> Void {
+        fileLeaseCount += 1
+        var released = false
+        return { [self] in
+            guard !released else { return }
+            released = true
+            fileLeaseCount -= 1
+            guard fileLeaseCount == 0 else { return }
+            if removedAllFiles {
+                try? fileManager.removeItem(at: directoryURL)
+            } else {
+                deferredRemovals.forEach { try? fileManager.removeItem(at: $0) }
+            }
+            deferredRemovals.removeAll()
+        }
+    }
+
+    /// 是否已请求整目录清理；登记立即清空，实际删除可能等待文件租约释放。
     private var removedAllFiles = false
 
     /// 创建页面附件存储并准备独立目录。
@@ -171,12 +197,17 @@ final class PageAttachmentStore: AttachmentStoring {
     }
 
     /// 尝试删除指定本地文件；文件不存在或删除失败时不抛出错误。
+    ///
+    /// 图片缓存立即失效；存在文件租约时，将磁盘删除延迟到最后一个租约释放。
     func removeFile(at url: URL) {
         imageLoader?.invalidate(url: url)
-        try? fileManager.removeItem(at: url)
+        if fileLeaseCount > 0 { deferredRemovals.insert(url) }
+        else { try? fileManager.removeItem(at: url) }
     }
 
     /// 清空附件登记并尝试删除页面目录；重复调用不再执行清理。
+    ///
+    /// 有未释放租约时先清空登记及缓存，待所有异步文件任务结束后再删除目录。
     func removeAll() {
         guard !removedAllFiles else { return }
         removedAllFiles = true
@@ -184,6 +215,6 @@ final class PageAttachmentStore: AttachmentStoring {
         imageLoader?.clearCache()
         drafts.removeAll()
         committed.removeAll()
-        try? fileManager.removeItem(at: directoryURL)
+        if fileLeaseCount == 0 { try? fileManager.removeItem(at: directoryURL) }
     }
 }

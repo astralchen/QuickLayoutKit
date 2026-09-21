@@ -374,6 +374,22 @@ final class DocumentController: NSObject, UIDocumentPickerDelegate {
         }
     }
 
+    /// 只登记恢复后的本地资源；编辑器由页面按原片段顺序批量安装。
+    ///
+    /// 缺失的文件缩略图或链接预览通过现有异步能力补齐，不重新导入原件。
+    /// - Parameter attachments: 已复制到页面存储目录的有效附件，按原身份登记为就绪状态。
+    func restoreDrafts(_ attachments: [Attachment]) {
+        for attachment in attachments {
+            drafts[attachment.id] = .init(attachment: attachment)
+            store.registerDraft(attachment)
+            switch attachment {
+            case .file(let file) where file.thumbnailURL == nil: fetchThumbnail(file)
+            case .link(let link) where link.imageURL == nil: fetchLink(link)
+            default: break
+            }
+        }
+    }
+
     /// 按指定顺序返回可发送附件。
     ///
     /// - Parameter ids: 必须恰好覆盖当前草稿集合且没有重复项的身份序列。
