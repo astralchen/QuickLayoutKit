@@ -1,7 +1,10 @@
+import OSLog
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 import CryptoKit
+
+private let logger = Logger(subsystem: "QuickLayoutKit.Scripts", category: "prepare-resources")
 
 // 从仓库真实 HEIC 派生固定格式夹具；只在准备资源时运行，测量过程中不生成或修改原件。
 let directory = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
@@ -48,4 +51,4 @@ let entries = try names.enumerated().map { index, name -> [String: Any] in
 }
 let data = try JSONSerialization.data(withJSONObject: entries, options: [.prettyPrinted, .sortedKeys])
 try data.write(to: directory.appendingPathComponent("benchmark-manifest.json"))
-print("Prepared \(entries.count) ordered entries")
+logger.notice("Prepared \(entries.count, privacy: .public) ordered entries")

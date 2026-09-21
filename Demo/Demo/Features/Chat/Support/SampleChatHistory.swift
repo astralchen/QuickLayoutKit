@@ -1,11 +1,14 @@
 import AppLocalization
 import AVFAudio
 import Foundation
+import OSLog
 
 /// 聊天历史的临时样例来源；资源准备不经过发送、回复或系统授权流程。
 @available(iOS 16.0, *)
 @MainActor
 enum SampleChatHistory {
+    private static let logger = Logger(subsystem: "Demo.Chat", category: "SampleChatHistory")
+
     /// 判断正常入口是否应加载完整样例；专用调试场景只加载各自指定的数据。
     static func isEnabled(arguments: [String]) -> Bool {
         !arguments.contains { argument in
@@ -88,7 +91,7 @@ enum SampleChatHistory {
                 created.removeSubrange(start...)
                 try Task.checkCancellation()
                 if error is CancellationError { throw error }
-                NSLog("[SampleChatHistory] %@: %@", name, String(describing: error))
+                logger.error("[SampleChatHistory] \(name, privacy: .public): \(String(describing: error), privacy: .public)")
             }
         }
         samples += pair(.attachment(.link(.init(url: URL(string: "https://www.apple.com")!, title: linkTitle))))

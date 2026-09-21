@@ -1,9 +1,12 @@
 // Run: swift Scripts/make-live-photo-fixture.swift <output-directory>
 // Original, synthetic test artwork. Generates a matching JPEG/MOV pair without Photos access.
+import OSLog
 import AVFoundation
 import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
+
+private let logger = Logger(subsystem: "QuickLayoutKit.Scripts", category: "make-live-photo-fixture")
 
 let output = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
 let identifier = "BB974039-7490-4D71-BB32-67BD99AD9A10"
@@ -84,4 +87,4 @@ let finished = DispatchSemaphore(value: 0)
 writer.finishWriting { finished.signal() }
 finished.wait()
 precondition(writer.status == .completed, "\(String(describing: writer.error))")
-print("Generated matching Live Photo resources: \(photoURL.path), \(movieURL.path)")
+logger.notice("Generated matching Live Photo resources: \(photoURL.path, privacy: .public), \(movieURL.path, privacy: .public)")

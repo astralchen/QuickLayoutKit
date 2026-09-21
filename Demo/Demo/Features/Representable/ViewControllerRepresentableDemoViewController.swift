@@ -5,12 +5,14 @@
 //  Created by Codex on 2026/6/2.
 //
 
+import OSLog
 import UIKit
 import AppLocalization
 import QuickLayout
 import QuickLayoutKit
 
 final class ViewControllerRepresentableDemoViewController: LocalizedQuickLayoutHostingController {
+    private static let logger = Logger(subsystem: "Demo.Representable", category: "ViewControllerRepresentableDemoViewController")
 
     override var localizedTitleKey: String? { "demo.representable.title" }
 
@@ -302,7 +304,7 @@ private extension ViewControllerRepresentableDemoViewController {
 
     func appendLog(_ message: String) {
         let line = "[\(Self.logTimestamp())] \(message)"
-        print(line)
+        Self.logger.debug("\(line, privacy: .public)")
 
         logLines.append(line)
         if logLines.count > 200 {

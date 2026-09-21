@@ -1,8 +1,11 @@
+import OSLog
 import AVFAudio
 import Speech
 import UIKit
 import XCTest
 @testable import Demo
+
+private let logger = Logger(subsystem: "Demo.Tests", category: "ChatAudioRecognitionIntegrationTests")
 
 /// 真实 SpeechTranscriber 验收；支持的真机自动准备中文模型，不使用兼容后端或模拟识别结果。
 @MainActor
@@ -65,7 +68,7 @@ final class ChatAudioRecognitionIntegrationTests: XCTestCase {
 
     /// 将能力诊断、模型状态及识别原文写入日志和持久测试附件。
     private func recordEvidence(_ text: String) {
-        print("[ChatSpeechIntegration] \(text)")
+        logger.notice("[ChatSpeechIntegration] \(text, privacy: .public)")
         let attachment = XCTAttachment(string: text)
         attachment.name = "SpeechTranscriber 真机证据"
         attachment.lifetime = .keepAlways

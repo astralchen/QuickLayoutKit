@@ -1,3 +1,4 @@
+import OSLog
 import UIKit
 import QuickLayout
 import Testing
@@ -8,6 +9,8 @@ import Darwin
 import QuickLayoutKit
 @testable import QuickLayoutKitUIKit
 #endif
+
+private let logger = Logger(subsystem: "Demo.Tests", category: "WaterfallLayoutEngineTests")
 
 @MainActor
 @Suite(.serialized)
@@ -359,7 +362,7 @@ extension WaterfallLayoutEngineTests {
         ]
         let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("waterfall-scalability.json")
         try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]).write(to: url)
-        print("WATERFALL_SCALABILITY_RESULT \(url.path)")
+        logger.notice("WATERFALL_SCALABILITY_RESULT \(url.path, privacy: .public)")
     }
 }
 

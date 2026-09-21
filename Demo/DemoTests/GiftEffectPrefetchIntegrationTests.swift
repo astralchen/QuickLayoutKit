@@ -1,8 +1,11 @@
+import OSLog
 import SVGAView
 import UIKit
 import VAPView
 import XCTest
 @testable import Demo
+
+private let logger = Logger(subsystem: "Demo.Tests", category: "GiftEffectPrefetchIntegrationTests")
 
 /// 真实 SDK/网络验收，与不访问网络的调度测试分开运行。
 @MainActor
@@ -65,7 +68,7 @@ final class GiftEffectPrefetchIntegrationTests: XCTestCase {
                 }
             }
         }
-        print("GIFT_PREFETCH_COLD_PASS formats=VAP,SVGA")
+        logger.notice("GIFT_PREFETCH_COLD_PASS formats=VAP,SVGA")
         prefetcher.release(request)
 
         let controller = VoiceRoomViewController()
@@ -98,7 +101,7 @@ final class GiftEffectPrefetchIntegrationTests: XCTestCase {
             XCTAssertEqual(started, Array(repeating: remoteEffects, count: iteration).flatMap { $0 })
             XCTAssertEqual(completed, started)
             XCTAssertTrue(controller.giftEffectOverlayView.subviews.isEmpty)
-            print("GIFT_PREFETCH_COMBINATION_PASS iteration=\(iteration) order=native,VAP,SVGA")
+            logger.notice("GIFT_PREFETCH_COMBINATION_PASS iteration=\(iteration, privacy: .public) order=native,VAP,SVGA")
         }
     }
 }

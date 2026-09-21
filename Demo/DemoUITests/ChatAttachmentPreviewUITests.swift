@@ -1,5 +1,8 @@
+import OSLog
 import XCTest
 import UIKit
+
+private let logger = Logger(subsystem: "Demo.UITests", category: "ChatAttachmentPreviewUITests")
 
 final class ChatAttachmentPreviewUITests: XCTestCase {
     override func setUpWithError() throws {
@@ -316,16 +319,16 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         let play = app.buttons["imessage.preview.play"]
         let playing = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label BEGINSWITH %@", "暂停"), object: play)
         XCTAssertEqual(XCTWaiter.wait(for: [playing], timeout: 10), .completed)
-        print("VIDEO_UNTOUCHED_BEGIN \(Date().timeIntervalSince1970)")
+        logger.notice("VIDEO_UNTOUCHED_BEGIN \(Date().timeIntervalSince1970, privacy: .public)")
         Thread.sleep(forTimeInterval: 10)
-        print("VIDEO_UNTOUCHED_END \(Date().timeIntervalSince1970)")
+        logger.notice("VIDEO_UNTOUCHED_END \(Date().timeIntervalSince1970, privacy: .public)")
         XCTAssertGreaterThanOrEqual(playbackSeconds(app.sliders["imessage.preview.progress"]), 9)
         app.sliders["imessage.preview.progress"].adjust(toNormalizedSliderPosition: 0.25)
         let resumed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label BEGINSWITH %@", "暂停"), object: play)
         XCTAssertEqual(XCTWaiter.wait(for: [resumed], timeout: 10), .completed)
-        print("VIDEO_AFTER_SEEK_BEGIN \(Date().timeIntervalSince1970)")
+        logger.notice("VIDEO_AFTER_SEEK_BEGIN \(Date().timeIntervalSince1970, privacy: .public)")
         Thread.sleep(forTimeInterval: 6)
-        print("VIDEO_AFTER_SEEK_END \(Date().timeIntervalSince1970)")
+        logger.notice("VIDEO_AFTER_SEEK_END \(Date().timeIntervalSince1970, privacy: .public)")
         XCTAssertGreaterThanOrEqual(playbackSeconds(app.sliders["imessage.preview.progress"]), 10)
         play.tap()
         capture(app, "视频-无操作播放与拖动后恢复")
@@ -344,9 +347,9 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         let playing = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label BEGINSWITH %@", "暂停"), object: play)
         XCTAssertEqual(XCTWaiter.wait(for: [playing], timeout: 10), .completed)
         XCTAssertTrue(app.cells["imessage.preview.thumbnail.1"].isSelected)
-        print("VIDEO_AUTOPLAY_BEGIN \(Date().timeIntervalSince1970)")
+        logger.notice("VIDEO_AUTOPLAY_BEGIN \(Date().timeIntervalSince1970, privacy: .public)")
         Thread.sleep(forTimeInterval: 8)
-        print("VIDEO_AUTOPLAY_END \(Date().timeIntervalSince1970)")
+        logger.notice("VIDEO_AUTOPLAY_END \(Date().timeIntervalSince1970, privacy: .public)")
         XCTAssertGreaterThanOrEqual(playbackSeconds(app.sliders["imessage.preview.progress"]), 7)
         play.tap()
         app.cells["imessage.preview.thumbnail.2"].tap()
@@ -668,11 +671,11 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         let slider = app.sliders["imessage.preview.progress"]
         let before = slider.frame
         capture(app, "播放条-普通形态")
-        print("SCRUB_MORPH_BEGIN \(Date().timeIntervalSince1970)")
+        logger.notice("SCRUB_MORPH_BEGIN \(Date().timeIntervalSince1970, privacy: .public)")
         let start = slider.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5))
         let end = slider.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.5))
         start.press(forDuration: 2, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 2)
-        print("SCRUB_MORPH_END \(Date().timeIntervalSince1970)")
+        logger.notice("SCRUB_MORPH_END \(Date().timeIntervalSince1970, privacy: .public)")
         XCTAssertTrue(play.waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["imessage.media.preview.close"].isHittable)
         XCTAssertTrue(app.buttons["imessage.preview.mute"].isHittable)
@@ -1180,7 +1183,7 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
                 state(control) == enabled
             }, object: nil)
             XCTAssertEqual(XCTWaiter.wait(for: [changed], timeout: 5), .completed, "系统开关未改变：\(name)")
-            print("[AccessibilityEvidence] \(name): \(before ? 1 : 0) -> \(String(describing: state(control)))")
+            logger.notice("[AccessibilityEvidence] \(name, privacy: .public): \(before ? 1 : 0, privacy: .public) -> \(String(describing: state(control)), privacy: .public)")
         }
 
         let motionPage = ["Motion", "动态效果"]

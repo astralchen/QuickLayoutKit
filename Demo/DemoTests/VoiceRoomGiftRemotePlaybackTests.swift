@@ -1,8 +1,11 @@
+import OSLog
 import UIKit
 import XCTest
 import SVGAView
 import VAPView
 @testable import Demo
+
+private let logger = Logger(subsystem: "Demo.Tests", category: "VoiceRoomGiftRemotePlaybackTests")
 
 /// 真实网络集成验证；通过独立类筛选运行，不与无网络队列测试混淆。
 @MainActor
@@ -18,18 +21,18 @@ final class VoiceRoomGiftRemotePlaybackTests: XCTestCase {
                 let result = await play(gift, in: controller.view)
                 switch result {
                 case .success:
-                    print("GIFT_REMOTE_PASS gift=\(id) iteration=\(iteration)")
+                    logger.notice("GIFT_REMOTE_PASS gift=\(id, privacy: .public) iteration=\(iteration, privacy: .public)")
                 case .failure(let error):
                     XCTFail("\(id) 第 \(iteration) 次远程播放失败：\(error)")
                 }
                 switch gift.effects.first {
                 case .vap(let url):
                     if case .cached = await VAPView.cacheStatus(source: url.absoluteString) {
-                        print("GIFT_CACHE_PASS format=VAP iteration=\(iteration)")
+                        logger.notice("GIFT_CACHE_PASS format=VAP iteration=\(iteration, privacy: .public)")
                     } else { XCTFail("VAP 完成播放后应存在库管理的缓存") }
                 case .svga(let url):
                     if case .cached = await SVGAView.cacheStatus(remoteURL: url) {
-                        print("GIFT_CACHE_PASS format=SVGA iteration=\(iteration)")
+                        logger.notice("GIFT_CACHE_PASS format=SVGA iteration=\(iteration, privacy: .public)")
                     } else { XCTFail("SVGA 完成播放后应存在库管理的缓存") }
                 case .native, nil:
                     XCTFail("远程测试礼物缺少主特效配置")

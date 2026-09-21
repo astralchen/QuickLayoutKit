@@ -1,4 +1,7 @@
+import OSLog
 import XCTest
+
+private let logger = Logger(subsystem: "Demo.UITests", category: "ChatKeyboardUITests+TextDetection")
 
 extension ChatKeyboardUITests {
     @MainActor func testDetectedPhoneMenu() throws {
@@ -65,7 +68,7 @@ extension ChatKeyboardUITests {
             target.press(forDuration: 1.2)
             recognized = nativeAction.waitForExistence(timeout: 5)
         }
-        print("DETECTION \(name): \(recognized ? nativeAction.label : app.debugDescription)")
+        logger.notice("DETECTION \(name, privacy: .public): \(recognized ? nativeAction.label : app.debugDescription, privacy: .public)")
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "System detection - \(name)"
         screenshot.lifetime = .keepAlways

@@ -1,9 +1,12 @@
+import OSLog
 import UIKit
 import AppLocalization
 import QuickLayout
 import QuickLayoutKit
 
 final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHostingController, UICollectionViewDelegate {
+    private static let logger = Logger(subsystem: "Demo.ContentConfiguration", category: "ContentConfigurationWaterfallViewController")
+
     override var localizedTitleKey: String? { "demo.contentConfiguration.waterfall.title" }
 
     private(set) var collectionView: UICollectionView!
@@ -332,7 +335,7 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
         }
         isApplyingSnapshot = true
         #if DEBUG
-        print("[ContentWaterfall] configure reason=\(reason)")
+        Self.logger.debug("[ContentWaterfall] configure reason=\(reason, privacy: .public)")
         #endif
         renderGeneration += 1
         let generation = renderGeneration

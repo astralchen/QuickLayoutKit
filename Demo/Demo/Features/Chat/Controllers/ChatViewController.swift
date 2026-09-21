@@ -5,6 +5,7 @@
 
 import Combine
 import AppLocalization
+import OSLog
 import QuickLayout
 import QuickLayoutKit
 import UIKit
@@ -13,6 +14,8 @@ import QuickLook
 /// 支持文本、录制音频和语音转写草稿的一对一聊天 Demo。
 @available(iOS 26.0, *)
 final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImageLoadingOwner {
+
+    private static let logger = Logger(subsystem: "Demo.Chat", category: "ChatViewController")
 
     /// 页面全部媒体导入与图片显示共享的服务。
     let mediaImageLoader = MediaImageLoader()
@@ -193,7 +196,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
             } catch is CancellationError {
                 // 构建器负责删除当前批次尚未提交的文件。
             } catch {
-                NSLog("[SampleChatHistory] load failed: %@", String(describing: error))
+                Self.logger.error("[SampleChatHistory] load failed: \(String(describing: error), privacy: .public)")
                 self?.conversationView.initialPresentation.finishWaitingForHistory()
             }
         }
@@ -264,7 +267,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
                 } catch is CancellationError {
                     // 页面退出属于正常取消，导入器负责回收部分文件。
                 } catch {
-                    NSLog("[AttachmentPreviewFixture] import failed: %@", String(describing: error))
+                    Self.logger.error("[AttachmentPreviewFixture] import failed: \(String(describing: error), privacy: .public)")
                 }
             }
         }

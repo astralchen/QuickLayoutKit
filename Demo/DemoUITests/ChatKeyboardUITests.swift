@@ -1,4 +1,7 @@
+import OSLog
 import XCTest
+
+private let logger = Logger(subsystem: "Demo.UITests", category: "ChatKeyboardUITests")
 
 final class ChatKeyboardUITests: XCTestCase {
     override func setUpWithError() throws {
@@ -193,6 +196,6 @@ final class ChatKeyboardUITests: XCTestCase {
         screenshot.name = "键盘切换照片选择器"
         screenshot.lifetime = .keepAlways
         add(screenshot)
-        print("照片面板边界: 键盘时底边=\(keyboardComposerBottom), 照片时底边=\(composer.frame.maxY), 控制柄中心=\(grabber.frame.midY)")
+        logger.notice("照片面板边界: 键盘时底边=\(keyboardComposerBottom, privacy: .public), 照片时底边=\(composer.frame.maxY, privacy: .public), 控制柄中心=\(grabber.frame.midY, privacy: .public)")
     }
 }

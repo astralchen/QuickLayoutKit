@@ -1,9 +1,12 @@
+import OSLog
 import Foundation
 import AVFAudio
 import QuickLayoutKit
 import Testing
 import UIKit
 @testable import Demo
+
+private let logger = Logger(subsystem: "Demo.Tests", category: "ChatAudioTranscriptionTests")
 
 @MainActor
 @Suite(.serialized, .enabled(if: ChatTestAvailability.isSupported))
@@ -480,7 +483,7 @@ struct ChatAudioTranscriptionTests {
         }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("audio-transcript-iphone16pro.png")
         try image.pngData()?.write(to: url)
-        print("AUDIO_TRANSCRIPT_SNAPSHOT: \(url.path)")
+        logger.notice("AUDIO_TRANSCRIPT_SNAPSHOT: \(url.path, privacy: .public)")
         root.traitOverrides.preferredContentSizeCategory = .accessibilityExtraExtraExtraLarge
         #expect(await eventually { root.view.traitCollection.preferredContentSizeCategory == .accessibilityExtraExtraExtraLarge })
         let cell = AudioBubbleCell(frame: .zero)

@@ -1,3 +1,4 @@
+import OSLog
 import UIKit
 import Testing
 #if WATERFALL_STANDALONE_HOST
@@ -6,6 +7,8 @@ import Testing
 import QuickLayoutKit
 @testable import QuickLayoutKitUIKit
 #endif
+
+private let logger = Logger(subsystem: "Demo.Tests", category: "WaterfallLayoutPerformanceTests")
 
 /// Opt-in baseline against the real UIKit layout. See Scripts/run-waterfall-benchmark.sh.
 /// Cells are not mounted: this measures layout work, not text fitting or rendering/FPS.
@@ -24,7 +27,8 @@ struct WaterfallLayoutPerformanceTests {
                 "total_ms": sorted.reduce(0, +), "metadata_calls": calls
             ]
             records.append(row)
-            print("WATERFALL_BENCHMARK " + String(data: try! JSONSerialization.data(withJSONObject: row, options: [.sortedKeys]), encoding: .utf8)!)
+            let data = try! JSONSerialization.data(withJSONObject: row, options: [.sortedKeys])
+            logger.notice("WATERFALL_BENCHMARK \(String(decoding: data, as: UTF8.self), privacy: .public)")
         }
         func elapsed(_ operation: () -> Void) -> Double {
             let start = ProcessInfo.processInfo.systemUptime
@@ -184,7 +188,7 @@ struct WaterfallLayoutPerformanceTests {
         ]
         let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("waterfall-benchmark.json")
         try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]).write(to: url)
-        print("WATERFALL_BENCHMARK_RESULT \(url.path)")
+        logger.notice("WATERFALL_BENCHMARK_RESULT \(url.path, privacy: .public)")
     }
 }
 

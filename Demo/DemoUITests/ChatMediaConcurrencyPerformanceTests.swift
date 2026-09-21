@@ -1,4 +1,7 @@
+import OSLog
 import XCTest
+
+private let logger = Logger(subsystem: "Demo.UITests", category: "ChatMediaConcurrencyPerformanceTests")
 
 /// 专用 Release 性能构建的配对测试；常规测试运行不会自动启动长时间基准。
 final class ChatMediaConcurrencyPerformanceTests: XCTestCase {
@@ -48,7 +51,7 @@ final class ChatMediaConcurrencyPerformanceTests: XCTestCase {
             attachment.name = "media-ab-\(scenario)-\(sample)-limit\(limit).json"
             attachment.lifetime = .keepAlways
             add(attachment)
-            print("MEDIA_AB_SAMPLE \(String(decoding: data, as: UTF8.self))")
+            logger.notice("MEDIA_AB_SAMPLE \(String(decoding: data, as: UTF8.self), privacy: .public)")
             validate(report)
             app.terminate()
         }

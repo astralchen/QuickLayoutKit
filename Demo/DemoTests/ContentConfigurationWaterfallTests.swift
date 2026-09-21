@@ -1,3 +1,4 @@
+import OSLog
 import UIKit
 import Testing
 import QuickLayoutKit
@@ -5,6 +6,8 @@ import QuickLayout
 import AppLocalization
 @testable import Demo
 @testable import QuickLayoutKitUIKit
+
+private let logger = Logger(subsystem: "Demo.Tests", category: "ContentConfigurationWaterfallTests")
 
 @MainActor
 extension ContentConfigurationCollectionTests {
@@ -447,7 +450,7 @@ private final class WaterfallFixture {
         }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name + ".png")
         try data.write(to: url)
-        print("[WaterfallSnapshot] \(url.path)")
+        logger.notice("[WaterfallSnapshot] \(url.path, privacy: .public)")
     }
 }
 
