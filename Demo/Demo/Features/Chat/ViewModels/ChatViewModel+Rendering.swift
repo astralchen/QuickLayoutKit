@@ -19,6 +19,17 @@ extension ChatViewModel {
     /// 将原始消息解析为有序时间线，补充时间分隔、发送状态文字和输入状态项。
     func makeState() -> State {
         var timeline: [TimelineItem] = []
+        // 只有已配置来源的会话才加入顶部提示；文案在每次状态生成时按当前语言解析。
+        if historyState != .disabled {
+            let key: String = switch historyState {
+            case .loading: "imessage.history.loading"
+            case .failed: "imessage.history.failed"
+            case .exhausted: "imessage.history.exhausted"
+            case .idle, .disabled: "imessage.history.earlier"
+            }
+            timeline.append(TimelineItem(id: .historyStatus,
+                content: .historyStatus(.init(state: historyState, text: localizer.text(key)))))
+        }
         var previousDate: Date?
         let latestOutgoingID = messages.last(where: {
             $0.direction == .outgoing
@@ -105,7 +116,8 @@ extension ChatViewModel {
         }
 
         return State(timeline: timeline, isTyping: isTyping, isProcessingMessages:
-            activeReplyID != nil || !pendingReplies.isEmpty || messages.contains { $0.deliveryState == .sending })
+            activeReplyID != nil || !pendingReplies.isEmpty || messages.contains { $0.deliveryState == .sending },
+            historyState: historyState)
     }
 
     /// 解析本地化或用户文本载荷；附件载荷返回空字符串。

@@ -161,8 +161,10 @@ nonisolated struct TimestampPresentation: Equatable, Sendable {
     let text: String
 }
 
-/// 区分时间分隔、消息和输入状态项的稳定时间线身份。
+/// 区分历史提示、时间分隔、消息和输入状态项的稳定时间线身份。
 nonisolated enum TimelineItemID: Hashable, Sendable {
+    /// 当前会话唯一的顶部历史状态项，状态变化时保持身份稳定。
+    case historyStatus
     /// 由来源消息身份确定的时间分隔项。
     case timestamp(sourceMessageID: Int)
     /// 由消息整数标识符确定的消息项。
@@ -173,6 +175,8 @@ nonisolated enum TimelineItemID: Hashable, Sendable {
 
 /// 时间线单项可呈现的内容类型。
 nonisolated enum TimelineContent: Equatable, Sendable {
+    /// 显示历史加载进度、失败重试或无更多记录提示。
+    case historyStatus(HistoryStatusPresentation)
     /// 显示本地化时间分隔信息。
     case timestamp(TimestampPresentation)
     /// 显示已经解析的文本或附件消息。

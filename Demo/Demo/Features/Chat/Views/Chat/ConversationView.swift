@@ -83,6 +83,42 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     private var pendingExplicitScroll = false
     /// 首次历史等待期间发生过拖动或发送时，批量插入应保留阅读位置。
     private var hasInteractedWithTimeline = false
+    /// 用户向顶部翻看且满足阈值时请求下一页，由页面转交模型处理。
+    var loadEarlierHistory: (() -> Void)?
+    /// 用户点击顶部失败提示时请求重试，区别于自动滚动触发。
+    var retryHistory: (() -> Void)?
+    /// 标记当前一次拖动及其减速过程是否已请求过历史，防止短列表连续自动翻页。
+    private var requestedHistoryDuringDrag = false
+    /// 上次滚动回调的纵向偏移，用于判断本次是否向更早记录移动。
+    private var previousScrollOffset: CGFloat = 0
+    /// 标记快照应用及位置恢复过程，避免程序化滚动触发新的历史请求。
+    private var isApplyingTimeline = false
+    /// 用户继续滚动或视口改变后，旧快照的完成回调不能恢复过时位置。
+    private var readingPositionRevision = 0
+    /// 分页插入前的可见消息身份及屏幕偏移，跨连续状态刷新保留至最新快照完成。
+    private var pendingHistoryAnchor: (id: TimelineItemID, anchor: UICollectionViewLocalizationAnchor)?
+
+    /// 只选择实际未被导航栏和输入栏遮挡的消息，时间分隔项可随跨页合并而消失。
+    ///
+    /// - Parameter state: 与当前列表位置对应的插入前状态，用于将索引转换为稳定消息身份。
+    /// - Returns: 首条可见消息的身份及距视口顶部、语义前缘的偏移；无可见消息时为 `nil`。
+    private func captureMessageAnchor(in state: ChatViewModel.State?) -> (id: TimelineItemID, anchor: UICollectionViewLocalizationAnchor)? {
+        guard let state else { return nil }
+        let list = collectionView
+        list.layoutIfNeeded()
+        let viewport = list.bounds.inset(by: list.adjustedContentInset)
+        for index in list.indexPathsForVisibleItems.sorted() {
+            guard state.timeline.indices.contains(index.item),
+                  case .message = state.timeline[index.item].content,
+                  let frame = list.layoutAttributesForItem(at: index)?.frame,
+                  frame.intersects(viewport) else { continue }
+            return (state.timeline[index.item].id, .init(indexPath: index,
+                offsetFromViewportTop: frame.minY - viewport.minY,
+                offsetFromViewportLeading: list.effectiveUserInterfaceLayoutDirection == .rightToLeft
+                    ? viewport.maxX - frame.maxX : frame.minX - viewport.minX))
+        }
+        return nil
+    }
     /// 按消息和附件组合身份查询权威保存状态的回调。
     var attachmentSaveState: ((AttachmentSaveKey) -> AttachmentSaveState)?
     /// 最近一次渲染的完整状态，用于附件保存状态变化时重新配置列表。
@@ -121,6 +157,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
             return
         }
         prepareForViewportChange()
+        readingPositionRevision &+= 1
         let position = pendingViewportPosition
         pendingViewportPosition = nil
         isUpdatingViewport = true
@@ -259,6 +296,11 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     /// 列表重新显示已有 Cell 时恢复缩略图消费者。
     func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
         MediaImageView.setContentActive(true, in: cell)
+        // 加载状态采用局部更新；离屏后重新出现的提示必须读取最新状态，而非旧快照文案。
+        if let cell = cell as? HistoryStatusCell,
+           let item = lastState?.timeline.first, case .historyStatus(let presentation) = item.content {
+            cell.configure(presentation)
+        }
         if let timeline = lastState?.timeline, timeline.indices.contains(indexPath.item),
            case .message(let message) = timeline[indexPath.item].content {
             configureMessageMenu(cell, message: message)
@@ -270,10 +312,35 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         MediaImageView.setContentActive(false, in: cell)
     }
 
+    /// 开始新的用户滚动手势，重置本次分页额度，并使旧的阅读位置恢复请求失效。
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        readingPositionRevision &+= 1
+        requestedHistoryDuringDrag = false
+        previousScrollOffset = scrollView.contentOffset.y
+        pendingHistoryAnchor = nil
         endMessageSelection()
         hasInteractedWithTimeline = true
         pendingExplicitScroll = false
+    }
+
+    /// 在用户向顶部拖动或减速、且距内容顶部不超过 120 pt 时尝试加载更早历史。
+    ///
+    /// 首次展示、布局更新和程序化定位不会触发请求；失败与结束状态也不会自动重试。
+    /// - Parameter scrollView: 列表适配器转发滚动事件的消息集合视图。
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        defer { previousScrollOffset = scrollView.contentOffset.y }
+        if !isApplyingTimeline, !isUpdatingViewport {
+            readingPositionRevision &+= 1
+            pendingHistoryAnchor = nil
+        }
+        guard scrollView === collectionView, initialPresentation.isPresented,
+              !isApplyingTimeline, !isUpdatingViewport, !pendingExplicitScroll,
+              scrollView.isDragging || scrollView.isDecelerating,
+              scrollView.contentOffset.y < previousScrollOffset,
+              scrollView.contentOffset.y + scrollView.adjustedContentInset.top <= 120,
+              !requestedHistoryDuringDrag, lastState?.historyState == .idle else { return }
+        requestedHistoryDuringDrag = true
+        loadEarlierHistory?()
     }
 
     /// 自适应高度可能在动画期间变化，完成后再对齐一次最终底部。
@@ -289,17 +356,36 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         _ state: ChatViewModel.State,
         reason: ChatViewModel.UpdateReason
     ) {
+        if reason == .historyStatus, let previous = lastState,
+           previous.timeline.map(\.id) == state.timeline.map(\.id),
+           let item = state.timeline.first, case .historyStatus(let presentation) = item.content {
+            // 加载状态不改变消息结构。避免为一个提示重新提交整个列表，导致
+            // 排队的自适应布局在用户继续拖动之后恢复请求开始时的阅读位置。
+            lastState = state
+            for cell in collectionView.visibleCells.compactMap({ $0 as? HistoryStatusCell }) {
+                cell.configure(presentation)
+            }
+            if state.historyState == .failed { initialPresentation.finishWaitingForHistory() }
+            return
+        }
+        isApplyingTimeline = true
+        defer { isApplyingTimeline = false }
         let previousState = lastState
+        if reason == .sentMessage { pendingHistoryAnchor = nil }
+        // 结果提交时才捕获阅读位置，避免使用请求开始后已被用户滚动改变的旧位置。
+        if reason == .olderHistoryLoaded {
+            pendingHistoryAnchor = captureMessageAnchor(in: previousState)
+        }
         if reason == .messageDeleted { pendingExplicitScroll = false }
         lastState = state
         if reason == .sentMessage { hasInteractedWithTimeline = true }
-        let preservesHistoryPosition = reason == .historyLoaded && hasInteractedWithTimeline
+        let preservesHistoryPosition = reason == .olderHistoryLoaded || (reason == .historyLoaded && hasInteractedWithTimeline)
         if reason == .initial || reason == .sentMessage { pendingExplicitScroll = true }
         if reason == .historyLoaded && !preservesHistoryPosition { pendingExplicitScroll = true }
         let wasNearBottom = timelineCount == 0 || pendingExplicitScroll || isNearBottom
         // 回复落地后还会立即刷新“正在输入”状态；跟随意图必须保留到最新一次提交完成。
         if reason == .receivedMessage && wasNearBottom { pendingExplicitScroll = true }
-        var localizationAnchor = (preservesHistoryPosition || reason == .attachmentSave || reason == .messageDeleted || ((reason == .localization || reason == .audioTranscript || reason == .messageStatus || reason == .receivedMessage) && !wasNearBottom))
+        var localizationAnchor = (preservesHistoryPosition || reason == .historyStatus || reason == .attachmentSave || reason == .messageDeleted || ((reason == .localization || reason == .audioTranscript || reason == .messageStatus || reason == .receivedMessage) && !wasNearBottom))
             ? collectionView.captureLocalizationAnchor()
             : nil
         // 历史插入会改变 IndexPath，必须先用旧时间线身份定位同一条消息。
@@ -322,6 +408,15 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                 } else { localizationAnchor = nil }
             } else { localizationAnchor = nil }
         }
+        // 送达等刷新可能紧接分页提交，继续使用同一消息身份，直到最新快照完成定位。
+        if let saved = pendingHistoryAnchor,
+           let index = state.timeline.firstIndex(where: { $0.id == saved.id }) {
+            localizationAnchor = .init(indexPath: IndexPath(item: index, section: 0),
+                offsetFromViewportTop: saved.anchor.offsetFromViewportTop,
+                offsetFromViewportLeading: saved.anchor.offsetFromViewportLeading)
+        }
+        let restoresHistoryAnchor = pendingHistoryAnchor != nil || preservesHistoryPosition
+        let positionRevision = readingPositionRevision
         timelineCount = state.timeline.count
         let mediaMessageIDs = Set(state.timeline.compactMap { item -> Int? in
             guard case .message(let message) = item.content,
@@ -332,7 +427,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         renderGeneration &+= 1
         let generation = renderGeneration
         initialPresentation.willApplySnapshot()
-        if reason == .historyLoaded || reason == .sentMessage {
+        if reason == .historyLoaded || reason == .sentMessage || state.historyState == .failed {
             initialPresentation.finishWaitingForHistory()
         }
         // 送达、已读和键入可连续发生。必须完成前一份可见内容刷新，避免
@@ -358,6 +453,8 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                 guard let self, self.renderGeneration == generation else {
                     return
                 }
+                self.isApplyingTimeline = true
+                defer { self.isApplyingTimeline = false }
                 self.collectionView.layoutIfNeeded()
                 self.refreshMaterializedContentLayoutDirection()
 
@@ -367,11 +464,13 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                     return
                 }
 
+                self.pendingHistoryAnchor = nil
                 let explicitScroll = self.pendingExplicitScroll
                 self.pendingExplicitScroll = false
                 if let localizationAnchor, !explicitScroll {
+                    guard self.readingPositionRevision == positionRevision else { return }
                     _ = self.collectionView.restoreLocalizationAnchor(localizationAnchor)
-                    if reason == .messageDeleted {
+                    if reason == .messageDeleted || restoresHistoryAnchor || reason == .historyStatus {
                         // 首次恢复可能使估算高度的相邻 Cell 进入视口并触发自适应测量。
                         // 完成这一轮布局后，用同一阅读锚点校正最终几何。
                         self.collectionView.layoutIfNeeded()
@@ -381,7 +480,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                 }
 
                 let shouldScroll: Bool = switch reason {
-                case .attachmentSave, .messageDeleted:
+                case .attachmentSave, .messageDeleted, .olderHistoryLoaded, .historyStatus:
                     false
                 case .historyLoaded:
                     !preservesHistoryPosition
@@ -399,6 +498,14 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
             ListSection(.timeline) {
                 ForEach(state.timeline, id: \.id) { item in
                     switch item.content {
+                    case .historyStatus(let presentation):
+                        Row(model: presentation, cell: HistoryStatusCell.self) { [weak self] cell, presentation, _ in
+                            cell.retry = { [weak self] in self?.retryHistory?() }
+                            cell.configure(presentation)
+                        }
+                        .refreshID(presentation)
+                        .refresh(when: .automatic, action: .reconfigure(layout: .invalidate))
+
                     case .timestamp(let timestamp):
                         Row(
                             model: timestamp,
@@ -537,6 +644,15 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                     )
                 )
             )
+        }
+        if restoresHistoryAnchor, let localizationAnchor, !pendingExplicitScroll,
+           collectionView.numberOfSections > 0,
+           collectionView.numberOfItems(inSection: 0) == state.timeline.count {
+            // 无动画插入在返回主循环前恢复位置，完成回调再校正自适应高度。
+            collectionView.layoutIfNeeded()
+            collectionView.restoreLocalizationAnchor(localizationAnchor)
+            collectionView.layoutIfNeeded()
+            collectionView.restoreLocalizationAnchor(localizationAnchor)
         }
         if insertsText && (reason == .sentMessage || wasNearBottom) {
             // 无动画 snapshot 已提交，但 ListKit 的完成回调会延迟到下一次主线程调度。

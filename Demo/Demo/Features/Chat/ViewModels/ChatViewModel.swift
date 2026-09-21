@@ -31,6 +31,10 @@ final class ChatViewModel {
         case initial
         /// 首次历史准备完成，按用户是否已交互决定保持锚点或滚动到底部。
         case historyLoaded
+        /// 更早的历史页插入，只保持阅读位置。
+        case olderHistoryLoaded
+        /// 顶部加载或错误提示变化。
+        case historyStatus
         /// 当前用户追加了发出消息。
         case sentMessage
         /// 时间线追加了收到的消息。
@@ -49,12 +53,14 @@ final class ChatViewModel {
 
     /// 供会话视图一次性渲染的完整状态快照。
     struct State: Equatable {
-        /// 按展示顺序排列的时间、消息与输入状态项。
+        /// 按展示顺序排列的历史提示、时间、消息与输入状态项。
         let timeline: [TimelineItem]
         /// 指示是否显示对方正在输入的布尔值。
         let isTyping: Bool
         /// 指示发送、排队回复或活动回复是否仍在处理的布尔值。
         var isProcessingMessages: Bool = false
+        /// 历史加载状态；默认关闭，避免无数据源的注入入口自动加载或显示状态项。
+        var historyState: HistoryLoadingState = .disabled
     }
 
     /// 在主 Actor 上取得当前日期的闭包类型。
@@ -87,6 +93,23 @@ final class ChatViewModel {
     var nextMessageID: Int
     /// 防止首次历史加载重复完成时再次插入消息。
     private var hasInsertedInitialHistory = false
+    /// 当前会话的可替换历史来源；未配置时不启用分页。
+    var historySource: (any MessageHistoryLoading)?
+    /// 唯一的活动历史请求，完成或取消后清空，用于拦截重复加载。
+    var historyTask: Task<Void, Never>?
+    /// 上次成功加载返回的下一页游标；是否已加载过首页由 `hasLoadedHistoryPage` 区分。
+    var historyCursor: String?
+    /// 历史请求的权威状态，生成快照时同步给顶部提示和滚动触发逻辑。
+    var historyState: HistoryLoadingState = .disabled
+    /// 来源身份到本地消息 ID 的映射；删除消息后仍保留映射以拒绝重复导入。
+    var historySourceIDs: [String: Int] = [:]
+    /// 当前请求的身份令牌；新请求或页面退出时更换，用于拒绝迟到结果。
+    var historyGeneration = UUID()
+    /// 是否成功接收过首页，用于选择请求大小、游标语义和首次展示策略。
+    var hasLoadedHistoryPage = false
+    /// 会话是否已退出；一旦失效，不再允许配置来源或接收历史结果。
+    var historyInvalidated = false
+
     /// 串行处理模拟回复队列的任务；空闲时为 `nil`。
     var pendingReplyTask: Task<Void, Never>?
     /// 按发送顺序保存的待回复消息身份与回复类型。
@@ -178,8 +201,9 @@ final class ChatViewModel {
         state = makeState()
     }
 
-    /// 在视图模型释放时取消回复工作任务和全部发送任务。
+    /// 在视图模型释放时取消历史请求、回复工作任务和全部发送任务。
     deinit {
+        historyTask?.cancel()
         pendingReplyTask?.cancel()
         sendTasks.values.forEach { $0.cancel() }
     }
