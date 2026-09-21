@@ -51,6 +51,20 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         collectionViewLayout: UICollectionViewFlowLayout()
     )
 
+    /// 首次展示与后续消息滚动分开管理；隐藏期间集合视图仍参与真实布局。
+    private(set) lazy var initialPresentation = ConversationInitialPresentation(collectionView: collectionView)
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        initialPresentation.resumeIfNeeded()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // QuickLayout 可能在容器进入窗口之后才挂载集合视图，空快照尤其容易先完成。
+        initialPresentation.resumeIfNeeded()
+    }
+
     /// 让消息列表随会话容器填满可用空间。
     override var body: Layout {
         collectionView.resizable()
@@ -155,6 +169,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     override init(frame: CGRect = .zero) {
         super.init(frame: frame)
         configureCollectionView()
+        _ = initialPresentation
         adapter.collectionDelegate = self
         let selectionDismiss = UITapGestureRecognizer(target: self, action: #selector(dismissSelectionOutside(_:)))
         selectionDismiss.cancelsTouchesInView = false
@@ -244,6 +259,10 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         mediaStackStateStore.retainMessages(mediaMessageIDs)
         renderGeneration &+= 1
         let generation = renderGeneration
+        initialPresentation.willApplySnapshot()
+        if reason == .historyLoaded || reason == .sentMessage {
+            initialPresentation.finishWaitingForHistory()
+        }
         // 送达、已读和键入可连续发生。必须完成前一份可见内容刷新，避免
         // coalesceLatest 取代结构提交后丢失旧 Cell 的状态变更。
         let receivesText: Bool
@@ -269,6 +288,12 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                 }
                 self.collectionView.layoutIfNeeded()
                 self.refreshMaterializedContentLayoutDirection()
+
+                if !self.initialPresentation.isPresented {
+                    self.pendingExplicitScroll = false
+                    self.initialPresentation.didApplySnapshot()
+                    return
+                }
 
                 let explicitScroll = self.pendingExplicitScroll
                 self.pendingExplicitScroll = false

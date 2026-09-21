@@ -2,6 +2,26 @@ import XCTest
 
 /// 沿用 ChatRegression 已选择的测试类，验证未带 fixture 参数的正常入口。
 extension ChatKeyboardUITests {
+    @MainActor func testInitialHistoryStartsAtBottomAndStaysThere() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments += ["-quicklayoutkit.demo.locale.identifier", "zh-Hans"]
+        app.launch()
+        let route = app.cells["demo.imessage.title"]
+        XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
+        for _ in 0..<10 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
+        XCTAssertTrue(route.waitForExistence(timeout: 5))
+        route.tap()
+        let links = app.descendants(matching: .any).matching(identifier: "imessage.attachment.link.card")
+        XCTAssertTrue(links.firstMatch.waitForExistence(timeout: 20))
+        let firstFrame = links.firstMatch.frame
+        for index in 0..<4 {
+            saveHistoryScreenshot(app, "entry-stable-\(index)")
+            XCTAssertEqual(links.firstMatch.frame.minY, firstFrame.minY, accuracy: 1)
+        }
+        XCTAssertTrue(app.textViews["imessage.composer.text"].isHittable)
+    }
+
     @MainActor func testInitialHistoryChinese() throws { try checkInitialHistory(locale: "zh-Hans", richText: "混合格式") }
     @MainActor func testInitialHistoryEnglish() throws { try checkInitialHistory(locale: "en", richText: "Combined formatting") }
     @MainActor func testInitialHistoryArabic() throws { try checkInitialHistory(locale: "ar", richText: "تنسيق مختلط") }

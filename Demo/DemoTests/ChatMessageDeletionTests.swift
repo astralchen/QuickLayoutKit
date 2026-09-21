@@ -55,7 +55,7 @@ struct ChatMessageDeletionTests {
             .init(timeline: messages.map { .init(id: .message($0.id), content: .message($0)) }, isTyping: false)
         }
         conversation.render(state(), reason: .initial)
-        #expect(await eventually { conversation.collectionView.numberOfItems(inSection: 0) == 50 && conversation.collectionView.indexPathsForVisibleItems.contains(IndexPath(item: 49, section: 0)) })
+        #expect(await eventually { conversation.collectionView.alpha == 1 && conversation.collectionView.numberOfItems(inSection: 0) == 50 && conversation.collectionView.indexPathsForVisibleItems.contains(IndexPath(item: 49, section: 0)) })
         conversation.collectionView.layoutIfNeeded()
         conversation.collectionView.scrollToItem(at: IndexPath(item: 20, section: 0), at: .top, animated: false)
         conversation.collectionView.layoutIfNeeded()

@@ -194,6 +194,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
                 // 构建器负责删除当前批次尚未提交的文件。
             } catch {
                 NSLog("[SampleChatHistory] load failed: %@", String(describing: error))
+                self?.conversationView.initialPresentation.finishWaitingForHistory()
             }
         }
     }
@@ -286,6 +287,9 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
             }
         }
         #endif
+        if loadsInitialHistory {
+            conversationView.initialPresentation.waitForHistory(in: conversationView)
+        }
         bindViewModel()
         loadInitialHistory()
         observeKeyboard()

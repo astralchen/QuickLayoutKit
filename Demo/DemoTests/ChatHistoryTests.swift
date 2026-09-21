@@ -185,7 +185,7 @@ struct ChatHistoryTests {
             list.layoutIfNeeded()
             return list.numberOfItems(inSection: 0) == model.state.timeline.count
                 && !list.visibleCells.isEmpty && list.contentSize.height > list.bounds.height
-                && conversation.isNearBottom
+                && list.alpha == 1 && conversation.isNearBottom
         })
         conversation.scrollViewWillBeginDragging(list)
         list.setContentOffset(CGPoint(x: 0, y: 500), animated: false)
@@ -217,6 +217,123 @@ struct ChatHistoryTests {
         })
     }
 
+    /// 逐次采样可见帧，而非仅等待最终 isNearBottom；同时覆盖数据先到和视口先到。
+    @Test(arguments: [0, 1, 60])
+    func firstVisibleHistoryIsAlreadyAtBottom(messageCount: Int) async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.windows.first(where: \.isKeyWindow)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+        let host = UIViewController()
+        let conversation = ConversationView()
+        host.view = conversation
+        window.rootViewController = host
+        defer { window.isHidden = true; previous?.makeKeyAndVisible() }
+        let model = ChatViewModel()
+        conversation.initialPresentation.waitForHistory(in: conversation)
+        model.bind { state, reason in conversation.render(state, reason: reason) }
+        if messageCount != 1 { window.makeKeyAndVisible() }
+        // 首次空快照已经提交，也不能在历史结果之前提前展示。
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(conversation.collectionView.alpha == 0)
+        model.insertInitialHistory((0..<messageCount).map { index in
+            .init(direction: .incoming,
+                  content: .userText("History \(index)\n" + String(repeating: "Variable height line\n", count: index % 8)))
+        })
+        // 同一批历史紧接局部刷新，过期提交不得显示旧内容或丢失首次定位。
+        conversation.render(model.state, reason: .messageStatus)
+        if messageCount == 1 { window.makeKeyAndVisible() }
+        let list = conversation.collectionView
+        var visibleSamples = 0
+        for _ in 0..<200 {
+            try await Task.sleep(for: .milliseconds(10))
+            guard list.alpha == 1 else { continue }
+            visibleSamples += 1
+            let bottom = max(-list.adjustedContentInset.top,
+                             list.contentSize.height - list.bounds.height + list.adjustedContentInset.bottom)
+            #expect(abs(list.contentOffset.y - bottom) < 1)
+            #expect(!list.accessibilityElementsHidden)
+            if messageCount > 0 {
+                #expect(list.indexPathsForVisibleItems.contains(IndexPath(item: model.state.timeline.count - 1, section: 0)))
+            }
+            if visibleSamples == 12 { break }
+        }
+        #expect(visibleSamples == 12, "初始内容必须可见，且每次可见采样均已位于底部")
+        // 临时离开窗口再回来，不能重新隐藏或重置用户阅读位置。
+        if messageCount == 60 {
+            conversation.scrollViewWillBeginDragging(list)
+            list.setContentOffset(CGPoint(x: 0, y: 400), animated: false)
+            list.layoutIfNeeded()
+            let offset = list.contentOffset
+            window.isHidden = true
+            window.makeKeyAndVisible()
+            try await Task.sleep(for: .milliseconds(100))
+            #expect(list.alpha == 1)
+            #expect(abs(list.contentOffset.y - offset.y) < 1)
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func waitingHistoryCanFinishWithFailureOrEarlySend(sendsMessage: Bool) async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.windows.first(where: \.isKeyWindow)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+        let host = UIViewController()
+        let conversation = ConversationView()
+        host.view = conversation
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKeyAndVisible() }
+        let model = ChatViewModel()
+        defer { model.cancelPendingReply() }
+        conversation.initialPresentation.waitForHistory(in: conversation)
+        model.bind { state, reason in conversation.render(state, reason: reason) }
+        if sendsMessage {
+            #expect(model.send("Sent while loading"))
+        } else {
+            conversation.initialPresentation.finishWaitingForHistory()
+        }
+        #expect(await eventually { conversation.collectionView.alpha == 1 })
+        #expect(conversation.subviews.compactMap { $0 as? UIActivityIndicatorView }.isEmpty)
+    }
+
+    @Test func normalEntryKeepsEveryVisibleFrameAtBottom() async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.windows.first(where: \.isKeyWindow)
+        let window = UIWindow(windowScene: scene)
+        window.frame = scene.coordinateSpace.bounds
+        let navigation = UINavigationController(rootViewController: UIViewController())
+        window.rootViewController = navigation
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKeyAndVisible() }
+        let page = ChatViewController()
+        let list = page.conversationView.collectionView
+        var visibleFrames = 0
+        let probe = ChatInitialFrameProbe {
+            guard list.window != nil, list.alpha == 1 else { return }
+            visibleFrames += 1
+            let bottom = max(-list.adjustedContentInset.top,
+                             list.contentSize.height - list.bounds.height + list.adjustedContentInset.bottom)
+            #expect(abs(list.contentOffset.y - bottom) < 1, "首次展示后每帧都应保持最终底部")
+            #expect(page.viewModel.messages.count == 38)
+            if visibleFrames == 1 || visibleFrames == 20 {
+                let capture = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                    window.drawHierarchy(in: window.bounds, afterScreenUpdates: false)
+                }
+                try? capture.pngData()?.write(to: FileManager.default.temporaryDirectory
+                    .appendingPathComponent("chat-initial-visible-\(visibleFrames).png"))
+            }
+        }
+        probe.start()
+        defer { probe.stop() }
+        navigation.pushViewController(page, animated: true)
+        #expect(await eventually { visibleFrames >= 30 })
+    }
+
     private func eventually(_ condition: () -> Bool) async -> Bool {
         for _ in 0..<100 {
             if condition() { return true }
@@ -224,6 +341,20 @@ struct ChatHistoryTests {
         }
         return condition()
     }
+}
+
+/// 按实际刷新节奏观察列表；测试不调用 layoutIfNeeded 或滚动来帮助被测页面通过。
+@MainActor
+private final class ChatInitialFrameProbe: NSObject {
+    private let sample: () -> Void
+    private var link: CADisplayLink?
+    init(sample: @escaping () -> Void) { self.sample = sample }
+    func start() {
+        link = CADisplayLink(target: self, selector: #selector(tick))
+        link?.add(to: .main, forMode: .common)
+    }
+    func stop() { link?.invalidate(); link = nil }
+    @objc private func tick() { sample() }
 }
 
 /// 在真实页面目录上注入部分导入失败或取消，检查实际文件回收。
