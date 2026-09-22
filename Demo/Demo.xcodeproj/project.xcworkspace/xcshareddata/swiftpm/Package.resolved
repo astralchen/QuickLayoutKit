@@ -16,7 +16,7 @@
       "location" : "https://github.com/astralchen/ListKit.git",
       "state" : {
         "branch" : "main",
-        "revision" : "0d83cda8906cb7526ad2107e6be1b6f3fb0efeef"
+        "revision" : "005aaa36780a1db0850cee7dbccc826886935905"
       }
     },
     {
@@ -60,7 +60,7 @@
       "location" : "https://github.com/astralchen/VAPView.git",
       "state" : {
         "branch" : "main",
-        "revision" : "c70da3f1e408e642fb18b46cbf2540ea3dea5507"
+        "revision" : "a8130260a3c3629dd02c0fe2a52d3b604326f407"
       }
     },
     {

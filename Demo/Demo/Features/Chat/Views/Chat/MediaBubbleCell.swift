@@ -11,8 +11,8 @@ import UIKit
 
 /// 在时间线中显示媒体内容、发送状态和保存入口的自适应单元格。
 final class MediaBubbleCell: QuickLayoutCollectionViewCell {
-    /// 气泡内容的原生长按交互。
-    let messageMenu = MessageMenuInteraction()
+    /// 随 Cell 复用重置的菜单辅助功能绑定。
+    let messageMenu = MessageMenuAccessibility()
 
     /// 显示单图气泡或可切换媒体堆叠的视图。
     let mediaView = MediaMessageView()

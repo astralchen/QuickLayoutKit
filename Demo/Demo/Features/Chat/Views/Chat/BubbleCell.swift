@@ -9,8 +9,8 @@ import UIKit
 
 /// 在时间线中显示文本气泡和发送状态的自适应单元格。
 final class BubbleCell: QuickLayoutCollectionViewCell {
-    /// 气泡内容的原生长按交互。
-    let messageMenu = MessageMenuInteraction()
+    /// 随 Cell 复用重置的菜单辅助功能绑定。
+    let messageMenu = MessageMenuAccessibility()
 
 
     /// 呈现消息正文与收发方向外观的文本气泡视图。

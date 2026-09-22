@@ -167,20 +167,6 @@ final class AttachmentPreviewPlayer {
         }
     }
 
-    /// 只在新预览第一次显示时恢复菜单提交的播放位置，旧 seek 回调不得启动新播放器。
-    func restore(_ state: MessagePreviewPlayback) {
-        guard let player else { return }
-        let token = generation
-        let time = state.time.isFinite ? min(max(0, state.time), duration) : 0
-        player.seek(to: CMTime(seconds: time, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] completed in
-            Task { @MainActor [weak self] in
-                guard let self, completed, generation == token, self.player === player else { return }
-                if state.isPlaying, UIApplication.shared.applicationState == .active { toggle() }
-                didChange?()
-            }
-        }
-    }
-
     /// 释放播放器、观察者及音频会话；迟到回调不能影响下一位所有者。
     func stop() {
         generation += 1

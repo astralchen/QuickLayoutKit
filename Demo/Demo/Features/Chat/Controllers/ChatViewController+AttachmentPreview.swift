@@ -22,9 +22,9 @@ extension ChatViewController {
             message: Localization.text(denied ? "imessage.save.permissionDenied" : "imessage.save.failed"), preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: Localization.text("imessage.action.ok"), style: .cancel))
         if denied {
-            alert.addAction(UIAlertAction(title: Localization.text("imessage.action.settings"), style: .default) { _ in
+            alert.addAction(UIAlertAction(title: Localization.text("imessage.action.settings"), style: .default) { [weak self] _ in
                 guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-                UIApplication.shared.open(url)
+                self?.viewIfLoaded?.window?.windowScene?.open(url, options: nil, completionHandler: nil)
             })
         }
         present(alert, animated: true)
@@ -34,7 +34,10 @@ extension ChatViewController {
     func openAttachmentPreview(_ request: AttachmentPreviewRequest) {
         guard attachmentPreviewController == nil else { return }
         audioController.stopPlayback()
-        if case .link(let link) = request.attachment { UIApplication.shared.open(link.url); return }
+        if case .link(let link) = request.attachment {
+            viewIfLoaded?.window?.windowScene?.open(link.url, options: nil, completionHandler: nil)
+            return
+        }
         attachmentPreviewTask?.cancel()
         attachmentPreviewGeneration += 1
         let generation = attachmentPreviewGeneration
@@ -77,7 +80,6 @@ extension ChatViewController {
                     items[0] = .init(id: item.id, url: item.url, thumbnailURL: item.thumbnailURL, title: item.title, kind: .unavailable)
                 }
                 let preview = AttachmentPreviewController(items: items, initialIndex: request.initialIndex, playbackCoordinator: audioController.playbackCoordinator, imageLoader: mediaImageLoader)
-                preview.initialPlayback = request.initialPlayback
                 preview.didClose = restore
                 preview.sourceResolver = { [weak self] index, synchronize in
                     guard let self else { return nil }

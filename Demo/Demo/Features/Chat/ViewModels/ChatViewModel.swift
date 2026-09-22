@@ -225,8 +225,13 @@ final class ChatViewModel {
 
     #if DEBUG
     /// 仅用于真实系统保存流程的 UI 回归与预览启动参数。
-    func appendSavePreviewAttachment(_ attachment: Attachment) {
-        messages.append(.init(id: nextMessageID, direction: .incoming, content: .attachment(attachment),
+    /// 默认追加收到的附件；发出方向用于检查蓝色语音气泡的菜单收起画面。
+    ///
+    /// - Parameters:
+    ///   - attachment: 已准备好的本地测试附件。
+    ///   - direction: 样例消息方向，默认为 `.incoming`；仅影响样例展示，不模拟发送流程。
+    func appendSavePreviewAttachment(_ attachment: Attachment, direction: MessageDirection = .incoming) {
+        messages.append(.init(id: nextMessageID, direction: direction, content: .attachment(attachment),
                               sentAt: clock(), deliveryState: nil))
         nextMessageID += 1
         publish(reason: .receivedMessage)

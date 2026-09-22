@@ -247,7 +247,14 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
 
     /// 消息 Cell 请求页面级操作时调用。
     var actionRequested: ((MessageAction) -> Void)?
-    var menuPreviewCoordinator: MessageMenuPreviewCoordinator?
+    /// 辅助功能请求完整查看附件时调用；目标包含媒体组当前项的稳定标识。
+    var openMenuAttachment: ((MessageMenuTarget) -> Void)?
+    /// 列表级菜单协调对象，统一持有会话、来源解析与关闭后的操作交付。
+    private lazy var messageMenuCoordinator = MessageMenuCoordinator(collectionView: collectionView,
+        resolve: { [weak self] in self?.menuSource(for: $0) },
+        items: { [weak self] in self?.menuItems(for: $0) ?? [] },
+        perform: { [weak self] in self?.actionRequested?(.menu($0, $1)) })
+    /// 查询菜单目标的实时保存状态；未提供时按可保存状态生成菜单。
     var menuSaveState: ((MessageMenuTarget) -> AttachmentSaveState)?
 
     /// 重新查询可见 Cell；收回媒体组前同步封面而不移动列表。
@@ -280,6 +287,20 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         configureCollectionView()
         _ = initialPresentation
         adapter.collectionDelegate = self
+        // UIKit 在安装 delegate 时缓存可选 selector。转发目标就绪后重新安装，
+        // 否则 willEndContextMenuInteraction 不会送达，菜单动作一直留在队列中。
+        collectionView.delegate = nil
+        collectionView.delegate = adapter
+        // 只接受单个消息内容来源；任意可见文字处于选择状态时，不再创建消息菜单。
+        adapter.contextMenuForItems { [weak self] contexts, point in
+            guard let self, contexts.count == 1,
+                  !collectionView.visibleCells.compactMap({ $0 as? BubbleCell }).contains(where: { $0.bubbleView.messageTextView.isSelectingMessageText }),
+                  let indexPath = contexts.first?.indexPath,
+                  let cell = collectionView.cellForItem(at: indexPath),
+                  let source = menuBinding(for: cell)?.source,
+                  message(for: source.target) != nil else { return nil }
+            return messageMenuCoordinator.configuration(source: source, point: point)
+        }
         let selectionDismiss = UITapGestureRecognizer(target: self, action: #selector(dismissSelectionOutside(_:)))
         selectionDismiss.cancelsTouchesInView = false
         selectionDismiss.delegate = self
@@ -378,6 +399,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         }
         if reason == .messageDeleted { pendingExplicitScroll = false }
         lastState = state
+        messageMenuCoordinator.refresh()
         if reason == .sentMessage { hasInteractedWithTimeline = true }
         let preservesHistoryPosition = reason == .olderHistoryLoaded || (reason == .historyLoaded && hasInteractedWithTimeline)
         if reason == .initial || reason == .sentMessage { pendingExplicitScroll = true }
@@ -526,6 +548,11 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                                 cell.configure(message)
                                 self?.configureMessageMenu(cell, message: message)
                             }
+                            .contextMenuPreview(highlighting: { [weak self] _ in
+                                self?.messageMenuCoordinator.preview(for: message.id)
+                            }, dismissal: { [weak self] _ in
+                                self?.messageMenuCoordinator.preview(for: message.id, dismissing: true)
+                            })
                             .refreshID(message.refreshIdentity)
                             .refresh(when: .automatic, action: .reconfigure(layout: .invalidate))
 
@@ -541,6 +568,11 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                                     cell.configure(message, saveState: self?.saveState(for: message) ?? .available)
                                     self?.configureMessageMenu(cell, message: message)
                                 }
+                                .contextMenuPreview(highlighting: { [weak self] _ in
+                                    self?.messageMenuCoordinator.preview(for: message.id)
+                                }, dismissal: { [weak self] _ in
+                                    self?.messageMenuCoordinator.preview(for: message.id, dismissing: true)
+                                })
                                 .refreshID(saveRefreshIdentity(message))
                                 .refresh(when: .automatic, action: .reconfigure(layout: .invalidate))
                             case .audio:
@@ -571,6 +603,11 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                                     )
                                     configureMessageMenu(cell, message: message)
                                 }
+                                .contextMenuPreview(highlighting: { [weak self] _ in
+                                    self?.messageMenuCoordinator.preview(for: message.id)
+                                }, dismissal: { [weak self] _ in
+                                    self?.messageMenuCoordinator.preview(for: message.id, dismissing: true)
+                                })
                                 .refreshID(message.refreshIdentity)
                                 .refresh(when: .automatic, action: .reconfigure(layout: .invalidate))
                             case .mediaGroup(let group):
@@ -613,6 +650,11 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                                     )
                                     configureMessageMenu(cell, message: message)
                                 }
+                                .contextMenuPreview(highlighting: { [weak self] _ in
+                                    self?.messageMenuCoordinator.preview(for: message.id)
+                                }, dismissal: { [weak self] _ in
+                                    self?.messageMenuCoordinator.preview(for: message.id, dismissing: true)
+                                })
                                 .refreshID(saveRefreshIdentity(message))
                                 .refresh(when: .automatic, action: .reconfigure(layout: .invalidate))
                             }
@@ -750,7 +792,9 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
                            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool { true }
 
+    /// 刷新系统菜单与可见 Cell 的 VoiceOver 动作，使保存状态和权限变化同步生效。
     func refreshMenuAccessibility() {
+        messageMenuCoordinator.refresh()
         for cell in collectionView.visibleCells {
             switch cell {
             case let cell as BubbleCell: cell.messageMenu.refreshAccessibility()
@@ -776,30 +820,74 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         cell.bubbleView.messageTextView.beginMessageSelection()
     }
 
-    func menuSourceView(for target: MessageMenuTarget) -> UIView? {
-        guard message(for: target) != nil,
-              let index = lastState?.timeline.firstIndex(where: { $0.id == .message(target.messageID) }) else { return nil }
-        let cell = collectionView.cellForItem(at: IndexPath(item: index, section: 0))
+    /// 获取消息 Cell 的辅助功能及来源绑定，时间、状态等非消息行返回 `nil`。
+    ///
+    /// - Parameter cell: 列表当前持有的单元格。
+    /// - Returns: 对应内容类型的绑定对象；不支持菜单的行返回 `nil`。
+    private func menuBinding(for cell: UICollectionViewCell) -> MessageMenuAccessibility? {
         switch cell {
-        case let cell as BubbleCell: return cell.bubbleView
-        case let cell as AudioBubbleCell: return cell.bubbleView
-        case let cell as DocumentBubbleCell: return cell.card
-        case let cell as MediaBubbleCell: return cell.mediaView.previewSourceView
-        default: return nil
+        case let cell as BubbleCell: cell.messageMenu
+        case let cell as AudioBubbleCell: cell.messageMenu
+        case let cell as DocumentBubbleCell: cell.messageMenu
+        case let cell as MediaBubbleCell: cell.messageMenu
+        default: nil
         }
     }
 
+    /// 根据最新消息和保存状态生成指定目标的菜单项。
+    ///
+    /// - Parameter target: 菜单或辅助功能操作请求的稳定内容身份。
+    /// - Returns: 当前策略允许显示的菜单项；消息或附件已失效时为空数组。
+    private func menuItems(for target: MessageMenuTarget) -> [MessageMenuItem] {
+        guard let message = message(for: target) else { return [] }
+        return MessageMenuPolicy.items(for: message, target: target, saveState: menuSaveState?(target) ?? .available)
+    }
+
+    /// 按 Cell 当前绑定的身份查找，避免新模型和仍在应用中的旧 snapshot 索引混用。
+    ///
+    /// - Parameter target: 要求精确匹配的消息、附件及媒体项身份。
+    /// - Returns: 当前可见且身份一致的来源；目标已删除、离屏或封面变化时为 `nil`。
+    private func menuSource(for target: MessageMenuTarget) -> MessageMenuAccessibility.Source? {
+        guard message(for: target) != nil else { return nil }
+        return collectionView.visibleCells.compactMap { menuBinding(for: $0)?.source }
+            .first { $0.target == target }
+    }
+
+    /// 返回指定菜单目标当前可见的源视图，供附件查看定位及回归验证使用。
+    ///
+    /// - Parameter target: 需要查找的稳定内容身份。
+    /// - Returns: 身份匹配的真实内容视图；没有可见来源时为 `nil`。
+    func menuSourceView(for target: MessageMenuTarget) -> UIView? { menuSource(for: target)?.view }
+
+    /// 页面退出或主动清理时关闭菜单、取消待执行动作并释放保留的显示内容。
+    func invalidateMessageMenu() { messageMenuCoordinator.invalidate() }
+
+    /// 接收 ListKit 转发的系统菜单关闭通知，由协调对象校验会话并等待动画完成。
+    ///
+    /// - Parameters:
+    ///   - collectionView: 正在关闭菜单的聊天列表。
+    ///   - configuration: 本次关闭对应的系统菜单配置。
+    ///   - animator: 系统关闭动画对象；为 `nil` 时由协调对象立即完成清理。
+    func collectionView(_ collectionView: UICollectionView,
+                        willEndContextMenuInteraction configuration: UIContextMenuConfiguration,
+                        animator: (any UIContextMenuInteractionAnimating)?) {
+        messageMenuCoordinator.willEnd(configuration, animator: animator)
+    }
+
+    /// 为消息 Cell 绑定实时来源与 VoiceOver 动作，长按入口仍由列表统一提供。
+    ///
+    /// - Parameters:
+    ///   - cell: 已完成消息内容配置的 Cell。
+    ///   - message: 本次绑定的消息，用于建立稳定目标和附件身份。
     private func configureMessageMenu(_ cell: UICollectionViewCell, message: MessagePresentation) {
         var target = MessageMenuTarget(messageID: message.id)
         if case .attachment(let attachment) = message.content { target.attachmentID = attachment.id }
-        let menu: MessageMenuInteraction
-        let host: UIView
+        let menu: MessageMenuAccessibility
         let accessibilityView: UIView
-        let source: () -> MessageMenuInteraction.Source?
+        let source: () -> MessageMenuAccessibility.Source?
         switch cell {
         case let cell as BubbleCell:
             menu = cell.messageMenu
-            host = cell.bubbleView
             accessibilityView = cell.bubbleView.messageTextView
             cell.bubbleView.messageTextView.usesMessageMenu = true
             source = { [weak cell] in
@@ -808,7 +896,6 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
             }
         case let cell as AudioBubbleCell:
             menu = cell.messageMenu
-            host = cell.bubbleView
             accessibilityView = cell.bubbleView.playButton
             source = { [weak cell] in
                 guard let cell else { return nil }
@@ -817,7 +904,6 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
             }
         case let cell as DocumentBubbleCell:
             menu = cell.messageMenu
-            host = cell.card
             accessibilityView = cell.card
             source = { [weak cell] in
                 guard let cell else { return nil }
@@ -826,29 +912,27 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
             }
         case let cell as MediaBubbleCell:
             menu = cell.messageMenu
-            host = cell.mediaView
             accessibilityView = cell.mediaView
+            // 每次查询时读取最前媒体项；菜单建立后由协调对象锁定该身份，不缓存索引位置。
             source = { [weak cell] in
                 guard let view = cell?.mediaView, let group = view.group, group.items.indices.contains(view.frontMediaIndex),
                       let preview = view.previewSourceView else { return nil }
                 var selected = target
                 selected.mediaItemID = group.items[view.frontMediaIndex].id
                 return .init(target: selected, view: preview,
-                             path: UIBezierPath(roundedRect: preview.bounds, cornerRadius: 22),
+                             path: view.menuPreviewPath,
                              canPresent: !view.isAnimating && view.interaction == nil)
             }
         default: return
         }
-        menu.configure(host: host, accessibilityView: accessibilityView, source: source, items: { [weak self] target in
-            guard let self, let message = self.message(for: target) else { return [] }
-            return MessageMenuPolicy.items(for: message, target: target, saveState: menuSaveState?(target) ?? .available)
-        }, previewProvider: { [weak self] target, source in
-            self?.menuPreviewCoordinator?.makePreview(target, source: source)
-        }, canPreview: { [weak self] in self?.menuPreviewCoordinator?.canPreview($0) == true },
-           openPreview: { [weak self] in self?.menuPreviewCoordinator?.openAccessiblePreview($0) },
-           perform: { [weak self] operation, target in
-            self?.actionRequested?(.menu(operation, target))
-        })
+        menu.configure(accessibilityView: accessibilityView, source: source, items: { [weak self] in
+            self?.menuItems(for: $0) ?? []
+        }, canOpen: { [weak self] target in
+            guard let message = self?.message(for: target), let attachment = target.attachment(in: message) else { return false }
+            if case .audio = attachment { return false }
+            return true
+        }, open: { [weak self] in self?.openMenuAttachment?($0) },
+           perform: { [weak self] operation, target in self?.actionRequested?(.menu(operation, target)) })
     }
 
     /// 配置集合视图的滚动、键盘、辅助功能及组合布局行为。

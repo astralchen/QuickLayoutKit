@@ -147,6 +147,20 @@ extension MediaMessageView {
         singleMaskView.layoutIfNeeded()
     }
 
+    /// 长按沿用单张气泡的完整尾部轮廓，媒体组则使用前卡片的圆角。
+    ///
+    /// 路径位于当前 `previewSourceView` 的 bounds 坐标空间，尾部方向同时考虑消息方向与 RTL。
+    /// 无法取得当前来源卡片时返回 `nil`；窗口、可见性与目标身份由菜单协调对象另行校验。
+    var menuPreviewPath: UIBezierPath? {
+        guard let card = previewSourceView else { return nil }
+        guard group?.items.count == 1 else {
+            return UIBezierPath(roundedRect: card.bounds, cornerRadius: Metrics.cornerRadius)
+        }
+        let isRTL = effectiveUserInterfaceLayoutDirection == .rightToLeft
+        let tailOnRight = direction == .outgoing ? !isRTL : isRTL
+        return UIBezierPath(cgPath: Self.bubblePath(in: card.bounds, tailOnRight: tailOnRight))
+    }
+
     /// 根据当前封面的媒体类型与时长更新辅助功能描述。
     func updateAccessibilityLabel() {
         guard let group, let strings, !group.items.isEmpty else { return }

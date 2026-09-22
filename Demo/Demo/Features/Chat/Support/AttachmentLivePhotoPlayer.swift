@@ -10,7 +10,6 @@ final class AttachmentLivePhotoPlayer: NSObject, PHLivePhotoViewDelegate {
     private var effectTask: Task<Void, Never>?
     private var mode: LivePhotoPlaybackMode = .live
     var didFail: (() -> Void)?
-    var didBecomeReady: (() -> Void)?
     private let coordinator: PlaybackCoordinator
     private let audioSession: AudioSessionControlling
     private let owner = UUID()
@@ -59,7 +58,6 @@ final class AttachmentLivePhotoPlayer: NSObject, PHLivePhotoViewDelegate {
                 self.requestID = nil
                 self.view.livePhoto = livePhoto
                 if livePhoto == nil { self.didFail?() }
-                else { self.didBecomeReady?() }
             }
         }
     }

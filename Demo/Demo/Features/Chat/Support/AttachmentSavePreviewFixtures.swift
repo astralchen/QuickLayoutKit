@@ -209,7 +209,7 @@ enum AttachmentSavePreviewFixtures {
                 .init(assetIdentifier: nil, originalFileURL: url, thumbnailFileURL: url,
                       pixelSize: image.size, kind: .image)
             }))
-        case "audio":
+        case "audio", "audio-message":
             let url = store.makeFileURL(prefix: "save-preview", pathExtension: "caf")
             let format = AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1)!
             let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 16_000)!
@@ -217,8 +217,16 @@ enum AttachmentSavePreviewFixtures {
             if let channel = buffer.floatChannelData?[0] { channel.initialize(repeating: 0, count: 16_000) }
             let audio = try AVAudioFile(forWriting: url, settings: format.settings)
             try audio.write(from: buffer)
-            attachment = .file(.init(id: UUID(), fileURL: url, displayName: "Audio Message.caf",
-                typeIdentifier: "com.apple.coreaudio-format", byteCount: 64_000))
+            if arguments[index + 1] == "audio-message" {
+                // 转写样例让回归同时覆盖气泡、波形与正文的收起；未指定参数时仍保留无转写样例。
+                let transcript = arguments.contains("-imessage-menu-audio-transcript")
+                    ? "你好，这是一条语音消息。点击播放，听听效果。" : nil
+                attachment = .audio(.init(fileURL: url, duration: 1,
+                    waveform: [0.2, 0.6, 0.8, 0.4, 0.3], transcript: transcript))
+            } else {
+                attachment = .file(.init(id: UUID(), fileURL: url, displayName: "Audio Message.caf",
+                    typeIdentifier: "com.apple.coreaudio-format", byteCount: 64_000))
+            }
         case "preview-image-file", "preview-gif-file":
             let isGIF = arguments[index + 1] == "preview-gif-file"
             guard let directory = Bundle.main.url(forResource: "AttachmentPreviewResources", withExtension: "bundle") else {

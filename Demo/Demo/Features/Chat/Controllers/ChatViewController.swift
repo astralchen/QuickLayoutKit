@@ -263,7 +263,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
             }
         }
         attachmentSaveCoordinator.failed = { [weak self] error in self?.presentAttachmentSaveFailure(error) }
-        conversationView.menuPreviewCoordinator = menuPreviewCoordinator
+        conversationView.openMenuAttachment = { [weak self] in self?.openMenuAttachment($0) }
         conversationView.menuSaveState = { [weak self] in self?.menuSaveCoordinator.state(for: $0) ?? .available }
         menuSaveCoordinator.failed = { [weak self] in self?.presentAttachmentSaveFailure($0) }
         menuSaveCoordinator.changed = { [weak self] in self?.conversationView.refreshMenuAccessibility() }
@@ -272,7 +272,10 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
         configureInteractions()
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
-        if arguments.contains("-imessage-menu-fixture") {
+        if arguments.contains("-imessage-menu-long-text") {
+            viewModel.insertInitialHistory([.init(direction: .outgoing, content: .userText(
+                String(repeating: "Long message keeps its original bubble. 长按保留原消息气泡与排版。\n", count: 12)))])
+        } else if arguments.contains("-imessage-menu-fixture") {
             viewModel.insertInitialHistory([
                 .init(direction: .incoming, content: .userText("Menu text https://www.apple.com")),
                 .init(direction: .outgoing, content: .richText(.init(runs: [.init("Bold menu text", style: .bold)])))
@@ -306,7 +309,10 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
             if ProcessInfo.processInfo.arguments.contains("-imessage-preview-draft") {
                 if case .mediaGroup(let group) = fixture { photoController.applyPreviewFixture(group) }
                 else if case .file(let file) = fixture { documentController.importDocument(file.fileURL) }
-            } else { viewModel.appendSavePreviewAttachment(fixture) }
+            } else {
+                viewModel.appendSavePreviewAttachment(fixture,
+                    direction: arguments.contains("-imessage-menu-audio-outgoing") ? .outgoing : .incoming)
+            }
         }
         let previewVideoFile = ProcessInfo.processInfo.arguments.contains("preview-video-file")
         if ProcessInfo.processInfo.arguments.contains("preview-video") || previewVideoFile {
@@ -380,15 +386,6 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
     /// 管理附件保存操作、状态反馈和页面退出失效的协调器。
     let attachmentSaveCoordinator = AttachmentSaveCoordinator()
     let menuSaveCoordinator = MessageMenuSaveCoordinator()
-    lazy var menuPreviewCoordinator = MessageMenuPreviewCoordinator(
-        imageLoader: mediaImageLoader, playbackCoordinator: audioController.playbackCoordinator,
-        resolve: { [weak self] target in
-            guard let self, !hasCleanedUpChat else { return nil }
-            return conversationView.message(for: target)
-        }, allowsAutoplay: { [weak self] in
-            guard let self, !hasCleanedUpChat else { return false }
-            return MessageMenuPreviewPolicy.allowsAutoplay(composer: audioController.state)
-        }, open: { [weak self] target, playback in self?.openMenuPreview(target, playback: playback) })
     /// 指示页面或其父容器正在退出聊天层级的布尔值。
     private var isLeavingChat = false
     /// 指示页面退出清理已经执行的布尔值，防止重复取消和删除资源。
@@ -415,6 +412,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
         while let controller = ancestor {
             if controller.isMovingFromParent || controller.isBeingDismissed {
                 isLeavingChat = true
+                conversationView.invalidateMessageMenu()
                 break
             }
             ancestor = controller.parent
@@ -447,7 +445,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
         (activePreview as? AttachmentPreviewController)?.completeDismissal()
         activePreview?.dismiss(animated: false)
         attachmentSaveCoordinator.invalidate()
-        menuPreviewCoordinator.invalidate()
+        conversationView.invalidateMessageMenu()
         menuSaveCoordinator.invalidate()
         composerView.dismissRecordingUnavailableHint()
         composerView.pasteCoordinator.invalidate()

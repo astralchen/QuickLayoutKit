@@ -15,7 +15,6 @@ nonisolated struct AttachmentPreviewRequest: Sendable {
     var initialIndex: Int = 0
     /// 用于重新定位来源卡片的稳定身份。
     let source: Source
-    var initialPlayback: MessagePreviewPlayback? = nil
 }
 
 /// 已解析的只读预览项目，不包含视图或播放器。

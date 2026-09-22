@@ -19,7 +19,6 @@ extension ChatViewController {
         viewModel.bind { [weak self] state, reason in
             guard let self else { return }
             conversationView.render(state, reason: reason)
-            menuPreviewCoordinator.validate()
             audioTranscription.enqueue(state, locale: SpeechConfiguration.recognitionLocale(
                 for: Localization.localizationController.currentLocale.locale
             ))
@@ -142,11 +141,11 @@ extension ChatViewController {
                 UIAlertAction(
                     title: Localization.text("imessage.action.settings"),
                     style: .default
-                ) { _ in
+                ) { [weak self] _ in
                     guard let url = URL(
                         string: UIApplication.openSettingsURLString
                     ) else { return }
-                    UIApplication.shared.open(url)
+                    self?.viewIfLoaded?.window?.windowScene?.open(url, options: nil, completionHandler: nil)
                 }
             )
         }

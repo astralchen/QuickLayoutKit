@@ -1,10 +1,19 @@
 import XCTest
+import UIKit
 
+/// 通过真实聊天列表检查原内容菜单、完整查看入口和连续开合后的状态恢复。
 final class ChatMessageMenuUITests: XCTestCase {
+    /// 在不支持聊天演示的系统版本上跳过测试。
     override func setUpWithError() throws {
         guard #available(iOS 26.0, *) else { throw XCTSkip("Chat requires iOS 26 or later") }
     }
 
+    /// 按指定样例和语言启动应用，并导航到聊天页面。
+    ///
+    /// - Parameters:
+    ///   - arguments: 样例或字号参数，默认使用菜单文字样例。
+    ///   - locale: 应用文案语言，默认为英语；系统语言固定为英语以稳定系统菜单查询。
+    /// - Returns: 已进入聊天页面的测试应用。
     @MainActor private func open(_ arguments: [String] = ["-imessage-menu-fixture"], locale: String = "en") -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -26,16 +35,27 @@ final class ChatMessageMenuUITests: XCTestCase {
         return app
     }
 
+    /// 按操作语义查询支持语言中的首个匹配菜单按钮。
+    ///
+    /// - Parameters:
+    ///   - operation: 操作键，例如 `copy`、`share` 或 `save`。
+    ///   - app: 正在展示菜单的应用。
+    /// - Returns: 匹配按钮的查询结果；调用方应自行等待或断言其存在。
     @MainActor private func menu(_ operation: String, in app: XCUIApplication) -> XCUIElement {
         let titles: [String: [String]] = [
             "copy": ["Copy", "Copy Still Photo", "Copy Transcript", "Copy Link", "拷贝", "拷贝静态照片", "拷贝转写文本", "拷贝链接"],
             "selectText": ["Select Text", "选择文本"], "delete": ["Delete", "删除"],
-            "share": ["Share", "Share Originals", "分享", "分享原件"],
+            "share": ["Share", "Share Originals", "分享", "分享原件", "مشاركة", "مشاركة الملفات الأصلية"],
             "save": ["Save Photo", "Save Animated Image", "Save Live Photo", "Save Video", "Save to Files", "存储照片", "存储动图", "存储实况照片", "存储视频", "存储到文件"]
         ]
         return app.buttons.matching(NSPredicate(format: "label IN %@", titles[operation] ?? [])).firstMatch
     }
 
+    /// 保存全屏截图；名称包含 `preview` 时额外等待绘制稳定，但不替代动画逐帧验收。
+    ///
+    /// - Parameters:
+    ///   - app: 当前场景对应的测试应用。
+    ///   - name: 附件名称后缀，用于定位菜单阶段与连续开合次数。
     @MainActor private func capture(_ app: XCUIApplication, _ name: String) {
         if name.contains("preview") {
             let settled = expectation(description: "Preview drawing completes")
@@ -48,6 +68,7 @@ final class ChatMessageMenuUITests: XCTestCase {
         add(attachment)
     }
 
+    /// 验证富文本复制、删除取消与确认、文字选择及输入草稿保留。
     @MainActor func testTextCopyDeleteCancelAndSelection() throws {
         let app = open()
         let text = app.textViews.matching(NSPredicate(format: "label == %@", "Bold menu text")).firstMatch
@@ -65,7 +86,8 @@ final class ChatMessageMenuUITests: XCTestCase {
         let paste = app.buttons["Paste"]
         if paste.waitForExistence(timeout: 2) { paste.tap() }
         else { app.menuItems["Paste"].tap() }
-        XCTAssertEqual(editor.value as? String, "Bold menu text")
+        expectation(for: NSPredicate(format: "value == %@", "Bold menu text"), evaluatedWith: editor)
+        waitForExpectations(timeout: 5)
         text.press(forDuration: 1.1)
         XCTAssertTrue(menu("delete", in: app).waitForExistence(timeout: 4))
         menu("delete", in: app).tap()
@@ -91,6 +113,104 @@ final class ChatMessageMenuUITests: XCTestCase {
         capture(app, "after-delete")
     }
 
+    /// 连续收起同一发出气泡，既检查可访问元素，也检查实际蓝色底图没有丢失。
+    @MainActor func testOutgoingTextRepeatedMenuDismissalRestoresBubble() throws {
+        let app = open()
+        let text = app.textViews.matching(NSPredicate(format: "label == %@", "Bold menu text")).firstMatch
+        try checkRepeatedDismissal(app, text: text)
+    }
+
+    /// 使用长文字样例重复收起，检查屏幕边缘气泡的稳定布局和底色恢复。
+    @MainActor func testOutgoingLongTextRepeatedMenuDismissalRestoresBubble() throws {
+        let app = open(["-imessage-menu-fixture", "-imessage-menu-long-text"])
+        let text = app.textViews.matching(NSPredicate(format: "label BEGINSWITH %@", "Long message keeps")).firstMatch
+        try checkRepeatedDismissal(app, text: text)
+    }
+
+    /// 从正常入口分页到录屏中的历史富文本，保持列表已有滚动偏移。
+    @MainActor func testOutgoingHistoryTextRepeatedMenuDismissal() throws {
+        let app = open([], locale: "zh-Hans")
+        let text = app.textViews.matching(NSPredicate(format: "label BEGINSWITH %@", "更早的消息 56")).firstMatch
+        for _ in 0..<45 {
+            if text.exists, text.isHittable, text.frame.minY > 120,
+               text.frame.maxY < app.frame.maxY - 110 { break }
+            app.collectionViews.firstMatch.swipeDown(velocity: .slow)
+        }
+        // 录屏中的气泡位于下半屏，系统菜单出现在气泡上方；不能只测菜单在下方的布局。
+        for _ in 0..<3 {
+            let delta = app.frame.height * 0.69 - text.frame.midY
+            if abs(delta) < 25 { break }
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.45))
+            let end = start.withOffset(CGVector(dx: 0, dy: max(-180, min(180, delta))))
+            start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.4)
+        }
+        try checkRepeatedDismissal(app, text: text)
+    }
+
+    /// 刚发送的普通文字保留键盘，覆盖送达状态变化与屏幕下缘的收起交接。
+    @MainActor func testSentTextRepeatedMenuDismissalWithKeyboard() throws {
+        let app = open(["-imessage-basic-history"])
+        let editor = app.textViews["imessage.composer.text"]
+        editor.tap()
+        editor.typeText("My outgoing message")
+        app.buttons["imessage.composer.send"].tap()
+        let text = app.textViews.matching(NSPredicate(format: "label == %@", "My outgoing message")).firstMatch
+        try checkRepeatedDismissal(app, text: text)
+    }
+
+    /// 连续开合八次，核对消息位置和稳定帧中的蓝色气泡覆盖比例。
+    ///
+    /// 此检查不能捕获关闭动画中的短暂空白，中间帧须结合保留的测试录屏另行检查。
+    ///
+    /// - Parameters:
+    ///   - app: 已打开聊天页面的应用。
+    ///   - text: 待长按的发出文字元素，其可见区域用于命中和截图采样。
+    /// - Throws: 截图或裁剪图像不可用时抛出测试错误。
+    @MainActor private func checkRepeatedDismissal(_ app: XCUIApplication, text: XCUIElement) throws {
+        XCTAssertTrue(text.waitForExistence(timeout: 8))
+        let frame = text.frame
+        let visible = frame.intersection(app.frame.insetBy(dx: 0, dy: 150))
+        XCTAssertFalse(visible.isEmpty)
+        let baseline = try bluePixels(in: visible, app: app)
+        XCTAssertGreaterThan(baseline, 100)
+        capture(app, "repeated-outgoing-baseline")
+        for iteration in 1...8 {
+            app.coordinate(withNormalizedOffset: .zero)
+                .withOffset(CGVector(dx: visible.midX, dy: visible.midY)).press(forDuration: 0.65)
+            XCTAssertTrue(menu("copy", in: app).waitForExistence(timeout: 3), "第 \(iteration) 次菜单")
+            dismissMenu(in: app)
+            capture(app, "repeated-outgoing-dismiss-\(iteration)")
+            XCTAssertEqual(text.frame.minX, frame.minX, accuracy: 1)
+            XCTAssertEqual(text.frame.minY, frame.minY, accuracy: 1)
+            XCTAssertGreaterThan(try bluePixels(in: visible, app: app), baseline * 8 / 10,
+                                 "第 \(iteration) 次收起后蓝色气泡应恢复")
+        }
+    }
+
+    /// 将指定屏幕区域缩放到 64 × 32 像素，统计满足蓝色阈值的采样点。
+    ///
+    /// - Parameters:
+    ///   - rect: 以屏幕点为单位的采样区域，通过应用宽度换算截图像素比例。
+    ///   - app: 提供当前屏幕几何的应用。
+    /// - Returns: 蓝色采样点数量，用于与同一消息的基准截图比较。
+    /// - Throws: 无法取得或裁剪截图时抛出测试错误。
+    @MainActor private func bluePixels(in rect: CGRect, app: XCUIApplication) throws -> Int {
+        let image = try XCTUnwrap(XCUIScreen.main.screenshot().image.cgImage)
+        let scale = CGFloat(image.width) / app.frame.width
+        let crop = try XCTUnwrap(image.cropping(to: rect.applying(.init(scaleX: scale, y: scale))))
+        var bytes = [UInt8](repeating: 0, count: 64 * 32 * 4)
+        bytes.withUnsafeMutableBytes { buffer in
+            let context = CGContext(data: buffer.baseAddress, width: 64, height: 32, bitsPerComponent: 8,
+                bytesPerRow: 64 * 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue)!
+            context.draw(crop, in: CGRect(x: 0, y: 0, width: 64, height: 32))
+        }
+        return stride(from: 0, to: bytes.count, by: 4).filter {
+            Int(bytes[$0 + 2]) > Int(bytes[$0]) + 60 && Int(bytes[$0 + 2]) > Int(bytes[$0 + 1]) + 25
+        }.count
+    }
+
+    /// 验证正文中识别出的链接在长按时使用消息操作菜单。
     @MainActor func testDetectedLinkLongPressUsesMessageMenu() throws {
         let app = open()
         let text = app.textViews.matching(NSPredicate(format: "label == %@", "Menu text https://www.apple.com")).firstMatch
@@ -101,6 +221,7 @@ final class ChatMessageMenuUITests: XCTestCase {
         capture(app, "detected-link-menu")
     }
 
+    /// 验证正文链接的普通点击打开系统浏览器，返回应用后消息仍保留。
     @MainActor func testDetectedLinkSingleTapOpensSystemBrowser() throws {
         let app = open()
         let text = app.textViews.matching(NSPredicate(format: "label == %@", "Menu text https://www.apple.com")).firstMatch
@@ -113,6 +234,7 @@ final class ChatMessageMenuUITests: XCTestCase {
         XCTAssertFalse(menu("selectText", in: app).exists)
     }
 
+    /// 验证菜单操作跟随媒体组当前封面，以及整组删除提示与取消后保留消息的行为。
     @MainActor func testMediaMenuFollowsCoverAndGroupDeletionIsExplicit() throws {
         let app = open(["-imessage-save-fixture", "resources-live"])
         let media = app.descendants(matching: .any).matching(identifier: "imessage.media.message").firstMatch
@@ -137,6 +259,7 @@ final class ChatMessageMenuUITests: XCTestCase {
         XCTAssertTrue(media.exists)
     }
 
+    /// 验证文件菜单的分享操作打开系统分享面板。
     @MainActor func testFileSharePresentsSystemSheet() throws {
         let app = open(["-imessage-save-fixture", "document"])
         let file = app.buttons["imessage.attachment.file.card"]
@@ -145,11 +268,12 @@ final class ChatMessageMenuUITests: XCTestCase {
         XCTAssertTrue(menu("share", in: app).waitForExistence(timeout: 4))
         XCTAssertFalse(menu("copy", in: app).exists)
         menu("share", in: app).tap()
-        XCTAssertTrue(app.otherElements["ActivityListView"].waitForExistence(timeout: 8)
-                      || app.buttons["Copy"].exists || app.buttons["Save to Files"].exists)
+        XCTAssertTrue(menu("share", in: app).waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["ActivityListView"].waitForExistence(timeout: 8))
         capture(app, "file-share")
     }
 
+    /// 验证中文环境下消息操作菜单的本地化标题。
     @MainActor func testChineseMenu() throws {
         let app = open(locale: "zh-Hans")
         let text = app.textViews.matching(NSPredicate(format: "label == %@", "Bold menu text")).firstMatch
@@ -162,6 +286,7 @@ final class ChatMessageMenuUITests: XCTestCase {
         XCTAssertEqual(menu("delete", in: app).label, "删除")
         capture(app, "chinese-menu")
     }
+    /// 验证 RTL 和大字号下文字菜单的关键操作仍位于屏幕内。
     @MainActor func testLargeRTLMenuStaysWithinScreen() throws {
         let app = open(["-imessage-menu-fixture", "-UIPreferredContentSizeCategoryName",
                         "UICTContentSizeCategoryAccessibilityXXXL"], locale: "ar")
@@ -178,6 +303,7 @@ final class ChatMessageMenuUITests: XCTestCase {
         capture(app, "large-RTL")
     }
 
+    /// 验证失败消息的重试操作更新原消息，成功后菜单不再提供重试。
     @MainActor func testFailureMenuRetriesSameMessage() throws {
         let app = open(["-imessage-basic-history", "-imessage-fail-first-send"])
         let editor = app.textViews["imessage.composer.text"]
@@ -197,99 +323,88 @@ final class ChatMessageMenuUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Send Again"].exists)
     }
 
-    @MainActor private func preview(in app: XCUIApplication) -> XCUIElement {
-        let content = app.descendants(matching: .any).matching(identifier: "imessage.menu.preview").firstMatch
-        // iOS 26 的菜单只向 UI 自动化暴露系统预览容器；iOS 27 还包含离屏内容控制器。
-        return content.exists ? content : app.otherElements.matching(NSPredicate(format: "label IN %@", ["Preview", "预览"])).firstMatch
+    /// 确认系统消息菜单存在且没有独立内容预览，并保存当前画面供视觉检查。
+    ///
+    /// - Parameters:
+    ///   - app: 正在展示菜单的应用。
+    ///   - name: 当前场景的截图附件名称。
+    @MainActor private func assertOriginalMenu(in app: XCUIApplication, name: String) {
+        XCTAssertTrue(menu("share", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "imessage.menu.preview").firstMatch.exists)
+        XCTAssertFalse(app.webViews["imessage.menu.preview.web"].exists)
+        XCTAssertFalse(app.buttons["imessage.media.preview.close"].exists)
+        capture(app, name)
     }
 
-    @MainActor private func tapPreview(in app: XCUIApplication) {
-        // UIKit 将内容控制器放在屏幕外渲染，实际命中对象是系统预览容器。
-        let container = app.otherElements.matching(NSPredicate(format: "label IN %@", ["Preview", "预览"])).firstMatch
-        XCTAssertTrue(container.waitForExistence(timeout: 4))
-        container.tap()
+    /// 点击菜单外部并等待菜单消失，同时确认没有衔接完整附件浏览器。
+    ///
+    /// - Parameter app: 正在展示菜单的应用。
+    @MainActor private func dismissMenu(in app: XCUIApplication) {
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.12)).tap()
+        XCTAssertTrue(menu("share", in: app).waitForNonExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["imessage.media.preview.close"].exists)
     }
 
-    @MainActor private func assertPreviewAspectRatio(_ ratio: CGFloat, in app: XCUIApplication) {
-        let container = app.otherElements.matching(NSPredicate(format: "label IN %@", ["Preview", "预览"])).firstMatch
-        XCTAssertTrue(container.waitForExistence(timeout: 5))
-        expectation(for: NSPredicate { _, _ in
-            let frame = container.frame
-            return frame.height > 0 && abs(frame.width / frame.height - ratio) < 0.015
-        }, evaluatedWith: container)
-        waitForExpectations(timeout: 10)
-    }
-
-    @MainActor func testImageGIFAndRotatedVideoFilePreviewAspectRatios() throws {
-        for (fixture, ratio) in [("preview-image-file", 0.75), ("preview-gif-file", 1.0), ("preview-video-file", 0.75)] {
+    /// 验证各类文件长按保持原卡片位置，收起后普通点击仍能进入完整查看。
+    @MainActor func testFileCardsStayOriginalAndOpenOnNormalTap() throws {
+        for fixture in ["preview-image-file", "preview-gif-file", "preview-video-file", "document", "audio"] {
             let app = open(["-imessage-save-fixture", fixture])
             let file = app.buttons["imessage.attachment.file.card"]
-            XCTAssertTrue(file.waitForExistence(timeout: 10))
+            XCTAssertTrue(file.waitForExistence(timeout: 15))
+            let originalFrame = file.frame
             file.press(forDuration: 1.1)
-            assertPreviewAspectRatio(ratio, in: app)
-            XCTAssertTrue(menu("share", in: app).exists)
-            capture(app, fixture + "-aspect-preview")
-            tapPreview(in: app)
-            XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 8))
+            assertOriginalMenu(in: app, name: fixture + "-original-card")
+            dismissMenu(in: app)
+            XCTAssertEqual(file.frame.minY, originalFrame.minY, accuracy: 2)
+            capture(app, fixture + "-dismissed")
+            if fixture != "audio" {
+                file.tap()
+                XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 10))
+                capture(app, fixture + "-full-view")
+                app.buttons["imessage.media.preview.close"].tap()
+            }
             app.terminate()
         }
     }
 
-    @MainActor private func waitForPreviewMotion(in app: XCUIApplication) {
-        let container = app.otherElements.matching(NSPredicate(format: "label IN %@", ["Preview", "预览"])).firstMatch
-        XCTAssertTrue(container.waitForExistence(timeout: 6))
-        let first = container.screenshot().pngRepresentation
-        expectation(for: NSPredicate { _, _ in container.screenshot().pngRepresentation != first }, evaluatedWith: container)
-        waitForExpectations(timeout: 8)
-    }
-
-    @MainActor func testPhotoPreviewCommitsCurrentGroupItem() throws {
+    /// 切换到媒体组第二项后开合菜单，验证正常查看仍从同一项开始。
+    @MainActor func testCurrentMediaCardSurvivesMenuAndNormalOpen() throws {
         let app = open(["-imessage-save-fixture", "stack5"])
         let media = app.descendants(matching: .any).matching(identifier: "imessage.media.message").firstMatch
-        XCTAssertTrue(media.waitForExistence(timeout: 10))
+        XCTAssertTrue(media.waitForExistence(timeout: 15))
         media.swipeLeft()
         media.press(forDuration: 1.1)
-        XCTAssertTrue(preview(in: app).waitForExistence(timeout: 5))
+        assertOriginalMenu(in: app, name: "stack-current-card")
         XCTAssertTrue(menu("save", in: app).exists)
-        capture(app, "photo-content-preview")
-        tapPreview(in: app)
-        XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 8))
+        dismissMenu(in: app)
+        media.tap()
+        XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 10))
         XCTAssertEqual(app.staticTexts["imessage.preview.position"].label, "Item 2 of 5")
-        capture(app, "photo-preview-committed")
+        capture(app, "stack-normal-open")
         app.buttons["imessage.media.preview.close"].tap()
         XCTAssertTrue(media.waitForExistence(timeout: 5))
     }
 
-    @MainActor func testVideoPreviewAutoplaysAndCommits() throws {
-        let app = open(["-imessage-save-fixture", "resources-draft"])
-        let media = app.descendants(matching: .any).matching(identifier: "imessage.media.message").firstMatch
-        XCTAssertTrue(media.waitForExistence(timeout: 15))
-        media.press(forDuration: 1.1)
-        let content = preview(in: app)
-        XCTAssertTrue(content.waitForExistence(timeout: 6))
-        waitForPreviewMotion(in: app)
-        capture(app, "video-playing-preview")
-        tapPreview(in: app)
-        XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 8))
-        capture(app, "video-preview-committed")
-        app.buttons["imessage.media.preview.close"].tap()
+    /// 检查视频和 Live Photo 的原卡片菜单及收起后的完整查看入口。
+    @MainActor func testVideoAndLivePhotoKeepOriginalCardsDuringMenu() throws {
+        for fixture in ["resources-draft", "resources-live-audio"] {
+            let app = open(["-imessage-save-fixture", fixture])
+            let media = app.descendants(matching: .any).matching(identifier: "imessage.media.message").firstMatch
+            XCTAssertTrue(media.waitForExistence(timeout: 20))
+            media.press(forDuration: 1.1)
+            assertOriginalMenu(in: app, name: fixture + "-static-card")
+            if fixture == "resources-live-audio" { XCTAssertTrue(app.buttons["Share Originals"].exists) }
+            dismissMenu(in: app)
+            media.tap()
+            XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 10))
+            capture(app, fixture + "-normal-open")
+            app.buttons["imessage.media.preview.close"].tap()
+            app.terminate()
+        }
     }
 
-    @MainActor func testBundledVideoWithAudioPreviewStopsOnDismissal() throws {
-        let app = open(["-imessage-save-fixture", "resources-draft"])
-        let media = app.descendants(matching: .any).matching(identifier: "imessage.media.message").firstMatch
-        XCTAssertTrue(media.waitForExistence(timeout: 20))
-        media.press(forDuration: 1.1)
-        let content = preview(in: app)
-        XCTAssertTrue(content.waitForExistence(timeout: 6))
-        waitForPreviewMotion(in: app)
-        capture(app, "audible-video-playing")
-        app.navigationBars.firstMatch.tap()
-        XCTAssertTrue(content.waitForNonExistence(timeout: 5))
-        capture(app, "audible-video-dismissed")
-    }
-
-    @MainActor func testMediaPreviewLandscapeRTLAndLargeText() throws {
+    /// 在横屏、RTL 与辅助功能大字号组合下检查媒体菜单，并在结束时恢复竖屏。
+    @MainActor func testMediaMenuLandscapeRTLAndLargeText() throws {
         XCUIDevice.shared.orientation = .landscapeLeft
         defer { XCUIDevice.shared.orientation = .portrait }
         let app = open(["-imessage-save-fixture", "stack5",
@@ -299,71 +414,90 @@ final class ChatMessageMenuUITests: XCTestCase {
         let visible = media.frame.intersection(app.collectionViews["imessage.timeline"].frame)
         XCTAssertFalse(visible.isNull)
         app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: visible.midX, dy: visible.midY)).press(forDuration: 1.1)
-        XCTAssertTrue(preview(in: app).waitForExistence(timeout: 6))
-        capture(app, "landscape-rtl-large-preview")
-        tapPreview(in: app)
-        XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 8))
-        app.buttons["imessage.media.preview.close"].tap()
-        XCTAssertTrue(media.waitForExistence(timeout: 5))
+        assertOriginalMenu(in: app, name: "landscape-rtl-large-original")
+        dismissMenu(in: app)
+        XCTAssertTrue(media.exists)
     }
 
-    @MainActor func testLivePhotoWithAudioPreviewAndDismissal() throws {
-        let app = open(["-imessage-save-fixture", "resources-live-audio"])
-        let media = app.descendants(matching: .any).matching(identifier: "imessage.media.message").firstMatch
-        XCTAssertTrue(media.waitForExistence(timeout: 20))
-        media.press(forDuration: 1.1)
-        XCTAssertTrue(preview(in: app).waitForExistence(timeout: 6))
-        XCTAssertTrue(app.buttons["Share Originals"].exists)
-        let container = app.otherElements.matching(NSPredicate(format: "label IN %@", ["Preview", "预览"])).firstMatch
-        XCTAssertTrue(container.waitForExistence(timeout: 4))
-        // 包内实况照片为 480 × 640；系统最终展示的预览也必须保持 3:4。
-        XCTAssertEqual(container.frame.width / container.frame.height, 0.75, accuracy: 0.015)
-        capture(app, "audible-live-preview")
-        app.navigationBars.firstMatch.tap()
-        XCTAssertTrue(preview(in: app).waitForNonExistence(timeout: 4))
-        capture(app, "audible-live-dismissed")
-        media.press(forDuration: 1.1)
-        XCTAssertTrue(preview(in: app).waitForExistence(timeout: 6))
-        tapPreview(in: app)
-        XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 8))
-        capture(app, "audible-live-committed")
-        app.buttons["imessage.media.preview.close"].tap()
-    }
-
-    @MainActor func testPDFPreviewAndAudioFileFallback() throws {
-        var app = open(["-imessage-save-fixture", "document"])
-        var file = app.buttons["imessage.attachment.file.card"]
-        XCTAssertTrue(file.waitForExistence(timeout: 8))
-        file.press(forDuration: 1.1)
-        XCTAssertTrue(preview(in: app).waitForExistence(timeout: 5))
-        assertPreviewAspectRatio(1.5, in: app)
-        capture(app, "pdf-content-preview")
-        tapPreview(in: app)
-        XCTAssertTrue(app.buttons["imessage.media.preview.close"].waitForExistence(timeout: 8))
-        app.terminate()
-        app = open(["-imessage-save-fixture", "audio"])
-        file = app.buttons["imessage.attachment.file.card"]
-        XCTAssertTrue(file.waitForExistence(timeout: 8))
-        file.press(forDuration: 1.1)
-        XCTAssertTrue(menu("share", in: app).waitForExistence(timeout: 4))
-        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "imessage.menu.preview").firstMatch.exists)
-        capture(app, "audio-file-no-preview")
-    }
-
-    @MainActor func testWebPreviewLoadsRealPageAndCancels() throws {
+    /// 验证链接卡片长按只显示消息菜单，不创建网页预览。
+    @MainActor func testLinkCardDoesNotLoadWebContentOnLongPress() throws {
         let app = open(["-imessage-menu-fixture", "-imessage-menu-web"])
         let card = app.buttons["imessage.attachment.link.card"]
-        XCTAssertTrue(card.waitForExistence(timeout: 8))
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
         card.press(forDuration: 1.1)
-        XCTAssertTrue(preview(in: app).waitForExistence(timeout: 5))
+        assertOriginalMenu(in: app, name: "link-original-card")
         XCTAssertTrue(app.buttons["Open Link"].exists)
-        let web = app.webViews["imessage.menu.preview.web"]
-        XCTAssertTrue(web.waitForExistence(timeout: 20))
-        XCTAssertTrue(web.links.firstMatch.waitForExistence(timeout: 20), "The actual webpage must load beyond the title placeholder")
-        capture(app, "web-content-preview")
-        app.navigationBars.firstMatch.tap()
-        XCTAssertTrue(preview(in: app).waitForNonExistence(timeout: 5))
+        XCTAssertEqual(app.webViews.count, 0)
+        dismissMenu(in: app)
         XCTAssertTrue(card.exists)
+    }
+
+    /// 在键盘展开时验证行内空白拒绝菜单，而同一行的文字气泡仍可正常长按。
+    @MainActor func testBlankRowAreaDoesNotOpenMenuWithKeyboardVisible() throws {
+        let app = open()
+        let editor = app.textViews["imessage.composer.text"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        editor.tap()
+        let text = app.textViews.matching(NSPredicate(format: "label == %@", "Bold menu text")).firstMatch
+        XCTAssertTrue(text.waitForExistence(timeout: 5))
+        app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 20, dy: text.frame.midY)).press(forDuration: 1.1)
+        XCTAssertFalse(menu("share", in: app).exists)
+        text.press(forDuration: 1.1)
+        assertOriginalMenu(in: app, name: "keyboard-original-bubble")
+        dismissMenu(in: app)
+        capture(app, "keyboard-menu-dismissed")
+    }
+
+    /// 从屏幕边缘长文字的可见区域发起菜单，确认收起后原消息仍存在。
+    @MainActor func testLongTextKeepsOriginalBubbleAtViewportEdge() throws {
+        let app = open(["-imessage-menu-fixture", "-imessage-menu-long-text"])
+        let text = app.textViews.matching(NSPredicate(format: "label BEGINSWITH %@", "Long message keeps")).firstMatch
+        XCTAssertTrue(text.waitForExistence(timeout: 8))
+        let visible = text.frame.intersection(app.collectionViews["imessage.timeline"].frame)
+        XCTAssertFalse(visible.isNull)
+        app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: visible.midX, dy: visible.midY)).press(forDuration: 1.1)
+        assertOriginalMenu(in: app, name: "long-text-edge")
+        dismissMenu(in: app)
+        XCTAssertTrue(text.exists)
+    }
+
+    /// 在语音波形上长按并收起菜单，验证播放按钮状态没有改变。
+    @MainActor func testAudioBubbleLongPressDoesNotStartPlayback() throws {
+        let app = open(["-imessage-save-fixture", "audio-message"])
+        let play = app.buttons["imessage.audio.play"]
+        XCTAssertTrue(play.waitForExistence(timeout: 10))
+        let label = play.label
+        // 在波形内容处长按；播放按钮保留 UIKit 控件的直接播放语义。
+        play.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5))
+            .withOffset(CGVector(dx: 40, dy: 0)).press(forDuration: 1.1)
+        assertOriginalMenu(in: app, name: "audio-original-bubble")
+        dismissMenu(in: app)
+        XCTAssertEqual(play.label, label)
+    }
+
+    /// 连续开合带转写的发出语音；保留全程录屏检查收起中间帧，稳定截图只负责几何回归。
+    @MainActor func testOutgoingAudioRepeatedMenuDismissalRestoresBubble() throws {
+        let app = open(["-imessage-save-fixture", "audio-message", "-imessage-menu-audio-transcript",
+                        "-imessage-menu-audio-outgoing"])
+        let play = app.buttons["imessage.audio.play"]
+        let transcript = app.staticTexts["imessage.audio.transcript"]
+        XCTAssertTrue(play.waitForExistence(timeout: 10))
+        XCTAssertTrue(transcript.waitForExistence(timeout: 5))
+        let frame = transcript.frame
+        let baseline = try bluePixels(in: frame, app: app)
+        XCTAssertGreaterThan(baseline, 100)
+        let label = play.label
+        capture(app, "audio-repeated-baseline")
+        for iteration in 1...8 {
+            play.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5))
+                .withOffset(CGVector(dx: 40, dy: 0)).press(forDuration: 0.65)
+            assertOriginalMenu(in: app, name: "audio-repeated-preview-\(iteration)")
+            dismissMenu(in: app)
+            capture(app, "audio-repeated-dismiss-\(iteration)")
+            XCTAssertEqual(play.label, label)
+            XCTAssertEqual(transcript.frame.minY, frame.minY, accuracy: 1)
+            XCTAssertGreaterThan(try bluePixels(in: frame, app: app), baseline * 8 / 10)
+        }
     }
 
     /// 使用包内生成的实况／GIF 原件，真实等待 Photos 写入成功后的菜单完成反馈。

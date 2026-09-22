@@ -22,23 +22,34 @@ extension ChatViewController {
         case .selectText: conversationView.selectMessageText(target)
         case .retry: viewModel.retryMessage(id: target.messageID)
         case .openLink:
-            if case .link(let link) = target.attachment(in: message) { UIApplication.shared.open(link.url) }
+            if case .link(let link) = target.attachment(in: message) {
+                viewIfLoaded?.window?.windowScene?.open(link.url, options: nil, completionHandler: nil)
+            }
         case .save: menuSaveCoordinator.save(target, message: message, from: self)
         case .share: shareMessage(message, target: target)
         case .delete: confirmMessageDeletion(message, target: target)
         }
     }
 
-    func openMenuPreview(_ target: MessageMenuTarget, playback: MessagePreviewPlayback?) {
+    /// 从消息辅助功能入口打开完整附件，链接交给当前窗口场景的系统浏览器处理。
+    ///
+    /// - Parameter target: 待打开的稳定内容身份；媒体组通过媒体项标识重新确定起始索引。
+    ///
+    /// 页面已清理、消息不存在或媒体项已移除时忽略请求，不衔接长按菜单的播放进度。
+    func openMenuAttachment(_ target: MessageMenuTarget) {
         guard !hasCleanedUpChat, let message = conversationView.message(for: target),
               case .attachment(let attachment) = message.content else { return }
+        if case .link(let link) = attachment {
+            viewIfLoaded?.window?.windowScene?.open(link.url, options: nil, completionHandler: nil)
+            return
+        }
         let index: Int
         if case .mediaGroup(let group) = attachment {
             guard let selected = group.items.firstIndex(where: { $0.id == target.mediaItemID }) else { return }
             index = selected
         } else { index = 0 }
         openAttachmentPreview(.init(attachment: attachment, initialIndex: index,
-                                    source: .message(target.messageID), initialPlayback: playback))
+                                    source: .message(target.messageID)))
     }
 
     private func shareMessage(_ message: MessagePresentation, target: MessageMenuTarget) {

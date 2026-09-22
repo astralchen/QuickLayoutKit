@@ -11,9 +11,9 @@ final class FixedSizeDemoViewController: LocalizedQuickLayoutHostingController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemGroupedBackground
-        contentView.onOpenSource = {
+        contentView.onOpenSource = { [weak self] in
             guard let url = URL(string: "https://www.swiftdifferently.com/blog/swiftui/fixedsize-usecase") else { return }
-            UIApplication.shared.open(url)
+            self?.viewIfLoaded?.window?.windowScene?.open(url, options: nil, completionHandler: nil)
         }
         updateNavigationAppearance()
         if #available(iOS 17.0, *) {

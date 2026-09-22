@@ -40,6 +40,8 @@ struct ChatMediaTests {
                     #expect(card.mask === view.singleMaskView)
                     let layer = try #require(view.singleMaskView.layer as? CAShapeLayer)
                     let path = try #require(layer.path)
+                    let previewPath = try #require(view.menuPreviewPath)
+                    #expect(previewPath.cgPath == path, "菜单轮廓必须与真实单图遮罩完全一致")
                     let tailOnRight = direction == .outgoing ? !rtl : rtl
                     // 截图中缺口位于主体内、距离尾部边缘约 20pt 的位置。
                     for x in 20...26 {

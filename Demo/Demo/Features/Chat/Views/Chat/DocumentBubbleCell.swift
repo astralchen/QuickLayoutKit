@@ -11,8 +11,8 @@ import UniformTypeIdentifiers
 /// 在时间线中呈现文件或链接卡片、发送状态和保存入口的单元格。
 @available(iOS 17.0, *)
 final class DocumentBubbleCell: QuickLayoutCollectionViewCell {
-    /// 气泡内容的原生长按交互。
-    let messageMenu = MessageMenuInteraction()
+    /// 随 Cell 复用重置的菜单辅助功能绑定。
+    let messageMenu = MessageMenuAccessibility()
 
     /// 与编辑器共用内容配置和测量规则的附件卡片。
     let card = AttachmentCard(frame: .zero)

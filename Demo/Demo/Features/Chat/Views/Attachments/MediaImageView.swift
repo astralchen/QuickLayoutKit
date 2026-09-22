@@ -34,6 +34,38 @@ final class MediaImageView: UIImageView {
     /// 由滚动容器传入的实际可见性。
     var isContentActive = true { didSet { if oldValue != isContentActive { updateThumbnail() } } }
 
+    /// 系统菜单使用原视图快照期间，只保留已显示的图片，不启动额外读取。
+    private var displayedContentRetainCount = 0
+
+    /// 保留子树中已显示的缩略图，返回可重复调用的释放闭包；不读取原件。
+    ///
+    /// 保留期间只阻止离屏清理当前图片；Cell 改绑其他文件时仍应清除旧内容。
+    ///
+    /// - Parameter view: 包含当前消息媒体内容的源视图，遍历时包含视图自身。
+    /// - Returns: 在主 actor 上调用的释放闭包；第一次调用减少保留计数并恢复可见性驱动的清理，重复调用无效。
+    static func retainDisplayedContent(in view: UIView) -> () -> Void {
+        var images: [MediaImageView] = []
+        /// 递归登记子树中的媒体图片，每个视图为本次保留增加一次引用计数。
+        func visit(_ view: UIView) {
+            if let image = view as? MediaImageView {
+                image.displayedContentRetainCount += 1
+                images.append(image)
+            }
+            view.subviews.forEach(visit)
+        }
+        visit(view)
+        // 关闭、失效与销毁可能都请求释放，同一份保留只能减少一次计数。
+        var released = false
+        return {
+            guard !released else { return }
+            released = true
+            for image in images {
+                image.displayedContentRetainCount -= 1
+                image.updateThumbnail()
+            }
+        }
+    }
+
     /// 配置缩略图；同一文件保留已解码图片和在途请求。
     func setThumbnail(_ url: URL?, placeholder: UIImage? = nil) {
         placeholderImage = placeholder
@@ -87,7 +119,7 @@ final class MediaImageView: UIImageView {
         guard window != nil, isContentActive, !isHidden, let thumbnailURL else {
             cancelThumbnail()
             layer.removeAnimation(forKey: "thumbnailFade")
-            if self.thumbnailURL != nil { image = nil }
+            if self.thumbnailURL != nil, displayedContentRetainCount == 0 { image = nil }
             return
         }
         guard bounds.width > 0, bounds.height > 0 else { return }

@@ -840,7 +840,7 @@ say -v Tingting -r 175 -o Demo/Demo/Resources/AttachmentPreviewResources.bundle/
 
 ### 消息长按菜单
 
-消息气泡使用系统 `UIContextMenuInteraction`。`MessageMenuPolicy` 按内容生成菜单，
+消息气泡通过 ListKit 的 `contextMenuForItems` 和 Row 的 `contextMenuPreview` 使用系统菜单。`MessageMenuPolicy` 按内容生成菜单，
 `MessageMenuTarget` 在打开时锁定消息、附件和当前媒体项目的稳定身份；Controller 执行动作前再次校验。
 多图／混合媒体的拷贝、存储和分享只处理当前封面，删除移除整条消息。发送失败时增加重新发送入口。
 
@@ -859,26 +859,71 @@ UI 用例已加入 `ChatRegression`；`-imessage-menu-fixture` 仅在 Debug 中�
 真实 Photos 写入用例默认跳过；显式设置 `TEST_RUNNER_CHAT_MENU_PHOTOS_WRITE=1` 后，
 `testSaveCurrentLivePhotoAndGIFToPhotos` 会向所选设备相册新增两项测试资源（实况照片与 GIF）。
 
-### 菜单内内容预览
+### 菜单原视图高亮
 
-`MessageMenuPreviewPolicy` 独立决定内容预览能力，`MessageMenuPreviewCoordinator` 为菜单锁定目标，
-`MessageMenuPreviewController` 通过原生 `previewProvider` 承载单项内容。文字及音频气泡只高亮原气泡。
-图片读取原件、GIF 自动循环、视频和实况在预览显示且准备完成后自动带声音播放一次；
-录音、听写及语音准备期间不抢占采集会话。菜单关闭、页面退出、后台或中断均结束播放与加载。
+所有消息统一高亮原气泡或原附件卡片，参照 Apple `AddingContextMenusInYourApp` 的
+`CollectionViewPreview` 示例。`previewProvider` 为 nil；高亮和收起时按稳定身份重新查询源视图，
+保留气泡底色并使轮廓外透明，按实际气泡／卡片轮廓创建 `UITargetedPreview`，不包含整行空白、送达状态和保存按钮。
+媒体组只突出当前最前卡片，切换动画期间不能发起菜单。正文选择期间也不发起消息菜单。
+单张图片／视频沿用包含尾部的真实遮罩。预览动画以列表为目标容器，避免媒体堆叠的层级遮住收起快照。
+文字与语音气泡在菜单开始时捕获当前显示画面，仅供收起动画使用；展开和菜单停留仍由真实气泡参与，
+让系统隐藏来源，避免在预览下面露出第二份气泡。这样也避免 iOS 26 真机上真实气泡在系统
+恢复来源前提前消失。收起阶段由 Row 的 dismissal 回调明确传入，不依赖它与 willEnd 的先后顺序。
+源视图或尺寸改变时重新捕获，结束后释放；不创建内容控制器、不重新排版正文、不启动附件加载。
 
-预览复用现有附件内容页、图片加载器和播放协调器；PDF／文本展示首页／首屏，其他系统支持的
-文件使用 Quick Look 内容缩略图，音频文件及不支持的类型保留卡片。文件菜单仍使用文件导出语义。
-媒体预览外框按原始显示尺寸等比约束到窗口可用范围；文件加载后使用已处理方向的图片尺寸、
-视频 `presentationSize`、旋转后的 PDF 首页或 Quick Look 缩略图尺寸更新。文本和网页保留阅读视口。
-点击预览等待菜单动画结束后进入完整浏览器，媒体组按稳定项目身份定位；视频交接播放时间和状态，
-实况重新播放一次。VoiceOver 通过“打开预览”进入完整内容。
+`MessageMenuCoordinator` 由列表持有，锁定消息、附件及媒体项目身份。菜单状态刷新保持同一目标；
+菜单关闭动画完成后再次校验能力并执行操作。旧关闭回调不影响新菜单，源 Cell 复用或离屏后不返回
+其他消息作为收起目标。系统动画期间只保留已显示的缩略图，结束后恢复正常的离屏释放。
+Cell 的 `MessageMenuAccessibility` 仅管理 VoiceOver 操作，不安装单独的长按交互。
+列表在 `collectionDelegate` 就绪后重新安装 adapter，使 UIKit 正确缓存并转发菜单关闭回调。
 
-链接卡片使用独立的非持久化 `WKWebView` 加载 HTTP(S) 网页，15 秒超时后展示局部失败状态。
-预览不接受网页内部操作，不启动下载、外部 App、登录弹窗或网页自动音视频；点击预览由系统浏览器
-打开原始 URL。菜单关闭即停止加载并释放 WebView；正文识别链接继续沿用原有点击／长按规则。
+长按不加载网页、文件正文或媒体原件，也不启动视频／Live Photo 播放。正常点击附件继续打开完整
+浏览器；链接交给系统浏览器。VoiceOver 的“打开预览”使用同一内容入口，不经过菜单播放交接。
 
-`ChatMessageMenuPreviewTests` 检查实际播放器、GIF 帧、实况原声配置、网页内容与生命周期；
-`ChatMessageMenuUITests` 覆盖原生内容预览、点击展开、当前项目、文件回退和真实网页加载。
-调试参数 `-imessage-menu-fixture -imessage-menu-web` 增加 Apple 链接卡片用于真实网页验收。
-`-imessage-save-fixture resources-live-audio` 为包内无声实况样例追加已有示例音轨，并保留照片／视频配对元数据，
-用于验证有声实况路径；包内原始资源保持不变。
+`ChatMessageMenuPreviewTests` 验证真实 ListKit 菜单入口、命中范围、稳定身份、最新几何、生命周期及
+辅助功能复用；`ChatMessageMenuUITests` 验证卡片高亮、收起、当前媒体项、普通点击打开和菜单操作。
+`-imessage-menu-fixture -imessage-menu-web` 增加链接卡片；`-imessage-save-fixture resources-live-audio`
+提供有声实况测试资源，用于验证长按不播放以及完整附件查看行为。
+`-imessage-menu-fixture -imessage-menu-long-text` 提供屏幕边缘长文字，`-imessage-save-fixture audio-message`
+提供语音气泡；叠加 `-imessage-menu-audio-transcript` 显示转写文本，用于检查整块气泡收起。
+再叠加 `-imessage-menu-audio-outgoing` 可检查自己发出的蓝色语音气泡。
+语音在波形内容区域长按展示菜单，播放按钮保留独立播放操作。
+
+2026-09-22 ListKit 菜单迁移验证：
+
+- 模拟器与真机 Debug 测试构建通过；未修改 ListKit、QuickLayoutKit 公共 API 或依赖锁定版本。
+- 菜单／身份／删除／消息状态／完整查看共 40 项单元测试通过，媒体视图 56 项通过；合计 96 项、参数化展开 117 次执行，0 失败、0 跳过。
+  结果：`/tmp/chat-listkit-unit-complete.xcresult`、`/tmp/chat-listkit-media-unit.xcresult`。
+- iPhone 17 Pro / iOS 26.5 的菜单 UI 场景共 16 项最终通过，真实相册写入 1 项按默认开关跳过。
+  整组运行中的语音用例最初按住了播放按钮；改在波形内容区域长按后复验通过。
+  文字操作及几何修复后另行复验，结果：`/tmp/chat-listkit-iphone-verified.xcresult`、`/tmp/chat-listkit-media-complete.xcresult`。
+- iPad 11-inch (M5) / iOS 26.5 完成长文字、语音、RTL 大字号、横屏媒体组、文字操作与当前项查看抽查。
+  录屏发现媒体组收起曾露出后卡片；改用列表作为预览动画容器后复验通过，连续帧保存在 `/tmp/chat-fixed-motion-frames`。
+- iPhone SE / iOS 26.6.1 六条菜单／完整查看 UI 回归通过；最终轮廓与收起修改后三条补验通过，
+  结果：`/tmp/chat-listkit-device-final.xcresult`、`/tmp/chat-listkit-device-complete.xcresult`。
+- 视觉验收采用代表场景截图及打开／收起录屏抽帧，未穷举全部设备、类型、字号和方向的组合。
+  人工触觉、实际听音及完整 VoiceOver 手势验收未执行；辅助功能动作绑定与复用清理已有单元覆盖。
+
+2026-09-22 文字连续收起补验：
+
+- 用户录屏的「更早的消息 56」在约 1.47～2.37 秒整块不可见；iPhone SE / iOS 26.6.1
+  对照录屏连续 8 次均出现约 0.9 秒空白。只检查菜单消失后的稳定截图不能发现这个问题。
+- 最终实现只在文字收起时使用开始阶段捕获的显示快照，展开仍用真实气泡。
+  真机历史富文本、短文字各 8 次开合逐帧检查没有空白，菜单稳定帧没有下层来源气泡重影。
+- 真机 `ChatRegression` 三项 UI 回归通过，包括媒体组收起后打开第 2 项；
+  iPhone 18 Pro / iOS 27.2 模拟器三项 UI 回归通过，包括长文字 8 次、键盘展开的新发送文字 8 次，
+  以及复制、删除确认与选择文本。八项预览／稳定身份／生命周期单元测试通过。
+- 最终结果：`/tmp/chat-outgoing-device-final.xcresult`、`/tmp/chat-outgoing-simulator-verified.xcresult`、
+  `/tmp/chat-outgoing-unit-verified.xcresult`。本轮没有重跑 iPad、RTL、大字号全矩阵或人工触觉／音频验收。
+
+2026-09-22 语音连续收起补验：
+
+- 用户 15:07:51 录屏在约 2.62～3.50 秒丢失蓝色气泡、波形和转写，只剩播放三角形。
+  收起显示快照由文字扩展到语音，展开仍使用真实来源，长按不触发播放。
+- 模拟器与真机 Debug 测试构建通过。菜单单元测试 9 项、参数化执行 10 次全部通过，
+  新增收到／发出语音的来源、快照、内容保留、连续会话及播放隔离检查。
+- iPhone SE / iOS 26.6.1 真机三项 UI 回归通过：带转写的发出语音 8 次开合、收到语音长按不播放、
+  发出文字 8 次开合。语音连续开合录屏的 694 个记录帧未出现气泡丢失，抽查稳定帧未见下层来源重影。
+- iPhone 18 Pro / iOS 27.2 模拟器两项语音 UI 回归通过；抽查菜单稳定与首轮收起帧未见气泡空白或来源重影。
+- 结果：`/tmp/chat-audio-unit.xcresult`、`/tmp/chat-audio-device-final.xcresult`、
+  `/tmp/chat-audio-simulator-final.xcresult`。本轮未重跑 iPad、RTL、大字号全矩阵，未进行人工触觉或实际听音验收。
