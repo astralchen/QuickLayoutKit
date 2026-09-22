@@ -21,7 +21,8 @@ extension PhotoPickerController {
         let canRecoverOriginal = entry.assetIdentifier != nil
             && provider.hasItemConformingToTypeIdentifier(UTType.image.identifier)
             && provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier)
-        if provider.canLoadObject(ofClass: PHLivePhoto.self) || canRecoverOriginal {
+        // 直接检查提供者声明的类型；部分系统运行时查询 PHLivePhoto 的可读类型会抛出 Objective-C 异常。
+        if provider.hasItemConformingToTypeIdentifier(UTType.livePhoto.identifier) || canRecoverOriginal {
             beginLivePhotoImport(provider: provider, entry: entry, generation: generation)
             return
         }
@@ -101,7 +102,7 @@ extension PhotoPickerController {
             do {
                 let makeURL: (String) -> URL = { store.makeFileURL(prefix: "live-photo", pathExtension: $0) }
                 let resources: LivePhotoImportRequest.Resources?
-                if provider.canLoadObject(ofClass: PHLivePhoto.self) {
+                if provider.hasItemConformingToTypeIdentifier(UTType.livePhoto.identifier) {
                     resources = try await request.load(provider: provider, makeURL: makeURL)
                 } else if let identifier = entry?.assetIdentifier {
                     resources = try await request.loadOriginalIfAvailable(assetIdentifier: identifier, makeURL: makeURL)

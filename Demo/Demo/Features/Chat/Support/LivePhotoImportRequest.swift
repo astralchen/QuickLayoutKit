@@ -2,7 +2,7 @@ import Photos
 import PhotosUI
 import UniformTypeIdentifiers
 
-/// 单项实况导入持有系统进度；取消后等待实际资源写入退出，才允许调用方释放导入槽位。
+/// 单项实况导入持有取消状态；取消后等待系统回调或资源写入退出，才允许调用方释放导入槽位。
 @MainActor
 final class LivePhotoImportRequest {
     struct Resources: Sendable {
@@ -10,24 +10,23 @@ final class LivePhotoImportRequest {
         let video: URL
     }
 
-    private var progress: Progress?
     private var cancelled = false
 
     func cancel() {
         cancelled = true
-        progress?.cancel()
     }
 
     /// 使用提供者返回的同一个 PHLivePhoto 导出照片与视频，避免混用调整前后的资源。
     func load(provider: NSItemProvider, makeURL: (String) -> URL) async throws -> Resources {
         try checkCancellation()
         let livePhoto: PHLivePhoto = try await withCheckedThrowingContinuation { continuation in
-            progress = provider.loadObject(ofClass: PHLivePhoto.self) { object, error in
+            // iOS 27.1 的类加载也会调用异常的 readableTypeIdentifiersForItemProvider。
+            // 使用明确类型的兼容接口绕过该查询；接口不返回 Progress，取消后等待回调再丢弃结果。
+            provider.loadItem(forTypeIdentifier: UTType.livePhoto.identifier, options: nil) { object, error in
                 if let photo = object as? PHLivePhoto { continuation.resume(returning: photo) }
                 else { continuation.resume(throwing: error ?? CocoaError(.fileReadCorruptFile)) }
             }
         }
-        progress = nil
         try checkCancellation()
         return try await export(livePhoto, makeURL: makeURL)
     }

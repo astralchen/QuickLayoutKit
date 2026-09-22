@@ -1005,6 +1005,20 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         }
         XCTAssertNotNil(sheet)
         guard let sheet else { return }
+        // 新安装的系统选择器会先显示隐私说明；关闭说明后才可点击背后的照片。
+        if app.textViews["私密访问照片"].exists {
+            let confirmation = app.buttons["好"]
+            XCTAssertTrue(confirmation.exists)
+            let frame = confirmation.frame
+            let scale = sheet.frame.width / app.frame.width
+            let center = CGPoint(x: frame.midX, y: frame.midY)
+            let point = sheet.frame.contains(center) ? center : CGPoint(
+                x: sheet.frame.minX + center.x * scale,
+                y: sheet.frame.minY + center.y * scale
+            )
+            app.windows.firstMatch.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: point.x, dy: point.y)).tap()
+            XCTAssertTrue(app.textViews["私密访问照片"].waitForNonExistence(timeout: 5))
+        }
         for column in 0..<3 {
             let photo = photos.element(boundBy: column)
             XCTAssertTrue(photo.exists)
@@ -1015,7 +1029,7 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
                 x: sheet.frame.minX + frame.midX * scale,
                 y: sheet.frame.minY + frame.midY * scale
             )
-            app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(
+            app.windows.firstMatch.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(
                 dx: screenPoint.x, dy: screenPoint.y
             )).tap()
             XCTAssertTrue(preview.firstMatch.waitForExistence(timeout: 15))

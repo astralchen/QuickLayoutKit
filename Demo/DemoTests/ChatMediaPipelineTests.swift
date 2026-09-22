@@ -306,18 +306,20 @@ struct ChatMediaPipelineTests {
         page.reset()
     }
 
-    /// 系统循环实况同时提供 MOV 与 GIF；电影表示排在前面也不得改变照片身份。
-    @Test(arguments: ["preview-image-01.gif", "preview-image-02.png", "video-only"])
+    /// 普通照片无需查询实况对象类型；同时提供 MOV 与 GIF 时，电影表示不得改变照片身份。
+    @Test(arguments: ["preview-image-01.gif", "preview-image-02.png", "video-only", "image-only"])
     func photoRepresentationTakesPrecedenceOverAlternateMovie(name: String) async throws {
         let bundle = try #require(Bundle.main.url(forResource: "AttachmentPreviewResources", withExtension: "bundle"))
         let movie = bundle.appendingPathComponent("live-photo.mov")
         let provider = NSItemProvider()
-        provider.registerFileRepresentation(forTypeIdentifier: UTType.quickTimeMovie.identifier, fileOptions: [], visibility: .all) { completion in
-            completion(movie, false, nil)
-            return Progress(totalUnitCount: 1)
+        if name != "image-only" {
+            provider.registerFileRepresentation(forTypeIdentifier: UTType.quickTimeMovie.identifier, fileOptions: [], visibility: .all) { completion in
+                completion(movie, false, nil)
+                return Progress(totalUnitCount: 1)
+            }
         }
         let isVideo = name == "video-only"
-        let source = isVideo ? movie : bundle.appendingPathComponent(name)
+        let source = isVideo ? movie : bundle.appendingPathComponent(name == "image-only" ? "preview-image-02.png" : name)
         if !isVideo {
             let type = name.hasSuffix("gif") ? UTType.gif : UTType.png
             provider.registerFileRepresentation(forTypeIdentifier: type.identifier, fileOptions: [], visibility: .all) { completion in
@@ -325,7 +327,7 @@ struct ChatMediaPipelineTests {
                 return Progress(totalUnitCount: 1)
             }
         }
-        #expect(!provider.canLoadObject(ofClass: PHLivePhoto.self))
+        #expect(!provider.hasItemConformingToTypeIdentifier(UTType.livePhoto.identifier))
         let store = PageAttachmentStore()
         defer { store.removeAll() }
         let controller = PhotoPickerController(attachmentStore: store)

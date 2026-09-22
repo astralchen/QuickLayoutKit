@@ -2,6 +2,7 @@ import AVFoundation
 import PhotosUI
 import Testing
 import UIKit
+import UniformTypeIdentifiers
 @testable import Demo
 
 @MainActor
@@ -76,6 +77,31 @@ struct ChatLivePhotoTests {
             }
             Issue.record("Cancelled lookup must throw")
         } catch is CancellationError {} catch { Issue.record(error) }
+    }
+
+    /// 使用真实实况对象提供者验证类型分流、配对导入和草稿交付。
+    @Test func livePhotoProviderImportsPairedResourcesIntoDraft() async throws {
+        let (photo, video) = try fixture()
+        let live = try await reconstruct(photo, video)
+        // PHLivePhoto 不符合 NSItemProviderWriting；测试通过兼容初始化器注册真实对象。
+        let provider = NSItemProvider(item: live, typeIdentifier: UTType.livePhoto.identifier)
+        let store = PageAttachmentStore()
+        defer { store.removeAll() }
+        let controller = PhotoPickerController(attachmentStore: store)
+        let entry = PhotoPickerController.DraftEntry(assetIdentifier: nil)
+        controller.entries.append(entry)
+        controller.pendingImports.append(.init(provider: provider, entry: entry, generation: controller.generation))
+        controller.drainImports()
+        let deadline = Date().addingTimeInterval(10)
+        while !controller.activeImports.isEmpty, Date() < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(controller.activeImports.isEmpty)
+        let imported = try #require(controller.draftAttachment?.items.first)
+        #expect(imported.isLivePhoto && !imported.kind.isVideo)
+        let restored = try await reconstruct(imported.originalFileURL, #require(imported.livePhotoVideoURL))
+        #expect(restored.size == live.size)
+        controller.discardDraft()
     }
 
     @Test func partialExportAndCancellationRemoveUnclaimedResources() async throws {
