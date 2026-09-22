@@ -244,24 +244,28 @@ extension ComposerView {
         audioSendButton.isEnabled = canSendAudioDraft
         attachmentButton.isEnabled = !isShowingRecordingUnavailableHint
             && (composerState == .idle || !textAttachments.isEmpty)
+        var dictationConfiguration = UIButton.Configuration.plain()
+        dictationConfiguration.image = UIImage(systemName: "mic.fill")
+        dictationConfiguration.contentInsets = .zero
+        dictationConfiguration.cornerStyle = .capsule
         switch composerState {
         case .preparingSpeech:
             dictationButton.isEnabled = false
-            dictationButton.configuration?.showsActivityIndicator = true
+            dictationConfiguration.showsActivityIndicator = true
+            dictationButton.tintColor = .label
             dictationButton.accessibilityLabel = strings.stopDictation
         case .dictating:
             dictationButton.isEnabled = true
-            dictationButton.configuration?.showsActivityIndicator = false
-            dictationButton.configuration?.image = UIImage(systemName: "stop.fill")
+            // 与录音停止按钮共用红色图标和浅红色胶囊背景。
+            dictationConfiguration = recordingStopButton.configuration ?? dictationConfiguration
             dictationButton.tintColor = .systemRed
             dictationButton.accessibilityLabel = strings.stopDictation
         case .idle, .recording, .audioPreview:
             dictationButton.isEnabled = true
-            dictationButton.configuration?.showsActivityIndicator = false
-            dictationButton.configuration?.image = UIImage(systemName: "mic.fill")
             dictationButton.tintColor = .label
             dictationButton.accessibilityLabel = strings.dictate
         }
+        dictationButton.configuration = dictationConfiguration
         if isShowingRecordingUnavailableHint {
             dictationButton.isEnabled = false
         }
