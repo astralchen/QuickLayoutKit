@@ -14,30 +14,35 @@ struct HorizontalCarouselLayoutMetrics: Sendable {
 
     nonisolated static let spacing: CGFloat = 16
     nonisolated static let preferredMinimumCardWidth: CGFloat = 280
+    nonisolated static let maximumCardWidth: CGFloat = 360
     nonisolated static let nextCardPreviewWidth: CGFloat = 32
-    nonisolated static let maximumVisibleCardCount = 3
 
     nonisolated static func visibleCardCount(
         for containerWidth: CGFloat
     ) -> Int {
         guard containerWidth.isFinite, containerWidth > 0 else { return 1 }
-        let count = Int(
-            (containerWidth + spacing)
+        // 每张完整卡片后保留间距，并为下一张卡片预留可见部分。
+        // 列数随当前视口增长，避免 iPad 宽屏被固定三列拉成过宽的卡片。
+        let count = floor(
+            (containerWidth - nextCardPreviewWidth)
                 / (preferredMinimumCardWidth + spacing)
         )
-        return min(maximumVisibleCardCount, max(1, count))
+        return Int(max(1, min(CGFloat(Int.max / 2), count)))
     }
 
     nonisolated static func cardWidth(for containerWidth: CGFloat) -> CGFloat {
+        guard containerWidth.isFinite, containerWidth > 0 else { return 0 }
         let count = visibleCardCount(for: containerWidth)
-        if count == 1 {
-            return max(
+        let totalSpacing = spacing * CGFloat(count)
+        // 达到最大宽度后不再拉伸卡片，多余空间用来显示更多下一张卡片。
+        return min(
+            maximumCardWidth,
+            max(
                 0,
-                containerWidth - spacing - nextCardPreviewWidth
+                (containerWidth - totalSpacing - nextCardPreviewWidth)
+                    / CGFloat(count)
             )
-        }
-        let totalSpacing = spacing * CGFloat(count - 1)
-        return max(0, (containerWidth - totalSpacing) / CGFloat(count))
+        )
     }
 }
 

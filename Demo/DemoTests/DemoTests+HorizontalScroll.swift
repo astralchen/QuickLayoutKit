@@ -9,6 +9,26 @@ import QuickLayoutKit
 
 extension DemoTests {
 
+    @Test(arguments: [240.0, 358.0, 623.0, 624.0, 812.0, 919.0, 920.0, 1215.0, 1216.0, 1512.0])
+    func horizontalCarouselFitsMaximumCardsAtMinimumWidth(viewportWidth: Double) {
+        let width = CGFloat(viewportWidth)
+        let count = HorizontalCarouselLayoutMetrics.visibleCardCount(for: width)
+        let cardWidth = HorizontalCarouselLayoutMetrics.cardWidth(for: width)
+        let minimum = HorizontalCarouselLayoutMetrics.preferredMinimumCardWidth
+        let spacing = HorizontalCarouselLayoutMetrics.spacing
+        let preview = HorizontalCarouselLayoutMetrics.nextCardPreviewWidth
+
+        // 覆盖列数切换前后：当前列数满足最小宽度，再多一列则放不下。
+        #expect(cardWidth >= min(minimum, max(0, width - spacing - preview)))
+        #expect(cardWidth <= HorizontalCarouselLayoutMetrics.maximumCardWidth)
+        #expect(CGFloat(count + 1) * (minimum + spacing) + preview > width)
+        let remaining = width - CGFloat(count) * (cardWidth + spacing)
+        #expect(remaining >= preview - 0.01)
+        if cardWidth < HorizontalCarouselLayoutMetrics.maximumCardWidth {
+            #expect(abs(remaining - preview) < 0.01)
+        }
+    }
+
     @Test func horizontalScrollDemoStartsFromRightInRTL() {
         let viewController = HorizontalScrollViewViewController()
         viewController.loadViewIfNeeded()
