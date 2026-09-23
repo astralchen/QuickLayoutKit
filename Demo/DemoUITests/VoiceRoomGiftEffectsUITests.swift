@@ -2,6 +2,56 @@ import XCTest
 
 /// 从多特效栏目赠送原生、VAP、SVGA 组合，保留截图用于衔接与层级验收。
 final class VoiceRoomGiftEffectsUITests: XCTestCase {
+    /// 记录系统在线用户面板，检查页头摘要和列表在当前设备上的安全区域布局。
+    @MainActor
+    func testAudienceSheetSafeAreaLayout() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments += ["-quicklayoutkit.demo.locale.identifier", "zh-Hans"]
+        app.launch()
+        XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
+        let route = app.cells["demo.liveRoom.title"]
+        for _ in 0..<10 where !route.isHittable {
+            app.collectionViews.firstMatch.swipeUp()
+        }
+        XCTAssertTrue(route.isHittable)
+        route.tap()
+        let audienceButton = app.buttons["liveRoom.audience.button"]
+        XCTAssertTrue(audienceButton.waitForExistence(timeout: 10))
+        audienceButton.tap()
+        let list = app.collectionViews["liveRoom.audience.list"]
+        XCTAssertTrue(list.waitForExistence(timeout: 5))
+        XCTAssertTrue(list.cells.firstMatch.isHittable)
+        XCTAssertTrue(app.staticTexts["当前在线"].exists)
+        capture(app, "在线用户面板安全区域")
+    }
+
+    /// 验证礼物面板的主要操作可点击，并记录当前设备安全区域下的布局。
+    @MainActor
+    func testGiftSheetSafeAreaLayout() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments += ["-quicklayoutkit.demo.locale.identifier", "zh-Hans"]
+        app.launch()
+        XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
+        let route = app.cells["demo.liveRoom.title"]
+        for _ in 0..<10 where !route.isHittable {
+            app.collectionViews.firstMatch.swipeUp()
+        }
+        XCTAssertTrue(route.isHittable)
+        route.tap()
+        let giftButton = app.buttons["liveRoom.gift.button"]
+        XCTAssertTrue(giftButton.waitForExistence(timeout: 10))
+        giftButton.tap()
+        let send = app.buttons["liveRoom.gift.send"]
+        XCTAssertTrue(send.waitForExistence(timeout: 5))
+        XCTAssertTrue(send.isHittable)
+        XCTAssertTrue(app.buttons["liveRoom.gift.quantity"].isHittable)
+        XCTAssertTrue(app.buttons["liveRoom.gift.selectAll"].isHittable)
+        app.buttons["liveRoom.gift.category.svga"].tap()
+        capture(app, "礼物面板安全区域")
+    }
+
     /// 检查组合入口、播放期间点击穿透和结束清屏，记录远程动画衔接画面。
     @MainActor
     func testSendRemoteGiftEffectsFromSheet() async throws {

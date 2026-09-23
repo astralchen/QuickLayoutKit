@@ -191,10 +191,8 @@ final class RoomPublicChatView: QuickLayoutView, UIScrollViewDelegate {
         isAdjustingPosition = true
         defer { isAdjustingPosition = false }
         collectionView.layoutIfNeeded()
-        let top = max(0, collectionView.bounds.height - collectionView.contentSize.height)
-        if abs(collectionView.contentInset.top - top) > 0.5 {
-            collectionView.contentInset.top = top
-        }
+        // 消息不足一屏时从麦位下方开始排列，不用顶部 inset 将消息推到底部。
+        // 超过一屏后仍通过 bottomOffset 跟随最新消息，阅读历史时保留原有锚点。
         if followsLatest, !isUserScrolling {
             collectionView.setContentOffset(CGPoint(x: 0, y: bottomOffset), animated: false)
             if !unreadIDs.isEmpty {
@@ -204,7 +202,7 @@ final class RoomPublicChatView: QuickLayoutView, UIScrollViewDelegate {
         } else if !isUserScrolling,
                   let anchor, let item = messages.firstIndex(where: { $0.id == anchor.id }),
                   let frame = collectionView.layoutAttributesForItem(at: IndexPath(item: item, section: 0))?.frame {
-            let y = min(bottomOffset, max(-top, frame.minY - anchor.offset))
+            let y = min(bottomOffset, max(-collectionView.contentInset.top, frame.minY - anchor.offset))
             collectionView.setContentOffset(CGPoint(x: 0, y: y), animated: false)
         }
     }

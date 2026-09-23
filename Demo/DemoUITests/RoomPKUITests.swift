@@ -113,6 +113,13 @@ final class RoomPKUITests: XCTestCase {
             let messages = app.otherElements["liveRoom.publicChat.container"]
             XCTAssertTrue(messages.exists)
             XCTAssertLessThanOrEqual(seats.element(boundBy: count - 1).frame.maxY, messages.frame.minY + 1)
+            if count == 1 {
+                let firstMessage = app.staticTexts["liveRoom.publicChat.message.0"]
+                XCTAssertTrue(firstMessage.waitForExistence(timeout: 3))
+                XCTAssertGreaterThanOrEqual(firstMessage.frame.minY, messages.frame.minY)
+                XCTAssertLessThanOrEqual(firstMessage.frame.minY, messages.frame.minY + 12,
+                    "个播消息不足一屏时应紧接麦位，不能沉到底部留下空白")
+            }
             capture(app, "布局API-\(locale)-\(name)")
         }
     }

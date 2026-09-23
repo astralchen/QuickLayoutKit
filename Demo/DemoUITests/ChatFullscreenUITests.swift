@@ -42,7 +42,7 @@ final class ChatFullscreenUITests: XCTestCase {
             XCTAssertEqual(XCTWaiter.wait(for: [hiddenKeyboard], timeout: 5), .completed)
         }
         assertFullScreen(list, in: app)
-        app.navigationBars.buttons.firstMatch.tap()
+        backButton(in: app).tap()
         XCTAssertTrue(app.cells["demo.imessage.title"].waitForExistence(timeout: 5))
     }
 
@@ -54,16 +54,14 @@ final class ChatFullscreenUITests: XCTestCase {
             app.frame.width > app.frame.height && app.textViews["imessage.composer.text"].isHittable
         }, object: app)
         if XCTWaiter.wait(for: [landscape], timeout: 10) != .completed {
-            // iPad 窗口模式可能保持原窗口尺寸；先在未修改的首页确认同一限制。
-            if UIDevice.current.userInterfaceIdiom == .pad {
-                app.navigationBars.buttons.firstMatch.tap()
-                XCTAssertTrue(app.cells["demo.imessage.title"].waitForExistence(timeout: 5))
-                let mainRotated = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-                    app.frame.width > app.frame.height
-                }, object: app)
-                if XCTWaiter.wait(for: [mainRotated], timeout: 5) != .completed {
-                    throw XCTSkip("iPad 宿主窗口在首页和聊天页均未响应设备旋转；窗口尺寸变化另由布局测试覆盖")
-                }
+            // Duo 折叠屏与 iPad 窗口都可能维持原尺寸；必须先在首页确认同一限制。
+            backButton(in: app).tap()
+            XCTAssertTrue(app.cells["demo.imessage.title"].waitForExistence(timeout: 5))
+            let mainRotated = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                app.frame.width > app.frame.height
+            }, object: app)
+            if XCTWaiter.wait(for: [mainRotated], timeout: 5) != .completed {
+                throw XCTSkip("宿主窗口在首页和聊天页均未响应设备旋转；窗口尺寸变化另由布局测试覆盖")
             }
             XCTFail("聊天窗口未完成横屏布局")
             return
@@ -76,6 +74,26 @@ final class ChatFullscreenUITests: XCTestCase {
         let app = openChat(rtl: true)
         assertFullScreen(app.collectionViews["imessage.timeline"], in: app)
         capture(app, "全屏聊天-深色大字体RTL")
+    }
+
+    /// 在真实窗口中左右拖动消息列表，消息应保持原有横向位置。
+    @MainActor func testHorizontalDraggingPreservesMessagePosition() throws {
+        let app = openChat(loadsHistory: true)
+        let list = app.collectionViews["imessage.timeline"]
+        XCTAssertTrue(list.cells.firstMatch.waitForExistence(timeout: 5))
+        let cell = try XCTUnwrap(list.cells.allElementsBoundByIndex.first {
+            $0.frame.minY > list.frame.minY + 150 && $0.frame.maxY < list.frame.maxY - 130
+        })
+        let originalX = cell.frame.minX
+        let y = (cell.frame.midY - list.frame.minY) / list.frame.height
+        let left = list.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: y))
+        let right = list.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: y))
+        right.press(forDuration: 0.05, thenDragTo: left)
+        XCTAssertEqual(cell.frame.minX, originalX, accuracy: 1)
+        left.press(forDuration: 0.05, thenDragTo: right)
+        XCTAssertEqual(cell.frame.minX, originalX, accuracy: 1)
+        assertFullScreen(list, in: app)
+        capture(app, "全屏聊天-左右拖动后位置不变")
     }
 
     @MainActor func testCancelledBackSwipePreservesDraftAndHistory() {
@@ -102,16 +120,44 @@ final class ChatFullscreenUITests: XCTestCase {
         capture(app, "全屏聊天-取消返回后继续编辑")
     }
 
-    @MainActor private func openChat(rtl: Bool = false) -> XCUIApplication {
+    /// 连续下拉时保留整段按住手势，暴露被自动贴底打断的滚动。
+    @MainActor func testPullingDownMovesIntoHistory() throws {
+        let app = openChat(loadsHistory: true, probesPull: true)
+        let list = app.collectionViews["imessage.timeline"]
+        XCTAssertTrue(list.cells.firstMatch.waitForExistence(timeout: 5))
+        capture(app, "下拉-初始")
+        for index in 0..<3 {
+            list.coordinate(withNormalizedOffset: CGVector(dx: 0.45, dy: 0.35))
+                .press(forDuration: 0.05,
+                       thenDragTo: list.coordinate(withNormalizedOffset: CGVector(dx: 0.45, dy: 0.8)),
+                       withVelocity: .slow, thenHoldForDuration: 1)
+            capture(app, "下拉-第\(index + 1)次")
+        }
+    }
+
+    /// 导航按钮在 Duo 侧栏中的 AX 顺序不同，返回操作须排除语言菜单。
+    @MainActor private func backButton(in app: XCUIApplication) -> XCUIElement {
+        let sidebarBack = app.buttons["BackButton"]
+        if sidebarBack.exists { return sidebarBack }
+        return app.navigationBars.buttons.matching(NSPredicate(format: "identifier != %@", "demo.language.menu")).firstMatch
+    }
+
+    @MainActor private func openChat(rtl: Bool = false, loadsHistory: Bool = false, probesPull: Bool = false) -> XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         let language = rtl ? "ar" : "zh-Hans"
-        app.launchArguments += ["-imessage-basic-history", "-AppleLanguages", "(\(language))",
+        app.launchArguments += ["-AppleLanguages", "(\(language))",
                                 "-quicklayoutkit.demo.locale.identifier", language]
+        if loadsHistory {
+            app.launchArguments += ["-chat-draft-session", "horizontal-scroll-regression"]
+        } else {
+            app.launchArguments += ["-imessage-basic-history"]
+        }
         if rtl {
             app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
                                     "-AppleInterfaceStyle", "Dark"]
         }
+        if probesPull { app.launchArguments += ["-chat-pull-probe"] }
         app.launch()
         let route = app.cells["demo.imessage.title"]
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))

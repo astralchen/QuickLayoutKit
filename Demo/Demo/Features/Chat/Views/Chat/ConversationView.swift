@@ -106,7 +106,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         guard let state else { return nil }
         let list = collectionView
         list.layoutIfNeeded()
-        let viewport = list.bounds.inset(by: list.adjustedContentInset)
+        let viewport = list.bounds.inset(by: viewportInsets)
         for index in list.indexPathsForVisibleItems.sorted() {
             guard state.timeline.indices.contains(index.item),
                   case .message = state.timeline[index.item].content,
@@ -130,6 +130,8 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     }
     private var pendingViewportPosition: ViewportPosition?
     private var viewportSize: CGSize = .zero
+    /// 实际可见区域的物理边距；左右边距交给 Section 布局，不扩大滚动内容范围。
+    private var viewportInsets: UIEdgeInsets = .zero
     private var isUpdatingViewport = false
 
     /// 在改变输入栏高度或容器尺寸前捕获阅读位置；身份独立于历史插入后的索引。
@@ -148,7 +150,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     /// 列表 frame 始终全屏，只有内容及指示器避让覆盖在其上方的界面。
     func updateViewportInsets(_ insets: UIEdgeInsets) {
         guard !isUpdatingViewport else { return }
-        let old = collectionView.contentInset
+        let old = viewportInsets
         guard abs(old.top - insets.top) > 0.5 || abs(old.bottom - insets.bottom) > 0.5
             || abs(old.left - insets.left) > 0.5 || abs(old.right - insets.right) > 0.5
             || abs(viewportSize.width - collectionView.bounds.width) > 0.5
@@ -156,15 +158,31 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
             pendingViewportPosition = nil
             return
         }
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-chat-pull-probe") {
+            print("PULL viewport old=\(old) new=\(insets) size=\(viewportSize)->\(collectionView.bounds.size) offset=\(collectionView.contentOffset) drag=\(collectionView.isDragging) decel=\(collectionView.isDecelerating)")
+        }
+        #endif
         prepareForViewportChange()
         readingPositionRevision &+= 1
         let position = pendingViewportPosition
         pendingViewportPosition = nil
         isUpdatingViewport = true
-        defer { isUpdatingViewport = false }
+        defer {
+            // 只保留纵向阅读位置，清除尺寸或安全区切换前遗留的横向偏移。
+            collectionView.contentOffset.x = 0
+            isUpdatingViewport = false
+        }
+        let horizontalGeometryChanged = abs(old.left - insets.left) > 0.5
+            || abs(old.right - insets.right) > 0.5
+            || abs(viewportSize.width - collectionView.bounds.width) > 0.5
         viewportSize = collectionView.bounds.size
-        collectionView.contentInset = insets
+        viewportInsets = insets
+        collectionView.contentInset = UIEdgeInsets(top: insets.top, left: 0, bottom: insets.bottom, right: 0)
         collectionView.scrollIndicatorInsets = insets
+        if horizontalGeometryChanged {
+            collectionView.collectionViewLayout.invalidateLayout()
+        }
         collectionView.layoutIfNeeded()
         // 首次展示协调器负责最终底部定位，不能提前显示尚未稳定的历史。
         guard initialPresentation.isPresented else { return }
@@ -186,7 +204,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     /// 全屏列表中的 cell 可能仍处于导航栏或输入栏后方，预览转场只使用完整可见来源。
     func isUnobscuredPreviewSource(_ source: UIView) -> Bool {
         guard source.window != nil, source.isDescendant(of: collectionView) else { return false }
-        let viewport = collectionView.bounds.inset(by: collectionView.adjustedContentInset)
+        let viewport = collectionView.bounds.inset(by: viewportInsets)
         let frame = source.convert(source.bounds, to: collectionView)
         return !frame.isEmpty && viewport.contains(frame)
     }
@@ -349,6 +367,11 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     /// 首次展示、布局更新和程序化定位不会触发请求；失败与结束状态也不会自动重试。
     /// - Parameter scrollView: 列表适配器转发滚动事件的消息集合视图。
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-chat-pull-probe"), scrollView.isDragging || scrollView.isDecelerating {
+            print("PULL scroll y=\(scrollView.contentOffset.y) size=\(scrollView.contentSize) inset=\(scrollView.contentInset) safe=\(scrollView.safeAreaInsets) updating=\(isUpdatingViewport)")
+        }
+        #endif
         defer { previousScrollOffset = scrollView.contentOffset.y }
         if !isApplyingTimeline, !isUpdatingViewport {
             readingPositionRevision &+= 1
@@ -674,18 +697,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                 }
             }
             .selectionMode(.none)
-            .layout(
-                .list(
-                    itemHeight: .estimated(52),
-                    spacing: 2,
-                    contentInsets: .init(
-                        top: 10,
-                        leading: 0,
-                        bottom: 10,
-                        trailing: 0
-                    )
-                )
-            )
+            .layout(timelineSectionLayout)
         }
         if restoresHistoryAnchor, let localizationAnchor, !pendingExplicitScroll,
            collectionView.numberOfSections > 0,
@@ -957,6 +969,28 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                 contentInsetsReference: .none
             )
         )
+    }
+
+    /// 在全屏容器内收窄消息行，左右安全区不作为 UIScrollView 的额外滚动边距。
+    ///
+    /// provider 每次失效时读取最新物理边距，再转换成语义边距，兼容折叠、旋转与 RTL。
+    private var timelineSectionLayout: ListCustomSectionLayout<Section> {
+        ListCustomSectionLayout(id: Section.timeline) { [weak self] _, _, _ in
+            let size = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1),
+                                              heightDimension: .estimated(52))
+            let item = NSCollectionLayoutItem(layoutSize: size)
+            let group = NSCollectionLayoutGroup.horizontal(layoutSize: size, subitems: [item])
+            let section = NSCollectionLayoutSection(group: group)
+            let insets = self?.viewportInsets ?? .zero
+            let isRTL = self?.collectionView.effectiveUserInterfaceLayoutDirection == .rightToLeft
+            section.contentInsetsReference = .none
+            section.contentInsets = NSDirectionalEdgeInsets(
+                top: 10, leading: isRTL ? insets.right : insets.left,
+                bottom: 10, trailing: isRTL ? insets.left : insets.right
+            )
+            section.interGroupSpacing = 2
+            return section
+        }
     }
 
     /// 向已经物化的单元格重新应用当前布局方向，并保留可见项目位置。

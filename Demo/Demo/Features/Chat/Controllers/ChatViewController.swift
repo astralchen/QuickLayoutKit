@@ -368,6 +368,13 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
               list.bounds.height > 0, composerView.bounds.height > 0 else { return }
         let listFrame = list.convert(list.bounds, to: view)
         let composerFrame = composerView.convert(composerView.bounds, to: view)
+        // QuickLayout 分步更新子视图；宽窄切换时不能混用旧列表尺寸与新的页面安全区。
+        // 等列表和输入栏都到达本次布局位置后再消费已捕获的阅读锚点。
+        guard abs(listFrame.width - view.bounds.width) < 0.5,
+              abs(listFrame.height - view.bounds.height) < 0.5,
+              abs(composerFrame.maxY - (view.bounds.maxY - view.safeAreaInsets.bottom - bottomObstruction)) < 0.5 else {
+            return
+        }
         let safeFrame = view.safeAreaLayoutGuide.layoutFrame
         conversationView.updateViewportInsets(UIEdgeInsets(
             top: max(0, safeFrame.minY - listFrame.minY),

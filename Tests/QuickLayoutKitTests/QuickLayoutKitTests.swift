@@ -926,6 +926,91 @@ struct QuickLayoutKitTests {
     }
 
     @MainActor
+    @Test(arguments: [false, true])
+    func scrollAxisDoesNotMakeOversizedCrossAxisContentScrollable(horizontal: Bool) {
+        let scrollView = QuickLayoutScrollView(horizontal ? .horizontal : .vertical) {
+            UIView().frame(width: 500, height: 500)
+        }
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.contentInset = UIEdgeInsets(top: 10, left: 20, bottom: 30, right: 40)
+        scrollView.frame = CGRect(x: 0, y: 0, width: 300, height: 200)
+        scrollView.layoutIfNeeded()
+
+        if horizontal {
+            #expect(scrollView.contentSize.width == 500)
+            #expect(scrollView.contentSize.height == 160)
+        } else {
+            #expect(scrollView.contentSize.width == 240)
+            #expect(scrollView.contentSize.height == 500)
+        }
+    }
+
+    @MainActor
+    @Test func scrollAxisRestrictsBounceAndPreservesTheMainAxisPreference() {
+        guard #available(iOS 17.4, *) else { return }
+        let scrollView = QuickLayoutScrollView()
+        #expect(scrollView.bouncesVertically)
+        #expect(!scrollView.bouncesHorizontally)
+
+        scrollView.axis = .horizontal
+        #expect(scrollView.bouncesHorizontally)
+        #expect(!scrollView.bouncesVertically)
+
+        scrollView.axis = .vertical
+        #expect(scrollView.bouncesVertically)
+        #expect(!scrollView.bouncesHorizontally)
+
+        scrollView.bounces = false
+        scrollView.axis = .horizontal
+        #expect(!scrollView.bouncesHorizontally)
+        #expect(!scrollView.bouncesVertically)
+    }
+
+    @MainActor
+    @Test func verticalScrollContentFitsAutomaticallyAdjustedHorizontalInsets() {
+        let scrollView = AdjustedContentInsetQuickLayoutScrollView(
+            safeAreaInsets: UIEdgeInsets(top: 62, left: 80, bottom: 34, right: 0)
+        )
+        let content = UIView()
+        _ = ScrollView(scrollView) {
+            content.frame(maxWidth: .infinity).frame(height: 1200)
+        }
+        .contentMargins(.horizontal, 16)
+
+        for width: CGFloat in [653, 390, 844] {
+            for insets in [UIEdgeInsets(top: 62, left: 80, bottom: 34, right: 0),
+                           UIEdgeInsets(top: 62, left: 0, bottom: 34, right: 90),
+                           .zero] {
+                scrollView.frame = CGRect(x: 0, y: 0, width: width, height: 600)
+                scrollView.updateSafeAreaInsets(insets)
+                scrollView.layoutIfNeeded()
+                let adjusted = scrollView.adjustedContentInset
+                let viewportWidth = width - adjusted.left - adjusted.right
+                #expect(abs(content.bounds.width - viewportWidth) < 0.001)
+                #expect(abs(scrollView.contentSize.width - viewportWidth) < 0.001)
+                #expect(scrollView.contentSize.height == 1200)
+            }
+        }
+    }
+
+    @MainActor
+    @Test func verticalScrollContentFitsManuallyConfiguredHorizontalInsets() {
+        let scrollView = QuickLayoutScrollView()
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.contentInset = UIEdgeInsets(top: 10, left: 30, bottom: 20, right: 50)
+        scrollView.frame = CGRect(x: 0, y: 0, width: 300, height: 200)
+        let content = UIView()
+        _ = ScrollView(scrollView) {
+            content.frame(maxWidth: .infinity).frame(height: 400)
+        }
+        .contentMargins(.horizontal, 16)
+        scrollView.layoutIfNeeded()
+        #expect(content.bounds.width == 188)
+        #expect(scrollView.contentSize.width == 188)
+        #expect(scrollView.contentSize.height == 400)
+    }
+
+    @MainActor
     @Test func contentMarginsAddToTheResolvedSafeArea() {
         let scrollView = AdjustedContentInsetQuickLayoutScrollView(
             safeAreaInsets: UIEdgeInsets(

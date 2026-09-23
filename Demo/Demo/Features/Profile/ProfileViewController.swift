@@ -38,6 +38,13 @@ final class ProfileViewController: LocalizedQuickLayoutHostingController {
         super.viewDidLoad()
         view.backgroundColor = .systemGroupedBackground
         scrollView.backgroundColor = .systemGroupedBackground
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-profile-scroll-probe") {
+            scrollView.accessibilityIdentifier = "profile.scroll"
+            scrollView.accessibilityValue = "0"
+            scrollView.delegate = self
+        }
+        #endif
         reloadLocalizedContent()
     }
 
@@ -110,6 +117,19 @@ final class ProfileViewController: LocalizedQuickLayoutHostingController {
         .contentMargins(.horizontal, 16, for: .scrollContent)
     }
 }
+
+#if DEBUG
+/// 仅在 UI 回归启动参数启用时记录拖动过程，避免松手回弹掩盖横向位移。
+extension ProfileViewController: UIScrollViewDelegate {
+    /// 记录偏离正常水平起点的最大距离，供 UI 测试在手势结束后读取。
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        guard scrollView.isDragging || scrollView.isDecelerating else { return }
+        let previousMaximum = Double(scrollView.accessibilityValue ?? "0") ?? 0
+        let horizontalDisplacement = abs(scrollView.contentOffset.x + scrollView.adjustedContentInset.left)
+        scrollView.accessibilityValue = String(max(previousMaximum, Double(horizontalDisplacement)))
+    }
+}
+#endif
 
 @available(iOS 17.0, *)
 #Preview {

@@ -343,6 +343,26 @@ extension DemoTests {
         #expect(viewController.presentedAudienceMemberCount == 7)
         #expect(sheetViewController.totalCount == 42)
         #expect(headerFrame.minY >= safeAreaFrame.minY - 0.5)
+        // 页头和列表共用安全宽度；改变侧边区域后不得遗漏或重复扣除安全边距。
+        for extraInsets in [
+            UIEdgeInsets.zero,
+            UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 40),
+            UIEdgeInsets(top: 0, left: 40, bottom: 0, right: 0),
+            UIEdgeInsets.zero,
+        ] {
+            sheetViewController.additionalSafeAreaInsets = extraInsets
+            sheetViewController.view.setNeedsLayout()
+            sheetViewController.view.layoutIfNeeded()
+            let safeFrame = sheetViewController.view.safeAreaLayoutGuide.layoutFrame
+            let collection = sheetViewController.audienceCollectionView
+            for content in [audienceHeaderView, collection] {
+                let frame = content.convert(content.bounds, to: sheetViewController.view)
+                #expect(abs(frame.minX - safeFrame.minX) < 0.5)
+                #expect(abs(frame.maxX - safeFrame.maxX) < 0.5)
+            }
+            #expect(abs(collection.adjustedContentInset.left) < 0.5)
+            #expect(abs(collection.adjustedContentInset.right) < 0.5)
+        }
         #expect(
             sheetViewController.sheetPresentationController?.detents.count
                 == 2

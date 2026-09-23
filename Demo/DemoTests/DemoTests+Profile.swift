@@ -9,6 +9,34 @@ import QuickLayoutKit
 
 extension DemoTests {
 
+    /// Duo 的侧栏在导航入栈后改变安全区；宽窄切换仍不得增加横向滚动范围。
+    @Test(arguments: ["zh-Hans", "ar"])
+    func profileHasNoHorizontalRangeAfterNavigationAndResize(locale: String) throws {
+        Localization.setLocale(identifier: locale)
+        defer { Localization.setLocale(identifier: "en-US") }
+        let navigationController = UINavigationController(rootViewController: UIViewController())
+        let window = try makeVisibleTestWindow(rootViewController: navigationController)
+        defer { window.isHidden = true }
+        let page = ProfileViewController()
+        navigationController.pushViewController(page, animated: false)
+        for size in [window.bounds.size, CGSize(width: 390, height: 844),
+                     CGSize(width: 653, height: 740), CGSize(width: 844, height: 390)] {
+            window.frame.size = size
+            window.setNeedsLayout()
+            window.layoutIfNeeded()
+            page.view.setNeedsLayout()
+            page.view.layoutIfNeeded()
+            let scroll = try #require(page.view.allSubviews(of: QuickLayoutScrollView.self).first)
+            scroll.layoutIfNeeded()
+            let inset = scroll.adjustedContentInset
+            #expect(scroll.contentSize.width + inset.left + inset.right <= scroll.bounds.width + 1,
+                    "size=\(size), content=\(scroll.contentSize), bounds=\(scroll.bounds), inset=\(inset)")
+            #expect(abs(scroll.contentOffset.x + inset.left) < 1)
+            scroll.scrollTo(.bottom, animated: false)
+            #expect(scroll.contentOffset.y > -inset.top)
+        }
+    }
+
     @Test func profileComposesMeasuredSectionViewsWithoutIntrinsicSizeAssumptions() throws {
         let viewController = ProfileViewController()
         viewController.loadViewIfNeeded()
@@ -75,8 +103,9 @@ extension DemoTests {
         #expect(heroView.layer.shadowPath != nil)
     }
 
-    @Test func profileKeepsLandscapeSectionsInsideTheSafeViewport() throws {
-        Localization.setLocale(identifier: "zh-Hans")
+    @Test(arguments: ["zh-Hans", "ar"])
+    func profileKeepsLandscapeSectionsInsideTheSafeViewport(locale: String) throws {
+        Localization.setLocale(identifier: locale)
         defer {
             Localization.setLocale(identifier: "en-US")
         }
@@ -119,6 +148,11 @@ extension DemoTests {
         )
 
         #expect(scrollFrame.approximatelyEquals(viewController.view.bounds))
+        #expect(
+            scrollView.contentSize.width + scrollView.adjustedContentInset.left
+                + scrollView.adjustedContentInset.right <= scrollView.bounds.width + 1,
+            "content=\(scrollView.contentSize), bounds=\(scrollView.bounds), insets=\(scrollView.adjustedContentInset)"
+        )
         #expect(sections.count >= 6)
         #expect(safeAreaInsets.left >= 47)
         #expect(safeAreaInsets.right >= 59)

@@ -57,7 +57,7 @@ final class AudienceSheetView: QuickLayoutView {
     /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         ZStack {
-            // 背景覆盖完整 Sheet，内容再分别处理顶部与底部安全区域。
+            // 背景覆盖完整 Sheet，前景统一处理顶部和左右安全区域，列表负责底部滚动避让。
             backgroundView
                 .resizable()
                 .ignoresSafeArea(.container, edges: .all)
@@ -69,9 +69,9 @@ final class AudienceSheetView: QuickLayoutView {
 
                 collectionView.resizable()
             }
-            // 安全区域在前景容器边界统一消费，避免固定高度 Header 的测量顺序
-            // 让标题与 Dynamic Island 或系统 Sheet grabber 落入同一纵向区域。
-            .safeAreaPadding(.top, 0)
+            // 标题和列表使用同一安全宽度，避免页头摘要进入侧边系统控件区域。
+            // 顶部避让仍在前景容器边界完成，防止固定高度页头与系统抓手重叠。
+            .safeAreaPadding([.top, .horizontal], 0)
         }
     }
 

@@ -35,6 +35,7 @@ SELECTORS+=(
     '-only-testing:DemoTests/DemoTests/publicChatPresentationLocalizesWithoutChangingMessageIdentity()'
     '-only-testing:DemoTests/DemoTests/publicChatPreservesReadingPositionAndCountsOnlyNewIDs()'
     '-only-testing:DemoTests/DemoTests/publicChatEmptyShortAndLongMessagesFitAvailableWidth()'
+    '-only-testing:DemoTests/DemoTests/publicChatShortMessagesStayBelowSeatsDuringModeChanges(width:locale:)'
     '-only-testing:DemoTests/DemoTests/publicChatAdaptsToNarrowLargeTypeAndRTL(locale:)'
 )
 RESULT_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/QuickLayoutPublicChat.XXXXXX")"

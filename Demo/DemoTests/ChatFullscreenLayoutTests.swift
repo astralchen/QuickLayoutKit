@@ -7,6 +7,43 @@ import UIKit
 @MainActor
 @Suite(.serialized, .enabled(if: ChatTestAvailability.isSupported))
 struct ChatFullscreenLayoutTests {
+    /// 折叠、旋转及不对称安全区变化不能给纵向时间线增加横向滚动范围。
+    @Test(arguments: [false, true], [0, 1, 60])
+    func horizontalRangeRemainsEmptyAcrossViewportChanges(rtl: Bool, messageCount: Int) async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try Fixture(messageCount: messageCount)
+        defer { fixture.close() }
+        let page = fixture.page
+        let list = page.conversationView.collectionView
+        page.conversationView.applyLayoutDirection(rtl ? .rightToLeft : .leftToRight)
+        #expect(await eventually { page.conversationView.initialPresentation.isPresented })
+        for size in [CGSize(width: 740, height: 420), CGSize(width: 390, height: 740),
+                     CGSize(width: 653, height: 740)] {
+            for sideInsets in [(CGFloat(0), CGFloat(90)), (60, 0), (30, 30), (0, 0)] {
+                page.conversationView.prepareForViewportChange()
+                page.additionalSafeAreaInsets = UIEdgeInsets(top: 0, left: sideInsets.0,
+                                                            bottom: 0, right: sideInsets.1)
+                fixture.window.frame.size = size
+                fixture.window.setNeedsLayout()
+                fixture.window.layoutIfNeeded()
+                page.view.layoutIfNeeded()
+                page.layoutChatContent()
+                list.layoutIfNeeded()
+                let inset = list.adjustedContentInset
+                #expect(list.contentSize.width + inset.left + inset.right <= list.bounds.width + 1)
+                #expect(abs(list.contentOffset.x + inset.left) < 1)
+                let safeFrame = page.view.convert(page.view.safeAreaLayoutGuide.layoutFrame, to: list)
+                for index in list.indexPathsForVisibleItems {
+                    let frame = try #require(list.layoutAttributesForItem(at: index)?.frame)
+                    #expect(frame.minX >= safeFrame.minX - 1,
+                            "row=\(frame), safe=\(safeFrame), size=\(size), rtl=\(rtl)")
+                    #expect(frame.maxX <= safeFrame.maxX + 1,
+                            "row=\(frame), safe=\(safeFrame), size=\(size), rtl=\(rtl)")
+                }
+            }
+        }
+    }
+
     @Test(arguments: [0, 1, 60])
     func listFillsPageWhileComposerAndObstructionsChange(messageCount: Int) async throws {
         guard #available(iOS 26.0, *) else { return }
@@ -70,9 +107,11 @@ struct ChatFullscreenLayoutTests {
         let resized = try #require(list.captureLocalizationAnchor())
         #expect(resized.indexPath == anchor.indexPath)
         #expect(abs(resized.offsetFromViewportTop - anchor.offsetFromViewportTop) < 1)
-        #expect(list.contentInset.left >= 30 && list.contentInset.right >= 30)
+        #expect(list.contentInset.left == 0 && list.contentInset.right == 0)
         let cell = try #require(list.layoutAttributesForItem(at: resized.indexPath))
-        #expect(cell.frame.width <= list.bounds.width - list.contentInset.left - list.contentInset.right + 1)
+        let safeFrame = page.view.convert(page.view.safeAreaLayoutGuide.layoutFrame, to: list)
+        #expect(cell.frame.minX >= safeFrame.minX - 1)
+        #expect(cell.frame.maxX <= safeFrame.maxX + 1)
     }
 
     @Test func obscuredPreviewSourcesAndTransparentComposerMargins() async throws {
@@ -126,8 +165,9 @@ struct ChatFullscreenLayoutTests {
                 #expect(abs(page.view.bounds.height - size.height) < 1)
                 if readingHistory {
                     let resized = try #require(list.captureLocalizationAnchor())
-                    #expect(resized.indexPath == anchor.indexPath)
-                    #expect(abs(resized.offsetFromViewportTop - anchor.offsetFromViewportTop) < 1)
+                    #expect(resized.indexPath == anchor.indexPath, "size=\(size), old=\(anchor), new=\(resized)")
+                    #expect(abs(resized.offsetFromViewportTop - anchor.offsetFromViewportTop) < 1,
+                            "size=\(size), old=\(anchor), new=\(resized)")
                 } else {
                     #expect(conversation.isNearBottom)
                 }

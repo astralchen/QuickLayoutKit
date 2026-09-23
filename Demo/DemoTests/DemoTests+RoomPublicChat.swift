@@ -132,7 +132,14 @@ extension DemoTests {
         try await settlePublicChat(chat)
         let index = IndexPath(item: 0, section: 0)
         let frame = try #require(chat.collectionView.layoutAttributesForItem(at: index)?.frame)
-        #expect(abs(frame.maxY - chat.scrollView.contentOffset.y - chat.bounds.height + 4) < 2)
+        #expect(abs(frame.minY - chat.scrollView.contentOffset.y - 4) < 2)
+        for height: CGFloat in [160, 600, 240] {
+            chat.frame.size.height = height
+            try await settlePublicChat(chat)
+            let resizedFrame = try #require(chat.collectionView.layoutAttributesForItem(at: index)?.frame)
+            #expect(abs(resizedFrame.minY - chat.scrollView.contentOffset.y - 4) < 2)
+        }
+        chat.frame.size.height = 400
         let long = RoomPublicMessage(content: .text(
             author: .init(id: .init(rawValue: "long"), name: .literal(String(repeating: "很长的昵称", count: 10))),
             body: .literal(String(repeating: "长消息 🎵 ", count: 90))
@@ -146,6 +153,42 @@ extension DemoTests {
         let fitted = label.sizeThatFits(CGSize(width: label.bounds.width, height: .greatestFiniteMagnitude))
         #expect(label.bounds.height >= fitted.height - 1)
         #expect(label.accessibilityLabel?.contains("长消息 🎵") == true)
+    }
+
+    /// 房型切换的首个布局与稳定布局都应让短公屏紧接麦位。
+    @Test(arguments: [CGFloat(320), 402, 653, 768], ["zh-Hans", "ar"])
+    func publicChatShortMessagesStayBelowSeatsDuringModeChanges(width: CGFloat, locale: String) async throws {
+        Localization.setLocale(identifier: locale)
+        defer { Localization.setLocale(identifier: "en-US") }
+        let model = VoiceRoomViewModel(publicMessages: Array(RoomPublicChatFixtures.messages.prefix(1)))
+        let room = VoiceRoomViewController(viewModel: model)
+        let navigation = UINavigationController(rootViewController: room)
+        let window = try makeVisibleTestWindow(rootViewController: navigation, size: CGSize(width: width, height: 900))
+        defer { window.isHidden = true }
+        layout(room, in: navigation)
+        try await settlePublicChat(room.messagesView)
+        let index = IndexPath(item: 0, section: 0)
+        let modes: [(RoomMode, AudienceSeatState)] = [
+            (.individual, .disabled), (.individual, .enabled),
+            (.individual, .disabled), (.party, .enabled)
+        ]
+        for (mode, audience) in modes {
+            #expect(applyVoiceRoomSnapshot(to: room, roomMode: mode, audienceSeatState: audience))
+            layout(room, in: navigation)
+            for sample in 0..<2 {
+                if sample == 1 {
+                    try await Task.sleep(for: .milliseconds(400))
+                    layout(room, in: navigation)
+                    try await settlePublicChat(room.messagesView)
+                }
+                let chat = room.messagesView.collectionView
+                let cellFrame = try #require(chat.layoutAttributesForItem(at: index)?.frame)
+                let firstMessageFrame = chat.convert(cellFrame, to: room.view)
+                let stageFrame = room.seatStageView.convert(room.seatStageView.bounds, to: room.view)
+                #expect(abs(firstMessageFrame.minY - stageFrame.maxY - 14) < 2,
+                    "公屏首条应位于麦位下方 10pt 间距 + 4pt 列表内边距；sample=\(sample)")
+            }
+        }
     }
 
     @Test(arguments: ["zh-Hans", "ar"])

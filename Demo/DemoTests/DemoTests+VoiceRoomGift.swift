@@ -690,6 +690,49 @@ extension DemoTests {
         )
     }
 
+    /// 验证真实子控制器展示路径中的安全区域，以及打开后的左右、底部区域变化。
+    @Test(arguments: [false, true])
+    func voiceRoomGiftSheetKeepsActionsAboveSafeArea(animationsEnabled: Bool) throws {
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(animationsEnabled)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        let controller = VoiceRoomViewController()
+        let navigation = UINavigationController(rootViewController: controller)
+        let window = try makeVisibleTestWindow(rootViewController: navigation)
+        defer { window.isHidden = true }
+        layout(controller, in: navigation)
+        controller.presentGiftSheet()
+        let giftSheet = try #require(controller.giftSheetViewController)
+        let sheet = try #require(giftSheet.view.allSubviews(of: GiftSheetView.self).first)
+        let send = try #require(sheet.allSubviews(of: UIControl.self).first {
+            $0.accessibilityIdentifier == "liveRoom.gift.send"
+        })
+
+        for extraInsets in [
+            UIEdgeInsets.zero,
+            UIEdgeInsets(top: 0, left: 0, bottom: 24, right: 80),
+            UIEdgeInsets(top: 0, left: 80, bottom: 0, right: 0),
+            UIEdgeInsets.zero,
+        ] {
+            controller.additionalSafeAreaInsets = extraInsets
+            layout(controller, in: navigation)
+            giftSheet.view.layoutIfNeeded()
+            sheet.layoutIfNeeded()
+            let sheetFrame = sheet.convert(sheet.bounds, to: giftSheet.view)
+            let sendFrame = send.convert(send.bounds, to: giftSheet.view)
+            let safeFrame = giftSheet.view.safeAreaLayoutGuide.layoutFrame
+            let contentPadding: CGFloat = sheet.bounds.width < 350 ? 10 : 14
+            #expect(abs(sheetFrame.maxY - giftSheet.view.bounds.maxY) < 1)
+            #expect(abs(sendFrame.maxY - (safeFrame.maxY - contentPadding)) < 1)
+            for content in [sheet.giftScrollView, sheet.recipientScrollView, sheet.categoryScrollView, send] {
+                let frame = content.convert(content.bounds, to: giftSheet.view)
+                #expect(frame.minX >= safeFrame.minX)
+                #expect(frame.maxX <= safeFrame.maxX)
+            }
+        }
+    }
+
     @Test func voiceRoomGiftSheetFitsIPhoneSEAndCurrentFiveSeatState() async throws {
         Localization.setLocale(identifier: "zh-Hans")
         defer { Localization.setLocale(identifier: "en-US") }

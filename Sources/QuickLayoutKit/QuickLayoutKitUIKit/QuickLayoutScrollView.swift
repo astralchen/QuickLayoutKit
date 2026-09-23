@@ -53,13 +53,16 @@ open class QuickLayoutScrollView:
     ///
     /// `QuickLayoutScrollView` 每次只支持一个轴，并根据该轴选择隐式 `VStack` 或
     /// `HStack` 来承载构建器生成的元素。
+    /// 交叉轴的内容范围固定为扣除实际边距后的视口尺寸；固定尺寸子视图的溢出
+    /// 不会启用另一方向的滚动。iOS 17.4 及以上还会关闭交叉轴回弹，切换轴时
+    /// 保留原主轴的回弹开关。
     open var axis: QuickLayout.Axis = .vertical {
         didSet {
             guard axis != oldValue else { return }
             if let pendingScroll, !pendingScroll.edge.isCompatible(with: axis) {
                 self.pendingScroll = nil
             }
-            configureAxisBehavior()
+            configureAxisBehavior(previousAxis: oldValue)
             quickLayoutUpdateContentMarginAxis()
             setNeedsQuickLayout()
         }
@@ -384,11 +387,7 @@ open class QuickLayoutScrollView:
     private func measurementContentProposal(
         for containerSize: CGSize
     ) -> CGSize {
-        let insets = quickLayoutAppliedContentMarginInsets
-        let viewportSize = CGSize(
-            width: max(0, containerSize.width - insets.left - insets.right),
-            height: max(0, containerSize.height - insets.top - insets.bottom)
-        )
+        let viewportSize = contentViewportSize(for: containerSize)
 
         switch axis {
         case .vertical:
@@ -419,10 +418,19 @@ open class QuickLayoutScrollView:
     }
 
     private var contentMarginViewportSize: CGSize {
-        let insets = quickLayoutAppliedContentMarginInsets
+        contentViewportSize(for: bounds.size)
+    }
+
+    /// 使用实际滚动边距计算内容视口，使测量建议与最终内容尺寸保持一致。
+    ///
+    /// `adjustedContentInset` 已包含显式内容边距、调用方的 `contentInset` 及 UIKit
+    /// 自动加入的安全区；只扣除框架记录的内容边距会遗漏 Duo 侧栏等水平安全区，
+    /// 使纵向内容宽度加上左右边距后超过视口，产生额外的横向滚动范围。
+    private func contentViewportSize(for containerSize: CGSize) -> CGSize {
+        let insets = adjustedContentInset
         return CGSize(
-            width: max(0, bounds.width - insets.left - insets.right),
-            height: max(0, bounds.height - insets.top - insets.bottom)
+            width: max(0, containerSize.width - insets.left - insets.right),
+            height: max(0, containerSize.height - insets.top - insets.bottom)
         )
     }
 
@@ -457,16 +465,18 @@ open class QuickLayoutScrollView:
 
     private func resolvedContentLayoutSize(_ measuredSize: CGSize) -> CGSize {
         let viewportSize = contentMarginViewportSize
+        // 子内容可保留自身的固定尺寸，但不能把单轴容器扩展成双轴滚动范围。
+        // 交叉轴始终使用视口尺寸，超出的子视图仍由布局对齐及裁剪处理。
         switch axis {
         case .vertical:
             return CGSize(
-                width: max(viewportSize.width, measuredSize.width),
+                width: viewportSize.width,
                 height: measuredSize.height
             )
         case .horizontal:
             return CGSize(
                 width: measuredSize.width,
-                height: max(viewportSize.height, measuredSize.height)
+                height: viewportSize.height
             )
         }
     }
@@ -530,9 +540,17 @@ open class QuickLayoutScrollView:
 
     // MARK: - 私有辅助方法
 
-    private func configureAxisBehavior() {
+    /// 配置单轴滚动与回弹，并在切换轴时保留调用方对主轴回弹的选择。
+    private func configureAxisBehavior(previousAxis: QuickLayout.Axis? = nil) {
         alwaysBounceVertical = axis == .vertical
         alwaysBounceHorizontal = axis == .horizontal
+        if #available(iOS 17.4, *) {
+            let previousAxis = previousAxis ?? axis
+            let allowsBounce = previousAxis == .vertical ? bouncesVertically : bouncesHorizontally
+            // alwaysBounce 仅控制内容不足一屏时的回弹，不能关闭交叉轴本身的回弹。
+            bouncesVertically = axis == .vertical && allowsBounce
+            bouncesHorizontally = axis == .horizontal && allowsBounce
+        }
         configureIndicators()
     }
 
