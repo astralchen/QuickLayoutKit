@@ -35,7 +35,9 @@ final class AudioBubbleCell: QuickLayoutCollectionViewCell {
     /// 定义 `AudioBubbleCell` 的布局层级、间距和对齐方式。
     @LayoutBuilder
     override var body: Layout {
-        BubbleWidth(minWidth: 230, maxWidth: 420) {
+        ContainerRelativeSize(.horizontal, length: { width, _ in
+            min(420, max(230, width * 0.70))
+        }) {
             HStack(spacing: 0) {
                 if message?.direction == .outgoing {
                     Spacer()
@@ -47,7 +49,7 @@ final class AudioBubbleCell: QuickLayoutCollectionViewCell {
                     spacing: 3
                 ) {
                     // 音频气泡与文本、送达文案共用语义边缘；两种转写状态保持同宽。
-                    bubbleView.bubbleWidth()
+                    bubbleView.containerRelativeSize(.horizontal)
                     if message?.deliveryText != nil {
                         deliveryStatusView
                     }

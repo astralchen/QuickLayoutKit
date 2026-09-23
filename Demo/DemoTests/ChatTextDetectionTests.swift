@@ -1,4 +1,5 @@
 import AppLocalization
+import QuickLayoutKit
 import Testing
 import UIKit
 @testable import Demo
@@ -6,6 +7,49 @@ import UIKit
 @MainActor
 @Suite(.serialized, .enabled(if: ChatTestAvailability.isSupported))
 struct ChatTextDetectionTests {
+    /// 文本首次测量、宽窄切换和复用均不依赖列表预先调用 fitting 回调。
+    @Test func textCellMeasuresBeforeFittingAcrossWidthsAndReuse() {
+        let text = String(repeating: "长文本应按当前容器宽度换行，第一次测量就完整显示。", count: 12)
+        for direction in [MessageDirection.incoming, .outgoing] {
+            for rtl in [false, true] {
+                let cell = TextBubbleCell(frame: .zero)
+                cell.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
+                cell.configure(.init(id: 1, direction: direction, text: text, deliveryText: "Read"))
+                var firstWideSize: CGSize?
+                for width: CGFloat in [834, 160, 390, 1210, 834] {
+                    let measured = cell.sizeThatFits(CGSize(width: width, height: 52))
+                    cell.frame = CGRect(origin: .zero, size: measured)
+                    cell.setNeedsQuickLayout()
+                    cell.layoutIfNeeded()
+                    let bubble = cell.bubbleView.convert(cell.bubbleView.bounds, to: cell)
+                    let body = cell.bubbleView.messageTextView
+                    #expect(abs(measured.width - width) < 1)
+                    #expect(bubble.minX >= 11 && bubble.maxX <= width - 11)
+                    let trailing = direction == .outgoing ? !rtl : rtl
+                    #expect(abs(trailing ? width - 12 - bubble.maxX : bubble.minX - 12) < 1)
+                    #expect(body.contentSize.height <= body.bounds.height + 1)
+                    #expect(bubble.width <= 420)
+                    if width >= 834 { #expect(bubble.width > 400) }
+                    let attributes = UICollectionViewLayoutAttributes(forCellWith: IndexPath(item: 0, section: 0))
+                    attributes.size = CGSize(width: width, height: 52)
+                    #expect(abs(cell.preferredLayoutAttributesFitting(attributes).size.height - measured.height) < 1)
+                    if width == 834 {
+                        if let firstWideSize { #expect(measured == firstWideSize) }
+                        else { firstWideSize = measured }
+                    }
+                }
+                cell.prepareForReuse()
+                cell.configure(.init(id: 2, direction: direction, text: "OK", deliveryText: nil))
+                let compact = cell.sizeThatFits(CGSize(width: 834, height: 52))
+                cell.frame = CGRect(origin: .zero, size: compact)
+                cell.setNeedsQuickLayout()
+                cell.layoutIfNeeded()
+                #expect(cell.bubbleView.bounds.width < 100)
+                #expect(cell.bubbleView.messageTextView.text == "OK")
+            }
+        }
+    }
+
     @Test(arguments: ["en", "zh-Hans", "ar"])
     func localizedSamplesKeepAllElevenPairsInOrder(language: String) async throws {
         guard #available(iOS 26.0, *) else { return }
@@ -46,7 +90,7 @@ struct ChatTextDetectionTests {
         let message = "电话 +1 (202) 555-0147\n1 Apple Park Way, Cupertino, CA 95014\nhttps://www.apple.com\nhello@example.com\ntomorrow at 3:30 PM\nUA123\n1Z999AA10123456784\nUS$25.00\n10 km; 72 °F"
         for direction in [MessageDirection.incoming, .outgoing] {
             for rtl in [false, true] {
-                let bubble = BubbleView(frame: .zero)
+                let bubble = TextBubbleView(frame: .zero)
                 bubble.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
                 bubble.configure(.init(id: 0, direction: direction, text: message, deliveryText: nil))
                 let view = bubble.messageTextView
@@ -95,7 +139,7 @@ struct ChatTextDetectionTests {
         controller.conversationView.applyLayoutDirection(language == "ar" ? .rightToLeft : .leftToRight)
         window.layoutIfNeeded()
         try await Task.sleep(for: .milliseconds(600))
-        let cells = controller.conversationView.collectionView.visibleCells.compactMap { $0 as? BubbleCell }
+        let cells = controller.conversationView.collectionView.visibleCells.compactMap { $0 as? TextBubbleCell }
         #expect(cells.count == 4)
         for cell in cells {
             let body = cell.bubbleView.messageTextView
@@ -120,7 +164,7 @@ struct ChatTextDetectionTests {
         window.rootViewController = root
         window.makeKeyAndVisible()
         defer { window.isHidden = true; previous?.makeKey() }
-        let bubble = BubbleView(frame: .zero)
+        let bubble = TextBubbleView(frame: .zero)
         root.view.addSubview(bubble)
         let text = MessageText(runs: [.init("https://www.apple.com", style: .bold),
             .init("\nUS$25.00 · 10 km", style: [.italic, .underline]), .init("\nOld price", style: .strikethrough)])

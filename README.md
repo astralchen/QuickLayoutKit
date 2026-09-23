@@ -513,6 +513,84 @@ panelView.containerRelativeFrame(.horizontal) { length, _ in
 
 没有 QuickLayoutKit 宿主时，该修饰符使用直接父元素提出的尺寸作为备用值。
 
+### 容器相对尺寸上限
+
+`containerRelativeSize` 将容器相对上限传给内容测量，允许短内容自然收紧，适用于阅读区域、
+卡片、媒体、侧栏和面板。构建函数与修饰符均提供基础、逐轴计算、完整尺寸计算三组能力。
+固定尺寸、最小尺寸、对齐和实际内容宽高比可与 `frame`、`aspectRatio` 等 API 组合使用。
+
+```swift
+// 基础形式：所选轴使用容器上限；省略 axes 时修饰符默认选择双轴。
+contentView.containerRelativeSize(.horizontal)
+
+// 逐轴计算：阅读内容限制行宽，保留水平留白。
+article.containerRelativeSize(.horizontal) { width, _ in
+    min(720, width - 32)
+}
+
+// 根据容器宽度选择侧栏上限。
+sidebar.containerRelativeSize(.horizontal) { width, _ in
+    width < 600 ? width * 0.85 : 320
+}
+
+// 完整尺寸计算：同时读取同一个容器的宽高，只应用高度上限。
+preview.containerRelativeSize(.vertical, maxSize: { container in
+    CGSize(
+        width: .infinity,
+        height: min(container.height * 0.6, container.width * 9 / 16)
+    )
+})
+```
+
+大写 `ContainerRelativeSize` 声明共享参照容器，以自身收到的父布局建议尺寸为基准，
+仅为标记了 `.containerRelativeSize` 的子元素提供上限：
+
+```swift
+// 基础声明：使用完整容器长度。
+ContainerRelativeSize(.horizontal) {
+    title.containerRelativeSize(.horizontal)
+}
+
+// 逐轴声明：多个元素共享相同上限。
+ContainerRelativeSize(.horizontal, length: { width, _ in
+    min(560, width * 0.9)
+}) {
+    VStack {
+        title.containerRelativeSize(.horizontal)
+        detail.containerRelativeSize(.horizontal)
+    }
+}
+
+// 完整尺寸声明：统一计算两个轴的上限。
+ContainerRelativeSize([.horizontal, .vertical], maxSize: { container in
+    CGSize(width: min(560, container.width - 32), height: container.height * 0.8)
+}) {
+    panel.containerRelativeSize()
+}
+```
+
+修饰符优先参照最近有效的显式容器，其次使用最近 QuickLayoutKit 宿主的容器尺寸，
+最后回退到直接父布局建议尺寸。宿主尺寸与 `containerRelativeFrame` 共用来源，遵循
+安全区域规则；滚动宿主使用有效可见视口，不使用滚动内容长度。
+
+基础修饰符使用显式容器提供的上限；没有显式声明时，以参照容器长度作为上限。
+自定义修饰符基于容器原始尺寸计算，结果同时受到显式上限和父布局可用空间的约束。
+嵌套声明建立新的完整参照容器，只覆盖所选轴的上限，其他轴继承外层上限，退出后恢复。
+空轴集合完全透明，不调用闭包，也不改变后代查找参照容器的结果。
+
+`length` 接收 `(CGFloat, Axis)`，每次测量对每个所选轴调用一次；`maxSize` 接收 `CGSize`，
+每次测量调用一次，返回值只应用选中的轴。容器改变尺寸后重新计算，内容只在构建时生成一次。
+闭包应无副作用。无界输入也会传入闭包，允许返回有限回退；结果逐轴将负数及负无穷归零，
+NaN 和正无穷表示无界。
+
+比例、封顶和等分都由闭包表达，不提供专用重载。例如 `min(420, width * 0.75)` 表示比例封顶，
+`(width - 10 * 3) / 4 * 2 + 10` 表示四等分中两份的上限。这里的间距仅参与计算，
+实际元素间距由栈等布局负责。`max(140, width * 0.75)` 设置的是计算所得上限的下界，
+不会强制短内容达到 140。
+
+上限通过测量建议传递，不创建固定占位框架或裁剪内容；显式固定尺寸及拒绝收缩的子元素
+仍遵循自身布局规则。修饰符顺序决定上限是否包含 padding 等附加空间。
+
 ### 弹性框架、宽高比与自适应布局
 
 ```swift

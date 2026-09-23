@@ -212,7 +212,7 @@ struct ChatHistoryTests {
             list.layoutIfNeeded()
             return model.messages.first(where: { $0.id == sentID })?.deliveryState == .read
                 && conversation.isNearBottom && list.visibleCells.contains {
-                ($0 as? BubbleCell)?.bubbleView.accessibilityLabel == "Sent from long history"
+                ($0 as? TextBubbleCell)?.bubbleView.accessibilityLabel == "Sent from long history"
             }
         })
     }

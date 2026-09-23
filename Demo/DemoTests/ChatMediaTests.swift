@@ -1633,7 +1633,7 @@ struct ChatMediaTests {
         collection.layoutIfNeeded()
         let mediaCell = try #require(collection.cellForItem(at: .init(item: 0, section: 0)) as? MediaBubbleCell)
         let fileCell = try #require(collection.cellForItem(at: .init(item: 1, section: 0)) as? DocumentBubbleCell)
-        let textCell = try #require(collection.cellForItem(at: .init(item: 2, section: 0)) as? BubbleCell)
+        let textCell = try #require(collection.cellForItem(at: .init(item: 2, section: 0)) as? TextBubbleCell)
         let cardBounds = mediaCell.mediaView.cards.filter { !$0.isHidden }.map { $0.convert($0.bounds, to: collection) }
         let fileBounds = fileCell.card.convert(fileCell.card.bounds, to: collection)
         let textBounds = textCell.bubbleView.convert(textCell.bubbleView.bounds, to: collection)

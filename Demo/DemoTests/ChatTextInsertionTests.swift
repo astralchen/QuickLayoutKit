@@ -61,7 +61,7 @@ struct ChatTextInsertionTests {
             if readingHistory {
                 #expect(abs(collection.contentOffset.y - previousOffset.y) < 1)
             } else {
-                let cell = try #require(collection.visibleCells.compactMap { $0 as? BubbleCell }
+                let cell = try #require(collection.visibleCells.compactMap { $0 as? TextBubbleCell }
                     .first { $0.bubbleView.messageTextView.text == text })
                 let body = cell.bubbleView.messageTextView
                 expectSettledTextGeometry(cell.contentView)
@@ -114,14 +114,14 @@ struct ChatTextInsertionTests {
         // 从它的第一个呈现帧开始检查，不能等送达刷新或文本动画结束。
         for _ in 0..<40 {
             try await Task.sleep(for: .milliseconds(10))
-            if collection.visibleCells.compactMap({ $0 as? BubbleCell }).contains(where: {
+            if collection.visibleCells.compactMap({ $0 as? TextBubbleCell }).contains(where: {
                 $0.bubbleView.messageTextView.text == text && $0.bubbleView.messageTextView.layer.presentation() != nil
             }) { break }
         }
         for index in 0..<8 {
             if index > 0 { try await Task.sleep(for: .milliseconds(25)) }
             // 必须找到刚发出的气泡，不能让未显示消息的情况空循环通过。
-            let cell = try #require(collection.visibleCells.compactMap { $0 as? BubbleCell }
+            let cell = try #require(collection.visibleCells.compactMap { $0 as? TextBubbleCell }
                 .first { $0.bubbleView.messageTextView.text == text })
             let body = cell.bubbleView.messageTextView
             _ = try #require(body.layer.presentation())

@@ -175,7 +175,7 @@ struct ChatRichTextTests {
         window.rootViewController = root
         window.makeKeyAndVisible()
         defer { window.isHidden = true; previous?.makeKey() }
-        let bubble = BubbleView(frame: CGRect(x: 20, y: 100, width: 300, height: 200))
+        let bubble = TextBubbleView(frame: CGRect(x: 20, y: 100, width: 300, height: 200))
         root.view.addSubview(bubble)
         bubble.traitOverrides.preferredContentSizeCategory = .large
         let text = MessageText(runs: [.init("Bold", style: .bold), .init(" Underline", style: .underline)])
@@ -195,7 +195,7 @@ struct ChatRichTextTests {
         let text = MessageText(runs: [.init("Bold ", style: .bold), .init("Italic 👋\n", style: .italic),
                                       .init("下划线 ", style: .underline), .init("删除线 مرحبا", style: .strikethrough)])
         for direction in [MessageDirection.incoming, .outgoing] {
-            let bubble = BubbleView(frame: .zero)
+            let bubble = TextBubbleView(frame: .zero)
             bubble.configure(.init(id: 1, direction: direction, richText: text, deliveryText: nil))
             let value = try #require(bubble.messageTextView.attributedText)
             #expect(MessageText(attributedString: value) == text)

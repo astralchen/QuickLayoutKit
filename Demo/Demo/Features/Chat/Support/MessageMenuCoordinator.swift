@@ -49,7 +49,7 @@ final class MessageMenuCoordinator {
             let isAudioBubble: Bool
             if #available(iOS 17.0, *) { isAudioBubble = source is AudioBubbleView }
             else { isAudioBubble = false }
-            guard source is BubbleView || isAudioBubble else { return source }
+            guard source is TextBubbleView || isAudioBubble else { return source }
             if bubbleSnapshotSource !== source || bubbleSnapshot?.bounds.size != source.bounds.size {
                 bubbleSnapshot = source.snapshotView(afterScreenUpdates: false)
                 bubbleSnapshotSource = source

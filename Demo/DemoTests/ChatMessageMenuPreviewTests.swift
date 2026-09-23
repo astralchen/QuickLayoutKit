@@ -62,7 +62,7 @@ struct ChatMessageMenuPreviewTests {
         defer { window.isHidden = true }
         let list = UICollectionView(frame: window.bounds, collectionViewLayout: UICollectionViewFlowLayout())
         window.rootViewController!.view.addSubview(list)
-        let bubble = BubbleView(frame: CGRect(x: 120, y: 220, width: 240, height: 82))
+        let bubble = TextBubbleView(frame: CGRect(x: 120, y: 220, width: 240, height: 82))
         bubble.configure(.init(id: 56, direction: .outgoing, text: "Original text\nSecond line", deliveryText: nil))
         list.addSubview(bubble)
         bubble.layoutIfNeeded()
@@ -315,8 +315,8 @@ struct ChatMessageMenuPreviewTests {
         view.render(state([message]), reason: .initial)
         for _ in 0..<30 { try await Task.sleep(nanoseconds: 20_000_000); view.layoutIfNeeded(); view.collectionView.layoutIfNeeded() }
         let list = view.collectionView
-        let index = try #require(list.indexPathsForVisibleItems.first { list.cellForItem(at: $0) is BubbleCell })
-        let cell = try #require(list.cellForItem(at: index) as? BubbleCell)
+        let index = try #require(list.indexPathsForVisibleItems.first { list.cellForItem(at: $0) is TextBubbleCell })
+        let cell = try #require(list.cellForItem(at: index) as? TextBubbleCell)
         #expect(cell.bubbleView.interactions.allSatisfy { !($0 is UIContextMenuInteraction) })
         let point = cell.bubbleView.convert(CGPoint(x: cell.bubbleView.bounds.midX, y: cell.bubbleView.bounds.midY), to: list)
         let config = try #require(list.delegate?.collectionView?(list, contextMenuConfigurationForItemsAt: [index], point: point))

@@ -9,57 +9,6 @@ import QuickLayoutKit
 
 extension DemoTests {
 
-    @Test func bubbleWidthRatioValidatesInitializationAndAssignment() {
-        let cases: [(CGFloat, CGFloat)] = [
-            (-0.2, 0), (0, 0), (0.35, 0.35), (1, 1), (1.2, 1),
-            (.nan, 0.70), (.infinity, 1), (-.infinity, 0),
-        ]
-        let view = UIView()
-        for (input, expected) in cases {
-            var layout = BubbleWidth(ratio: input) {
-                view.resizable(axis: .horizontal).frame(height: 20).bubbleWidth()
-            }
-            #expect(layout.ratio == expected)
-            #expect(abs(layout.quick_layoutThatFits(CGSize(width: 400, height: 20)).size.width - 400 * expected) < 0.01)
-            layout.ratio = 0.5
-            layout.ratio = input
-            #expect(layout.ratio == expected)
-            #expect(abs(layout.quick_layoutThatFits(CGSize(width: 400, height: 20)).size.width - 400 * expected) < 0.01)
-        }
-        var zero = BubbleWidth(ratio: 0) {
-            view.resizable(axis: .horizontal).frame(height: 20).bubbleWidth()
-        }
-        #expect(zero.quick_layoutThatFits(CGSize(width: CGFloat.infinity, height: 20)).size.width == 0)
-        zero.minWidth = 40
-        #expect(zero.quick_layoutThatFits(CGSize(width: CGFloat.infinity, height: 20)).size.width == 40)
-    }
-
-    @Test func bubbleWidthBuildsContentOnceAndRestoresNestedScope() {
-        var builds = 0
-        let view = UIView()
-        let innerView = UIView()
-        let inner = BubbleWidth(ratio: 0.25) {
-            innerView.resizable(axis: .horizontal).frame(height: 20).bubbleWidth()
-        }
-        let outer = BubbleWidth(ratio: 0.5) {
-            builds += 1
-            return VStack(spacing: 0) {
-                inner
-                view.resizable(axis: .horizontal).frame(height: 20).bubbleWidth()
-            }
-        }
-        #expect(builds == 1)
-        var views: [UIView] = []
-        outer.quick_extractViewsIntoArray(&views)
-        #expect(views.count == 2)
-        // 内层只使用 25%，后面的兄弟恢复外层 50%，后续独立测量没有宽度残留。
-        #expect(outer.quick_layoutThatFits(CGSize(width: 400, height: 100)).size.width == 200)
-        #expect(outer.quick_layoutThatFits(CGSize(width: 200, height: 100)).size.width == 100)
-        let content = view.resizable(axis: .horizontal).frame(height: 20).bubbleWidth()
-        #expect(content.quick_layoutThatFits(CGSize(width: 400, height: 100)).size.width == 400)
-        #expect(builds == 1)
-    }
-
     @Test func quickLayoutViewMeasuresHostedContent() {
         let label = UILabel()
         label.text = "QuickLayoutKit"

@@ -225,7 +225,7 @@ struct ChatMessageStatusTests {
         }
         func labels() -> [String] {
             conversation.collectionView.layoutIfNeeded()
-            return conversation.collectionView.visibleCells.compactMap { ($0 as? BubbleCell)?.deliveryLabel.text }.sorted()
+            return conversation.collectionView.visibleCells.compactMap { ($0 as? TextBubbleCell)?.deliveryLabel.text }.sorted()
         }
         conversation.render(state(oldText: "old read", status: nil, text: nil), reason: .initial)
         #expect(await eventually { labels() == ["old read"] })
@@ -237,7 +237,7 @@ struct ChatMessageStatusTests {
         conversation.render(state(oldText: nil, status: .read, text: "read", incoming: true), reason: .receivedMessage)
         conversation.render(state(oldText: nil, status: .read, text: "read", incoming: true), reason: .messageStatus)
         #expect(await eventually { labels() == ["read"] })
-        #expect(conversation.collectionView.visibleCells.compactMap { $0 as? BubbleCell }.allSatisfy {
+        #expect(conversation.collectionView.visibleCells.compactMap { $0 as? TextBubbleCell }.allSatisfy {
             !$0.deliveryStatusView.progress.isAnimating && !$0.deliveryStatusView.isUserInteractionEnabled
         })
     }

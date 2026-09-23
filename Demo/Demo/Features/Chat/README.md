@@ -86,7 +86,7 @@ Chat/
 | `ViewModels` | `ChatViewModel.swift`、`+Sending`、`+Replies`、`+Rendering` | 会话状态与依赖；发送重试和回执；顺序回复及取消；时间线物化和发布。 |
 | `Views/Header` | `ContactTitleView.swift` | 联系人头像、名称与副标题。 |
 | `Views/Chat` | `ConversationView.swift` | ListKit 时间线渲染、可见内容刷新、滚底与方向刷新。 |
-| `Views/Chat` | `BubbleView.swift`、`BubbleCell.swift`、`TimestampCell.swift` | 文本气泡、可复用消息 Cell 与时间标记。 |
+| `Views/Chat` | `TextBubbleView.swift`、`TextBubbleCell.swift`、`TimestampCell.swift` | 文本气泡、可复用消息 Cell 与时间标记。 |
 | `Views/Chat` | `TypingBubbleView.swift`、`TypingCell.swift` | 输入中动画及对应 Cell。 |
 | `Views/Chat` | `WaveformView.swift`、`AudioBubbleView.swift`、`AudioBubbleCell.swift` | 波形绘制、音频气泡和播放进度、音频 Cell。 |
 | `Views/Chat` | `MediaMessageView.swift`、`+CardView`、`+Interaction`、`+Rendering` | 媒体气泡状态和 UIKit 入口、内部卡片、拖拽换层、卡片内容与几何。 |

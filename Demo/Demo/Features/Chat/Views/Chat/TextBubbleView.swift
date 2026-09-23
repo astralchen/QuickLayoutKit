@@ -1,5 +1,5 @@
 //
-//  BubbleView.swift
+//  TextBubbleView.swift
 //  Demo
 //
 
@@ -8,7 +8,7 @@ import QuickLayoutKit
 import UIKit
 
 /// 根据消息方向显示文本与圆角气泡轮廓的视图。
-final class BubbleView: QuickLayoutView {
+final class TextBubbleView: QuickLayoutView {
 
     /// 显示消息正文，由系统识别联系方式、日期、航班、快递、金额和单位。
     let messageTextView = MessageBodyTextView()
@@ -18,14 +18,14 @@ final class BubbleView: QuickLayoutView {
     private var direction: MessageDirection = .incoming
     private var formattedText: MessageText?
 
-    /// 定义 `BubbleView` 的布局层级、间距和对齐方式。
+    /// 定义 `TextBubbleView` 的布局层级、间距和对齐方式。
     override var body: Layout {
         messageTextView
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
     }
 
-    /// 使用指定初始边框创建 `BubbleView`，并配置其子视图和默认外观。
+    /// 使用指定初始边框创建 `TextBubbleView`，并配置其子视图和默认外观。
     ///
     /// - Parameter frame: 在父视图坐标系中指定的初始边框。
     override init(frame: CGRect) {
@@ -38,7 +38,7 @@ final class BubbleView: QuickLayoutView {
         isAccessibilityElement = false
     }
 
-    /// 不支持从归档创建 `BubbleView`。
+    /// 不支持从归档创建 `TextBubbleView`。
     ///
     /// 请使用代码初始化方法创建此对象。
     required init?(coder: NSCoder) {
@@ -52,7 +52,7 @@ final class BubbleView: QuickLayoutView {
                                                     bottomLeft: left ? 5 : 18, bottomRight: left ? 18 : 5))
     }
 
-    /// 根据当前边界更新 `BubbleView` 的子视图布局与图层几何。
+    /// 根据当前边界更新 `TextBubbleView` 的子视图布局与图层几何。
     override func layoutSubviews() {
         // 插入消息与输入栏收起会在 UIView 动画事务中布局。正文已按最终宽度换行，
         // 若文本视图及 TextKit 子视图仍从旧尺寸展开，长文本会暂时被裁剪。
@@ -210,12 +210,12 @@ final class BubbleView: QuickLayoutView {
 /// 创建承载指定消息文本气泡的独立预览控制器。
 @available(iOS 16.0, *)
 @MainActor
-private func makeBubbleViewPreview(
+private func makeTextBubbleViewPreview(
     _ message: MessagePresentation
 ) -> UIViewController {
     let backgroundView = UIView()
     backgroundView.backgroundColor = .systemBackground
-    let bubbleView = BubbleView(frame: .zero)
+    let bubbleView = TextBubbleView(frame: .zero)
     bubbleView.configure(message)
     return QuickLayoutHostingController {
         ZStack {
@@ -229,12 +229,12 @@ private func makeBubbleViewPreview(
 /// 创建承载指定文本消息单元格的独立预览控制器。
 @available(iOS 16.0, *)
 @MainActor
-private func makeBubbleCellPreview(
+private func makeTextBubbleCellPreview(
     _ message: MessagePresentation
 ) -> UIViewController {
     let backgroundView = UIView()
     backgroundView.backgroundColor = .systemBackground
-    let cell = BubbleCell(frame: .zero)
+    let cell = TextBubbleCell(frame: .zero)
     cell.configure(message)
     return QuickLayoutHostingController {
         ZStack {
@@ -290,23 +290,23 @@ private func makeTypingCellPreview() -> UIViewController {
 }
 
 @available(iOS 17.0, *)
-#Preview("消息气泡 View · 收到") {
-    makeBubbleViewPreview(ConversationPreviewData.incomingMessage)
+#Preview("文本气泡 View · 收到") {
+    makeTextBubbleViewPreview(ConversationPreviewData.incomingMessage)
 }
 
 @available(iOS 17.0, *)
-#Preview("消息气泡 View · 发出") {
-    makeBubbleViewPreview(ConversationPreviewData.outgoingMessage)
+#Preview("文本气泡 View · 发出") {
+    makeTextBubbleViewPreview(ConversationPreviewData.outgoingMessage)
 }
 
 @available(iOS 17.0, *)
-#Preview("消息气泡 Cell · 收到") {
-    makeBubbleCellPreview(ConversationPreviewData.incomingMessage)
+#Preview("文本气泡 Cell · 收到") {
+    makeTextBubbleCellPreview(ConversationPreviewData.incomingMessage)
 }
 
 @available(iOS 17.0, *)
-#Preview("消息气泡 Cell · 发出") {
-    makeBubbleCellPreview(ConversationPreviewData.outgoingMessage)
+#Preview("文本气泡 Cell · 发出") {
+    makeTextBubbleCellPreview(ConversationPreviewData.outgoingMessage)
 }
 
 @available(iOS 17.0, *)

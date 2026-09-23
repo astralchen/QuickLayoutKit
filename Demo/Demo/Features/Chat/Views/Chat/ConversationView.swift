@@ -354,7 +354,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         // 只接受单个消息内容来源；任意可见文字处于选择状态时，不再创建消息菜单。
         adapter.contextMenuForItems { [weak self] contexts, point in
             guard let self, contexts.count == 1,
-                  !collectionView.visibleCells.compactMap({ $0 as? BubbleCell }).contains(where: { $0.bubbleView.messageTextView.isSelectingMessageText }),
+                  !collectionView.visibleCells.compactMap({ $0 as? TextBubbleCell }).contains(where: { $0.bubbleView.messageTextView.isSelectingMessageText }),
                   let indexPath = contexts.first?.indexPath,
                   let cell = collectionView.cellForItem(at: indexPath),
                   let source = menuBinding(for: cell)?.source,
@@ -631,7 +631,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                         case .text, .richText:
                             Row(
                                 model: message,
-                                cell: BubbleCell.self
+                                cell: TextBubbleCell.self
                             ) { [weak self] cell, message, _ in
                                 cell.deliveryStatusView.retryRequested = { [weak self] in self?.actionRequested?(.retryMessage(messageID: $0)) }
                                 cell.configure(message)
@@ -862,7 +862,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     }
 
     @objc private func dismissSelectionOutside(_ gesture: UITapGestureRecognizer) {
-        for cell in collectionView.visibleCells.compactMap({ $0 as? BubbleCell }) {
+        for cell in collectionView.visibleCells.compactMap({ $0 as? TextBubbleCell }) {
             let text = cell.bubbleView.messageTextView
             if text.isSelectingMessageText && text.bounds.contains(gesture.location(in: text)) { return }
         }
@@ -877,7 +877,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         messageMenuCoordinator.refresh()
         for cell in collectionView.visibleCells {
             switch cell {
-            case let cell as BubbleCell: cell.messageMenu.refreshAccessibility()
+            case let cell as TextBubbleCell: cell.messageMenu.refreshAccessibility()
             case let cell as AudioBubbleCell: cell.messageMenu.refreshAccessibility()
             case let cell as DocumentBubbleCell: cell.messageMenu.refreshAccessibility()
             case let cell as MediaBubbleCell: cell.messageMenu.refreshAccessibility()
@@ -887,7 +887,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     }
 
     func endMessageSelection() {
-        for cell in collectionView.visibleCells.compactMap({ $0 as? BubbleCell }) {
+        for cell in collectionView.visibleCells.compactMap({ $0 as? TextBubbleCell }) {
             cell.bubbleView.messageTextView.endMessageSelection()
         }
     }
@@ -895,7 +895,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     func selectMessageText(_ target: MessageMenuTarget) {
         guard message(for: target) != nil,
               let index = lastState?.timeline.firstIndex(where: { $0.id == .message(target.messageID) }),
-              let cell = collectionView.cellForItem(at: IndexPath(item: index, section: 0)) as? BubbleCell else { return }
+              let cell = collectionView.cellForItem(at: IndexPath(item: index, section: 0)) as? TextBubbleCell else { return }
         endMessageSelection()
         cell.bubbleView.messageTextView.beginMessageSelection()
     }
@@ -906,7 +906,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     /// - Returns: 对应内容类型的绑定对象；不支持菜单的行返回 `nil`。
     private func menuBinding(for cell: UICollectionViewCell) -> MessageMenuAccessibility? {
         switch cell {
-        case let cell as BubbleCell: cell.messageMenu
+        case let cell as TextBubbleCell: cell.messageMenu
         case let cell as AudioBubbleCell: cell.messageMenu
         case let cell as DocumentBubbleCell: cell.messageMenu
         case let cell as MediaBubbleCell: cell.messageMenu
@@ -966,7 +966,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         let accessibilityView: UIView
         let source: () -> MessageMenuAccessibility.Source?
         switch cell {
-        case let cell as BubbleCell:
+        case let cell as TextBubbleCell:
             menu = cell.messageMenu
             accessibilityView = cell.bubbleView.messageTextView
             cell.bubbleView.messageTextView.usesMessageMenu = true

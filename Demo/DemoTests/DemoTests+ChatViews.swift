@@ -411,7 +411,7 @@ extension DemoTests {
         let cellWidth: CGFloat = 390
         let horizontalInset: CGFloat = 12
 
-        let incomingCell = BubbleCell(frame: .zero)
+        let incomingCell = TextBubbleCell(frame: .zero)
         incomingCell.configure(
             MessagePresentation(
                 id: 1,
@@ -428,7 +428,7 @@ extension DemoTests {
         #expect(abs(incomingFrame.minX - horizontalInset) < 1)
         #expect(incomingFrame.width <= cellWidth * 0.75 + 1)
 
-        let outgoingCell = BubbleCell(frame: .zero)
+        let outgoingCell = TextBubbleCell(frame: .zero)
         outgoingCell.configure(
             MessagePresentation(
                 id: 2,
@@ -637,7 +637,7 @@ extension DemoTests {
         let textCell = try #require(
             conversation.collectionView.cellForItem(
                 at: IndexPath(item: 0, section: 0)
-            ) as? BubbleCell
+            ) as? TextBubbleCell
         )
         let audioCell = try #require(
             conversation.collectionView.cellForItem(
