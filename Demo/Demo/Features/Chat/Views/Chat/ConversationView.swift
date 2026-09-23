@@ -134,9 +134,41 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     private var viewportInsets: UIEdgeInsets = .zero
     private var isUpdatingViewport = false
 
+    #if DEBUG
+    private var debugScrollSequence = 0
+    private var debugScrollGesture = 0
+    #endif
+
+    /// Debug 默认输出滚动诊断；只读取现有几何，不调用布局或锚点捕获，避免日志改变时序。
+    /// 不输出消息正文、附件地址或草稿内容。Release 不生成诊断输出。
+    func debugLogScroll(_ event: String, detail: @autoclosure () -> String = "") {
+        #if DEBUG
+        debugScrollSequence &+= 1
+        let list = collectionView
+        let pan = list.panGestureRecognizer
+        let minimum = -list.adjustedContentInset.top
+        let maximum = max(minimum, list.contentSize.height - list.bounds.height + list.adjustedContentInset.bottom)
+        let cell = list.visibleCells.min { $0.frame.minY < $1.frame.minY }
+        let visible = cell.map { cell in
+            let index = list.indexPath(for: cell)
+            let id = index.flatMap { index in
+                lastState?.timeline.indices.contains(index.item) == true ? lastState?.timeline[index.item].id : nil
+            }
+            return "id=\(String(describing: id)) frame=\(cell.frame) screenY=\(cell.frame.minY - list.contentOffset.y)"
+        } ?? "none"
+        print("[ChatScroll] t=\(String(format: "%.4f", ProcessInfo.processInfo.systemUptime)) view=\(ObjectIdentifier(self)) n=\(debugScrollSequence) gesture=\(debugScrollGesture) event=\(event) "
+            + "offset=\(list.contentOffset) size=\(list.contentSize) bounds=\(list.bounds.size) rangeY=\(minimum)...\(maximum) "
+            + "inset=\(list.contentInset) adjusted=\(list.adjustedContentInset) safe=\(list.safeAreaInsets) viewport=\(viewportInsets) "
+            + "tracking=\(list.isTracking) dragging=\(list.isDragging) decelerating=\(list.isDecelerating) pan=\(pan.state.rawValue) translation=\(pan.translation(in: list)) "
+            + "presented=\(initialPresentation.isPresented) applying=\(isApplyingTimeline) updatingViewport=\(isUpdatingViewport) explicitBottom=\(pendingExplicitScroll) pendingFollow=\(String(describing: pendingViewportPosition?.followsBottom)) revision=\(readingPositionRevision) "
+            + "visible={\(visible)} \(detail())")
+        #endif
+    }
+
     /// 在改变输入栏高度或容器尺寸前捕获阅读位置；身份独立于历史插入后的索引。
     func prepareForViewportChange() {
         guard pendingViewportPosition == nil, !isUpdatingViewport else { return }
+        debugLogScroll("viewport.capture.begin")
         let anchor = collectionView.captureLocalizationAnchor()
         let itemID = anchor.flatMap { anchor in
             lastState?.timeline.indices.contains(anchor.indexPath.item) == true
@@ -145,48 +177,56 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         pendingViewportPosition = ViewportPosition(
             followsBottom: pendingExplicitScroll || isNearBottom, itemID: itemID, anchor: anchor
         )
+        debugLogScroll("viewport.capture.end", detail: "anchor=\(String(describing: anchor))")
     }
 
     /// 列表 frame 始终全屏，只有内容及指示器避让覆盖在其上方的界面。
     func updateViewportInsets(_ insets: UIEdgeInsets) {
         guard !isUpdatingViewport else { return }
         let old = viewportInsets
-        guard abs(old.top - insets.top) > 0.5 || abs(old.bottom - insets.bottom) > 0.5
-            || abs(old.left - insets.left) > 0.5 || abs(old.right - insets.right) > 0.5
+        let horizontalGeometryChanged = abs(old.left - insets.left) > 0.5
+            || abs(old.right - insets.right) > 0.5
             || abs(viewportSize.width - collectionView.bounds.width) > 0.5
-            || abs(viewportSize.height - collectionView.bounds.height) > 0.5 else {
+        let requiresPositionRestoration = horizontalGeometryChanged
+            || abs(old.bottom - insets.bottom) > 0.5
+            || abs(viewportSize.height - collectionView.bounds.height) > 0.5
+        guard abs(old.top - insets.top) > 0.5 || requiresPositionRestoration else {
+            if pendingViewportPosition != nil { debugLogScroll("viewport.unchanged.discardPending") }
             pendingViewportPosition = nil
             return
         }
-        #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-chat-pull-probe") {
-            print("PULL viewport old=\(old) new=\(insets) size=\(viewportSize)->\(collectionView.bounds.size) offset=\(collectionView.contentOffset) drag=\(collectionView.isDragging) decel=\(collectionView.isDecelerating)")
-        }
-        #endif
-        prepareForViewportChange()
+        debugLogScroll("viewport.begin", detail: "old=\(old) new=\(insets) oldSize=\(viewportSize)")
+        // 导航栏随滚动展开/收起时只改变顶部遮挡。此时恢复锚点或贴底会反向改写
+        // contentOffset，再次驱动导航栏和安全区变化，形成与手势争抢位置的循环。
+        // 即使手势已结束也不补偿顶部变化，避免导航栏的后续动画继续触发循环。
+        if requiresPositionRestoration { prepareForViewportChange() }
         readingPositionRevision &+= 1
         let position = pendingViewportPosition
         pendingViewportPosition = nil
         isUpdatingViewport = true
         defer {
             // 只保留纵向阅读位置，清除尺寸或安全区切换前遗留的横向偏移。
-            collectionView.contentOffset.x = 0
+            if collectionView.contentOffset.x != 0 { collectionView.contentOffset.x = 0 }
             isUpdatingViewport = false
+            debugLogScroll("viewport.end")
         }
-        let horizontalGeometryChanged = abs(old.left - insets.left) > 0.5
-            || abs(old.right - insets.right) > 0.5
-            || abs(viewportSize.width - collectionView.bounds.width) > 0.5
         viewportSize = collectionView.bounds.size
         viewportInsets = insets
         collectionView.contentInset = UIEdgeInsets(top: insets.top, left: 0, bottom: insets.bottom, right: 0)
         collectionView.scrollIndicatorInsets = insets
         if horizontalGeometryChanged {
+            debugLogScroll("viewport.invalidateLayout")
             collectionView.collectionViewLayout.invalidateLayout()
         }
         collectionView.layoutIfNeeded()
         // 首次展示协调器负责最终底部定位，不能提前显示尚未稳定的历史。
         guard initialPresentation.isPresented else { return }
+        guard requiresPositionRestoration else {
+            debugLogScroll("viewport.topInsetOnly")
+            return
+        }
         if position?.followsBottom == true {
+            debugLogScroll("viewport.followBottom")
             scrollToBottom(animated: false)
         } else if let id = position?.itemID, let anchor = position?.anchor,
                   let item = lastState?.timeline.firstIndex(where: { $0.id == id }) {
@@ -195,9 +235,11 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                 offsetFromViewportTop: anchor.offsetFromViewportTop,
                 offsetFromViewportLeading: anchor.offsetFromViewportLeading
             )
+            debugLogScroll("viewport.restore.begin", detail: "itemID=\(id) anchor=\(restored)")
             collectionView.restoreLocalizationAnchor(restored)
             collectionView.layoutIfNeeded()
             collectionView.restoreLocalizationAnchor(restored)
+            debugLogScroll("viewport.restore.end")
         }
     }
 
@@ -353,6 +395,10 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
 
     /// 开始新的用户滚动手势，重置本次分页额度，并使旧的阅读位置恢复请求失效。
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        #if DEBUG
+        debugScrollGesture &+= 1
+        #endif
+        debugLogScroll("drag.begin")
         readingPositionRevision &+= 1
         requestedHistoryDuringDrag = false
         previousScrollOffset = scrollView.contentOffset.y
@@ -367,11 +413,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     /// 首次展示、布局更新和程序化定位不会触发请求；失败与结束状态也不会自动重试。
     /// - Parameter scrollView: 列表适配器转发滚动事件的消息集合视图。
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-chat-pull-probe"), scrollView.isDragging || scrollView.isDecelerating {
-            print("PULL scroll y=\(scrollView.contentOffset.y) size=\(scrollView.contentSize) inset=\(scrollView.contentInset) safe=\(scrollView.safeAreaInsets) updating=\(isUpdatingViewport)")
-        }
-        #endif
+        debugLogScroll("scroll", detail: "deltaY=\(scrollView.contentOffset.y - previousScrollOffset)")
         defer { previousScrollOffset = scrollView.contentOffset.y }
         if !isApplyingTimeline, !isUpdatingViewport {
             readingPositionRevision &+= 1
@@ -384,11 +426,29 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
               scrollView.contentOffset.y + scrollView.adjustedContentInset.top <= 120,
               !requestedHistoryDuringDrag, lastState?.historyState == .idle else { return }
         requestedHistoryDuringDrag = true
+        debugLogScroll("history.request")
         loadEarlierHistory?()
     }
 
+    #if DEBUG
+    /// 诊断手势与减速边界，不参与滚动位置决策。
+    func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint,
+                                  targetContentOffset: UnsafeMutablePointer<CGPoint>) {
+        debugLogScroll("drag.willEnd", detail: "velocity=\(velocity) target=\(targetContentOffset.pointee)")
+    }
+
+    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        debugLogScroll("drag.end", detail: "willDecelerate=\(decelerate)")
+    }
+
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        debugLogScroll("deceleration.end")
+    }
+    #endif
+
     /// 自适应高度可能在动画期间变化，完成后再对齐一次最终底部。
     func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
+        debugLogScroll("scrollAnimation.end")
         guard pendingExplicitScroll else { return }
         scrollToBottom(animated: false)
     }
@@ -400,6 +460,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         _ state: ChatViewModel.State,
         reason: ChatViewModel.UpdateReason
     ) {
+        debugLogScroll("render.begin", detail: "reason=\(reason) count=\(state.timeline.count)")
         if reason == .historyStatus, let previous = lastState,
            previous.timeline.map(\.id) == state.timeline.map(\.id),
            let item = state.timeline.first, case .historyStatus(let presentation) = item.content {
@@ -498,8 +559,12 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                 guard let self, self.renderGeneration == generation else {
                     return
                 }
+                self.debugLogScroll("render.complete", detail: "reason=\(reason) generation=\(generation)")
                 self.isApplyingTimeline = true
-                defer { self.isApplyingTimeline = false }
+                defer {
+                    self.isApplyingTimeline = false
+                    self.debugLogScroll("render.end", detail: "reason=\(reason)")
+                }
                 self.collectionView.layoutIfNeeded()
                 self.refreshMaterializedContentLayoutDirection()
 
@@ -514,6 +579,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                 self.pendingExplicitScroll = false
                 if let localizationAnchor, !explicitScroll {
                     guard self.readingPositionRevision == positionRevision else { return }
+                    self.debugLogScroll("render.restore", detail: "reason=\(reason) anchor=\(localizationAnchor)")
                     _ = self.collectionView.restoreLocalizationAnchor(localizationAnchor)
                     if reason == .messageDeleted || restoresHistoryAnchor || reason == .historyStatus {
                         // 首次恢复可能使估算高度的相邻 Cell 进入视口并触发自适应测量。
@@ -759,6 +825,8 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
 
     /// 将最后一个时间线项目滚动到可见区域底部；列表为空时直接返回。
     func scrollToBottom(animated: Bool) {
+        debugLogScroll("bottom.begin", detail: "animated=\(animated)")
+        defer { debugLogScroll("bottom.end", detail: "animated=\(animated)") }
         guard collectionView.numberOfSections > 0 else { return }
         let section = collectionView.numberOfSections - 1
         let itemCount = collectionView.numberOfItems(inSection: section)

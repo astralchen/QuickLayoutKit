@@ -48,6 +48,7 @@ extension ChatViewController {
     func configureBottomObstruction() {
         bottomObstructionCoordinator.heightDidChange = { [weak self] height, context in
             guard let self else { return }
+            conversationView.debugLogScroll("obstruction.changed", detail: "old=\(bottomObstruction) new=\(height) animationDuration=\(context?.animationDuration ?? 0)")
             conversationView.prepareForViewportChange()
             bottomObstruction = height
             setNeedsQuickLayout()

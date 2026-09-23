@@ -120,19 +120,32 @@ final class ChatFullscreenUITests: XCTestCase {
         capture(app, "全屏聊天-取消返回后继续编辑")
     }
 
-    /// 连续下拉时保留整段按住手势，暴露被自动贴底打断的滚动。
-    @MainActor func testPullingDownMovesIntoHistory() throws {
-        let app = openChat(loadsHistory: true, probesPull: true)
+    /// 先翻看历史再回到底部，覆盖导航栏收起后连续下拉被贴底逻辑打断的路径。
+    @MainActor func testPullingDownAfterReturningToBottomMovesMessages() {
+        let app = openChat(loadsHistory: true)
         let list = app.collectionViews["imessage.timeline"]
-        XCTAssertTrue(list.cells.firstMatch.waitForExistence(timeout: 5))
-        capture(app, "下拉-初始")
-        for index in 0..<3 {
-            list.coordinate(withNormalizedOffset: CGVector(dx: 0.45, dy: 0.35))
-                .press(forDuration: 0.05,
-                       thenDragTo: list.coordinate(withNormalizedOffset: CGVector(dx: 0.45, dy: 0.8)),
-                       withVelocity: .slow, thenHoldForDuration: 1)
-            capture(app, "下拉-第\(index + 1)次")
+        let card = list.descendants(matching: .any)
+            .matching(identifier: "imessage.attachment.file.card").firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 15))
+        list.swipeDown()
+        for _ in 0..<3 {
+            list.swipeUp()
+            list.swipeUp()
+            XCTAssertTrue(card.isHittable)
+            let before = card.frame
+            let distance = min(150, list.frame.height * 0.22)
+            let start = list.coordinate(withNormalizedOffset: CGVector(dx: 0.45, dy: 0.4))
+            start.press(forDuration: 0.05,
+                        thenDragTo: start.withOffset(CGVector(dx: 12, dy: distance)),
+                        withVelocity: .slow, thenHoldForDuration: 0.5)
+            XCTAssertTrue(card.isHittable)
+            XCTAssertGreaterThan(card.frame.minY - before.minY, distance * 0.65,
+                                 "下拉应持续进入历史，不能在底部附近反复回跳")
         }
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "聊天-收起导航栏后连续下拉"
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     /// 导航按钮在 Duo 侧栏中的 AX 顺序不同，返回操作须排除语言菜单。
@@ -142,7 +155,7 @@ final class ChatFullscreenUITests: XCTestCase {
         return app.navigationBars.buttons.matching(NSPredicate(format: "identifier != %@", "demo.language.menu")).firstMatch
     }
 
-    @MainActor private func openChat(rtl: Bool = false, loadsHistory: Bool = false, probesPull: Bool = false) -> XCUIApplication {
+    @MainActor private func openChat(rtl: Bool = false, loadsHistory: Bool = false) -> XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         let language = rtl ? "ar" : "zh-Hans"
@@ -157,7 +170,6 @@ final class ChatFullscreenUITests: XCTestCase {
             app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
                                     "-AppleInterfaceStyle", "Dark"]
         }
-        if probesPull { app.launchArguments += ["-chat-pull-probe"] }
         app.launch()
         let route = app.cells["demo.imessage.title"]
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))

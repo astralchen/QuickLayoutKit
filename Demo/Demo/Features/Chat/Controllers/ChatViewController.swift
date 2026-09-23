@@ -43,6 +43,10 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
     let viewModel: ChatViewModel
     /// 呈现消息时间线和单元格交互的会话视图。
     let conversationView = ConversationView()
+    #if DEBUG
+    /// 仅在页面几何变化时打印，避免每次布局回调重复输出同一组尺寸。
+    private var debugLastViewportGeometry: String?
+    #endif
     /// 承载文本、听写和附件草稿输入的视图。
     let composerView = ComposerView()
     /// 导航栏中显示联系人头像和副标题的视图。
@@ -351,11 +355,13 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
     }
 
     override func viewWillTransition(to size: CGSize, with coordinator: any UIViewControllerTransitionCoordinator) {
+        conversationView.debugLogScroll("page.transition", detail: "targetSize=\(size)")
         conversationView.prepareForViewportChange()
         super.viewWillTransition(to: size, with: coordinator)
     }
 
     override func viewSafeAreaInsetsDidChange() {
+        conversationView.debugLogScroll("page.safeAreaChanged", detail: "pageSafe=\(view.safeAreaInsets)")
         conversationView.prepareForViewportChange()
         super.viewSafeAreaInsetsDidChange()
         view.setNeedsLayout()
@@ -368,6 +374,13 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
               list.bounds.height > 0, composerView.bounds.height > 0 else { return }
         let listFrame = list.convert(list.bounds, to: view)
         let composerFrame = composerView.convert(composerView.bounds, to: view)
+        #if DEBUG
+        let geometry = "page=\(view.bounds) list=\(listFrame) composer=\(composerFrame) pageSafe=\(view.safeAreaInsets) obstruction=\(bottomObstruction)"
+        if debugLastViewportGeometry != geometry {
+            debugLastViewportGeometry = geometry
+            conversationView.debugLogScroll("page.geometry", detail: geometry)
+        }
+        #endif
         // QuickLayout 分步更新子视图；宽窄切换时不能混用旧列表尺寸与新的页面安全区。
         // 等列表和输入栏都到达本次布局位置后再消费已捕获的阅读锚点。
         guard abs(listFrame.width - view.bounds.width) < 0.5,

@@ -7,6 +7,43 @@ import UIKit
 @MainActor
 @Suite(.serialized, .enabled(if: ChatTestAvailability.isSupported))
 struct ChatFullscreenLayoutTests {
+    /// 导航栏展开/收起只改变顶部遮挡，不能把刚离开底部的手势拉回，也不能移动历史消息。
+    @Test(arguments: [false, true])
+    func topInsetChangesPreserveScrollOffset(readingHistory: Bool) async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try Fixture(messageCount: 60)
+        defer { fixture.close() }
+        let page = fixture.page
+        let conversation = page.conversationView
+        let list = conversation.collectionView
+        #expect(await eventually { conversation.initialPresentation.isPresented })
+        if readingHistory {
+            list.scrollToItem(at: IndexPath(item: 25, section: 0), at: .top, animated: false)
+        } else {
+            // 对应用户日志：离底部 32 点时，仍处于原来的 88 点自动跟随阈值内。
+            list.contentOffset.y -= 32
+        }
+        list.layoutIfNeeded()
+        let originalOffset = list.contentOffset
+        let anchor = try #require(list.captureLocalizationAnchor())
+        let originalFrame = try #require(list.layoutAttributesForItem(at: anchor.indexPath)?.frame)
+        let safe = page.view.safeAreaInsets
+        let bottom = list.contentInset.bottom
+        for top: CGFloat in [24, 37, 24, 27.3333333333, 58, 82, 24] {
+            // 模拟页面安全区回调先捕获位置，再提交顶部导航栏的中间高度。
+            conversation.prepareForViewportChange()
+            conversation.updateViewportInsets(UIEdgeInsets(top: top, left: safe.left,
+                                                          bottom: bottom, right: safe.right))
+            list.layoutIfNeeded()
+            #expect(abs(list.contentOffset.y - originalOffset.y) < 0.5,
+                    "top=\(top), before=\(originalOffset), after=\(list.contentOffset)")
+            let frame = try #require(list.layoutAttributesForItem(at: anchor.indexPath)?.frame)
+            #expect(abs((frame.minY - list.contentOffset.y) - (originalFrame.minY - originalOffset.y)) < 0.5)
+            #expect(abs(list.contentInset.top - top) < 0.5)
+            #expect(abs(list.verticalScrollIndicatorInsets.top - top) < 0.5)
+        }
+    }
+
     /// 折叠、旋转及不对称安全区变化不能给纵向时间线增加横向滚动范围。
     @Test(arguments: [false, true], [0, 1, 60])
     func horizontalRangeRemainsEmptyAcrossViewportChanges(rtl: Bool, messageCount: Int) async throws {
