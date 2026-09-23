@@ -543,7 +543,11 @@ preview.containerRelativeSize(.vertical, maxSize: { container in
 ```
 
 大写 `ContainerRelativeSize` 声明共享参照容器，以自身收到的父布局建议尺寸为基准，
-仅为标记了 `.containerRelativeSize` 的子元素提供上限：
+仅为标记了 `.containerRelativeSize` 的子元素提供上限。
+
+声明保留内容在各轴上的尺寸弹性，使内容正常参与栈的空间分配和布局优先级处理。
+最终尺寸由父布局分配、上限与内容测量共同决定。栈可能先预测量，再用新的建议尺寸
+重新测量；每次均重新计算上限，不缓存前一次测量结果。
 
 ```swift
 // 基础声明：使用完整容器长度。

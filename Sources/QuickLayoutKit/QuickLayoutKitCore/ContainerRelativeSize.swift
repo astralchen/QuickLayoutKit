@@ -5,6 +5,7 @@ import UIKit
 /// 声明参照容器，让标记的子元素以所选轴的完整容器长度作为尺寸上限。
 ///
 /// 不强制内容撑满；嵌套声明只覆盖所选轴的上限。空轴集合不建立新参照容器。
+/// 声明保留内容在各轴上的尺寸弹性，由父布局分配空间后结合上限和内容测量确定尺寸。
 public func ContainerRelativeSize(
     _ axes: AxisSet,
     @LayoutBuilder content: () -> Layout
@@ -18,6 +19,7 @@ public func ContainerRelativeSize(
 /// 无界建议也会传入闭包，以便返回有限上限；负数结果使用 0，NaN 和正无穷表示无界。
 /// 未选择的轴继承外层上限；空集合不调用闭包，也不建立新参照容器。
 /// 闭包应无副作用；布局系统可以进行多次测量，但内容只在构建时生成一次。
+/// 声明透传内容的尺寸弹性；父布局重新测量时，使用当次建议长度重新计算上限。
 ///
 /// - Parameters:
 ///   - axes: 需要计算尺寸上限的轴。
@@ -37,6 +39,7 @@ public func ContainerRelativeSize(
 /// 未选轴继承外层上限；空轴集合不调用闭包，也不改变后代的参照容器。
 /// 输入可以无界；结果逐轴将负数归零，NaN 和正无穷视为无界。
 /// 闭包应无副作用；内容只在构建时生成一次。
+/// 声明透传内容的尺寸弹性；父布局重新测量时，使用当次建议尺寸重新计算上限。
 public func ContainerRelativeSize(
     _ axes: AxisSet,
     maxSize: @escaping @Sendable (CGSize) -> CGSize,
@@ -77,8 +80,7 @@ private struct ContainerRelativeSizeElement: Layout, _LayoutValueProvidingElemen
     func quick_layoutPriority() -> CGFloat { child.quick_layoutPriority() }
 
     func quick_flexibility(for axis: Axis) -> Flexibility {
-        axes.contains(axis == .horizontal ? .horizontal : .vertical)
-            ? .fixedSize : child.quick_flexibility(for: axis)
+        child.quick_flexibility(for: axis)
     }
 }
 

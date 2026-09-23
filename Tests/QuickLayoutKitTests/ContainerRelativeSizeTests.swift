@@ -9,6 +9,121 @@ import UIKit
 struct ContainerRelativeSizeTests {
     private let proposal = CGSize(width: 400, height: 600)
 
+    @Test(arguments: [Axis.horizontal, .vertical])
+    func peerScopesShareMainAxisSpace(axis: Axis) {
+        let axes: AxisSet = axis == .horizontal ? .horizontal : .vertical
+        for style in 0..<3 {
+            func scoped() -> Element & Layout {
+                switch style {
+                case 0:
+                    return ContainerRelativeSize(axes) { LimitProbe().containerRelativeSize(axes) }
+                case 1:
+                    return ContainerRelativeSize(axes, length: { length, _ in length / 2 }) {
+                        LimitProbe().containerRelativeSize(axes)
+                    }
+                default:
+                    return ContainerRelativeSize(axes, maxSize: { size in
+                        CGSize(width: size.width / 2, height: size.height / 2)
+                    }) { LimitProbe().containerRelativeSize(axes) }
+                }
+            }
+            let node = stack(axis, scoped(), scoped())
+                .quick_layoutThatFits(CGSize(width: 400, height: 400))
+            #expect(mainLengths(node, axis: axis) == [200, 200], "Scope style: \(style)")
+        }
+    }
+
+    @Test(arguments: [Axis.horizontal, .vertical], [false, true])
+    func scopeHonorsSiblingPriorityInEitherOrder(axis: Axis, reversed: Bool) {
+        let axes: AxisSet = axis == .horizontal ? .horizontal : .vertical
+        let low = ContainerRelativeSize(axes) { LimitProbe().containerRelativeSize(axes) }
+            .layoutPriority(-1)
+        let high = LimitProbe().containerRelativeSize(axes).layoutPriority(1)
+        let node = stack(axis, reversed ? high : low, reversed ? low : high)
+            .quick_layoutThatFits(CGSize(width: 400, height: 400))
+        #expect(mainLengths(node, axis: axis) == (reversed ? [400, 0] : [0, 400]))
+    }
+
+    @Test func allScopeOverloadsPreserveIndependentAxisFlexibility() {
+        let selections: [AxisSet] = [.horizontal, .vertical, [.horizontal, .vertical], []]
+        let flexibilities: [Flexibility] = [.fixedSize, .partial, .fullyFlexible]
+        for axes in selections {
+            for horizontal in flexibilities {
+                for vertical in flexibilities {
+                    let child = LimitProbe(horizontalFlexibility: horizontal, verticalFlexibility: vertical)
+                    let basic = ContainerRelativeSize(axes) { child }
+                    let length = ContainerRelativeSize(axes, length: { length, _ in length / 2 }) { child }
+                    let size = ContainerRelativeSize(axes, maxSize: { $0 }) { child }
+                    for scope in [basic, length, size] {
+                        #expect(scope.quick_flexibility(for: .horizontal) == horizontal)
+                        #expect(scope.quick_flexibility(for: .vertical) == vertical)
+                        #expect(scope.quick_layoutPriority() == child.quick_layoutPriority())
+                    }
+                }
+            }
+        }
+    }
+
+    @Test(arguments: [Axis.horizontal, .vertical])
+    func scopeLeavesUnmarkedAndFixedContentSizingIntact(axis: Axis) {
+        let axes: AxisSet = axis == .horizontal ? .horizontal : .vertical
+        let unmarked = ContainerRelativeSize(axes, length: { _, _ in 10 }) { LimitProbe() }
+        let bare = LimitProbe()
+        let proposed = CGSize(width: 400, height: 400)
+        let scoped = stack(axis, unmarked, unmarked).quick_layoutThatFits(proposed)
+        let baseline = stack(axis, bare, bare).quick_layoutThatFits(proposed)
+        #expect(mainLengths(scoped, axis: axis) == mainLengths(baseline, axis: axis))
+        #expect(mainLengths(scoped, axis: axis) == [200, 200])
+
+        let fixed = ContainerRelativeSize(axes, length: { _, _ in 10 }) {
+            LimitProbe().frame(width: 80, height: 80).containerRelativeSize(axes)
+        }
+        let fixedNode = stack(axis, fixed, bare).quick_layoutThatFits(proposed)
+        #expect(mainLengths(fixedNode, axis: axis) == [80, 320])
+        let unmarkedFixed = ContainerRelativeSize(axes) { bare.frame(width: 80, height: 80) }
+        #expect(unmarkedFixed.quick_flexibility(for: axis) == .fixedSize)
+        #expect(unmarkedFixed.quick_layoutThatFits(proposed).size == CGSize(width: 80, height: 80))
+    }
+
+    @Test(arguments: [Axis.horizontal, .vertical])
+    func stackRemeasureRecalculatesLimitUsingNewProposal(axis: Axis) {
+        let axes: AxisSet = axis == .horizontal ? .horizontal : .vertical
+        for useFullSize in [false, true] {
+            let calls = LimitInvocationRecorder()
+            let child = LimitProbe().containerRelativeSize(axes)
+            let scope: any Layout
+            if useFullSize {
+                scope = ContainerRelativeSize(axes, maxSize: { size in
+                    calls.record(size)
+                    return CGSize(width: size.width * 0.75, height: size.height * 0.75)
+                }) { child }
+            } else {
+                scope = ContainerRelativeSize(axes, length: { length, axis in
+                    calls.record(length, axis: axis)
+                    return length * 0.75
+                }) { child }
+            }
+            let sibling = LimitProbe(idealSize: CGSize(width: 200, height: 200)).containerRelativeSize(axes)
+            let node = stack(axis, scope, sibling).quick_layoutThatFits(CGSize(width: 400, height: 400))
+            #expect(mainLengths(node, axis: axis) == [150, 200])
+            let references = useFullSize
+                ? calls.sizes.map { axis == .horizontal ? $0.width : $0.height }
+                : calls.lengths.map(\.length)
+            #expect(references == [400, 200])
+        }
+    }
+
+    private func stack(_ axis: Axis, _ first: Element, _ second: Element) -> Element & Layout {
+        if axis == .horizontal {
+            return HStack(spacing: 0) { first; second }
+        }
+        return VStack(spacing: 0) { first; second }
+    }
+
+    private func mainLengths(_ node: LayoutNode, axis: Axis) -> [CGFloat] {
+        node.children.map { axis == .horizontal ? $0.layout.size.width : $0.layout.size.height }
+    }
+
     @Test func allOverloadsRespectSelectedAxesAndKeepShortContentSmall() {
         let cases: [(AxisSet, CGSize)] = [
             (.horizontal, CGSize(width: 200, height: 600)),
@@ -394,6 +509,8 @@ private final class LimitProposalRecorder {
 private struct LimitProbe: Layout {
     var idealSize = CGSize(width: CGFloat.infinity, height: CGFloat.infinity)
     var recorder: LimitProposalRecorder?
+    var horizontalFlexibility: Flexibility = .fullyFlexible
+    var verticalFlexibility: Flexibility = .fullyFlexible
 
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode {
         recorder?.proposals.append(proposedSize)
@@ -402,7 +519,9 @@ private struct LimitProbe: Layout {
             height: min(idealSize.height, proposedSize.height)
         )))
     }
-    func quick_flexibility(for axis: Axis) -> Flexibility { .fullyFlexible }
+    func quick_flexibility(for axis: Axis) -> Flexibility {
+        axis == .horizontal ? horizontalFlexibility : verticalFlexibility
+    }
     func quick_layoutPriority() -> CGFloat { 7 }
     func quick_extractViewsIntoArray(_ views: inout [UIView]) {}
 }
