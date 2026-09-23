@@ -44,6 +44,7 @@ final class MainViewModel {
                 .positionAndZIndex,
                 .viewThatFits,
                 .fixedSize,
+                .containerRelativeSize,
                 .profile,
                 .counter,
                 .dynamicScroll,

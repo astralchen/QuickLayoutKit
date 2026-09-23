@@ -2,6 +2,7 @@ import AVFoundation
 import PhotosUI
 import Testing
 import UIKit
+import QuickLayoutKitUIKit
 import UniformTypeIdentifiers
 @testable import Demo
 

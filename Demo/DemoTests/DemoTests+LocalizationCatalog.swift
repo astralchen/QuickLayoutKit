@@ -143,7 +143,7 @@ extension DemoTests {
         }
     }
 
-    @Test func arabicLocalizationsDoNotContainHanCharacters() throws {
+    @Test func arabicLocalizationsDoNotContainUnexpectedHanCharacters() throws {
         let testFileURL = URL(fileURLWithPath: #filePath)
         let catalogURL = testFileURL
             .deletingLastPathComponent()
@@ -158,7 +158,13 @@ extension DemoTests {
             guard let value = entry.localizations?["ar"]?.stringUnit.value else {
                 return nil
             }
-            let containsHan = value.unicodeScalars.contains { scalar in
+            // 聊天地址样例在三种语言中都保留中文原址，用于混合文字识别演示。
+            // 只允许这个 key 中完全匹配的地址行，仍检查其余文案和其他 key。
+            let textToCheck = value.components(separatedBy: "\n").filter { line in
+                !(key == "imessage.seed.text.address"
+                    && line == "北京市朝阳区三里屯路19号")
+            }.joined(separator: "\n")
+            let containsHan = textToCheck.unicodeScalars.contains { scalar in
                 switch scalar.value {
                 case 0x3400...0x4DBF, 0x4E00...0x9FFF, 0xF900...0xFAFF:
                     return true

@@ -1,6 +1,512 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "containerRelativeSize.longText": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Long text"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "长文本"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "النص الطويل"
+          }
+        }
+      }
+    },
+    "demo.containerRelativeSize.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ContainerRelativeSize"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ContainerRelativeSize"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ContainerRelativeSize"
+          }
+        }
+      }
+    },
+    "containerRelativeSize.intro": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Declare a shared size limit, then apply it to marked content. Short content keeps its natural size."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "声明共享尺寸上限，再由标记的子元素应用。短内容仍保持自然尺寸。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حدّد حدًا مشتركًا للحجم ثم طبّقه على العناصر المحددة. يحتفظ المحتوى القصير بحجمه الطبيعي."
+          }
+        }
+      }
+    },
+    "containerRelativeSize.previous": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous scenario"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上一个场景"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المثال السابق"
+          }
+        }
+      }
+    },
+    "containerRelativeSize.next": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next scenario"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下一个场景"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المثال التالي"
+          }
+        }
+      }
+    },
+    "containerRelativeSize.width": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Container width"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "容器宽度"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عرض الحاوية"
+          }
+        }
+      }
+    },
+    "containerRelativeSize.container": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Container"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "容器"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحاوية"
+          }
+        }
+      }
+    },
+    "containerRelativeSize.natural.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Natural size"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自然收紧"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحجم الطبيعي"
+          }
+        }
+      }
+    },
+    "containerRelativeSize.natural.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Both labels share the full width limit. Short text stays compact; long text wraps as the container narrows."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "两个文本共享完整宽度上限。短文本自然收紧，长文本随容器变窄而换行。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يشترك النصان في حد العرض الكامل. يبقى النص القصير بحجمه الطبيعي ويلتف النص الطويل عند تضييق الحاوية."
+          }
+        }
+      }
+    },
+    "containerRelativeSize.natural.first": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Short"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "短文本"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "قصير"
+          }
+        }
+      }
+    },
+    "containerRelativeSize.natural.second": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Long text wraps inside the container as you reduce its width."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这是一段较长的文本，调小容器宽度时会自动换行，同时保持内容自身所需的尺寸。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يلتف هذا النص الطويل داخل الحاوية عند تقليل عرضها مع الحفاظ على الحجم الذي يحتاجه المحتوى."
+          }
+        }
+      }
+    },
+    "containerRelativeSize.proportional.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shared 70% limit"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "共享 70% 上限"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حد مشترك 70٪"
+          }
+        }
+      }
+    },
+    "containerRelativeSize.proportional.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blue: marked, at most 70% wide. Orange: unmarked, uses the full available width. Resizable content makes the limit visible."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "蓝色：已标记，宽度上限为 70%。橙色：未标记，使用完整可用宽度。可伸缩内容让上限直观可见。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الأزرق: عنصر محدد بحد عرض 70٪. البرتقالي: عنصر غير محدد يستخدم العرض المتاح كاملًا. يوضّح المحتوى القابل للتمدد هذا الحد."
+          }
+        }
+      }
+    },
+    "containerRelativeSize.proportional.first": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marked"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已标记"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "محدد"
+          }
+        }
+      }
+    },
+    "containerRelativeSize.proportional.second": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unmarked"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未标记"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "غير محدد"
+          }
+        }
+      }
+    },
+    "containerRelativeSize.crossAxis.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cross-axis limit"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跨轴计算"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حساب بين المحورين"
+          }
+        }
+      }
+    },
+    "containerRelativeSize.crossAxis.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Height limit = min(240, width × 9/16). The formula creates this ratio; ContainerRelativeSize itself only passes a size limit."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高度上限 = min(240, 宽度 × 9/16)。比例来自示例公式，ContainerRelativeSize 本身只传递尺寸上限。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حد الارتفاع = min(240, العرض × 9/16). تنشئ المعادلة هذه النسبة؛ أما ContainerRelativeSize فيمرر حد الحجم فقط."
+          }
+        }
+      }
+    },
+    "containerRelativeSize.crossAxis.first": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panel"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "面板"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اللوحة"
+          }
+        }
+      }
+    },
+    "containerRelativeSize.nested.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nested containers"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "嵌套容器"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حاويات متداخلة"
+          }
+        }
+      }
+    },
+    "containerRelativeSize.nested.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Both blocks inherit the outer 70% width limit. Only the inner block has an 80 pt height limit; the following sibling remains 120 pt tall."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "两个色块都继承外层 70% 宽度上限。只有内层色块受 80 点高度上限约束，后续兄弟元素仍高 120 点。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يرث العنصران حد العرض الخارجي 70٪. يقتصر ارتفاع العنصر الداخلي وحده على 80 نقطة، بينما يبقى ارتفاع العنصر التالي 120 نقطة."
+          }
+        }
+      }
+    },
+    "containerRelativeSize.nested.first": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inner"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内层"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الداخلي"
+          }
+        }
+      }
+    },
+    "containerRelativeSize.nested.second": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sibling"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "兄弟元素"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "العنصر التالي"
+          }
+        }
+      }
+    },
     "imessage.draft.saveFailed" : {
       "extractionState" : "manual",
       "localizations" : {

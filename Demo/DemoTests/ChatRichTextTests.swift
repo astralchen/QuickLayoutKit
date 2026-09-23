@@ -1,6 +1,7 @@
 import Testing
 import UIKit
 import AppLocalization
+import QuickLayoutKitUIKit
 @testable import Demo
 
 @MainActor

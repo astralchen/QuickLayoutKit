@@ -82,7 +82,9 @@ struct ChatTextDetectionTests {
         // Foundation 检测语言受当前系统环境影响；英语样例验证日期匹配，其余语言保留系统判定。
         if language == "en" { #expect(results.contains { $0.resultType == .date }) }
         #expect(localizer.text("imessage.seed.text.phone").contains("+86"))
-        #expect(localizer.text("imessage.seed.text.address").contains("北京市"))
+        // 保留完整中文原址，供所有界面语言下的混合文字识别演示使用。
+        #expect(localizer.text("imessage.seed.text.address")
+            .components(separatedBy: "\n").contains("北京市朝阳区三里屯路19号"))
     }
 
     @Test func detectorTextFitsBubbleAndClearsOnReuse() throws {

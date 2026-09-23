@@ -110,7 +110,7 @@ extension MainRoute {
     var menuIconColor: UIColor {
         switch self {
         case .horizontalScroll, .safeAreaPadding, .contentMargins,
-             .positionAndZIndex, .viewThatFits, .dynamicScroll:
+             .positionAndZIndex, .viewThatFits, .dynamicScroll, .containerRelativeSize:
             .systemBlue
         case .profile, .dashboard, .fixedSize:
             .systemIndigo

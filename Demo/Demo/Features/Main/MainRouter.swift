@@ -52,6 +52,8 @@ final class MainRouter: MainRouting {
             ViewThatFitsDemoViewController()
         case .fixedSize:
             FixedSizeDemoViewController()
+        case .containerRelativeSize:
+            ContainerRelativeSizeDemoViewController()
         case .profile:
             ProfileViewController()
         case .counter:
