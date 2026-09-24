@@ -109,8 +109,9 @@ private func makeMainMenuSectionHeaderPreview(
 extension MainRoute {
     var menuIconColor: UIColor {
         switch self {
+        // frame 实验室归入基础布局示例，沿用该组的蓝色图标。
         case .horizontalScroll, .safeAreaPadding, .contentMargins,
-             .positionAndZIndex, .viewThatFits, .dynamicScroll, .containerRelativeSize:
+             .positionAndZIndex, .viewThatFits, .dynamicScroll, .containerRelativeSize, .frame:
             .systemBlue
         case .profile, .dashboard, .fixedSize:
             .systemIndigo

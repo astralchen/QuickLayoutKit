@@ -12,6 +12,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
     case contentMargins
     case positionAndZIndex
     case viewThatFits
+    /// 交互式 frame API 实验室，包含自由实验与引导实验。
+    case frame
     case fixedSize
     case containerRelativeSize
     case profile
@@ -54,6 +56,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "demo.viewThatFits.title"
         case .fixedSize:
             "demo.fixedSize.title"
+        case .frame:
+            "demo.frame.title"
         case .containerRelativeSize:
             "demo.containerRelativeSize.title"
         case .profile:
@@ -113,6 +117,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "chevron.up.chevron.down"
         case .fixedSize:
             "arrow.up.and.down.square"
+        case .frame:
+            "rectangle.dashed"
         case .containerRelativeSize:
             "arrow.up.left.and.arrow.down.right"
         case .profile:

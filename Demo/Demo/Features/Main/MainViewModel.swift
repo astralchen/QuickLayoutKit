@@ -43,6 +43,8 @@ final class MainViewModel {
                 .contentMargins,
                 .positionAndZIndex,
                 .viewThatFits,
+                // 先理解 frame 的尺寸提议，再学习 fixedSize 对提议的处理。
+                .frame,
                 .fixedSize,
                 .containerRelativeSize,
                 .profile,

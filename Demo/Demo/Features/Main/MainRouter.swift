@@ -52,6 +52,9 @@ final class MainRouter: MainRouting {
             ViewThatFitsDemoViewController()
         case .fixedSize:
             FixedSizeDemoViewController()
+        // 每次进入创建新的实验室，实验状态只保留在该控制器生命周期内。
+        case .frame:
+            FrameLabViewController()
         case .containerRelativeSize:
             ContainerRelativeSizeDemoViewController()
         case .profile:

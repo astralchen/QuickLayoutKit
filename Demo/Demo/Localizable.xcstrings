@@ -1,6 +1,1734 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "frame.more.stretching": {
+      "comment": "更多参数入口的副标题；展开后显示容器宽度和内容拉伸开关。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Container width · Content size"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "容器宽度 · 内容尺寸"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عرض الحاوية · حجم المحتوى"
+          }
+        }
+      }
+    },
+    "frame.more.width": {
+      "comment": "更多参数入口的副标题；当前场景只提供容器宽度。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Container width"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "容器宽度"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عرض الحاوية"
+          }
+        }
+      }
+    },
+    "frame.guided.alignment.size": {
+      "comment": "引导实验对齐场景的实测提示。两个 %d 依次为内容宽、高（pt）；保留数字片段的 LTR 隔离符。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The frame fills the container. Content stays at ⁦%d × %d⁩ pt."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外框撑满容器，内容保持 ⁦%d × %d⁩ pt。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يملأ الإطار الحاوية. يبقى المحتوى بحجم ⁦%d × %d⁩ نقطة."
+          }
+        }
+      }
+    },
+    "frame.presentation.freeform": {
+      "comment": "顶部实验模式切换：自由调整场景与参数；原设计方案 1。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freeform"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自由实验"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تجربة حرة"
+          }
+        }
+      }
+    },
+    "frame.presentation.guided": {
+      "comment": "顶部实验模式切换：根据场景提示进行实验；原设计方案 3。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guided"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "引导实验"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تجربة موجّهة"
+          }
+        }
+      }
+    },
+    "frame.presentation.label": {
+      "comment": "顶部模式切换控件的可访问名称，与场景内部的选项分段区分。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Experiment mode"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实验模式"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نمط التجربة"
+          }
+        }
+      }
+    },
+    "frame.previous": {
+      "comment": "引导实验上一场景按钮的可访问名称。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous experiment"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上一个实验"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التجربة السابقة"
+          }
+        }
+      }
+    },
+    "frame.next": {
+      "comment": "引导实验下一场景按钮的可访问名称。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next experiment"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下一个实验"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التجربة التالية"
+          }
+        }
+      }
+    },
+    "frame.more": {
+      "comment": "引导实验的更多参数展开入口标题。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More parameters"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多参数"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المزيد من المعلمات"
+          }
+        }
+      }
+    },
+    "frame.expanded": {
+      "comment": "更多参数入口的可访问状态：已展开。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expanded"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已展开"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "موسّع"
+          }
+        }
+      }
+    },
+    "frame.collapsed": {
+      "comment": "更多参数入口的可访问状态：已收起。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapsed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已收起"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مطوي"
+          }
+        }
+      }
+    },
+    "frame.guided.operation": {
+      "comment": "引导实验主要选项区标题，用于非对齐场景。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an experiment option"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择实验选项"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختر خيار التجربة"
+          }
+        }
+      }
+    },
+    "frame.guided.alignment.operation": {
+      "comment": "引导实验九宫格上方的操作标题。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an alignment"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择对齐位置"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختر موضع المحاذاة"
+          }
+        }
+      }
+    },
+    "frame.guided.fixed.heading": {
+      "comment": "引导实验的固定尺寸场景主标题。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give the frame a fixed size"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "给外框一个固定尺寸"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "امنح الإطار حجماً ثابتاً"
+          }
+        }
+      }
+    },
+    "frame.guided.fixed.hint": {
+      "comment": "引导实验的固定尺寸场景观察提示；保留其中的 API 标识及方向语义。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an axis, then resize the container. Compare the frame and content measurements."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择尺寸轴，再调整容器，对比外框与内容的实测尺寸。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختر محوراً، ثم غيّر حجم الحاوية وقارن قياسات الإطار والمحتوى."
+          }
+        }
+      }
+    },
+    "frame.guided.bounds.heading": {
+      "comment": "引导实验的最小／最大边界场景主标题。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Observe the minimum and maximum"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "观察尺寸如何受到边界约束"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "راقب الحد الأدنى والأقصى للحجم"
+          }
+        }
+      }
+    },
+    "frame.guided.bounds.hint": {
+      "comment": "引导实验的最小／最大边界场景观察提示；保留其中的 API 标识及方向语义。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change the container size to see when the frame reaches its minimum or maximum."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "调整容器，观察外框何时达到最小或最大尺寸。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "غيّر حجم الحاوية لترى متى يصل الإطار إلى حده الأدنى أو الأقصى."
+          }
+        }
+      }
+    },
+    "frame.guided.ideal.heading": {
+      "comment": "引导实验的理想尺寸场景主标题。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find out when ideal sizes apply"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看看理想尺寸何时生效"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اكتشف متى يُستخدم الحجم المثالي"
+          }
+        }
+      }
+    },
+    "frame.guided.ideal.hint": {
+      "comment": "引导实验的理想尺寸场景观察提示；保留其中的 API 标识及方向语义。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compare a finite proposal with an unspecified proposal introduced by fixedSize."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对比有限尺寸建议与 fixedSize 带来的未指定尺寸建议。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "قارن اقتراحاً محدوداً باقتراح غير محدد يتيحه fixedSize."
+          }
+        }
+      }
+    },
+    "frame.guided.fill.heading": {
+      "comment": "引导实验的撑满空间场景主标题。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let the frame fill the container"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "让外框撑满可用空间"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "دع الإطار يملأ الحاوية"
+          }
+        }
+      }
+    },
+    "frame.guided.fill.hint": {
+      "comment": "引导实验的撑满空间场景观察提示；保留其中的 API 标识及方向语义。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose one or both axes. Expand More parameters to compare resizable content."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择水平或双轴撑满，展开更多参数，对比内容拉伸前后的变化。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختر محوراً واحداً أو المحورين. افتح المزيد من المعلمات لمقارنة المحتوى القابل للتمديد."
+          }
+        }
+      }
+    },
+    "frame.guided.alignment.heading": {
+      "comment": "引导实验的对齐场景主标题。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Place content where you want it"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "让内容停在你指定的位置"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ضع المحتوى في الموضع الذي تريده"
+          }
+        }
+      }
+    },
+    "frame.guided.alignment.hint": {
+      "comment": "引导实验的对齐场景观察提示；保留其中的 API 标识及方向语义。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try the nine positions. Leading and trailing follow the layout direction."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切换九个位置，观察内容移动。前缘与后缘跟随布局方向。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جرّب المواضع التسعة. تتبع البداية والنهاية اتجاه التخطيط."
+          }
+        }
+      }
+    },
+    "frame.guided.composition.heading": {
+      "comment": "引导实验的链式组合场景主标题。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Explore how modifier order matters"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "观察修饰符顺序带来的变化"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اكتشف تأثير ترتيب المعدلات"
+          }
+        }
+      }
+    },
+    "frame.guided.composition.hint": {
+      "comment": "引导实验的链式组合场景观察提示；保留其中的 API 标识及方向语义。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compare mixed frames and padding order. Total includes the outer padding."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对比混合 frame 和留白顺序；整体尺寸包含外层留白。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "قارن الإطارات المختلطة وترتيب الحشو. يشمل الإجمالي الحشو الخارجي."
+          }
+        }
+      }
+    },
+    "demo.frame.title": {
+      "comment": "首页入口与导航栏标题，frame 指布局 API。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frame Lab"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frame 实验室"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مختبر Frame"
+          }
+        }
+      }
+    },
+    "frame.heading": {
+      "comment": "自由实验的页面主标题，强调 frame 外框和内部内容的边界。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See the frame boundaries"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见 frame 的边界"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "شاهد حدود frame"
+          }
+        }
+      }
+    },
+    "frame.intro": {
+      "comment": "自由实验主标题下的操作引导。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resize the container and watch the frame and content respond."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "调整容器，观察外框与内容如何变化。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "غيّر حجم الحاوية وشاهد استجابة الإطار والمحتوى."
+          }
+        }
+      }
+    },
+    "frame.width": {
+      "comment": "容器宽度滑块标题与可访问名称，当前值以可用宽度百分比显示。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Container width"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "容器宽度"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عرض الحاوية"
+          }
+        }
+      }
+    },
+    "frame.height": {
+      "comment": "容器高度滑块标题与可访问名称，当前值以 pt 显示。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Container height"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "容器高度"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ارتفاع الحاوية"
+          }
+        }
+      }
+    },
+    "frame.stretch": {
+      "comment": "内容拉伸开关标题与可访问名称，保留 API 名 resizable。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stretch content · resizable"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拉伸内容 · resizable"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تمديد المحتوى · resizable"
+          }
+        }
+      }
+    },
+    "frame.code": {
+      "comment": "代码卡片标题。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current code"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前代码"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الكود الحالي"
+          }
+        }
+      }
+    },
+    "frame.copy": {
+      "comment": "复制代码按钮的可访问名称。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy code"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制代码"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نسخ الكود"
+          }
+        }
+      }
+    },
+    "frame.copied": {
+      "comment": "复制成功后的可访问值及辅助功能播报文案。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code copied"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "代码已复制"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم نسخ الكود"
+          }
+        }
+      }
+    },
+    "frame.reset": {
+      "comment": "导航栏重置按钮的可访问名称；仅重置当前实验模式。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset experiment"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置实验"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إعادة ضبط التجربة"
+          }
+        }
+      }
+    },
+    "frame.container": {
+      "comment": "灰色虚线图例及实测读数中的容器名称。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Container"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "容器"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحاوية"
+          }
+        }
+      }
+    },
+    "frame.outer": {
+      "comment": "蓝色边界图例及实测读数中的 frame 包装层名称，保留 API 名 frame。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "frame"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "frame"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "frame"
+          }
+        }
+      }
+    },
+    "frame.content": {
+      "comment": "橙色图例及实测读数中的内部内容名称。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Content"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内容"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المحتوى"
+          }
+        }
+      }
+    },
+    "frame.result": {
+      "comment": "链式实验最终布局的实测读数名称，包含外层 padding。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "整体"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الإجمالي"
+          }
+        }
+      }
+    },
+    "frame.fixed.title": {
+      "comment": "固定尺寸场景在场景菜单中的名称。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed size"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "固定尺寸"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حجم ثابت"
+          }
+        }
+      }
+    },
+    "frame.fixed.detail": {
+      "comment": "固定尺寸场景代码下方的原理说明；保留 API 标识和尺寸数值。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "frame sets the outer size. The content keeps its natural size unless resizable is enabled."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "frame 决定外框，内容保留自身尺寸；开启 resizable 后，内容接受尺寸建议。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يحدد frame حجم الإطار. يحتفظ المحتوى بحجمه الطبيعي ما لم يتم تفعيل resizable."
+          }
+        }
+      }
+    },
+    "frame.bounds.title": {
+      "comment": "最小／最大边界场景在场景菜单中的名称。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Minimum & maximum"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最小／最大尺寸"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحد الأدنى والأقصى"
+          }
+        }
+      }
+    },
+    "frame.bounds.detail": {
+      "comment": "最小／最大边界场景代码下方的原理说明；保留 API 标识和尺寸数值。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Width limits: 100–240 pt. Height limits: 48–120 pt. Resize the container to observe the bounds."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "宽度边界 100～240 pt，高度边界 48～120 pt。调整容器，观察外框如何响应约束。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حدود العرض 100–240 pt وحدود الارتفاع 48–120 pt. غيّر حجم الحاوية لمراقبة الحدود."
+          }
+        }
+      }
+    },
+    "frame.ideal.title": {
+      "comment": "理想尺寸场景在场景菜单中的名称。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ideal size"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "理想尺寸"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحجم المثالي"
+          }
+        }
+      }
+    },
+    "frame.ideal.detail": {
+      "comment": "理想尺寸场景代码下方的原理说明；保留 API 标识和尺寸数值。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finite proposals take priority. An outer fixedSize removes the proposal so idealWidth / idealHeight can take effect."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有限尺寸建议优先。外层 fixedSize 移除对应轴的尺寸建议后，idealWidth / idealHeight 才会生效。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الأولوية للاقتراح المحدود. يزيل fixedSize الخارجي الاقتراح لتفعيل idealWidth وidealHeight."
+          }
+        }
+      }
+    },
+    "frame.fill.title": {
+      "comment": "撑满空间场景在场景菜单中的名称。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fill available space"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撑满空间"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ملء المساحة"
+          }
+        }
+      }
+    },
+    "frame.fill.detail": {
+      "comment": "撑满空间场景代码下方的原理说明；保留 API 标识和尺寸数值。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "maxWidth / maxHeight: .infinity expands the frame. Toggle resizable to compare the content size."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "maxWidth / maxHeight: .infinity 让外框撑满可用空间。切换 resizable，对比内容尺寸。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يوسّع maxWidth / maxHeight: .infinity الإطار. بدّل resizable لمقارنة حجم المحتوى."
+          }
+        }
+      }
+    },
+    "frame.alignment.title": {
+      "comment": "对齐场景在场景菜单中的名称。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alignment"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对齐"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المحاذاة"
+          }
+        }
+      }
+    },
+    "frame.alignment.detail": {
+      "comment": "对齐场景代码下方的原理说明；保留 API 标识和尺寸数值。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alignment positions the content within the frame. Leading and trailing follow the layout direction."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "alignment 决定内容在外框中的位置。leading / trailing 跟随布局方向。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحدد alignment موضع المحتوى داخل الإطار. يتبع leading وtrailing اتجاه التخطيط."
+          }
+        }
+      }
+    },
+    "frame.composition.title": {
+      "comment": "链式组合场景在场景菜单中的名称。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifier order"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "链式组合"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ترتيب المعدلات"
+          }
+        }
+      }
+    },
+    "frame.composition.detail": {
+      "comment": "链式组合场景代码下方的原理说明；保留 API 标识和尺寸数值。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chain fixed and flexible frames. Compare padding before and after frame; Total includes the outer padding."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "链式组合固定与弹性 frame。对比 padding 的先后顺序；「整体」尺寸包含外层留白。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اربط الإطارات الثابتة والمرنة. قارن padding قبل frame وبعده؛ يشمل الإجمالي الحشو الخارجي."
+          }
+        }
+      }
+    },
+    "frame.option.widthOnly": {
+      "comment": "场景主要选项的分段／菜单标题；选项顺序由 FrameLabScenario.optionKeys 决定。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Width"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅宽度"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "العرض"
+          }
+        }
+      }
+    },
+    "frame.option.heightOnly": {
+      "comment": "场景主要选项的分段／菜单标题；选项顺序由 FrameLabScenario.optionKeys 决定。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Height"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅高度"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الارتفاع"
+          }
+        }
+      }
+    },
+    "frame.option.both": {
+      "comment": "场景主要选项的分段／菜单标题；选项顺序由 FrameLabScenario.optionKeys 决定。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Both"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "双轴"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المحوران"
+          }
+        }
+      }
+    },
+    "frame.option.minimum": {
+      "comment": "场景主要选项的分段／菜单标题；选项顺序由 FrameLabScenario.optionKeys 决定。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Minimum"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅最小"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الأدنى"
+          }
+        }
+      }
+    },
+    "frame.option.maximum": {
+      "comment": "场景主要选项的分段／菜单标题；选项顺序由 FrameLabScenario.optionKeys 决定。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maximum"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅最大"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الأقصى"
+          }
+        }
+      }
+    },
+    "frame.option.range": {
+      "comment": "场景主要选项的分段／菜单标题；选项顺序由 FrameLabScenario.optionKeys 决定。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Min + max"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "范围"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "النطاق"
+          }
+        }
+      }
+    },
+    "frame.option.finite": {
+      "comment": "场景主要选项的分段／菜单标题；选项顺序由 FrameLabScenario.optionKeys 决定。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finite proposal"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有限建议"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اقتراح محدود"
+          }
+        }
+      }
+    },
+    "frame.option.unspecified": {
+      "comment": "场景主要选项的分段／菜单标题；选项顺序由 FrameLabScenario.optionKeys 决定。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unspecified"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未指定"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "غير محدد"
+          }
+        }
+      }
+    },
+    "frame.option.horizontal": {
+      "comment": "场景主要选项的分段／菜单标题；选项顺序由 FrameLabScenario.optionKeys 决定。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Horizontal"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "水平"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أفقي"
+          }
+        }
+      }
+    },
+    "frame.option.mixed": {
+      "comment": "场景主要选项的分段／菜单标题；选项顺序由 FrameLabScenario.optionKeys 决定。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mixed axes"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "混合轴"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "محاور مختلطة"
+          }
+        }
+      }
+    },
+    "frame.option.paddingFirst": {
+      "comment": "场景主要选项的分段／菜单标题；选项顺序由 FrameLabScenario.optionKeys 决定。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Padding first"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先留白"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحشو أولاً"
+          }
+        }
+      }
+    },
+    "frame.option.frameFirst": {
+      "comment": "场景主要选项的分段／菜单标题；选项顺序由 FrameLabScenario.optionKeys 决定。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frame first"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先 frame"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الإطار أولاً"
+          }
+        }
+      }
+    },
+    "frame.alignment.topLeading": {
+      "comment": "逻辑对齐位置 topLeading 的菜单、九宫格可访问名称与说明；leading／trailing 随 RTL 镜像，不应固定翻译为左／右。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Top leading"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顶部前缘"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أعلى البداية"
+          }
+        }
+      }
+    },
+    "frame.alignment.top": {
+      "comment": "逻辑对齐位置 top 的菜单、九宫格可访问名称与说明；leading／trailing 随 RTL 镜像，不应固定翻译为左／右。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Top"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顶部居中"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أعلى الوسط"
+          }
+        }
+      }
+    },
+    "frame.alignment.topTrailing": {
+      "comment": "逻辑对齐位置 topTrailing 的菜单、九宫格可访问名称与说明；leading／trailing 随 RTL 镜像，不应固定翻译为左／右。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Top trailing"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顶部后缘"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أعلى النهاية"
+          }
+        }
+      }
+    },
+    "frame.alignment.leading": {
+      "comment": "逻辑对齐位置 leading 的菜单、九宫格可访问名称与说明；leading／trailing 随 RTL 镜像，不应固定翻译为左／右。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leading"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前缘居中"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "وسط البداية"
+          }
+        }
+      }
+    },
+    "frame.alignment.center": {
+      "comment": "逻辑对齐位置 center 的菜单、九宫格可访问名称与说明；leading／trailing 随 RTL 镜像，不应固定翻译为左／右。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Center"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "居中"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الوسط"
+          }
+        }
+      }
+    },
+    "frame.alignment.trailing": {
+      "comment": "逻辑对齐位置 trailing 的菜单、九宫格可访问名称与说明；leading／trailing 随 RTL 镜像，不应固定翻译为左／右。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trailing"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后缘居中"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "وسط النهاية"
+          }
+        }
+      }
+    },
+    "frame.alignment.bottomLeading": {
+      "comment": "逻辑对齐位置 bottomLeading 的菜单、九宫格可访问名称与说明；leading／trailing 随 RTL 镜像，不应固定翻译为左／右。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bottom leading"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "底部前缘"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أسفل البداية"
+          }
+        }
+      }
+    },
+    "frame.alignment.bottom": {
+      "comment": "逻辑对齐位置 bottom 的菜单、九宫格可访问名称与说明；leading／trailing 随 RTL 镜像，不应固定翻译为左／右。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bottom"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "底部居中"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أسفل الوسط"
+          }
+        }
+      }
+    },
+    "frame.alignment.bottomTrailing": {
+      "comment": "逻辑对齐位置 bottomTrailing 的菜单、九宫格可访问名称与说明；leading／trailing 随 RTL 镜像，不应固定翻译为左／右。",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bottom trailing"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "底部后缘"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أسفل النهاية"
+          }
+        }
+      }
+    },
     "containerRelativeSize.longText": {
       "extractionState": "manual",
       "localizations": {
