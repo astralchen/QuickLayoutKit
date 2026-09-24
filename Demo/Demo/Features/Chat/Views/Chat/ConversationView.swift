@@ -139,10 +139,11 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     private var debugScrollGesture = 0
     #endif
 
-    /// Debug 默认输出滚动诊断；只读取现有几何，不调用布局或锚点捕获，避免日志改变时序。
+    /// 显式开启聊天诊断后只读取现有几何，不调用布局或锚点捕获，避免日志改变时序。
     /// 不输出消息正文、附件地址或草稿内容。Release 不生成诊断输出。
     func debugLogScroll(_ event: String, detail: @autoclosure () -> String = "") {
         #if DEBUG
+        guard ChatDiagnostics.isEnabled else { return }
         debugScrollSequence &+= 1
         let list = collectionView
         let pan = list.panGestureRecognizer
@@ -156,7 +157,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
             }
             return "id=\(String(describing: id)) frame=\(cell.frame) screenY=\(cell.frame.minY - list.contentOffset.y)"
         } ?? "none"
-        print("[ChatScroll] t=\(String(format: "%.4f", ProcessInfo.processInfo.systemUptime)) view=\(ObjectIdentifier(self)) n=\(debugScrollSequence) gesture=\(debugScrollGesture) event=\(event) "
+        ChatDiagnostics.log("[ChatScroll] t=\(String(format: "%.4f", ProcessInfo.processInfo.systemUptime)) view=\(ObjectIdentifier(self)) n=\(debugScrollSequence) gesture=\(debugScrollGesture) event=\(event) "
             + "offset=\(list.contentOffset) size=\(list.contentSize) bounds=\(list.bounds.size) rangeY=\(minimum)...\(maximum) "
             + "inset=\(list.contentInset) adjusted=\(list.adjustedContentInset) safe=\(list.safeAreaInsets) viewport=\(viewportInsets) "
             + "tracking=\(list.isTracking) dragging=\(list.isDragging) decelerating=\(list.isDecelerating) pan=\(pan.state.rawValue) translation=\(pan.translation(in: list)) "

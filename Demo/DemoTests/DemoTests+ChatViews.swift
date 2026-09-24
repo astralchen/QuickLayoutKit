@@ -44,16 +44,24 @@ extension DemoTests {
         let composer = controller.composerView
         let original = composer.convert(composer.bounds, to: window)
         controller.applyAudioComposerState(.dictating(text: "one\ntwo\nthree\nfour"))
-        try await Task.sleep(for: .milliseconds(50))
+        try await waitForChatAnimation("听写输入栏应出现展开中间帧") {
+            guard let layer = composer.layer.presentation() else { return false }
+            return layer.bounds.height > original.height && layer.bounds.height < composer.bounds.height
+        }
         let growing = try #require(composer.layer.presentation())
         #expect(growing.bounds.height > original.height)
         #expect(growing.bounds.height < composer.bounds.height)
         #expect(abs(growing.convert(growing.bounds, to: nil).maxY - original.maxY) < 1)
         controller.applyAudioComposerState(.idle)
-        try await Task.sleep(for: .milliseconds(300))
+        try await waitForChatAnimation("听写结束后输入栏应完成布局动画") {
+            composer.layer.animationKeys()?.isEmpty != false
+        }
         let expandedHeight = composer.bounds.height
         #expect(!composer.validateAudioRecordingRequest())
-        try await Task.sleep(for: .milliseconds(50))
+        try await waitForChatAnimation("录音不可用提示应出现收起中间帧") {
+            guard let layer = composer.layer.presentation() else { return false }
+            return layer.bounds.height < expandedHeight && layer.bounds.height > composer.bounds.height
+        }
         let shrinking = try #require(composer.layer.presentation())
         let height = shrinking.bounds.height
         #expect(height < expandedHeight && height > composer.bounds.height)
@@ -65,11 +73,15 @@ extension DemoTests {
         #expect(abs(continued - height) < 3)
         // 恢复尚未完成再次显示提示，旧 completion 不可隐藏新的提示。
         #expect(!composer.validateAudioRecordingRequest())
-        try await Task.sleep(for: .milliseconds(300))
+        try await waitForChatAnimation("再次显示提示后应完成当前动画") {
+            composer.layer.animationKeys()?.isEmpty != false
+        }
         #expect(!composer.recordingUnavailableLabel.isHidden)
         #expect(composer.recordingUnavailableLabel.alpha == 1)
         composer.dismissRecordingUnavailableHint()
-        try await Task.sleep(for: .milliseconds(300))
+        try await waitForChatAnimation("取消提示后应隐藏提示并完成高度恢复") {
+            composer.recordingUnavailableLabel.isHidden && composer.layer.animationKeys()?.isEmpty != false
+        }
         #expect(composer.recordingUnavailableLabel.isHidden)
         #expect(abs(composer.bounds.height - expandedHeight) < 0.5)
         #expect(composer.textView.text == "one\ntwo\nthree\nfour")
@@ -114,7 +126,12 @@ extension DemoTests {
         let composer = controller.composerView
         let original = composer.convert(composer.bounds, to: window)
         controller.applyAudioComposerState(.recording(elapsed: 0, waveform: [0.1]))
-        try await Task.sleep(for: .milliseconds(50))
+        try await waitForChatAnimation("录音面板应同时出现高度和透明度中间帧") {
+            guard let layer = composer.layer.presentation(),
+                  let opacity = composer.recordingGlassView.layer.presentation()?.opacity else { return false }
+            return layer.bounds.height > original.height && layer.bounds.height < composer.bounds.height
+                && opacity > 0 && opacity < 1
+        }
         let during = try #require(composer.layer.presentation())
         #expect(during.bounds.height > original.height)
         #expect(during.bounds.height < composer.bounds.height)
@@ -123,7 +140,10 @@ extension DemoTests {
         #expect(composer.inputGlassView.alpha == 0)
         let recordOpacity = try #require(composer.recordingGlassView.layer.presentation()).opacity
         #expect(recordOpacity > 0 && recordOpacity < 1)
-        try await Task.sleep(for: .milliseconds(300))
+        try await waitForChatAnimation("录音面板应完成动画后再检查计量更新") {
+            composer.layer.animationKeys()?.isEmpty != false
+                && composer.inputGlassView.layer.animationKeys()?.isEmpty != false
+        }
         controller.applyAudioComposerState(.recording(elapsed: 1, waveform: [0.3, 0.5]))
         #expect(composer.layer.animationKeys()?.isEmpty != false)
         #expect(composer.inputGlassView.layer.animationKeys()?.isEmpty != false)
@@ -131,11 +151,17 @@ extension DemoTests {
         let attachment = AudioAttachment(fileURL: URL(fileURLWithPath: "/tmp/animation-preview.m4a"),
                                          duration: 2, waveform: [0.1, 0.4])
         controller.applyAudioComposerState(.audioPreview(attachment: attachment, isPlaying: false, progress: 0))
-        try await Task.sleep(for: .milliseconds(50))
+        try await waitForChatAnimation("音频预览应出现淡入中间帧") {
+            guard let opacity = composer.previewGlassView.layer.presentation()?.opacity else { return false }
+            return opacity > 0 && opacity < 1
+        }
         let previewOpacity = try #require(composer.previewGlassView.layer.presentation()).opacity
         #expect(previewOpacity > 0 && previewOpacity < 1)
         controller.applyAudioComposerState(.idle)
-        try await Task.sleep(for: .milliseconds(350))
+        try await waitForChatAnimation("取消音频预览后应移除退出面板并完成高度恢复") {
+            composer.recordingGlassView.superview == nil && composer.previewGlassView.superview == nil
+                && composer.layer.animationKeys()?.isEmpty != false
+        }
         #expect(composer.composerState == .idle)
         #expect(composer.inputGlassView.alpha == 1)
         #expect(composer.recordingGlassView.superview == nil)
@@ -691,4 +717,19 @@ private func layoutCell(
     cell.frame = CGRect(origin: .zero, size: fittedAttributes.size)
     cell.setNeedsLayout()
     cell.layoutIfNeeded()
+}
+
+/// 观察实际呈现状态与退场回调；固定 sleep 无法保证渲染事务已提交或完成。
+/// 保留中间帧断言，超时仍失败，不把缺少动画或残留视图当作成功。
+@MainActor
+private func waitForChatAnimation(
+    _ description: String,
+    until condition: @MainActor () -> Bool
+) async throws {
+    CATransaction.flush()
+    let deadline = CACurrentMediaTime() + 2
+    while !condition(), CACurrentMediaTime() < deadline {
+        try await Task.sleep(nanoseconds: 8_000_000)
+    }
+    try #require(condition(), Comment(rawValue: description))
 }

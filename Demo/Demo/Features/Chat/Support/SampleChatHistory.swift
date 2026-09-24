@@ -91,7 +91,9 @@ enum SampleChatHistory {
                 created.removeSubrange(start...)
                 try Task.checkCancellation()
                 if error is CancellationError { throw error }
-                logger.error("[SampleChatHistory] \(name, privacy: .public): \(String(describing: error), privacy: .public)")
+                if ChatDiagnostics.isEnabled {
+                    logger.error("[SampleChatHistory] \(name, privacy: .public): \(String(describing: error), privacy: .public)")
+                }
             }
         }
         samples += pair(.attachment(.link(.init(url: URL(string: "https://www.apple.com")!, title: linkTitle))))

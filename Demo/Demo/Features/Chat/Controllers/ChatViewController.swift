@@ -305,7 +305,9 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
                 } catch is CancellationError {
                     // 页面退出属于正常取消，导入器负责回收部分文件。
                 } catch {
-                    Self.logger.error("[AttachmentPreviewFixture] import failed: \(String(describing: error), privacy: .public)")
+                    if ChatDiagnostics.isEnabled {
+                        Self.logger.error("[AttachmentPreviewFixture] import failed: \(String(describing: error), privacy: .public)")
+                    }
                 }
             }
         }

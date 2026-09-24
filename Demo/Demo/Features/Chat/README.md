@@ -4,6 +4,10 @@
 
 该模块仅用于本地界面和交互演示，不接入上传或真实消息服务；添加网页链接时通过系统 Link Presentation 获取公开网页元数据。每次进入页面都会创建新的 `ChatViewModel`、页面附件存储与音频控制器，恢复与联系人 Alex 的固定示例会话。消息时间线和已发送附件只在本次页面生命周期内有效；未发送草稿独立保存在本机，支持离开页面及 App 重启后恢复。
 
+## 调试日志
+
+在 Xcode 的 Scheme → Run → Arguments → Arguments Passed On Launch 中添加并勾选 `-chat-debug-logs` 和 `true` 两项，才会输出 `[ChatScroll]` 等聊天诊断日志。未传参数、仅传参数名、值为 `false` 或其他值时不输出；Release 始终关闭。开关只读取本次进程参数，不会保存到用户偏好。滚动日志使用 `OSLog.Logger`，可在控制台按 `ChatScroll` 筛选。
+
 ## 草稿自动保存
 
 正常入口按 `demo.chat` 会话标识保存一份草稿，不增加草稿列表。`ChatViewController` 的注入初始化支持 `conversationID` 和 `draftStore`；注入入口默认关闭持久化，避免测试共享用户数据。草稿 UI 测试使用 `-chat-draft-session <独立标识>`，可与既有媒体 fixture 参数组合。
