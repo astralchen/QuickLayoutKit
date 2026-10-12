@@ -914,6 +914,90 @@ xcodebuild -workspace QuickLayoutKit.xcworkspace -scheme Demo \
 模拟器名称请按本机已安装的设备调整。编译、
 单元测试、界面测试、模拟器运行和真机验证属于不同验证层级，应分别记录结果。
 
+## 二维几何查询与 iPhone Duo
+
+`GeometryProxy` 是布局应用后的不可变 `Sendable` 快照。`transform` 不访问实时 UIKit 状态，
+可把几何数据转换为业务需要的 `Equatable & Sendable` 值；不要把不断变化的完整快照用于
+不需要逐帧更新的业务。尺寸测量不会发送通知，首次应用会回调一次，后续只在转换结果变化时回调。
+
+```swift
+card.resizable()
+    .onGeometryChange(for: CGRect.self) { proxy in
+        proxy.frame(in: .named("content"))
+    } action: { oldFrame, newFrame in
+        // 首次调用 oldFrame == newFrame。
+    }
+    .coordinateSpace(.named("content"))
+```
+
+坐标空间支持 `.local`、`.global`、`.named(...)`、`.scrollView` 和 `.scrollView(axis:)`。
+名称需要满足 `Hashable & Sendable`；最近的同名祖先作用域生效，纯布局元素也可以声明空间。
+`frame(in:)` 将元素边界转换到目标坐标空间；`bounds(of:)` 则把目标空间边界转换回元素的局部空间。
+找不到空间时，前者使用全局空间，后者返回 `nil`。全局空间以当前 UIKit 窗口为参考，窗口之间不互相解析。
+QuickLayout 滚动容器使用声明的滚动轴，普通 `UIScrollView` 使用可滚动范围及对应 bounce 设置识别轴。
+几何坐标使用 UIKit 的二维方向：x 向右、y 向下；当前元素的 `.local` 原点归零。
+坐标查询不会因为 RTL 自动镜像。Anchor 的固定点/矩形使用来源坐标，单位点的 leading/trailing
+遵循来源方向：UIView 使用有效 UIKit 方向，纯布局绑定使用 QuickLayout 方向。
+
+原生 Anchor 不依赖 SwiftUI 的 Preference 系统。UIView 可以调用 `geometryAnchor(.bounds)`；
+纯布局先保存一个稳定的 `Anchor<CGRect>(.bounds)`，再以 `.geometryAnchor(anchor)` 绑定元素。
+在 `transform` 中使用 `proxy[anchor]` 或 `proxy.resolve(anchor)` 查询。下标要求来源仍在当前有效视图树中；
+来源可能已卸载或迁移到其他窗口时使用 `resolve(_:)`，它会返回 `nil`。支持矩形、点、单位点和数组/可选 Source。
+不要在每次 body 重建时创建新的 Anchor；旧快照冻结当时的坐标，不会随来源视图移动而变化。
+
+```swift
+let marker = Anchor<CGRect>(.bounds) // 由宿主持有
+// body:
+content.geometryAnchor(marker)
+// onGeometryChange 的 transform 中：
+let markerFrame = proxy.resolve(marker)
+```
+
+容器信息通过 `.geometryContainer(GeometryContainerValues(...))` 显式提供，该修饰符不修改绘制和布局。
+每个字段分别使用最近的非 nil 祖先配置。`contentMargins` 未配置时，查询最近 UIKit 宿主的 `layoutMarginsGuide`；
+这与滚动容器 `.contentMargins(..., for: .scrollContent)` 的配置入口不同，后者的既有行为保持不变。
+
+| 查询 | 最低系统 | 原生数据来源 |
+|---|---|---|
+| `size`、`safeAreaInsets`、坐标空间、Anchor | iOS 15 | 已应用布局及 UIKit 视图树 |
+| `containerCornerInsets` | iOS 26 | 显式声明的四角区域与当前元素的重叠；未提供时为零 |
+| `concentricCornerRadii`、`concentricCornerRadii(in:)` | iOS 27 | 显式圆角或 UIKit 可确认的有效圆角；缺少来源时为 nil |
+| `contentMargins(for: .container, edges:)` | iOS 27.1 | 声明的容器内容范围或宿主布局边距；未选择的边缘为零 |
+| `reservedRegions(kind:options:layoutDirectionBehavior:)` | iOS 27.1 | UIKit 真实系统保留区域 |
+
+圆角查询不读取私有屏幕参数，也不根据安全区推算设备圆角。原生同心圆角使用相邻边中较大的内缩距离，
+结果限制在查询矩形短边的一半；它不实现 SwiftUI 任意 `Shape` 的几何推导。
+容器圆角元数据以查询坐标中的点值使用，适合轴对齐容器；跨缩放或旋转容器时不保证系统形状的同心性。
+UIKit 的有效圆角无法完整表达 SwiftUI 的窗口控件等系统角内缩，调用方需要时应显式提供元数据。
+这些边界意味着调用形式和可用的二维几何语义对齐，并不保证所有 SwiftUI 系统容器返回完全相同的数值。
+
+```swift
+if #available(iOS 27.1, *) {
+    canvas.onGeometryChange(for: [ReservedRegion].self) { proxy in
+        proxy.reservedRegions(
+            kind: .division,
+            options: .includeInactive,
+            layoutDirectionBehavior: .fixed
+        )
+    } action: { regions in
+        // 根据 isActive 决定是否避让；frame 已包含 margins，不要再次 inset。
+    }
+}
+```
+
+`.occlusion` 表示遮挡，`.division` 表示分隔；默认只返回活动区域，`.includeInactive` 可以查询非活动区域。
+区域 ID 映射系统的稳定值标识，不使用位置或数组下标。镜像默认在 RTL 下执行；`.fixed` 保留 UIKit 物理坐标，
+`.mirrors(in:)` 指定执行镜像的布局方向。按物理坐标在 UIKit 上绘制区域时应使用 `.fixed`。
+
+观察器会响应布局、安全区、方向、边距、窗口迁移、滚动及 Duo 区域变化。每个活动窗口共享一个显示链接，
+用来发现祖先移动等未触发子视图布局的变化；几何不变时不会再次执行 transform，结果相等时不会执行 action。
+进入后台或移除最后一个观察者后停止显示链接。action 造成的重入会合并到后续更新。
+
+Demo 的“几何观察”入口提供坐标空间、Anchor、容器和 Duo 四组实验，支持调整内容宽度、边距、RTL 和查询选项。
+容器场景使用显式数据；Duo 场景只展示真实系统结果，空列表表示当前画布没有相交的保留区域，不能据此推断设备没有该区域。
+同时导入 SwiftUI 时，可使用 `QuickLayoutKitCore.GeometryProxy`、`QuickLayoutKitCore.Anchor` 等模块限定名消除同名类型歧义。
+自动化结果、已知基线失败及设备姿态验证边界见 [二维几何验证记录](Docs/GeometryValidation.md)。
+
 ## 许可证
 
 详见 [LICENSE](LICENSE)。

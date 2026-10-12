@@ -27,6 +27,7 @@ public enum QuickLayoutDiagnostics {
     /// 指示是否启用诊断记录的布尔值。
     public static var isEnabled = false
 
+    /// 诊断启用期间记录的布局条目，由清理入口显式重置。
     private static var entries: [Entry] = []
 
     /// 在启用诊断时记录一次布局过程。

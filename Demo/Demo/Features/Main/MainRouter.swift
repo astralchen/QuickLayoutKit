@@ -57,6 +57,8 @@ final class MainRouter: MainRouting {
             FrameLabViewController()
         case .containerRelativeSize:
             ContainerRelativeSizeDemoViewController()
+        case .geometry:
+            GeometryDemoViewController()
         case .profile:
             ProfileViewController()
         case .counter:

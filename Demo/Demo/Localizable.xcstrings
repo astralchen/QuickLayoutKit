@@ -1,6 +1,420 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "geometry.radius": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asymmetric corner radii"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "非对称圆角半径"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أنصاف أقطار الزوايا غير المتماثلة"
+          }
+        }
+      }
+    },
+    "demo.geometry.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geometry observation"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "几何观察"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مراقبة الأبعاد"
+          }
+        }
+      }
+    },
+    "geometry.spaces": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Size and coordinate spaces"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尺寸与坐标空间"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحجم والإحداثيات"
+          }
+        }
+      }
+    },
+    "geometry.anchors": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anchors"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "锚点"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نقاط الارتكاز"
+          }
+        }
+      }
+    },
+    "geometry.container": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Container geometry"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "容器几何"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أبعاد الحاوية"
+          }
+        }
+      }
+    },
+    "geometry.regions": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duo reserved regions"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duo 保留区域"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المناطق المحجوزة في Duo"
+          }
+        }
+      }
+    },
+    "geometry.width": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Content width · Drag horizontally to scroll"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内容宽度 · 横向拖动可滚动"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عرض المحتوى · اسحب أفقياً للتمرير"
+          }
+        }
+      }
+    },
+    "geometry.margin": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Container and content margins"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "容器与内容边距"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هوامش الحاوية والمحتوى"
+          }
+        }
+      }
+    },
+    "geometry.options": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Query options"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查询选项"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "خيارات الاستعلام"
+          }
+        }
+      }
+    },
+    "geometry.inactive": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include inactive regions"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包含非活动区域"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تضمين المناطق غير النشطة"
+          }
+        }
+      }
+    },
+    "geometry.mirrors": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mirror in RTL"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 RTL 中镜像"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "انعكاس من اليمين إلى اليسار"
+          }
+        }
+      }
+    },
+    "geometry.callbacks": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Callbacks"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回调次数"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عدد الاستدعاءات"
+          }
+        }
+      }
+    },
+    "geometry.requires271": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This query requires iOS 27.1 or later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此查询需要 iOS 27.1 或更高版本。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يتطلب هذا الاستعلام iOS 27.1 أو أحدث."
+          }
+        }
+      }
+    },
+    "geometry.noRegions": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No system reserved regions intersect this canvas."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有系统保留区域与当前画布相交。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا تتقاطع مناطق النظام المحجوزة مع هذه اللوحة."
+          }
+        }
+      }
+    },
+    "geometry.spaces.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resize the content and scroll the page. frame(in:) and bounds(of:) convert in opposite directions."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "调节内容宽度并滚动页面。frame(in:) 与 bounds(of:) 的转换方向相反。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "غيّر عرض المحتوى ومرّر الصفحة. تعمل frame(in:) وbounds(of:) في اتجاهين متعاكسين."
+          }
+        }
+      }
+    },
+    "geometry.anchors.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Orange outlines the layout anchor. Pink marks the UIView center. Scroll to see both follow the source."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "橙框标记纯布局锚点，粉点标记 UIView 中心。滚动时两者跟随来源。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الإطار البرتقالي لمرساة التخطيط والنقطة الوردية لمركز UIView. مرّر لمتابعة المصدر."
+          }
+        }
+      }
+    },
+    "geometry.container.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These are explicitly declared container values, not hardware measurements. Change margins and direction to inspect asymmetric corners."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此处使用显式声明的容器数据，并非硬件测量。调节边距与方向，观察非对称圆角。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هذه قيم معلنة للحاوية وليست قياسات للأجهزة. غيّر الهوامش والاتجاه لفحص الزوايا غير المتناظرة."
+          }
+        }
+      }
+    },
+    "geometry.regions.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Real system results only. Fold, unfold or rotate Duo. Orange shows reserved frames, which already include margins."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅显示真实系统结果。折叠、展开或旋转 Duo；橙框表示已包含 margins 的保留范围。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نتائج النظام الحقيقية فقط. اطوِ Duo أو افتحه أو دوّره. الإطارات البرتقالية تشمل الهوامش بالفعل."
+          }
+        }
+      }
+    },
     "frame.more.stretching": {
       "comment": "更多参数入口的副标题；展开后显示容器宽度和内容拉伸开关。",
       "extractionState": "manual",

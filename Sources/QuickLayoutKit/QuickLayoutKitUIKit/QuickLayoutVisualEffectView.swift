@@ -16,7 +16,9 @@ open class QuickLayoutVisualEffectView:
     QuickLayoutUpdating,
     QuickLayoutEnvironmentUpdating {
 
+    /// 以内联初始化方式提供内容的构建闭包；未设置时由 `body` 的默认实现返回空布局。
     private var contentProvider: (() -> Layout)?
+    /// 记录上一次环境快照，并向宿主合并发布实际环境变化。
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
 
     /// 宿主水平尺寸弹性的显式覆盖值。
@@ -71,6 +73,7 @@ open class QuickLayoutVisualEffectView:
         }
     }
 
+    /// 记录上一次环境快照，并向宿主合并发布实际环境变化。
     open override var semanticContentAttribute: UISemanticContentAttribute {
         didSet {
             guard semanticContentAttribute != oldValue else { return }
@@ -104,11 +107,13 @@ open class QuickLayoutVisualEffectView:
         contentProvider = content
     }
 
+    /// 在窗口归属变化前通知 QuickLayout 桥接层更新宿主。
     open override func willMove(toWindow newWindow: UIWindow?) {
         super.willMove(toWindow: newWindow)
         _QuickLayoutViewImplementation.willMove(self, toWindow: newWindow)
     }
 
+    /// 进入窗口后同步语义方向，并刷新效果宿主的环境快照。
     open override func didMoveToWindow() {
         super.didMoveToWindow()
         guard window != nil else { return }
@@ -116,6 +121,7 @@ open class QuickLayoutVisualEffectView:
         quickLayoutEnvironmentState.update(self)
     }
 
+    /// 将 UIKit 特征变化发布给宿主环境，触发依赖环境的内容更新。
     open override func traitCollectionDidChange(
         _ previousTraitCollection: UITraitCollection?
     ) {
@@ -126,11 +132,13 @@ open class QuickLayoutVisualEffectView:
         )
     }
 
+    /// 将安全区域变化发布给宿主环境。
     open override func safeAreaInsetsDidChange() {
         super.safeAreaInsetsDidChange()
         quickLayoutEnvironmentState.update(self, explicitReason: .safeArea)
     }
 
+    /// 将布局边距变化发布给宿主环境。
     open override func layoutMarginsDidChange() {
         super.layoutMarginsDidChange()
         quickLayoutEnvironmentState.update(
@@ -139,6 +147,7 @@ open class QuickLayoutVisualEffectView:
         )
     }
 
+    /// 同步方向和环境后，在宿主状态与容器作用域中布局效果内容。
     open override func layoutSubviews() {
         synchronizeDirectionIfNeeded()
         super.layoutSubviews()
@@ -154,6 +163,7 @@ open class QuickLayoutVisualEffectView:
         }
     }
 
+    /// 使用最新方向和环境测量效果内容，无法测量时使用父类结果。
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
         synchronizeDirectionIfNeeded()
         quickLayoutEnvironmentState.update(self)
@@ -167,6 +177,7 @@ open class QuickLayoutVisualEffectView:
         }
     }
 
+    /// 优先采用显式轴弹性，否则从内容推导，最后回退到父类。
     open override func quick_flexibility(for axis: Axis) -> Flexibility {
         let explicitFlexibility: Flexibility? = switch axis {
         case .horizontal:
@@ -209,6 +220,7 @@ open class QuickLayoutVisualEffectView:
         setNeedsQuickLayout()
     }
 
+    /// 按效果宿主的语义策略同步容器方向。
     private func synchronizeDirectionIfNeeded() {
         synchronizeQuickLayoutSemanticDirectionIfNeeded(
             for: self,

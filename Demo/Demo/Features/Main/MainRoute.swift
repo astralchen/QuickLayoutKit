@@ -16,6 +16,7 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
     case frame
     case fixedSize
     case containerRelativeSize
+    case geometry
     case profile
     case counter
     case dynamicScroll
@@ -60,6 +61,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "demo.frame.title"
         case .containerRelativeSize:
             "demo.containerRelativeSize.title"
+        case .geometry:
+            "demo.geometry.title"
         case .profile:
             "demo.profile.title"
         case .counter:
@@ -121,6 +124,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "rectangle.dashed"
         case .containerRelativeSize:
             "arrow.up.left.and.arrow.down.right"
+        case .geometry:
+            "viewfinder"
         case .profile:
             "person.crop.circle"
         case .counter:

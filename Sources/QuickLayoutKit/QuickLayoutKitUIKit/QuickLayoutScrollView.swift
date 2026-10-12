@@ -7,6 +7,7 @@
 
 import QuartzCore
 import QuickLayout
+import QuickLayoutKitCore
 import UIKit
 
 /// 沿单一滚动轴排列 QuickLayout 元素的滚动视图。
@@ -36,6 +37,7 @@ open class QuickLayoutScrollView:
         /// 水平内容的语义后缘。
         case trailing
 
+        /// 判断目标边缘是否属于当前单一滚动轴。
         fileprivate func isCompatible(with axis: QuickLayout.Axis) -> Bool {
             switch (self, axis) {
             case (.top, .vertical), (.bottom, .vertical),
@@ -107,16 +109,22 @@ open class QuickLayoutScrollView:
         }
     }
 
+    /// 当前构建器生成的根元素，替换时使滚动布局失效。
     private var contentElements: [Element] = [] {
         didSet {
             setNeedsQuickLayout()
         }
     }
 
+    /// 记录上一次环境快照，并向宿主合并发布实际环境变化。
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
+    /// 等待有效视口与内容尺寸后执行的最近一次滚动请求。
     private var pendingScroll: (edge: Edge, animated: Bool)?
+    /// 边距改变后是否需要在下一次布局恢复内容起点。
     private var needsContentMarginStartPosition = false
+    /// 上次布局结束的调整后边距，用于判断安全区域变化前是否停留在起点。
     private var lastResolvedAdjustedContentInset: UIEdgeInsets?
+    /// 内容和指示器边距的覆盖值及最近应用量。
     let quickLayoutContentMarginState = QuickLayoutContentMarginState()
 
     // MARK: - 初始化
@@ -161,6 +169,7 @@ open class QuickLayoutScrollView:
         configureAxisBehavior()
     }
 
+    /// 进入窗口后同步方向、安全区域边距与环境，并请求重新布局。
     open override func didMoveToWindow() {
         super.didMoveToWindow()
         guard window != nil else { return }
@@ -176,6 +185,7 @@ open class QuickLayoutScrollView:
         setNeedsQuickLayout()
     }
 
+    /// 将 UIKit 特征变化发布给宿主环境，触发依赖环境的内容更新。
     open override func traitCollectionDidChange(
         _ previousTraitCollection: UITraitCollection?
     ) {
@@ -187,6 +197,7 @@ open class QuickLayoutScrollView:
         setNeedsQuickLayout()
     }
 
+    /// 按旧边距记录起点状态，重算边距后在需要时保持内容位于起点。
     open override func safeAreaInsetsDidChange() {
         let previousAdjustedContentInset = lastResolvedAdjustedContentInset
         let wasAtContentStart = previousAdjustedContentInset.map {
@@ -206,6 +217,7 @@ open class QuickLayoutScrollView:
         }
     }
 
+    /// 将布局边距变化发布给宿主环境。
     open override func layoutMarginsDidChange() {
         super.layoutMarginsDidChange()
         quickLayoutEnvironmentState.update(self, explicitReason: .layoutMargins)
@@ -223,6 +235,7 @@ open class QuickLayoutScrollView:
         }
     }
 
+    /// 按滚动轴选择零间距栈，并在交叉轴上居中排列根元素。
     @LayoutBuilder
     private var axisLayout: Layout {
         switch axis {
@@ -276,6 +289,7 @@ open class QuickLayoutScrollView:
         )
     }
 
+    /// 按当前视口测量并应用内容，更新滚动范围后执行起点恢复和待处理滚动请求。
     override open func layoutSubviews() {
         synchronizeQuickLayoutSemanticDirectionIfNeeded(
             for: self,
@@ -352,6 +366,7 @@ open class QuickLayoutScrollView:
         setNeedsQuickLayout()
     }
 
+    /// 垂直滚动从顶部排列，水平滚动从语义前缘排列。
     private var contentAlignment: Alignment {
         switch axis {
         case .vertical:
@@ -361,6 +376,7 @@ open class QuickLayoutScrollView:
         }
     }
 
+    /// 沿滚动轴提供无界建议，交叉轴使用扣除实际边距后的视口长度。
     private var proposedContentSize: CGSize {
         let viewportSize = contentMarginViewportSize
         switch axis {
@@ -371,6 +387,7 @@ open class QuickLayoutScrollView:
         }
     }
 
+    /// 优先使用有限建议，非有限轴回退到当前边界尺寸。
     private func measurementContainerSize(for proposedSize: CGSize) -> CGSize {
         CGSize(
             width: resolvedMeasurementContainerLength(
@@ -384,6 +401,7 @@ open class QuickLayoutScrollView:
         )
     }
 
+    /// 垂直内容以视口宽度测量；水平内容双轴无界以获得自然高度。
     private func measurementContentProposal(
         for containerSize: CGSize
     ) -> CGSize {
@@ -400,6 +418,7 @@ open class QuickLayoutScrollView:
         }
     }
 
+    /// 有限建议优先，否则使用当前容器长度，并将负值归零。
     private func resolvedMeasurementContainerLength(
         proposed: CGFloat,
         current: CGFloat
@@ -410,6 +429,7 @@ open class QuickLayoutScrollView:
         return max(0, current)
     }
 
+    /// 有限建议确定视口长度，未受约束时采用内容测量长度。
     private func resolvedViewportLength(
         proposed: CGFloat,
         fallback: CGFloat
@@ -417,6 +437,7 @@ open class QuickLayoutScrollView:
         proposed.isFinite ? max(0, proposed) : max(0, fallback)
     }
 
+    /// 当前边界扣除调整后内容边距所得的实际视口尺寸。
     private var contentMarginViewportSize: CGSize {
         contentViewportSize(for: bounds.size)
     }
@@ -434,6 +455,7 @@ open class QuickLayoutScrollView:
         )
     }
 
+    /// 区分容器与键盘占用量，向内容发布不小于物理安全区域的边距。
     private var quickLayoutSafeAreaRegionInsets: (
         container: UIEdgeInsets,
         keyboard: UIEdgeInsets
@@ -463,6 +485,7 @@ open class QuickLayoutScrollView:
         return (containerInsets, keyboardInsets)
     }
 
+    /// 滚动轴保留内容测量长度，交叉轴固定为视口长度以维持单轴滚动。
     private func resolvedContentLayoutSize(_ measuredSize: CGSize) -> CGSize {
         let viewportSize = contentMarginViewportSize
         // 子内容可保留自身的固定尺寸，但不能把单轴容器扩展成双轴滚动范围。
@@ -505,6 +528,7 @@ open class QuickLayoutScrollView:
 
     // MARK: - 内部配置
 
+    /// 重置本轮声明的内容边距，再设置轴、指示器及根内容。
     func configure(
         axis: QuickLayout.Axis,
         showsIndicators: Bool,
@@ -516,6 +540,7 @@ open class QuickLayoutScrollView:
         contentElements = content
     }
 
+    /// 用指定或当前边距计算起点，在滚动轴上以半点容差判断是否已到达。
     func quickLayoutIsAtContentStart(
         adjustedContentInset: UIEdgeInsets? = nil
     ) -> Bool {
@@ -533,6 +558,7 @@ open class QuickLayoutScrollView:
         }
     }
 
+    /// 登记恢复内容起点的请求，等待新的边距和布局尺寸可用。
     func quickLayoutKeepContentAtStartAfterMarginChange() {
         needsContentMarginStartPosition = true
         setNeedsQuickLayout()
@@ -554,11 +580,13 @@ open class QuickLayoutScrollView:
         configureIndicators()
     }
 
+    /// 仅在当前滚动轴上按公开开关显示指示器。
     private func configureIndicators() {
         showsVerticalScrollIndicator = showsIndicators && axis == .vertical
         showsHorizontalScrollIndicator = showsIndicators && axis == .horizontal
     }
 
+    /// 尺寸有效时无动画恢复内容起点，并消费本轮恢复请求。
     private func applyContentMarginStartPositionIfPossible() {
         guard needsContentMarginStartPosition else { return }
 
@@ -572,6 +600,7 @@ open class QuickLayoutScrollView:
         )
     }
 
+    /// 目标边缘与轴匹配且尺寸有效时消费延迟滚动请求。
     private func applyPendingScrollIfPossible() {
         guard let pendingScroll,
               pendingScroll.edge.isCompatible(with: axis),
@@ -586,6 +615,7 @@ open class QuickLayoutScrollView:
         )
     }
 
+    /// 要求滚动轴上视口及内容长度均为正，才能解析目标偏移。
     private func canResolveScrollOffset(for edge: Edge) -> Bool {
         switch edge {
         case .top, .bottom:
@@ -595,6 +625,7 @@ open class QuickLayoutScrollView:
         }
     }
 
+    /// 结合内容长度和调整后边距计算目标偏移，保持交叉轴偏移不变。
     private func targetOffset(
         for edge: Edge,
         adjustedContentInset customAdjustedContentInset: UIEdgeInsets? = nil
@@ -614,6 +645,7 @@ open class QuickLayoutScrollView:
         }
     }
 
+    /// 将语义前后缘映射到物理最小或最大水平偏移，处理 RTL 方向。
     private func horizontalOffset(for edge: Edge, inset: UIEdgeInsets) -> CGFloat {
         let minimumX = -inset.left
         let maximumX = max(minimumX, contentSize.width - bounds.width + inset.right)
@@ -629,6 +661,7 @@ open class QuickLayoutScrollView:
         }
     }
 
+    /// 按请求滚动；无动画路径同时禁用隐式动画并清理图层位置动画。
     private func setContentOffset(_ offset: CGPoint, requestedAnimated animated: Bool) {
         guard !animated else {
             setContentOffset(offset, animated: true)
@@ -644,4 +677,9 @@ open class QuickLayoutScrollView:
         }
         CATransaction.commit()
     }
+}
+
+extension QuickLayoutScrollView: GeometryScrollAxisProviding {
+    /// 向 Core 几何查询发布当前显式滚动轴。
+    package var geometryScrollAxis: Axis { axis }
 }

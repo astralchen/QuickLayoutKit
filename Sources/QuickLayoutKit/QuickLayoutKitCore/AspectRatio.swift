@@ -54,16 +54,23 @@ public extension Element {
     }
 }
 
+/// 在测量时解析显式或理想宽高比的布局包装器。
 private struct AspectRatioModifierElement: Layout, _LayoutValueProvidingElement {
 
+    /// 被当前修饰元素包装的布局内容。
     let child: Element
+    /// 显式宽高比；`nil` 表示先测量子元素的理想尺寸。
     let aspectRatio: CGFloat?
+    /// 宽高比约束采用的适应或填充策略。
     let contentMode: ContentMode
 
+    /// 继续向内查询自定义布局值时访问的子元素。
     var _layoutValueChild: Element { child }
 
+    /// 本层不提供布局值，交由查询器继续访问子元素。
     func _layoutValue(for key: ObjectIdentifier) -> _AnyLayoutValue? { nil }
 
+    /// 先确定宽高比，再由 QuickLayout 的宽高比元素完成约束测量。
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode {
         let ratio: CGFloat
         if let aspectRatio {
@@ -82,19 +89,23 @@ private struct AspectRatioModifierElement: Layout, _LayoutValueProvidingElement 
         ).quick_layoutThatFits(proposedSize)
     }
 
+    /// 允许父布局在指定轴上部分调整尺寸。
     func quick_flexibility(for axis: Axis) -> Flexibility {
         .partial
     }
 
+    /// 沿用子元素的布局优先级。
     func quick_layoutPriority() -> CGFloat {
         child.quick_layoutPriority()
     }
 
+    /// 将视图提取转交给子元素，不引入额外 UIKit 视图。
     func quick_extractViewsIntoArray(_ views: inout [UIView]) {
         child.quick_extractViewsIntoArray(&views)
     }
 }
 
+/// 从有限且为正的理想尺寸计算宽高比；无法计算时返回零。
 private func idealAspectRatio(for size: CGSize) -> CGFloat {
     guard size.width > 0,
           size.height > 0,

@@ -11,6 +11,7 @@ import QuickLayout
 /// 测量；约束尺寸或内容变化会使固有尺寸失效。可通过继承的双轴弹性属性配置其他尺寸策略。
 open class QuickLayoutContentView: QuickLayoutView, UIContentView {
 
+    /// 当前类型擦除的 UIKit 内容配置，由公开属性更新并交给子类应用。
     private var storedConfiguration: UIContentConfiguration
 
     /// 该内容视图表示的 UIKit 配置。
@@ -39,6 +40,7 @@ open class QuickLayoutContentView: QuickLayoutView, UIContentView {
             .followEnclosingReusableView
     }
 
+    /// 不支持归档初始化；请使用 `init(configuration:)` 提供初始内容配置。
     @available(*, unavailable, message: "Use init(configuration:) instead.")
     public required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
@@ -62,6 +64,7 @@ open class QuickLayoutContentView: QuickLayoutView, UIContentView {
         )
     }
 
+    /// 将轴弹性转换为固有尺寸测量建议；完全弹性轴使用无界长度。
     private func intrinsicMeasurementLimit(_ length: CGFloat, flexibility: Flexibility) -> CGFloat {
         switch flexibility {
         case .fixedSize:
@@ -73,6 +76,7 @@ open class QuickLayoutContentView: QuickLayoutView, UIContentView {
         }
     }
 
+    /// 容器约束轴发生变化时使固有尺寸失效，确保重新测量自适应内容。
     open override var bounds: CGRect {
         didSet {
             let horizontal = quickLayoutHorizontalFlexibility ?? .fixedSize
@@ -113,6 +117,7 @@ open class QuickLayoutContentView: QuickLayoutView, UIContentView {
         setNeedsQuickLayout()
     }
 
+    /// 按宿主方向策略恢复复用容器的有效方向，返回是否实际修改。
     @discardableResult
     private func synchronizeConfiguredDirectionIfNeeded() -> Bool {
         synchronizeQuickLayoutSemanticDirectionIfNeeded(

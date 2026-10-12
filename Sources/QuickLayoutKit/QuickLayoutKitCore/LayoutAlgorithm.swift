@@ -57,11 +57,19 @@ public protocol LayoutAlgorithm {
 
 public extension LayoutAlgorithm where Cache == Void {
 
+    /// 为无需缓存的布局提供空缓存的默认实现。
+    ///
+    /// - Parameter subviews: 当前子元素集合；默认实现不使用该参数。
     func makeCache(subviews: Subviews) {}
 }
 
 public extension LayoutAlgorithm {
 
+    /// 默认保留现有缓存；需要随子元素变化更新缓存时应自行实现。
+    ///
+    /// - Parameters:
+    ///   - cache: 保持不变的现有缓存。
+    ///   - subviews: 当前子元素集合。
     func updateCache(_ cache: inout Cache, subviews: Subviews) {}
 
     /// 使用该布局算法构建 QuickLayout 元素。
@@ -78,6 +86,8 @@ public extension LayoutAlgorithm {
     }
 }
 
+// MARK: - 子元素代理
+
 /// 自定义布局中子元素代理的随机访问集合。
 public struct LayoutSubviews: RandomAccessCollection {
 
@@ -87,8 +97,10 @@ public struct LayoutSubviews: RandomAccessCollection {
     /// 集合元素的类型。
     public typealias Element = LayoutSubview
 
+    /// 按声明顺序保存的子元素代理。
     private let subviews: [LayoutSubview]
 
+    /// 为每个子元素创建独立放置存储，本次测量内共享代理状态。
     init(children: [QuickLayout.Element]) {
         subviews = children.map { child in
             LayoutSubview(storage: LayoutSubviewStorage(element: child))
@@ -108,6 +120,7 @@ public struct LayoutSubviews: RandomAccessCollection {
         subviews[position]
     }
 
+    /// 清除上一次放置记录，确保新一轮放置不沿用过期坐标。
     func resetPlacements() {
         subviews.forEach { $0.storage.placement = nil }
     }
@@ -116,6 +129,7 @@ public struct LayoutSubviews: RandomAccessCollection {
 /// `LayoutAlgorithm` 用于测量和放置单个子元素的代理。
 public struct LayoutSubview: Equatable {
 
+    /// 代理共享的元素与放置状态，复制代理仍引用同一存储。
     fileprivate let storage: LayoutSubviewStorage
 
     /// 子元素的 QuickLayout 布局优先级。
@@ -170,30 +184,45 @@ public struct LayoutSubview: Equatable {
         )
     }
 
+    /// 比较两个代理是否引用同一份子元素存储。
     public static func == (lhs: LayoutSubview, rhs: LayoutSubview) -> Bool {
         lhs.storage === rhs.storage
     }
 }
 
+// MARK: - 测量与放置存储
+
+/// 将值类型代理连接到同一元素及可变放置记录的引用存储。
 private final class LayoutSubviewStorage {
+    /// 需要测量并放置的原始元素。
     let element: Element
+    /// 本轮最后一次声明的放置信息；尚未放置时为 `nil`。
     var placement: LayoutSubviewPlacement?
 
+    /// 保存原始元素，放置记录初始为空。
     init(element: Element) {
         self.element = element
     }
 }
 
+/// 放置阶段记录的位置、单位锚点和测量建议。
 private struct LayoutSubviewPlacement {
+    /// 锚点在容器中的物理位置。
     let position: CGPoint
+    /// 子元素内部用于对齐位置的单位坐标。
     let anchor: UnitPoint
+    /// 最终测量子元素时使用的建议尺寸。
     let proposal: ProposedSize
 }
 
+/// 跨同一布局元素的多次测量复用缓存，并串行保护访问。
 private final class LayoutAlgorithmCacheBox<Cache> {
+    /// 保护缓存构建、更新及使用过程的递归锁。
     private let lock = NSRecursiveLock()
+    /// 延迟创建的算法缓存；首次访问前为 `nil`。
     private var cache: Cache?
 
+    /// 在锁内首次构建或更新缓存，再执行依赖该缓存的测量与放置操作。
     func withCache<Result>(
         make: () -> Cache,
         update: (inout Cache) -> Void,
@@ -211,18 +240,26 @@ private final class LayoutAlgorithmCacheBox<Cache> {
     }
 }
 
+// MARK: - QuickLayout 适配
+
+/// 将自定义两阶段布局算法适配为 QuickLayout 元素。
 private struct LayoutAlgorithmElement<Algorithm: LayoutAlgorithm>: Layout {
 
+    /// 负责容器测量和子元素放置的布局算法。
     let algorithm: Algorithm
+    /// 按声明顺序保存的原始子元素。
     let children: [Element]
+    /// 在该元素的多次测量之间保留缓存的引用容器。
     let cacheBox: LayoutAlgorithmCacheBox<Algorithm.Cache>
 
+    /// 保存算法与子元素，并创建尚未初始化的缓存容器。
     init(algorithm: Algorithm, children: [Element]) {
         self.algorithm = algorithm
         self.children = children
         cacheBox = LayoutAlgorithmCacheBox()
     }
 
+    /// 在同一次缓存访问中测量容器、清空放置记录并生成最终节点树。
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode {
         let proposal = ProposedSize(quickLayoutProposal: proposedSize)
         let subviews = LayoutSubviews(children: children)
@@ -251,22 +288,26 @@ private struct LayoutAlgorithmElement<Algorithm: LayoutAlgorithm>: Layout {
         }
     }
 
+    /// 采用所有子元素中伸缩能力最强的弹性。
     func quick_flexibility(for axis: Axis) -> Flexibility {
         children.reduce(.fixedSize) { result, child in
             max(result, child.quick_flexibility(for: axis))
         }
     }
 
+    /// 采用子元素中的最高布局优先级，空集合返回零。
     func quick_layoutPriority() -> CGFloat {
         children.map { $0.quick_layoutPriority() }.max() ?? 0
     }
 
+    /// 按显示层级稳定排序后提取视图，使 UIKit 顺序与布局顺序一致。
     func quick_extractViewsIntoArray(_ views: inout [UIView]) {
         orderedSubviews(LayoutSubviews(children: children)).forEach { subview in
             subview.storage.element.quick_extractViewsIntoArray(&views)
         }
     }
 
+    /// 将放置记录转换为节点；未显式放置的元素使用原点和理想尺寸建议。
     private func layoutNode(size: CGSize, subviews: LayoutSubviews) -> LayoutNode {
         let layers: [Element] = orderedSubviews(subviews).map { subview in
             let placement = subview.storage.placement ?? LayoutSubviewPlacement(
@@ -301,6 +342,7 @@ private struct LayoutAlgorithmElement<Algorithm: LayoutAlgorithm>: Layout {
             .quick_layoutThatFits(size)
     }
 
+    /// 按显示层级升序排列，层级相同时保留原声明顺序。
     private func orderedSubviews(_ subviews: LayoutSubviews) -> [LayoutSubview] {
         subviews.enumerated()
             .sorted { lhs, rhs in
@@ -314,15 +356,22 @@ private struct LayoutAlgorithmElement<Algorithm: LayoutAlgorithm>: Layout {
     }
 }
 
+/// 包装已经测量的节点，供定位组合复用。
 private struct PrecomputedLayoutElement: Layout {
+    /// 已完成测量的布局节点，供包装层直接复用。
     let layout: LayoutNode
 
+    /// 直接返回已测量的节点，忽略包装层的新尺寸建议。
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode { layout }
+    /// 以固定尺寸参与父布局，不要求额外伸缩空间。
     func quick_flexibility(for axis: Axis) -> Flexibility { .fixedSize }
+    /// 使用默认布局优先级，不额外影响父布局的空间分配。
     func quick_layoutPriority() -> CGFloat { 0 }
+    /// 不重复提取视图；实际视图由原内容或布局节点管理。
     func quick_extractViewsIntoArray(_ views: inout [UIView]) {}
 }
 
+/// 将物理位置转换为方向性偏移，避免 RTL 对物理坐标再次镜像。
 private func positioned(
     _ layout: LayoutNode,
     at origin: CGPoint,
@@ -364,14 +413,17 @@ private func positioned(
         }
 }
 
+/// 将非有限数值归零。
 private func sanitize(_ value: CGFloat) -> CGFloat {
     value.isFinite ? value : 0
 }
 
+/// 逐坐标清除非有限位置值。
 private func sanitize(_ point: CGPoint) -> CGPoint {
     CGPoint(x: sanitize(point.x), y: sanitize(point.y))
 }
 
+/// 将非有限尺寸归零，并限制宽高为非负数。
 private func sanitize(_ size: CGSize) -> CGSize {
     CGSize(
         width: max(0, sanitize(size.width)),

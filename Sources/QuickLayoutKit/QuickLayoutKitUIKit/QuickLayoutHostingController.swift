@@ -9,16 +9,21 @@ open class QuickLayoutHostingController: UIViewController, QuickLayoutUpdating {
 
     // MARK: - 属性
 
+    /// 将控制器的 `body` 转交给通用 QuickLayout 宿主的根视图。
     private final class ContainerView: QuickLayoutView {
+        /// 提供布局内容的控制器弱引用，避免根视图与控制器循环持有。
         weak var hostingController: QuickLayoutHostingController?
 
+        /// 读取所属控制器的布局；控制器不存在时返回空布局。
         override var body: Layout {
             hostingController?.body ?? EmptyLayout()
         }
     }
 
+    /// 以内联初始化方式提供内容的构建闭包；未设置时由 `body` 的默认实现返回空布局。
     private var contentProvider: (() -> Layout)?
 
+    /// 首次访问时创建的根宿主，负责布局、测量与键盘安全区域发布。
     private lazy var containerView: ContainerView = {
         let view = ContainerView()
         view.hostingController = self
@@ -93,6 +98,7 @@ open class QuickLayoutHostingController: UIViewController, QuickLayoutUpdating {
 
     // MARK: - 生命周期
 
+    /// 将 QuickLayout 宿主安装为根视图，并设置系统背景色。
     override open func loadView() {
         view = containerView
         view.backgroundColor = .systemBackground

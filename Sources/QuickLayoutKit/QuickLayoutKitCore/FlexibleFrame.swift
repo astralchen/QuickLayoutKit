@@ -2,6 +2,7 @@ import QuickLayout
 import OSLog
 import UIKit
 
+/// 记录矛盾尺寸约束的非致命布局诊断。
 private let flexibleFrameRuntimeLogger = Logger(
     subsystem: "com.astralchen.QuickLayoutKit",
     category: "LayoutRuntimeIssues"
@@ -74,17 +75,27 @@ internal func flexibleFrameConstraintsAreNondecreasing(
     return resolvedMinimum <= resolvedIdeal && resolvedIdeal <= resolvedMaximum
 }
 
+/// 组合最小、理想和最大尺寸，并保留布局值传递的弹性框架。
 private struct IdealFlexibleFrameElement: Layout, _LayoutValueProvidingElement {
 
+    /// 被当前修饰元素包装的布局内容。
     let child: Element
+    /// 最小宽度；`nil` 表示未指定该约束。
     let minWidth: CGFloat?
+    /// 理想宽度；`nil` 表示未指定该约束。
     let idealWidth: CGFloat?
+    /// 最大宽度；`nil` 表示未指定该约束。
     let maxWidth: CGFloat?
+    /// 最小高度；`nil` 表示未指定该约束。
     let minHeight: CGFloat?
+    /// 理想高度；`nil` 表示未指定该约束。
     let idealHeight: CGFloat?
+    /// 最大高度；`nil` 表示未指定该约束。
     let maxHeight: CGFloat?
+    /// 内容在结果框架中的对齐方式。
     let alignment: Alignment
 
+    /// 保存对齐方式并归一化各项尺寸；负值归零，`NaN` 转为未指定。
     init(
         child: Element,
         minWidth: CGFloat?,
@@ -105,10 +116,13 @@ private struct IdealFlexibleFrameElement: Layout, _LayoutValueProvidingElement {
         self.alignment = alignment
     }
 
+    /// 继续向内查询自定义布局值时访问的子元素。
     var _layoutValueChild: Element { child }
 
+    /// 本层不提供布局值，交由查询器继续访问子元素。
     func _layoutValue(for key: ObjectIdentifier) -> _AnyLayoutValue? { nil }
 
+    /// 先约束子元素建议，再根据测量结果确定外框尺寸并复用测量节点。
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode {
         let resolvedProposal = CGSize(
             width: resolvedFlexibleFrameProposal(
@@ -132,6 +146,7 @@ private struct IdealFlexibleFrameElement: Layout, _LayoutValueProvidingElement {
                 maximum: maxHeight
             )
         )
+        // 子元素只测量一次，后续对齐使用同一节点，避免二次测量改变理想尺寸。
         let childLayout = child.quick_layoutThatFits(childProposal)
         let frameSize = CGSize(
             width: flexibleFrameSize(
@@ -156,6 +171,7 @@ private struct IdealFlexibleFrameElement: Layout, _LayoutValueProvidingElement {
         ).quick_layoutThatFits(frameSize)
     }
 
+    /// 设置最大尺寸的轴允许部分伸缩，其余轴继承子元素的尺寸弹性。
     func quick_flexibility(for axis: Axis) -> Flexibility {
         switch axis {
         case .horizontal where maxWidth != nil:
@@ -167,29 +183,39 @@ private struct IdealFlexibleFrameElement: Layout, _LayoutValueProvidingElement {
         }
     }
 
+    /// 沿用子元素的布局优先级。
     func quick_layoutPriority() -> CGFloat {
         child.quick_layoutPriority()
     }
 
+    /// 将视图提取转交给子元素，不引入额外 UIKit 视图。
     func quick_extractViewsIntoArray(_ views: inout [UIView]) {
         child.quick_extractViewsIntoArray(&views)
     }
 }
 
+/// 包装已测量节点，避免固定框架再次测量原始内容。
 private struct FlexibleFramePrecomputedElement: Layout {
+    /// 已完成测量的布局节点，供包装层直接复用。
     let layout: LayoutNode
 
+    /// 直接返回已测量的节点，忽略包装层的新尺寸建议。
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode { layout }
+    /// 以固定尺寸参与父布局，不要求额外伸缩空间。
     func quick_flexibility(for axis: Axis) -> Flexibility { .fixedSize }
+    /// 使用默认布局优先级，不额外影响父布局的空间分配。
     func quick_layoutPriority() -> CGFloat { 0 }
+    /// 不重复提取视图；实际视图由原内容或布局节点管理。
     func quick_extractViewsIntoArray(_ views: inout [UIView]) {}
 }
 
+/// 将未指定值及 `NaN` 保留为 `nil`，其余尺寸限制为非负数。
 private func flexibleFrameDimension(_ value: CGFloat?) -> CGFloat? {
     guard let value, !value.isNaN else { return nil }
     return max(0, value)
 }
 
+/// 有限建议优先；仅在建议非有限时使用可选理想尺寸。
 private func resolvedFlexibleFrameProposal(
     _ proposal: CGFloat,
     ideal: CGFloat?
@@ -197,6 +223,7 @@ private func resolvedFlexibleFrameProposal(
     proposal.isFinite ? proposal : ideal ?? proposal
 }
 
+/// 将长度限制在最小值与最大值之间，缺省边界为零和正无穷。
 private func clampFlexibleFrameDimension(
     _ value: CGFloat,
     minimum: CGFloat?,
@@ -205,6 +232,7 @@ private func clampFlexibleFrameDimension(
     min(max(value, minimum ?? 0), maximum ?? .infinity)
 }
 
+/// 结合子元素尺寸与父建议计算外框长度；未设置上下限时保留内容尺寸。
 private func flexibleFrameSize(
     child: CGFloat,
     proposal: CGFloat,

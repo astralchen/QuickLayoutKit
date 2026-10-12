@@ -68,6 +68,7 @@ public struct QuickLayoutEnvironment: Equatable {
         self.containerSize = containerSize
     }
 
+    /// 比较所有环境分量，包括方向、特征、尺寸及逐边边距。
     public static func == (lhs: QuickLayoutEnvironment, rhs: QuickLayoutEnvironment) -> Bool {
         lhs.layoutDirection == rhs.layoutDirection
             && lhs.preferredContentSizeCategory == rhs.preferredContentSizeCategory
@@ -188,15 +189,17 @@ public protocol QuickLayoutEnvironmentUpdating: AnyObject {
     )
 }
 
-@MainActor
 /// 存储单个 QuickLayout 宿主最近一次观察到的环境。
 ///
 /// 当 UIKit 因同一次语言、特征或方向变化调用多个生命周期方法时，通过比较快照避免重复
 /// 使布局失效。
+@MainActor
 final class _QuickLayoutEnvironmentState {
 
+    /// 上一次读取的宿主环境快照，首次更新前为 `nil`。
     private var lastEnvironment: QuickLayoutEnvironment?
 
+    /// 比较新旧环境并合并显式原因，存在变化原因时回调宿主并返回 `true`。
     @discardableResult
     func update(
         _ host: UIView & QuickLayoutEnvironmentUpdating,
@@ -261,6 +264,7 @@ extension UIUserInterfaceLayoutDirection {
 
 private extension EdgeInsets {
 
+    /// 逐分量比较方向性边距。
     func quickLayout_isEqual(to other: EdgeInsets) -> Bool {
         top == other.top
             && leading == other.leading

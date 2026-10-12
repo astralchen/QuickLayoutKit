@@ -138,6 +138,7 @@ public struct QuickLayoutKeyboardContext: Equatable, @unchecked Sendable {
 
     // iOS 16.1 起键盘通知会在 object 中携带来源屏幕。保留引用可以避免把外接屏幕
     // 或其他屏幕上的键盘 frame 错误地转换到当前宿主；所有读取都发生在 MainActor。
+    /// 键盘通知携带的来源屏幕，用于拒绝跨屏幕的错误坐标转换。
     private var sourceScreen: UIScreen?
 
     /// 键盘的有效高度。
@@ -252,6 +253,7 @@ public struct QuickLayoutKeyboardContext: Equatable, @unchecked Sendable {
         event: .willHide
     )
 
+    /// 将屏幕键盘矩形转换到视图空间；已知来源屏幕不匹配或目标未挂载时返回 `.null`。
     @MainActor
     private func convertedEndFrame(in view: UIView) -> CGRect {
         if let sourceScreen {
@@ -277,6 +279,7 @@ public struct QuickLayoutKeyboardContext: Equatable, @unchecked Sendable {
 }
 
 private extension QuickLayoutKeyboardEvent {
+    /// 将 UIKit 键盘通知名称映射为事件，未识别名称使用 `.unknown`。
     init(notificationName: Notification.Name) {
         switch notificationName {
         case UIResponder.keyboardWillShowNotification:
@@ -292,6 +295,8 @@ private extension QuickLayoutKeyboardEvent {
         }
     }
 }
+
+// MARK: - 键盘通知观察
 
 /// 观察 UIKit 键盘通知并发布解析后的键盘上下文。
 @MainActor
@@ -310,6 +315,7 @@ public final class QuickLayoutKeyboardObserver: ObservableObject {
         context.isVisible
     }
 
+    /// 持有通知订阅，随所属对象释放而取消。
     private var cancellables: Set<AnyCancellable> = []
 
     /// 创建并开始观察键盘通知的对象。
@@ -334,22 +340,34 @@ public final class QuickLayoutKeyboardObserver: ObservableObject {
     }
 }
 
+// MARK: - 宿主键盘安全区域
+
+/// 观察键盘并向普通宿主发布停靠键盘安全区域，停止时恢复布局指南配置。
 @MainActor
 final class QuickLayoutKeyboardSafeAreaCoordinator {
 
+    /// 可注入的主线程停靠判定闭包，供确定性测试替换系统判定。
     typealias DockingResolver = @MainActor (
         QuickLayoutKeyboardContext,
         UIView
     ) -> Bool
 
+    /// 需要发布键盘安全区域的弱引用宿主。
     private weak var hostView: QuickLayoutView?
+    /// 提供最近键盘通知上下文的观察对象。
     private let observer: QuickLayoutKeyboardObserver
+    /// 可选停靠判定覆盖；未设置时检查系统布局指南。
     private let dockingResolver: DockingResolver?
+    /// 键盘上下文订阅，显式停止时释放。
     private var cancellable: AnyCancellable?
+    /// 启用前布局指南的非停靠键盘跟随配置，停止时恢复。
     private let previousFollowsUndockedKeyboard: Bool
+    /// 启用前布局指南的底部安全区域配置；不支持该属性的系统为 `nil`。
     private let previousUsesBottomSafeArea: Bool?
+    /// 协调器是否已经停止，阻止延迟通知再次写入宿主。
     private var isStopped = false
 
+    /// 保存布局指南原配置，启用停靠模式并订阅键盘上下文。
     init(
         hostView: QuickLayoutView,
         notificationCenter: NotificationCenter = .default,
@@ -397,11 +415,13 @@ final class QuickLayoutKeyboardSafeAreaCoordinator {
         }
     }
 
+    /// 使用最近通知重新解析宿主几何；默认不附加键盘动画。
     func refresh(animated: Bool = false) {
         guard !isStopped else { return }
         apply(observer.context, animated: animated)
     }
 
+    /// 读取停靠状态并计算宿主边距，按调用方要求传递或省略动画上下文。
     private func apply(
         _ context: QuickLayoutKeyboardContext,
         animated: Bool
@@ -424,6 +444,7 @@ final class QuickLayoutKeyboardSafeAreaCoordinator {
         )
     }
 
+    /// 结合几何相交与可选停靠判定解析底部避让；隐藏时按策略保留底部安全区域。
     static func insets(
         for context: QuickLayoutKeyboardContext,
         behavior: QuickLayoutKeyboardSafeAreaBehavior,
@@ -462,6 +483,7 @@ final class QuickLayoutKeyboardSafeAreaCoordinator {
         )
     }
 
+    /// 同时检查通知几何和系统键盘布局指南，拒绝浮动、跨窗口及硬件键盘状态。
     private static func systemReportsDockedKeyboard(
         for context: QuickLayoutKeyboardContext,
         in view: UIView
@@ -492,9 +514,12 @@ final class QuickLayoutKeyboardSafeAreaCoordinator {
     }
 }
 
+/// 将非有限值及负值归零，得到可发布的键盘边距。
 private func sanitizedKeyboardSafeAreaValue(_ value: CGFloat) -> CGFloat {
     value.isFinite ? max(0, value) : 0
 }
+
+// MARK: - 滚动内容避让
 
 /// 将键盘边距应用到滚动视图，并保持当前输入视图可见。
 @MainActor
@@ -503,13 +528,21 @@ public final class QuickLayoutKeyboardAvoider {
     /// 当前键盘避让器对应的安全区域策略类型。
     public typealias SafeAreaStrategy = QuickLayoutKeyboardSafeAreaStrategy
 
+    /// 需要调整边距的滚动视图弱引用。
     private weak var scrollView: UIScrollView?
+    /// 提供最近键盘通知上下文的观察对象。
     private let observer: QuickLayoutKeyboardObserver
+    /// 持有通知订阅，随所属对象释放而取消。
     private var cancellables: Set<AnyCancellable> = []
+    /// 当前需要保持可见的输入视图弱引用。
     private weak var activeView: UIView?
+    /// 最近一次应用的键盘底部增量，用于计算输入视图的可见范围。
     private var keyboardInsetDelta: CGFloat = 0
+    /// 添加框架内容边距和键盘增量前的内容边距基线。
     private var baseContentInset: UIEdgeInsets
+    /// 叠加框架边距和键盘增量前的垂直指示器基线。
     private var baseVerticalScrollIndicatorInsets: UIEdgeInsets
+    /// 叠加框架边距和键盘增量前的水平指示器基线。
     private var baseHorizontalScrollIndicatorInsets: UIEdgeInsets
 
     /// 仅在键盘与滚动视图相交时应用的额外底部间距。
@@ -677,6 +710,7 @@ public final class QuickLayoutKeyboardAvoider {
         scrollView.setContentOffset(targetOffset, animated: animated)
     }
 
+    /// 有键盘相交时按安全区域策略计算高度并添加额外间距，无相交时返回零。
     private func insetDelta(
         for resolved: QuickLayoutResolvedKeyboardContext,
         in scrollView: UIScrollView
@@ -697,6 +731,7 @@ public final class QuickLayoutKeyboardAvoider {
         return keyboardHeight + extraBottomPadding
     }
 
+    /// 优先读取通知 `userInfo` 中的 `activeView`，否则尝试将通知对象作为视图。
     private static func activeView(from notification: Notification) -> UIView? {
         if let view = notification.userInfo?["activeView"] as? UIView {
             return view
@@ -705,12 +740,15 @@ public final class QuickLayoutKeyboardAvoider {
     }
 }
 
+/// 记录滚动视图键盘增量所用的关联键。
 private enum QuickLayoutKeyboardAssociatedKeys {
+    /// 键盘增量关联值的唯一键地址。
     nonisolated(unsafe) static var insetDelta: UInt8 = 0
 }
 
 extension UIScrollView {
 
+    /// 与滚动视图关联的键盘增量，供安全区域拆分读取；未设置时为零。
     var quickLayoutKeyboardInsetDelta: CGFloat {
         get {
             (objc_getAssociatedObject(

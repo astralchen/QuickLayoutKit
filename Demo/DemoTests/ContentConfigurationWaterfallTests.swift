@@ -225,6 +225,42 @@ extension ContentConfigurationCollectionTests {
         #expect(controller.waterfallLayout.acceptedMeasurementCount == settledCount)
     }
 
+    @Test func waterfallControlsStayCenteredInAsymmetricSafeArea() async throws {
+        let fixture = try WaterfallFixture()
+        defer { fixture.window.isHidden = true }
+        let controller = fixture.controller
+        await fixture.settle()
+        let control = try #require(controller.view.subviews.compactMap { $0 as? UISegmentedControl }.first)
+        let label = try #require(controller.view.subviews.first { $0.accessibilityIdentifier == "waterfall.laneCount" })
+        let background = try #require(controller.view.subviews.first { $0.accessibilityIdentifier == "waterfall.controlsBackground" })
+
+        // 同一窗口中改变尺寸与左右避让，覆盖旋转、系统栏换边和 RTL。
+        for size in [CGSize(width: 390, height: 900), CGSize(width: 844, height: 390)] {
+            fixture.resize(width: size.width)
+            controller.view.frame.size.height = size.height
+            for insets in [UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 80),
+                           UIEdgeInsets(top: 0, left: 80, bottom: 0, right: 0)] {
+                controller.additionalSafeAreaInsets = insets
+                for direction: UIUserInterfaceLayoutDirection in [.leftToRight, .rightToLeft] {
+                    controller.reloadLayoutDirection(direction)
+                    for scrollDirection: UICollectionView.ScrollDirection in [.vertical, .horizontal] {
+                        controller.setScrollDirection(scrollDirection)
+                        controller.view.setNeedsLayout()
+                        await fixture.settle()
+                        let safeFrame = controller.view.safeAreaLayoutGuide.layoutFrame
+                        #expect(abs(safeFrame.midX - controller.view.bounds.midX) > 1)
+                        #expect(abs(control.frame.midX - safeFrame.midX) <= 1)
+                        #expect(abs(label.frame.midX - safeFrame.midX) <= 1)
+                        #expect(control.frame.minX >= safeFrame.minX + 11)
+                        #expect(control.frame.maxX <= safeFrame.maxX - 11)
+                        #expect(abs(control.frame.minY - safeFrame.minY - 8) <= 1)
+                        #expect(abs(background.frame.width - controller.view.bounds.width) <= 1)
+                    }
+                }
+            }
+        }
+    }
+
     @Test func waterfallNativeCellsFitHorizontallyAndReturnToVertical() async throws {
         let fixture = try WaterfallFixture()
         defer { fixture.window.isHidden = true }

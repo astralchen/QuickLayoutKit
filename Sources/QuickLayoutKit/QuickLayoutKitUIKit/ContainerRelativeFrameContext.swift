@@ -54,6 +54,7 @@ extension UIView {
         }
     }
 
+    /// 与宿主视图关联的持久几何注册表，首次访问时创建。
     private var quickLayoutGeometryObservationRegistry: QuickLayoutGeometryObservationRegistry {
         if let registry = objc_getAssociatedObject(
             self,
@@ -72,10 +73,13 @@ extension UIView {
     }
 }
 
+/// 保存宿主几何注册表所用的关联键。
 private enum QuickLayoutGeometryObservationAssociatedKeys {
+    /// 几何注册表关联对象的唯一键地址。
     nonisolated(unsafe) static var registry: UInt8 = 0
 }
 
+/// 从规范化建议长度扣除有限的两端边距；无界建议保持无界。
 private func containerDimension(
     _ proposedLength: CGFloat,
     before: CGFloat,
@@ -92,6 +96,7 @@ private func containerDimension(
     return max(0, length - leadingInset - trailingInset)
 }
 
+/// 将 `NaN` 和负值归零，将最大有限长度哨兵转换为无穷。
 private func normalizedContainerDimension(_ proposedLength: CGFloat) -> CGFloat {
     if proposedLength.isNaN {
         return 0

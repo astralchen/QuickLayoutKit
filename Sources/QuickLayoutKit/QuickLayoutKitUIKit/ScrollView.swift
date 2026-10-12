@@ -43,15 +43,19 @@ import QuickLayout
     return ScrollElement(scrollView)
 }
 
+/// 将稳定的滚动视图实例适配为 QuickLayout 叶子节点。
 @MainActor
 private struct ScrollElement: @MainActor Layout, @MainActor LeafElement {
 
+    /// 由调用方持有并复用的滚动宿主。
     private let child: QuickLayoutScrollView
 
+    /// 保存滚动宿主，不创建新的 UIKit 实例。
     init(_ scrollView: QuickLayoutScrollView) {
         self.child = scrollView
     }
 
+    /// 水平滚动时用内容自然高度确定视口，垂直滚动时采用宿主默认测量。
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode {
         if child.axis == .horizontal {
             return LayoutNode(
@@ -64,6 +68,7 @@ private struct ScrollElement: @MainActor Layout, @MainActor LeafElement {
         return child.quick_layoutThatFits(proposedSize)
     }
 
+    /// 水平滚动的交叉轴固定为内容自然高度，其他轴沿用宿主弹性。
     func quick_flexibility(for axis: Axis) -> Flexibility {
         if child.axis == .horizontal, axis == .vertical {
             return .fixedSize
@@ -71,14 +76,17 @@ private struct ScrollElement: @MainActor Layout, @MainActor LeafElement {
         return child.quick_flexibility(for: axis)
     }
 
+    /// 沿用子元素的布局优先级。
     func quick_layoutPriority() -> CGFloat {
         child.quick_layoutPriority()
     }
 
+    /// 将视图提取转交给子元素，不引入额外 UIKit 视图。
     func quick_extractViewsIntoArray(_ views: inout [UIView]) {
         child.quick_extractViewsIntoArray(&views)
     }
 
+    /// 返回该叶子节点使用的滚动宿主视图。
     func backingView() -> UIView? {
         child
     }

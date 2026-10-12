@@ -92,7 +92,8 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity)
-            .safeAreaPadding(.top, 0)
+            // 按安全区域的可用宽度居中，避让横屏或侧边系统栏。
+            .safeAreaPadding([.top, .horizontal], 0)
             .background { controlsBackground.resizable() }
             .zIndex(1)
         }

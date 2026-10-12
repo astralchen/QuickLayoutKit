@@ -62,6 +62,7 @@ extension ProposedSize {
         height = size.height.isFinite ? max(0, size.height) : nil
     }
 
+    /// 转换为 QuickLayout 使用的尺寸建议，以正无穷表示未指定轴。
     var quickLayoutProposal: CGSize {
         CGSize(
             width: quickLayoutDimension(width),
@@ -69,6 +70,7 @@ extension ProposedSize {
         )
     }
 
+    /// 归一化单轴建议：`nil` 转为无穷，`NaN` 和负数归零。
     private func quickLayoutDimension(_ value: CGFloat?) -> CGFloat {
         guard let value else { return .infinity }
         guard !value.isNaN else { return 0 }

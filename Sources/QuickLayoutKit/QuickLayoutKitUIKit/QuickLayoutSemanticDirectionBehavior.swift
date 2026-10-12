@@ -22,6 +22,7 @@ public enum QuickLayoutSemanticDirectionBehavior: Equatable, Sendable {
     case followEnclosingReusableView
 }
 
+/// 按策略查找容器，仅在有效方向变化时写入宿主语义属性并返回 `true`。
 @MainActor
 @discardableResult
 func synchronizeQuickLayoutSemanticDirectionIfNeeded(
@@ -52,6 +53,7 @@ func synchronizeQuickLayoutSemanticDirectionIfNeeded(
     return true
 }
 
+/// 向外查找最近的公开 UIKit 列表复用边界；未找到时返回 `nil`。
 @MainActor
 private func enclosingReusableView(for view: UIView) -> UIView? {
     var ancestor = view.superview

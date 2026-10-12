@@ -26,13 +26,21 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         [self, contentView]
     }
 
+    /// 以内联初始化方式提供内容的构建闭包；未设置时由 `body` 的默认实现返回空布局。
     private var contentProvider: (() -> Layout)?
+    /// 记录上一次环境快照，并向宿主合并发布实际环境变化。
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
 
+    /// 使用指定初始矩形创建列表复用视图。
+    ///
+    /// - Parameter frame: 视图的初始矩形。
     public override init(frame: CGRect) {
         super.init(frame: frame)
     }
 
+    /// 从 UIKit 归档创建列表复用视图。
+    ///
+    /// - Parameter coder: 包含视图状态的归档解码器。
     public required init?(coder: NSCoder) {
         super.init(coder: coder)
     }
@@ -55,17 +63,20 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         }
     }
 
+    /// 在窗口归属变化前通知 QuickLayout 桥接层更新宿主。
     open override func willMove(toWindow newWindow: UIWindow?) {
         super.willMove(toWindow: newWindow)
         _QuickLayoutViewImplementation.willMove(self, toWindow: newWindow)
     }
 
+    /// 加入或离开窗口后，重新同步外层列表方向并刷新环境快照。
     open override func didMoveToWindow() {
         super.didMoveToWindow()
         synchronizeLayoutDirectionFromCollectionViewIfNeeded()
         quickLayoutEnvironmentState.update(self)
     }
 
+    /// 在应用集合布局属性时同步复用视图方向与环境，覆盖未再次触发布局的更新。
     open override func apply(
         _ layoutAttributes: UICollectionViewLayoutAttributes
     ) {
@@ -76,6 +87,7 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         quickLayoutEnvironmentState.update(self)
     }
 
+    /// 将 UIKit 特征变化发布给宿主环境，触发依赖环境的内容更新。
     open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         quickLayoutEnvironmentState.update(
@@ -84,16 +96,19 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         )
     }
 
+    /// 将安全区域变化发布给宿主环境。
     open override func safeAreaInsetsDidChange() {
         super.safeAreaInsetsDidChange()
         quickLayoutEnvironmentState.update(self, explicitReason: .safeArea)
     }
 
+    /// 将布局边距变化发布给宿主环境。
     open override func layoutMarginsDidChange() {
         super.layoutMarginsDidChange()
         quickLayoutEnvironmentState.update(self, explicitReason: .layoutMargins)
     }
 
+    /// 同步列表方向和环境后，在受管理状态与容器作用域中应用内容布局。
     open override func layoutSubviews() {
         synchronizeLayoutDirectionFromCollectionViewIfNeeded()
         super.layoutSubviews()
@@ -106,6 +121,7 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         }
     }
 
+    /// 通过统一的 QuickLayout 测量入口计算尺寸，无法测量时使用 UIKit 默认实现。
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
         quickLayoutSizeThatFits(size) ?? super.sizeThatFits(size)
     }
@@ -129,6 +145,7 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         return size
     }
 
+    /// 返回指定轴上显式配置的尺寸弹性。
     open override func quickLayoutFlexibility(for axis: Axis) -> Flexibility {
         switch axis {
         case .horizontal:
@@ -138,10 +155,12 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         }
     }
 
+    /// 标记宿主内容需要在后续 UIKit 布局周期更新。
     open func setNeedsQuickLayout() {
         setNeedsLayout()
     }
 
+    /// 在宿主布局已失效时立即执行布局。
     open func quickLayoutIfNeeded() {
         layoutIfNeeded()
     }
@@ -170,6 +189,7 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         setNeedsQuickLayout()
     }
 
+    /// 同步列表方向和环境后，在宿主状态与容器作用域中测量内容。测量建议先按宿主各轴弹性解析。
     private func quickLayoutSizeThatFits(_ size: CGSize) -> CGSize? {
         synchronizeLayoutDirectionFromCollectionViewIfNeeded()
         quickLayoutEnvironmentState.update(self)
@@ -197,7 +217,9 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         }
     }
 
+    /// 以内联初始化方式提供内容的构建闭包；未设置时由 `body` 的默认实现返回空布局。
     private var contentProvider: (() -> Layout)?
+    /// 记录上一次环境快照，并向宿主合并发布实际环境变化。
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
 
     /// 语义方向跟随外层表格视图的视图。
@@ -207,10 +229,18 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         [self, contentView]
     }
 
+    /// 使用 UIKit 样式和复用标识创建单元格。
+    ///
+    /// - Parameters:
+    ///   - style: 单元格样式。
+    ///   - reuseIdentifier: 复用标识；`nil` 表示不指定。
     public override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
     }
 
+    /// 从 UIKit 归档创建列表复用视图。
+    ///
+    /// - Parameter coder: 包含视图状态的归档解码器。
     public required init?(coder: NSCoder) {
         super.init(coder: coder)
     }
@@ -240,17 +270,20 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         }
     }
 
+    /// 在窗口归属变化前通知 QuickLayout 桥接层更新宿主。
     open override func willMove(toWindow newWindow: UIWindow?) {
         super.willMove(toWindow: newWindow)
         _QuickLayoutViewImplementation.willMove(self, toWindow: newWindow)
     }
 
+    /// 加入或离开窗口后，重新同步外层列表方向并刷新环境快照。
     open override func didMoveToWindow() {
         super.didMoveToWindow()
         synchronizeLayoutDirectionFromTableIfNeeded()
         quickLayoutEnvironmentState.update(self)
     }
 
+    /// 将 UIKit 特征变化发布给宿主环境，触发依赖环境的内容更新。
     open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         quickLayoutEnvironmentState.update(
@@ -259,16 +292,19 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         )
     }
 
+    /// 将安全区域变化发布给宿主环境。
     open override func safeAreaInsetsDidChange() {
         super.safeAreaInsetsDidChange()
         quickLayoutEnvironmentState.update(self, explicitReason: .safeArea)
     }
 
+    /// 将布局边距变化发布给宿主环境。
     open override func layoutMarginsDidChange() {
         super.layoutMarginsDidChange()
         quickLayoutEnvironmentState.update(self, explicitReason: .layoutMargins)
     }
 
+    /// 同步列表方向和环境后，在受管理状态与容器作用域中应用内容布局。
     open override func layoutSubviews() {
         synchronizeLayoutDirectionFromTableIfNeeded()
         super.layoutSubviews()
@@ -281,10 +317,12 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         }
     }
 
+    /// 通过统一的 QuickLayout 测量入口计算尺寸，无法测量时使用 UIKit 默认实现。
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
         quickLayoutSizeThatFits(size) ?? super.sizeThatFits(size)
     }
 
+    /// 按 UIKit fitting 优先级测量内容，无法测量时回退到父类实现。
     open override func systemLayoutSizeFitting(
         _ targetSize: CGSize,
         withHorizontalFittingPriority horizontalFittingPriority: UILayoutPriority,
@@ -301,10 +339,12 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         )
     }
 
+    /// 标记宿主内容需要在后续 UIKit 布局周期更新。
     open func setNeedsQuickLayout() {
         setNeedsLayout()
     }
 
+    /// 在宿主布局已失效时立即执行布局。
     open func quickLayoutIfNeeded() {
         layoutIfNeeded()
     }
@@ -331,6 +371,7 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         setNeedsQuickLayout()
     }
 
+    /// 同步列表方向和环境后，在宿主状态与容器作用域中测量内容。
     private func quickLayoutSizeThatFits(_ size: CGSize) -> CGSize? {
         synchronizeLayoutDirectionFromTableIfNeeded()
         quickLayoutEnvironmentState.update(self)
@@ -344,6 +385,7 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         }
     }
 
+    /// 仅在 `.required` 轴使用目标长度，其余轴查询理想尺寸；测量后恢复固定轴的目标值。
     private func quickLayoutSystemFittingSize(
         _ targetSize: CGSize,
         horizontalFittingPriority: UILayoutPriority,
@@ -383,7 +425,9 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         }
     }
 
+    /// 以内联初始化方式提供内容的构建闭包；未设置时由 `body` 的默认实现返回空布局。
     private var contentProvider: (() -> Layout)?
+    /// 记录上一次环境快照，并向宿主合并发布实际环境变化。
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
 
     /// 语义方向跟随外层表格视图的视图。
@@ -393,10 +437,16 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         [self, contentView]
     }
 
+    /// 使用 UIKit 复用标识创建页眉或页脚。
+    ///
+    /// - Parameter reuseIdentifier: 复用标识；`nil` 表示不指定。
     public override init(reuseIdentifier: String?) {
         super.init(reuseIdentifier: reuseIdentifier)
     }
 
+    /// 从 UIKit 归档创建列表复用视图。
+    ///
+    /// - Parameter coder: 包含视图状态的归档解码器。
     public required init?(coder: NSCoder) {
         super.init(coder: coder)
     }
@@ -424,17 +474,20 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         }
     }
 
+    /// 在窗口归属变化前通知 QuickLayout 桥接层更新宿主。
     open override func willMove(toWindow newWindow: UIWindow?) {
         super.willMove(toWindow: newWindow)
         _QuickLayoutViewImplementation.willMove(self, toWindow: newWindow)
     }
 
+    /// 加入或离开窗口后，重新同步外层列表方向并刷新环境快照。
     open override func didMoveToWindow() {
         super.didMoveToWindow()
         synchronizeLayoutDirectionFromTableIfNeeded()
         quickLayoutEnvironmentState.update(self)
     }
 
+    /// 将 UIKit 特征变化发布给宿主环境，触发依赖环境的内容更新。
     open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         quickLayoutEnvironmentState.update(
@@ -443,16 +496,19 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         )
     }
 
+    /// 将安全区域变化发布给宿主环境。
     open override func safeAreaInsetsDidChange() {
         super.safeAreaInsetsDidChange()
         quickLayoutEnvironmentState.update(self, explicitReason: .safeArea)
     }
 
+    /// 将布局边距变化发布给宿主环境。
     open override func layoutMarginsDidChange() {
         super.layoutMarginsDidChange()
         quickLayoutEnvironmentState.update(self, explicitReason: .layoutMargins)
     }
 
+    /// 同步列表方向和环境后，在受管理状态与容器作用域中应用内容布局。根视图与 `contentView` 边界不同时按实际内容容器重新应用布局。
     open override func layoutSubviews() {
         synchronizeLayoutDirectionFromTableIfNeeded()
         super.layoutSubviews()
@@ -482,10 +538,12 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         }
     }
 
+    /// 通过统一的 QuickLayout 测量入口计算尺寸，无法测量时使用 UIKit 默认实现。
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
         quickLayoutSizeThatFits(size) ?? super.sizeThatFits(size)
     }
 
+    /// 按 UIKit fitting 优先级测量内容，无法测量时回退到父类实现。
     open override func systemLayoutSizeFitting(
         _ targetSize: CGSize,
         withHorizontalFittingPriority horizontalFittingPriority: UILayoutPriority,
@@ -502,10 +560,12 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         )
     }
 
+    /// 标记宿主内容需要在后续 UIKit 布局周期更新。
     open func setNeedsQuickLayout() {
         setNeedsLayout()
     }
 
+    /// 在宿主布局已失效时立即执行布局。
     open func quickLayoutIfNeeded() {
         layoutIfNeeded()
     }
@@ -532,6 +592,7 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         setNeedsQuickLayout()
     }
 
+    /// 同步列表方向和环境后，在宿主状态与容器作用域中测量内容。
     private func quickLayoutSizeThatFits(_ size: CGSize) -> CGSize? {
         synchronizeLayoutDirectionFromTableIfNeeded()
         quickLayoutEnvironmentState.update(self)
@@ -545,6 +606,7 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         }
     }
 
+    /// 仅在 `.required` 轴使用目标长度，其余轴查询理想尺寸；测量后恢复固定轴的目标值。
     private func quickLayoutSystemFittingSize(
         _ targetSize: CGSize,
         horizontalFittingPriority: UILayoutPriority,
@@ -590,7 +652,9 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         }
     }
 
+    /// 以内联初始化方式提供内容的构建闭包；未设置时由 `body` 的默认实现返回空布局。
     private var contentProvider: (() -> Layout)?
+    /// 记录上一次环境快照，并向宿主合并发布实际环境变化。
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
 
     /// 语义方向跟随外层集合视图的视图。
@@ -600,10 +664,16 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         [self]
     }
 
+    /// 使用指定初始矩形创建列表复用视图。
+    ///
+    /// - Parameter frame: 视图的初始矩形。
     public override init(frame: CGRect) {
         super.init(frame: frame)
     }
 
+    /// 从 UIKit 归档创建列表复用视图。
+    ///
+    /// - Parameter coder: 包含视图状态的归档解码器。
     public required init?(coder: NSCoder) {
         super.init(coder: coder)
     }
@@ -626,17 +696,20 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         }
     }
 
+    /// 在窗口归属变化前通知 QuickLayout 桥接层更新宿主。
     open override func willMove(toWindow newWindow: UIWindow?) {
         super.willMove(toWindow: newWindow)
         _QuickLayoutViewImplementation.willMove(self, toWindow: newWindow)
     }
 
+    /// 加入或离开窗口后，重新同步外层列表方向并刷新环境快照。
     open override func didMoveToWindow() {
         super.didMoveToWindow()
         synchronizeLayoutDirectionFromCollectionViewIfNeeded()
         quickLayoutEnvironmentState.update(self)
     }
 
+    /// 在应用集合布局属性时同步复用视图方向与环境，覆盖未再次触发布局的更新。
     open override func apply(
         _ layoutAttributes: UICollectionViewLayoutAttributes
     ) {
@@ -646,6 +719,7 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         quickLayoutEnvironmentState.update(self)
     }
 
+    /// 将 UIKit 特征变化发布给宿主环境，触发依赖环境的内容更新。
     open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         quickLayoutEnvironmentState.update(
@@ -654,16 +728,19 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         )
     }
 
+    /// 将安全区域变化发布给宿主环境。
     open override func safeAreaInsetsDidChange() {
         super.safeAreaInsetsDidChange()
         quickLayoutEnvironmentState.update(self, explicitReason: .safeArea)
     }
 
+    /// 将布局边距变化发布给宿主环境。
     open override func layoutMarginsDidChange() {
         super.layoutMarginsDidChange()
         quickLayoutEnvironmentState.update(self, explicitReason: .layoutMargins)
     }
 
+    /// 同步列表方向和环境后，在受管理状态与容器作用域中应用内容布局。
     open override func layoutSubviews() {
         synchronizeLayoutDirectionFromCollectionViewIfNeeded()
         super.layoutSubviews()
@@ -676,11 +753,17 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         }
     }
 
+    /// 通过统一的 QuickLayout 测量入口计算尺寸，无法测量时使用 UIKit 默认实现。
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
         quickLayoutSizeThatFits(size) ?? super.sizeThatFits(size)
     }
 
-    /// https://developer.apple.com/documentation/uikit/building-high-performance-lists-and-collection-views
+    /// 返回适合当前内容尺寸的集合复用视图布局属性。
+    ///
+    /// 复制传入属性，并通过 `sizeThatFits(_:)` 更新尺寸，以保留其他属性及子类测量行为。
+    ///
+    /// - Parameter layoutAttributes: 集合布局提供的原始属性。
+    /// - Returns: 包含内容测量尺寸的属性副本。
     open override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
         // 保留布局提供的属性，并通过公开测量入口尊重子类的尺寸调整。
         // 不先调用 super，以免 UIKit 已经调用 sizeThatFits 后再次测量内容。
@@ -689,6 +772,7 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         return attributes
     }
 
+    /// 返回指定轴上显式配置的尺寸弹性。
     open override func quickLayoutFlexibility(for axis: Axis) -> Flexibility {
         switch axis {
         case .horizontal:
@@ -698,10 +782,12 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         }
     }
 
+    /// 标记宿主内容需要在后续 UIKit 布局周期更新。
     open func setNeedsQuickLayout() {
         setNeedsLayout()
     }
 
+    /// 在宿主布局已失效时立即执行布局。
     open func quickLayoutIfNeeded() {
         layoutIfNeeded()
     }
@@ -730,6 +816,7 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         setNeedsQuickLayout()
     }
 
+    /// 同步列表方向和环境后，在宿主状态与容器作用域中测量内容。测量建议先按宿主各轴弹性解析。
     private func quickLayoutSizeThatFits(_ size: CGSize) -> CGSize? {
         synchronizeLayoutDirectionFromCollectionViewIfNeeded()
         quickLayoutEnvironmentState.update(self)
@@ -744,6 +831,7 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
 
 private extension UIView {
 
+    /// 沿父视图链查找最近的指定列表类型；未找到时返回 `nil`。
     func enclosingListView<ListView: UIView>(
         of type: ListView.Type
     ) -> ListView? {
@@ -757,6 +845,7 @@ private extension UIView {
         return nil
     }
 
+    /// 仅更新方向不同的目标视图并使其布局失效；返回是否修改了至少一个视图。
     @discardableResult
     func applyQuickLayoutDirection(
         _ direction: UIUserInterfaceLayoutDirection,

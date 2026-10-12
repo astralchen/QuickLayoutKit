@@ -149,6 +149,7 @@ open class QuickLayoutLinearGradientView: UIView {
         )
     }
 
+    /// 颜色外观变化时重新解析动态颜色，并刷新方向性端点。
     open override func traitCollectionDidChange(
         _ previousTraitCollection: UITraitCollection?
     ) {
@@ -160,6 +161,7 @@ open class QuickLayoutLinearGradientView: UIView {
         updateResolvedPoints()
     }
 
+    /// 语义方向发生变化时立即更新渐变端点。
     open override var semanticContentAttribute: UISemanticContentAttribute {
         didSet {
             guard semanticContentAttribute != oldValue else { return }
@@ -167,17 +169,20 @@ open class QuickLayoutLinearGradientView: UIView {
         }
     }
 
+    /// 窗口层级改变后重新解析有效方向下的端点。
     open override func didMoveToWindow() {
         super.didMoveToWindow()
         updateResolvedPoints()
     }
 
+    /// 布局时同步有效方向，将方向性单位坐标映射到图层物理坐标。
     open override func layoutSubviews() {
         super.layoutSubviews()
         // UIKit 不会像 SwiftUI 一样自动把单位坐标原点切换到 RTL 的右上角。
         updateResolvedPoints()
     }
 
+    /// 配置透明轴向渐变图层，并应用当前颜色和端点。
     private func configureView() {
         isOpaque = false
         gradientLayer.type = .axial
@@ -185,6 +190,7 @@ open class QuickLayoutLinearGradientView: UIView {
         updateResolvedPoints()
     }
 
+    /// 按当前特征解析渐变颜色，并保持色标位置的输入顺序。
     private func updateGradient() {
         gradientLayer.colors = gradient.stops.map {
             $0.color.resolvedColor(with: traitCollection).cgColor
@@ -194,6 +200,7 @@ open class QuickLayoutLinearGradientView: UIView {
         }
     }
 
+    /// 将前后方向相关的单位端点转换为图层坐标。
     private func updateResolvedPoints() {
         let direction = effectiveUserInterfaceLayoutDirection
         gradientLayer.startPoint = startPoint.layerPoint(
@@ -206,6 +213,7 @@ open class QuickLayoutLinearGradientView: UIView {
 }
 
 private extension UnitPoint {
+    /// 在 RTL 下将水平单位坐标映射为 `1 - x`，垂直坐标保持不变。
     func layerPoint(
         layoutDirection: UIUserInterfaceLayoutDirection
     ) -> CGPoint {

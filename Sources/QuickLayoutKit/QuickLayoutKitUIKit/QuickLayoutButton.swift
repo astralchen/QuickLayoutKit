@@ -69,8 +69,11 @@ open class QuickLayoutButton:
     public typealias StateUpdateHandler =
         @MainActor (QuickLayoutButtonState) -> Void
 
+    /// 以内联初始化方式提供内容的构建闭包；未设置时由 `body` 的默认实现返回空布局。
     private var contentProvider: (() -> Layout)?
+    /// 记录上一次环境快照，并向宿主合并发布实际环境变化。
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
+    /// 最近一次交付给子类的按钮状态，用于抑制重复更新。
     private var lastPublishedState: QuickLayoutButtonState?
 
     /// 控件发出 `primaryActionTriggered` 事件时执行的操作。
@@ -136,6 +139,7 @@ open class QuickLayoutButton:
         }
     }
 
+    /// 记录上一次环境快照，并向宿主合并发布实际环境变化。
     open override var semanticContentAttribute: UISemanticContentAttribute {
         didSet {
             guard semanticContentAttribute != oldValue else { return }
@@ -144,6 +148,7 @@ open class QuickLayoutButton:
         }
     }
 
+    /// 按钮是否可交互；禁用时清除高亮，并同步辅助功能及状态回调。
     open override var isEnabled: Bool {
         didSet {
             guard isEnabled != oldValue else { return }
@@ -155,6 +160,7 @@ open class QuickLayoutButton:
         }
     }
 
+    /// 按钮选择状态；变化时发布新的按钮状态。
     open override var isSelected: Bool {
         didSet {
             guard isSelected != oldValue else { return }
@@ -162,6 +168,7 @@ open class QuickLayoutButton:
         }
     }
 
+    /// 按钮触摸高亮状态；变化时发布新的按钮状态。
     open override var isHighlighted: Bool {
         didSet {
             guard isHighlighted != oldValue else { return }
@@ -225,6 +232,7 @@ open class QuickLayoutButton:
         sendActions(for: .primaryActionTriggered)
     }
 
+    /// 辅助功能激活时执行统一按钮操作；禁用时返回 `false`。
     open override func accessibilityActivate() -> Bool {
         guard isEnabled else { return false }
         performAction()
@@ -240,6 +248,7 @@ open class QuickLayoutButton:
         return self
     }
 
+    /// 启用时开始高亮并发送 `.touchDown`，禁用时拒绝跟踪。
     open override func beginTracking(
         _ touch: UITouch,
         with event: UIEvent?
@@ -250,6 +259,7 @@ open class QuickLayoutButton:
         return true
     }
 
+    /// 根据触点是否位于边界内更新高亮，并发送进入、离开或拖动事件。
     open override func continueTracking(
         _ touch: UITouch,
         with event: UIEvent?
@@ -268,6 +278,7 @@ open class QuickLayoutButton:
         return true
     }
 
+    /// 结束高亮；启用且触点仍在内部时发送内部抬起事件并执行主要操作。
     open override func endTracking(
         _ touch: UITouch?,
         with event: UIEvent?
@@ -285,16 +296,19 @@ open class QuickLayoutButton:
         }
     }
 
+    /// 取消触摸跟踪，清除高亮并发送 `.touchCancel`。
     open override func cancelTracking(with event: UIEvent?) {
         isHighlighted = false
         sendActions(for: .touchCancel)
     }
 
+    /// 在窗口归属变化前通知 QuickLayout 桥接层更新宿主。
     open override func willMove(toWindow newWindow: UIWindow?) {
         super.willMove(toWindow: newWindow)
         _QuickLayoutViewImplementation.willMove(self, toWindow: newWindow)
     }
 
+    /// 进入窗口后同步语义方向并更新按钮环境快照。
     open override func didMoveToWindow() {
         super.didMoveToWindow()
         guard window != nil else { return }
@@ -302,6 +316,7 @@ open class QuickLayoutButton:
         quickLayoutEnvironmentState.update(self)
     }
 
+    /// 将 UIKit 特征变化发布给宿主环境，触发依赖环境的内容更新。
     open override func traitCollectionDidChange(
         _ previousTraitCollection: UITraitCollection?
     ) {
@@ -312,11 +327,13 @@ open class QuickLayoutButton:
         )
     }
 
+    /// 将安全区域变化发布给宿主环境。
     open override func safeAreaInsetsDidChange() {
         super.safeAreaInsetsDidChange()
         quickLayoutEnvironmentState.update(self, explicitReason: .safeArea)
     }
 
+    /// 将布局边距变化发布给宿主环境。
     open override func layoutMarginsDidChange() {
         super.layoutMarginsDidChange()
         quickLayoutEnvironmentState.update(
@@ -325,6 +342,7 @@ open class QuickLayoutButton:
         )
     }
 
+    /// 同步方向和环境后，在宿主作用域中应用按钮内容布局。
     open override func layoutSubviews() {
         synchronizeDirectionIfNeeded()
         super.layoutSubviews()
@@ -340,6 +358,7 @@ open class QuickLayoutButton:
         }
     }
 
+    /// 使用最新方向和环境测量按钮内容，无法测量时回退到父类实现。
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
         synchronizeDirectionIfNeeded()
         quickLayoutEnvironmentState.update(self)
@@ -353,6 +372,7 @@ open class QuickLayoutButton:
         }
     }
 
+    /// 以无界建议测量内容；完全弹性轴不向 Auto Layout 提供固有长度。
     open override var intrinsicContentSize: CGSize {
         let measured = sizeThatFits(
             CGSize(
@@ -372,6 +392,7 @@ open class QuickLayoutButton:
         )
     }
 
+    /// 从按钮布局内容推导轴弹性，未提供时使用父类结果。
     open override func quick_flexibility(for axis: Axis) -> Flexibility {
         _QuickLayoutViewImplementation.quick_flexibility(self, for: axis)
             ?? super.quick_flexibility(for: axis)
@@ -412,6 +433,7 @@ open class QuickLayoutButton:
         setNeedsQuickLayout()
     }
 
+    /// 设置按钮辅助功能特征，并将主要操作事件连接到业务闭包。
     private func configureControl() {
         isAccessibilityElement = true
         accessibilityTraits.insert(.button)
@@ -425,6 +447,7 @@ open class QuickLayoutButton:
         updateAccessibilityTraits()
     }
 
+    /// 按按钮的方向跟随策略同步外层容器方向。
     private func synchronizeDirectionIfNeeded() {
         synchronizeQuickLayoutSemanticDirectionIfNeeded(
             for: self,
@@ -432,6 +455,7 @@ open class QuickLayoutButton:
         )
     }
 
+    /// 按启用状态更新 `.notEnabled` 特征，保留其他辅助功能特征。
     private func updateAccessibilityTraits() {
         if isEnabled {
             accessibilityTraits.remove(.notEnabled)
@@ -440,6 +464,7 @@ open class QuickLayoutButton:
         }
     }
 
+    /// 状态变化或强制发布时更新比较基线并通知子类。
     private func publishButtonState(force: Bool = false) {
         let state = buttonState
         guard force || state != lastPublishedState else { return }
@@ -447,6 +472,7 @@ open class QuickLayoutButton:
         quickLayoutButtonStateDidChange(state)
     }
 
+    /// 完全弹性轴返回 `noIntrinsicMetric`，其他轴使用内容测量长度。
     private func intrinsicDimension(
         _ measured: CGFloat,
         flexibility: Flexibility

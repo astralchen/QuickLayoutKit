@@ -1,10 +1,14 @@
 import UIKit
 import QuickLayout
 
+/// 封装键盘事件源与可注入判定器，避免闭包进入开放视图子类元数据。
 private final class QuickLayoutKeyboardSafeAreaDependencies {
+    /// 键盘观察使用的通知中心，默认采用系统共享中心。
     let notificationCenter: NotificationCenter
+    /// 可选的停靠判定器；未注入时采用系统判定。
     let dockingResolver: QuickLayoutKeyboardSafeAreaCoordinator.DockingResolver?
 
+    /// 保存键盘依赖；生产实例使用默认通知中心及系统停靠判定。
     init(
         notificationCenter: NotificationCenter = .default,
         dockingResolver: QuickLayoutKeyboardSafeAreaCoordinator.DockingResolver? = nil
@@ -20,12 +24,16 @@ private final class QuickLayoutKeyboardSafeAreaDependencies {
 /// 或复用视图，并且不需要单独创建视图控制器子类时，使用 `QuickLayoutView`。
 open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnvironmentUpdating {
 
+    /// 以内联初始化方式提供内容的构建闭包；未设置时由 `body` 的默认实现返回空布局。
     private var contentProvider: (() -> Layout)?
+    /// 记录上一次环境快照，并向宿主合并发布实际环境变化。
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
+    /// 启用键盘安全区域时持有的协调器，禁用时显式停止并释放。
     private var keyboardSafeAreaCoordinator:
         QuickLayoutKeyboardSafeAreaCoordinator?
     // 将 actor-isolated 测试闭包封装在具体引用类型内，避免它进入 open UIView
     // 的跨文件子类元数据；生产实例始终使用默认依赖。
+    /// 创建协调器时使用的依赖，测试可在启用观察前替换。
     private var keyboardSafeAreaDependencies =
         QuickLayoutKeyboardSafeAreaDependencies()
 
@@ -148,11 +156,13 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         }
     }
 
+    /// 在窗口归属变化前通知 QuickLayout 桥接层更新宿主。
     open override func willMove(toWindow newWindow: UIWindow?) {
         super.willMove(toWindow: newWindow)
         _QuickLayoutViewImplementation.willMove(self, toWindow: newWindow)
     }
 
+    /// 刷新键盘状态，并在进入窗口后同步容器方向与环境。
     open override func didMoveToWindow() {
         super.didMoveToWindow()
         keyboardSafeAreaCoordinator?.refresh()
@@ -164,6 +174,7 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         quickLayoutEnvironmentState.update(self)
     }
 
+    /// 将 UIKit 特征变化发布给宿主环境，触发依赖环境的内容更新。
     open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         quickLayoutEnvironmentState.update(
@@ -172,17 +183,20 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         )
     }
 
+    /// 先刷新键盘安全区域，再发布宿主安全区域变化。
     open override func safeAreaInsetsDidChange() {
         super.safeAreaInsetsDidChange()
         keyboardSafeAreaCoordinator?.refresh()
         quickLayoutEnvironmentState.update(self, explicitReason: .safeArea)
     }
 
+    /// 将布局边距变化发布给宿主环境。
     open override func layoutMarginsDidChange() {
         super.layoutMarginsDidChange()
         quickLayoutEnvironmentState.update(self, explicitReason: .layoutMargins)
     }
 
+    /// 同步方向、键盘与环境后，在状态和容器作用域中应用 `body` 布局。
     open override func layoutSubviews() {
         synchronizeQuickLayoutSemanticDirectionIfNeeded(
             for: self,
@@ -202,6 +216,7 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         }
     }
 
+    /// 同步最新方向和键盘上下文后测量内容；无法获得 QuickLayout 尺寸时使用父类结果。
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
         // 切换区域设置或布局方向后，自适应尺寸可能先于下一次布局执行，因此测量必须读取最新环境。
         synchronizeQuickLayoutSemanticDirectionIfNeeded(
@@ -223,6 +238,7 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         }
     }
 
+    /// 优先使用显式轴弹性，否则从布局内容推导，最后回退到 UIKit 桥接默认值。
     open override func quick_flexibility(for axis: Axis) -> Flexibility {
         let explicitFlexibility: Flexibility? = switch axis {
         case .horizontal:
@@ -271,6 +287,7 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         setNeedsQuickLayout()
     }
 
+    /// 仅在键盘边距变化时更新宿主；有有效动画上下文且已挂载窗口时同步动画。
     func applyQuickLayoutKeyboardSafeAreaInsets(
         _ insets: UIEdgeInsets,
         context: QuickLayoutKeyboardContext?
@@ -291,6 +308,7 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         )
     }
 
+    /// 根据启用策略创建或刷新协调器，禁用时恢复布局指南配置并清空发布边距。
     private func updateKeyboardSafeAreaObservation() {
         switch quickLayoutKeyboardSafeAreaBehavior {
         case .disabled:

@@ -8,8 +8,10 @@ import UIKit
 /// ``containerRelativeFrame`` 使用父元素建议的尺寸作为备用值。
 package enum QuickLayoutContainerRelativeFrameContext {
 
+    /// 当前宿主发布的容器尺寸；作用域外为 `nil`。
     @TaskLocal package static var containerSize: CGSize?
 
+    /// 在闭包执行期间发布容器尺寸，结束或抛错后恢复外层值。
     package static func withContainerSize<Result>(
         _ size: CGSize,
         operation: () throws -> Result
@@ -110,21 +112,29 @@ public extension Element {
     }
 }
 
+/// 将所选轴的容器相对长度转换为固定框架的包装器。
 private struct ContainerRelativeFrameElement: Layout {
 
+    /// 被当前修饰元素包装的布局内容。
     let child: Element
+    /// 需要用容器长度确定框架尺寸的轴。
     let axes: AxisSet
+    /// 内容在结果框架中的对齐方式。
     let alignment: Alignment
+    /// 按容器长度和轴计算框架长度的纯值闭包。
     let length: @Sendable (CGFloat, Axis) -> CGFloat
 
+    /// 所选轴采用固定尺寸弹性，其余轴沿用子元素的弹性。
     func quick_flexibility(for axis: Axis) -> Flexibility {
         axes.contains(axis.axisSet) ? .fixedSize : child.quick_flexibility(for: axis)
     }
 
+    /// 沿用子元素的布局优先级。
     func quick_layoutPriority() -> CGFloat {
         child.quick_layoutPriority()
     }
 
+    /// 优先读取安全区域上下文，计算各轴长度后测量固定框架。
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode {
         let scopedContainerSize = QuickLayoutSafeAreaContext.current?.resolvedContainerSize
             ?? QuickLayoutContainerRelativeFrameContext.containerSize
@@ -144,10 +154,12 @@ private struct ContainerRelativeFrameElement: Layout {
             .quick_layoutThatFits(proposedSize)
     }
 
+    /// 将视图提取转交给子元素，不引入额外 UIKit 视图。
     func quick_extractViewsIntoArray(_ views: inout [UIView]) {
         child.quick_extractViewsIntoArray(&views)
     }
 
+    /// 解析单轴长度；未选择或长度非有限时返回 `nil`，负结果归零。
     private func resolvedLength(
         for axis: Axis,
         scopedContainerSize: CGSize?,
@@ -178,6 +190,7 @@ private struct ContainerRelativeFrameElement: Layout {
 
 private extension Axis {
 
+    /// 仅包含当前轴的轴集合。
     var axisSet: AxisSet {
         switch self {
         case .horizontal:
@@ -190,6 +203,7 @@ private extension Axis {
 
 private extension CGSize {
 
+    /// 读取指定轴对应的宽度或高度。
     func length(for axis: Axis) -> CGFloat {
         switch axis {
         case .horizontal:

@@ -112,9 +112,13 @@ public final class QuickLayoutViewControllerRepresentable: UIView, QuickLayoutUp
     /// 指示测量期间是否检测首选内容尺寸变化。
     public var observesPreferredContentSizeChanges = true
 
+    /// 显式提供或通过响应链解析的父控制器弱引用。
     private weak var parentViewController: UIViewController?
+    /// 当前子控制器是否已完成包含关系挂载。
     private var isAttached = false
+    /// 是否使用调用方指定的父控制器；为真时不从响应链自动覆盖。
     private var usesExplicitParent = false
+    /// 上次观察到的首选内容尺寸，用于避免重复失效。
     private var lastPreferredContentSize: CGSize = .zero
 
     /// 为子视图控制器创建 representable 视图。
@@ -216,6 +220,7 @@ public final class QuickLayoutViewControllerRepresentable: UIView, QuickLayoutUp
         attachIfNeeded()
     }
 
+    /// 通知视图层级事件，并根据是否有父视图挂载或移除子控制器。
     public override func didMoveToSuperview() {
         super.didMoveToSuperview()
         emit(.didMoveToSuperview)
@@ -227,6 +232,7 @@ public final class QuickLayoutViewControllerRepresentable: UIView, QuickLayoutUp
         }
     }
 
+    /// 尝试完成包含关系挂载，使子控制器视图填充当前边界，并发送布局事件。
     public override func layoutSubviews() {
         super.layoutSubviews()
         attachIfNeeded()
@@ -236,6 +242,7 @@ public final class QuickLayoutViewControllerRepresentable: UIView, QuickLayoutUp
         emit(.didLayoutSubviews)
     }
 
+    /// 优先限制非零首选尺寸，否则使用 Auto Layout 测量子视图；没有控制器时返回零。
     public override func sizeThatFits(_ size: CGSize) -> CGSize {
         guard let viewController else {
             return .zero
@@ -292,6 +299,7 @@ public final class QuickLayoutViewControllerRepresentable: UIView, QuickLayoutUp
 
 private extension QuickLayoutViewControllerRepresentable {
 
+    /// 在父视图和父控制器可用时建立包含关系；已有其他父控制器时仅发送诊断事件。
     func attachIfNeeded() {
         guard superview != nil else {
             return
@@ -343,6 +351,7 @@ private extension QuickLayoutViewControllerRepresentable {
         emit(.didAttach, parent: parentViewController, viewController: viewController)
     }
 
+    /// 自动模式下从响应链解析父控制器，改变父级前先解除已有挂载。
     func resolveParentIfNeeded() {
         guard !usesExplicitParent, let resolvedParent = nearestOwningViewController() else {
             return
@@ -356,6 +365,7 @@ private extension QuickLayoutViewControllerRepresentable {
         emit(.didCaptureParent, parent: resolvedParent, viewController: viewController)
     }
 
+    /// 沿响应链查找最近的视图控制器，未找到时返回 `nil`。
     func nearestOwningViewController() -> UIViewController? {
         var responder = next
         while let currentResponder = responder {
@@ -367,6 +377,7 @@ private extension QuickLayoutViewControllerRepresentable {
         return nil
     }
 
+    /// 按 UIKit 包含关系顺序移除子视图和父子关系，并发送前后事件。
     func detachIfNeeded() {
         guard isAttached, let viewController else {
             return
@@ -383,10 +394,12 @@ private extension QuickLayoutViewControllerRepresentable {
         emit(.didDetach, parent: parentViewController, viewController: viewController)
     }
 
+    /// 移除当前子控制器的视图，不单独修改控制器包含关系。
     func removeCurrentChildViewIfNeeded() {
         viewController?.view?.removeFromSuperview()
     }
 
+    /// 依次发送简要事件与完整上下文，省略的父子控制器采用当前状态。
     func emit(
         _ event: Event,
         parent: UIViewController? = nil,
@@ -408,6 +421,7 @@ private extension QuickLayoutViewControllerRepresentable {
         )
     }
 
+    /// 仅用有限的最大建议限制测量尺寸，非有限建议不收紧该轴。
     func clamped(_ measuredSize: CGSize, to maximumSize: CGSize) -> CGSize {
         CGSize(
             width: maximumSize.width.isFinite ? min(measuredSize.width, maximumSize.width) : measuredSize.width,
@@ -415,6 +429,7 @@ private extension QuickLayoutViewControllerRepresentable {
         )
     }
 
+    /// 启用观察且首选尺寸变化时，更新基线并使固有尺寸与布局失效。
     func updatePreferredContentSizeIfNeeded(_ preferredContentSize: CGSize) {
         guard observesPreferredContentSizeChanges,
               preferredContentSize != lastPreferredContentSize else {
