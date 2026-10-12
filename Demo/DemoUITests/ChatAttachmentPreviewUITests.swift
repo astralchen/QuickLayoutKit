@@ -605,6 +605,122 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         capture(app, "修复后-预览返回媒体行")
     }
 
+    /// 放大图片先在页内平移；到达边缘并抬手后，再次同向拖动切换相邻附件。
+    @MainActor func testZoomedImageScrollsToEdgeThenPages() {
+        let app = chat(fixture: "stack5")
+        openMedia(app)
+        let center = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let right = app.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5))
+        let left = app.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5))
+        func assertPage(_ index: Int, _ name: String) {
+            XCTAssertEqual(app.staticTexts["imessage.preview.position"].label, "第 \(index + 1) 项，共 5 项")
+            XCTAssertTrue(app.cells["imessage.preview.thumbnail.\(index)"].isSelected)
+            capture(app, name)
+        }
+        right.press(forDuration: 0.05, thenDragTo: left, withVelocity: .fast, thenHoldForDuration: 0)
+        assertPage(1, "缩放翻页-原始比例进入第二项")
+        center.doubleTap()
+        assertPage(1, "缩放翻页-第二项双击放大")
+        right.press(forDuration: 0.05, thenDragTo: left, withVelocity: .slow, thenHoldForDuration: 0.2)
+        assertPage(1, "缩放翻页-平移到右边缘仍为第二项")
+        right.press(forDuration: 0.05, thenDragTo: left, withVelocity: .slow, thenHoldForDuration: 0.2)
+        assertPage(2, "缩放翻页-右边缘再次左滑进入第三项")
+
+        // 在新页面重新放大，独立验证相反方向，避免把普通右滑误记为缩放后的翻页。
+        center.doubleTap()
+        assertPage(2, "缩放翻页-第三项双击放大")
+        left.press(forDuration: 0.05, thenDragTo: right, withVelocity: .slow, thenHoldForDuration: 0.2)
+        assertPage(2, "缩放翻页-平移到左边缘仍为第三项")
+        left.press(forDuration: 0.05, thenDragTo: right, withVelocity: .slow, thenHoldForDuration: 0.2)
+        assertPage(1, "缩放翻页-左边缘再次右滑返回第二项")
+        app.buttons["imessage.media.preview.close"].tap()
+    }
+
+    /// 同一次左拖越过放大图片的右边缘后，不会把剩余位移交给附件分页。
+    @MainActor func testContinuousLeftDragFromZoomedImageDoesNotPage() {
+        checkContinuousZoomedImageDrag(toLeft: true)
+    }
+
+    /// 同一次右拖越过放大图片的左边缘后，不会把剩余位移交给附件分页。
+    @MainActor func testContinuousRightDragFromZoomedImageDoesNotPage() {
+        checkContinuousZoomedImageDrag(toLeft: false)
+    }
+
+    /// 使用单次 XCTest 触摸序列横跨 90% 屏宽，分别覆盖慢拖及快拖，并在终点保持按住 0.8 秒。
+    @MainActor private func checkContinuousZoomedImageDrag(toLeft: Bool) {
+        for (speed, velocity) in [("慢拖", XCUIGestureVelocity.slow), ("快拖", XCUIGestureVelocity.fast)] {
+            let app = chat(fixture: "stack5")
+            openMedia(app)
+            let direction = toLeft ? "左" : "右"
+            let name = "连续\(direction)拖-\(speed)"
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: toLeft ? 0.95 : 0.05, dy: 0.5))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: toLeft ? 0.05 : 0.95, dy: 0.5))
+            func drag() {
+                // 一次调用只按下一次，移动到终点后继续保持接触，最后才抬手。
+                start.press(forDuration: 0.05, thenDragTo: end, withVelocity: velocity, thenHoldForDuration: 0.8)
+            }
+            func assertPage(_ index: Int) {
+                XCTAssertEqual(app.staticTexts["imessage.preview.position"].label, "第 \(index + 1) 项，共 5 项")
+                XCTAssertTrue(app.cells["imessage.preview.thumbnail.\(index)"].isSelected)
+            }
+            // 用同一轨迹先证明原始比例能翻页，排除距离或速度不足导致的假阴性。
+            app.cells["imessage.preview.thumbnail.\(toLeft ? 0 : 2)"].tap()
+            drag()
+            assertPage(1)
+            capture(app, "\(name)-原始比例翻页对照")
+
+            // 向目标边缘偏置放大中心，给到达边缘后的继续拖动留足屏内距离。
+            // 2 倍缩放时，距目标边缘约 0.2 屏宽，0.9 屏宽轨迹还有约 0.7 屏宽余量。
+            app.coordinate(withNormalizedOffset: CGVector(dx: toLeft ? 0.65 : 0.35, dy: 0.5)).doubleTap()
+            assertPage(1)
+            capture(app, "\(name)-图片内部起始视口")
+            logger.notice("CONTINUOUS_ZOOM_DRAG_BEGIN \(name, privacy: .public) \(Date().timeIntervalSince1970, privacy: .public)")
+            drag()
+            logger.notice("CONTINUOUS_ZOOM_DRAG_END \(name, privacy: .public) \(Date().timeIntervalSince1970, privacy: .public)")
+            assertPage(1)
+            capture(app, "\(name)-一次拖过边缘后仍为第二项")
+
+            // 抬手后重新按下，同向拖动可以翻页，证明已达到可交接的图片边缘。
+            drag()
+            assertPage(toLeft ? 2 : 0)
+            capture(app, "\(name)-抬手再次拖动后翻页")
+            app.buttons["imessage.media.preview.close"].tap()
+            app.terminate()
+        }
+    }
+
+    /// 双击和捏合放大后恢复原始比例，主图仍可正常左右翻页。
+    @MainActor func testImagePagingRecoversAfterZoomReset() throws {
+        let app = chat(fixture: "stack5")
+        openMedia(app)
+        let center = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let right = app.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5))
+        let left = app.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5))
+        center.doubleTap()
+        capture(app, "缩放还原-第一项双击放大")
+        center.doubleTap()
+        capture(app, "缩放还原-第一项双击恢复")
+        right.press(forDuration: 0.05, thenDragTo: left, withVelocity: .fast, thenHoldForDuration: 0)
+        XCTAssertTrue(app.cells["imessage.preview.thumbnail.1"].isSelected)
+
+        let pages = app.cells.matching(NSPredicate(format: "identifier BEGINSWITH %@", "imessage.preview.page.")).allElementsBoundByIndex
+        let page = try XCTUnwrap(pages.min { abs($0.frame.midX - app.frame.midX) < abs($1.frame.midX - app.frame.midX) })
+        page.pinch(withScale: 2, velocity: 1)
+        capture(app, "缩放还原-第二项捏合放大")
+        right.press(forDuration: 0.05, thenDragTo: left, withVelocity: .slow, thenHoldForDuration: 0.2)
+        XCTAssertTrue(app.cells["imessage.preview.thumbnail.1"].isSelected)
+        capture(app, "缩放还原-捏合后页内平移")
+        center.doubleTap()
+        capture(app, "缩放还原-捏合后双击恢复")
+        right.press(forDuration: 0.05, thenDragTo: left, withVelocity: .fast, thenHoldForDuration: 0)
+        XCTAssertTrue(app.cells["imessage.preview.thumbnail.2"].isSelected)
+        capture(app, "缩放还原-恢复后左滑进入第三项")
+        left.press(forDuration: 0.05, thenDragTo: right, withVelocity: .fast, thenHoldForDuration: 0)
+        XCTAssertTrue(app.cells["imessage.preview.thumbnail.1"].isSelected)
+        capture(app, "缩放还原-恢复后右滑返回第二项")
+        app.buttons["imessage.media.preview.close"].tap()
+    }
+
     @MainActor func testSingleImageZoomAndControls() {
         let app = chat(fixture: "photo")
         openMedia(app)

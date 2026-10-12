@@ -624,6 +624,58 @@ MainRoute.chat
 拖动、减速和程序翻页结束统一校正精确位置并更新标题、缩略图及播放器；横向翻页期间暂停播放并禁止下拉关闭。
 连续点击替换程序翻页目标，手势打断时从最近可见页接手。旋转保留程序目标或手势最近页；点击返回先停到最近可见页，再查询收回来源。
 
+**缩放、滚动与翻页的交接（2026-10-12）**
+
+图片放大后仍可切换附件。iPhone 17 Pro / iOS 26.5 的实际交互为：先拖动放大的图片到水平边缘，
+抬手后再次向同一方向滑动，切换到相邻附件。向左滑动对应图片右边缘及下一项，向右滑动对应图片左边缘及上一项。
+在图片内部仍有可滚动空间时，拖动优先平移图片，页码和选中的缩略图保持不变。
+
+| 操作 | 行为 |
+| --- | --- |
+| 原始比例左右滑动 | 按 `AttachmentPagingLayout` 的吸附规则切换相邻附件。 |
+| 双击放大后，在图片内部左右拖动 | 平移当前图片；一次拖动到边缘并抬手后，仍停留在当前附件。 |
+| 已到水平边缘，再次向外滑动 | 可切换到相邻附件，无须先还原缩放。 |
+| 从放大图片内部开始，手指不离屏，连续拖过水平边缘 | 当前不会直接翻页；左右快拖和慢拖均停留在原附件，抬手后再拖才切页。 |
+| 双击或捏合放大，再双击恢复原始比例 | 左右滑动可以正常翻页。 |
+
+`AttachmentPreviewPage.imageScrollView` 负责图片缩放和平移，外层分页列表负责附件切换；
+当前未添加自定义的横向手势交接代理。上述边缘表现是本轮验证到的系统嵌套滚动行为。
+`permitsDismissal` 中 `zoomScale > 1.01` 的判断只限制下拉关闭，不代表禁止横向翻页。
+后续连续触摸专项已确认：在本轮 2 倍缩放场景中，同一次拖动的剩余位移不会继续驱动附件翻页；
+边缘再次按下后的翻页与不抬手的连续跨页是两种不同的交互。
+
+2026-10-12 专项验证：使用 **XcodeBuildMCP `test_sim`**，Scheme 为 `ChatRegression`，
+目标固定为 iPhone 17 Pro（iOS 26.5，UDID `294027E9-350F-4CA3-8B9F-222AA5281556`），
+禁用并行测试，并使用独立 DerivedData `/tmp/quicklayout-preview-zoom-check`。
+测试构建通过，以下两项 UI 测试 **2 通过、0 失败、0 跳过**：
+
+- `ChatAttachmentPreviewUITests/testZoomedImageScrollsToEdgeThenPages`：使用 `stack5`，检查原始比例翻页、第二项放大后到右边缘仍停在原页、再次左滑进入第三项；在第三项重新放大，检查左边缘再次右滑返回第二项。每步核对页码及缩略图选中状态。
+- `ChatAttachmentPreviewUITests/testImagePagingRecoversAfterZoomReset`：检查双击放大／还原、捏合放大后的页内拖动、双击还原，以及恢复后的左右翻页。
+
+首轮结果包：`/private/tmp/quicklayout-zoom-paging-iphone17pro-final.xcresult`。
+结果包保留 14 张步骤截图，已导出到 `/private/tmp/quicklayout-zoom-paging-final-evidence`，
+并检查关键缩放、还原及边缘翻页画面。
+
+2026-10-12 连续触摸补验：继续使用同一 iPhone 17 Pro / iOS 26.5、独立构建目录及
+XcodeBuildMCP `test_sim`，新增两项 UI 测试 **2 通过、0 失败、0 跳过**：
+`testContinuousLeftDragFromZoomedImageDoesNotPage` 和 `testContinuousRightDragFromZoomedImageDoesNotPage`。
+每项分别运行 XCTest 的 `.slow` 和 `.fast`，共四种场景；“通过”表示成功验证当前不会连续跨页的行为。
+
+测试使用 `stack5`，先以同一轨迹验证原始比例能够翻页，再在第二项偏置双击放大到 2 倍。
+左拖的放大中心位于横向 65%，右拖为 35%，为越过图片边缘后的继续移动保留距离。
+连续手势通过一次 `press(forDuration:thenDragTo:withVelocity:thenHoldForDuration:)` 完成：
+按住 0.05 秒，从横向 95% 拖到 5%（右拖相反），在终点保持接触 0.8 秒后才抬手；中途没有第二次按下。
+总行程为 90% 屏宽，按放大几何估计，抵达目标边缘后的剩余行程约 70% 屏宽。
+四种场景结束后，页码及缩略图均仍为第二项；抬手后再次同向拖动，左拖进入第三项，右拖进入第一项。
+
+- 结果包：`/private/tmp/quicklayout-continuous-zoom-iphone17pro.xcresult`。
+- 16 张步骤截图：`/private/tmp/quicklayout-continuous-zoom-evidence`。
+- XcodeBuildMCP 原生录屏：`/private/tmp/quicklayout-continuous-zoom-iphone17pro.mp4`。
+- 已检查四种场景的录屏采样帧：图片越过边缘时露出黑色空白并回弹，随后重新按下的拖动才带出相邻附件。检查帧位于 `/private/tmp/quicklayout-continuous-zoom-video-frames`。
+
+本轮验证范围为 iPhone 17 Pro / iOS 26.5 的竖屏静态图片流程；真机、其他系统版本、横屏、
+不同图片比例、4 倍上限及捏合过程中同时拖动均未执行专项验收。
+
 2026-09-13 自定义分页验证：通过命令级 `DEVELOPER_DIR` 使用 Xcode 26.5，在 iPhone 16 Pro / iOS 26.5 构建成功。
 分页、附件预览和播放生命周期共 20 项单元测试通过（`/private/tmp/Paging20-unit-final.xcresult`），
 覆盖 0／1／2／20 页、首尾边界、快慢拖动、反向回拖、动画替换与迟到回调、旋转及关闭时的当前附件。
