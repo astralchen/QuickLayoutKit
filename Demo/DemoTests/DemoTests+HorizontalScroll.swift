@@ -45,8 +45,9 @@ extension DemoTests {
             origin: viewController.scrollView.contentOffset,
             size: viewController.scrollView.bounds.size
         )
-        #expect(firstCardFrame.maxX <= visibleRect.maxX)
-        #expect(firstCardFrame.maxX > visibleRect.maxX - 80)
+        let expectedLeadingEdge = visibleRect.maxX
+            - viewController.scrollView.adjustedContentInset.right
+        #expect(abs(firstCardFrame.maxX - expectedLeadingEdge) < 1)
     }
 
     @Test func horizontalScrollDemoPreparesRTLStartBeforeAppearAnimation() {
@@ -393,6 +394,38 @@ extension DemoTests {
         #expect(rtlPageFrame.approximatelyEquals(pageFrame))
     }
 
+    /// 验证水平安全区域反复改变后，轮播视口高度与卡片自然高度保持一致。
+    ///
+    /// 通过 `additionalSafeAreaInsets` 模拟可用宽度收缩及恢复，确认文字换行触发外层
+    /// 高度重测，并在恢复原始安全区域后回到原始高度。
+    ///
+    /// - Note: 本测试不执行设备旋转或系统侧栏操作。
+    @Test func horizontalCarouselRemeasuresHeightAfterSafeAreaChanges() throws {
+        Localization.setLocale(identifier: "en-US")
+        defer { Localization.setLocale(identifier: "en-US") }
+        let controller = HorizontalScrollViewViewController()
+        let window = try makeVisibleTestWindow(
+            rootViewController: controller,
+            size: CGSize(width: 402, height: 874)
+        )
+        defer { window.isHidden = true }
+        let initialHeight = controller.scrollView.bounds.height
+
+        // 模拟展开侧栏后再收起：文字换行与外层自然高度必须在同一轮布局中更新。
+        for rightInset: CGFloat in [96, 0, 64, 0] {
+            controller.additionalSafeAreaInsets.right = rightInset
+            window.layoutIfNeeded()
+            let cardHeight = controller.views.map(\.bounds.height).max() ?? 0
+            #expect(abs(controller.scrollView.bounds.height - cardHeight) < 1)
+            #expect(abs(controller.scrollView.contentSize.height - cardHeight) < 1)
+            if rightInset > 0 {
+                #expect(cardHeight > initialHeight)
+            } else {
+                #expect(abs(cardHeight - initialHeight) < 1)
+            }
+        }
+    }
+
     @Test func horizontalScrollDemoModelsLocalizedDestinationDiscovery() throws {
         Localization.setLocale(identifier: "en-US")
         defer {
@@ -507,7 +540,8 @@ extension DemoTests {
             viewController.views[0].effectiveUserInterfaceLayoutDirection
                 == .rightToLeft
         )
-        #expect(firstCardFrame.maxX <= visibleRect.maxX)
-        #expect(firstCardFrame.maxX > visibleRect.maxX - 80)
+        let expectedLeadingEdge = visibleRect.maxX
+            - viewController.scrollView.adjustedContentInset.right
+        #expect(abs(firstCardFrame.maxX - expectedLeadingEdge) < 1)
     }
 }

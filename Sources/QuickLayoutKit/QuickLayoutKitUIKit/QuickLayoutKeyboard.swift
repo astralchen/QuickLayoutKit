@@ -50,6 +50,8 @@ public enum QuickLayoutKeyboardSafeAreaBehavior: Equatable, Sendable {
 public struct QuickLayoutResolvedKeyboardContext: Equatable, Sendable {
 
     /// 转换到目标视图坐标空间中的键盘框架。
+    ///
+    /// 原始键盘框架为空或无法转换到目标视图时为 `.null`。
     public let keyboardFrameInView: CGRect
 
     /// 用于计算相交区域的可见边界。
@@ -208,6 +210,8 @@ public struct QuickLayoutKeyboardContext: Equatable, @unchecked Sendable {
     ///
     /// UIKit 使用屏幕坐标报告键盘框架。该方法将框架转换到目标视图坐标空间并计算可见
     /// 相交区域，以正确处理浮动键盘、分离键盘、iPad 窗口以及在窗口中存在偏移的视图。
+    /// 空键盘框架不参与坐标转换，解析后的框架和相交区域为 `.null`，有效高度为零；
+    /// 可见状态下的零高度框架仍保留硬件键盘判定。
     ///
     /// - Parameter view: 用于解析键盘几何信息的目标视图。
     /// - Returns: 针对目标视图解析后的键盘几何信息。
@@ -253,9 +257,18 @@ public struct QuickLayoutKeyboardContext: Equatable, @unchecked Sendable {
         event: .willHide
     )
 
-    /// 将屏幕键盘矩形转换到视图空间；已知来源屏幕不匹配或目标未挂载时返回 `.null`。
+    /// 将非空屏幕键盘矩形转换到视图空间。
+    ///
+    /// 空框架直接返回 `.null`。已知来源屏幕时，目标未挂载或来源不匹配也返回 `.null`。
+    ///
+    /// - Parameter view: 接收键盘几何信息的目标视图。
+    /// - Returns: 转换后的键盘框架；不存在有效转换区域时返回 `.null`。
     @MainActor
     private func convertedEndFrame(in view: UIView) -> CGRect {
+        // 键盘隐藏或使用硬件键盘时，通知可能携带零高度矩形。
+        // 空矩形不构成有效遮挡区域，无需转换到目标视图坐标空间。
+        guard !endFrame.isEmpty else { return .null }
+
         if let sourceScreen {
             guard
                 let window = view.window,

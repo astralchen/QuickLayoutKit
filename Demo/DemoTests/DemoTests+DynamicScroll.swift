@@ -9,6 +9,61 @@ import QuickLayoutKit
 
 extension DemoTests {
 
+    /// 验证内容偏移变化及宿主重建不会重复写入未改变的 UIKit 边距。
+    ///
+    /// 在窗口中完成首次布局后清零计数，再改变内容偏移并重建声明。最后移除边距修饰符，
+    /// 验证框架覆盖可以恢复为基线，同时保留中途的滚动位置。
+    ///
+    /// - Note: 本测试直接设置 `contentOffset`，不验证触摸手势或减速过程。
+    @Test func scrollMarginsRemainStableWhileScrollingAndRebuilding() {
+        let scrollView = MarginWriteTrackingScrollView()
+        scrollView.contentInsetAdjustmentBehavior = .never
+        let card = UIView()
+        var includesMargins = true
+        let controller = QuickLayoutHostingController {
+            if includesMargins {
+                ScrollView(scrollView) { card.frame(height: 1600) }
+                    .contentMargins(.horizontal, 16, for: .scrollContent)
+                    .contentMargins(.top, 44, for: .scrollContent)
+                    .contentMargins(.bottom, 8, for: .scrollContent)
+                    .contentMargins(.top, 44, for: .scrollIndicators)
+                    .contentMargins(.bottom, 8, for: .scrollIndicators)
+            } else {
+                ScrollView(scrollView) { card.frame(height: 1600) }
+            }
+        }
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 951, height: 669))
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        controller.view.layoutIfNeeded()
+        scrollView.layoutIfNeeded()
+        let expectedInsets = scrollView.contentInset
+        #expect(expectedInsets.top >= 44)
+        #expect(expectedInsets.left >= 16)
+
+        scrollView.insetWrites = 0
+        for y in [CGFloat(120), 240, 80, 300, 120] {
+            scrollView.contentOffset.y = y
+            controller.setNeedsQuickLayout()
+            controller.quickLayoutIfNeeded()
+            scrollView.layoutIfNeeded()
+            #expect(scrollView.contentInset == expectedInsets)
+            #expect(abs(scrollView.contentOffset.y - y) < 0.5)
+        }
+        #expect(scrollView.insetWrites == 0)
+
+        // 删除修饰符仍应恢复调用方边距，不能通过保留旧声明来规避重复写入。
+        includesMargins = false
+        controller.setNeedsQuickLayout()
+        controller.quickLayoutIfNeeded()
+        scrollView.layoutIfNeeded()
+        #expect(scrollView.contentInset == .zero)
+        #expect(scrollView.verticalScrollIndicatorInsets == .zero)
+        #expect(abs(scrollView.contentOffset.y - 120) < 0.5)
+    }
+
+    /// 验证列表填满宿主，并为安全区域内的悬浮操作按钮预留内容及指示器边距。
     @Test func dynamicScrollDemoFillsScreenAndProtectsItsOverlayAction() {
         let viewController = DynamicScrollViewController()
         viewController.loadViewIfNeeded()
@@ -63,6 +118,7 @@ extension DemoTests {
         )
     }
 
+    /// 验证卡片显示本地化文本，并仅通过独立删除按钮暴露可操作的删除入口。
     @Test func dynamicScrollCardsExposeLocalizedDeletionAffordance() throws {
         let localizer = Localizer { key, arguments in
             guard !arguments.isEmpty else { return key }
@@ -153,6 +209,7 @@ extension DemoTests {
         )
     }
 
+    /// 验证已缓存卡片在布局方向和语言变化后复用视图实例，并更新排列及本地化文本。
     @Test func dynamicScrollCachedCardMirrorsAndRelocalizesFromLTRToRTL() throws {
         var prefix = "ltr."
         let localizer = Localizer { key, arguments in
@@ -278,6 +335,9 @@ extension DemoTests {
         )
     }
 
+    /// 验证连续添加项目后的内容尺寸及最终底部偏移。
+    ///
+    /// 测试禁用动画以检查布局终态，不对插入动画的中间帧作出判断。
     @Test func dynamicScrollAdditionsFinishAtTheNewBottom() throws {
         let viewController = DynamicScrollViewController()
         viewController.loadViewIfNeeded()
@@ -332,6 +392,9 @@ extension DemoTests {
         #expect(abs(scrollView.contentOffset.y - expectedBottomOffset) < 1)
     }
 
+    /// 验证删除项目后剩余视图按标识复用，内容收缩并限制底部偏移。
+    ///
+    /// 测试禁用动画以检查布局终态，并验证再次触发已删除项目的按钮不会重复删除。
     @Test func dynamicScrollDeleteButtonRemovesAndClampsAtTheBottom() throws {
         let viewController = DynamicScrollViewController()
         viewController.loadViewIfNeeded()
@@ -429,5 +492,28 @@ extension DemoTests {
         #expect(
             abs(scrollView.contentSize.height - contentHeightAfterDeletion) < 1
         )
+    }
+}
+
+/// 记录内容边距及两种滚动指示器边距 setter 调用次数的测试滚动视图。
+///
+/// 即使赋入相同值也会计数，用于识别最终数值不变但仍重复写入 UIKit 的情况。
+private final class MarginWriteTrackingScrollView: QuickLayoutScrollView {
+    /// 自上次清零以来三个边距属性的累计写入次数。
+    var insetWrites = 0
+
+    /// 记录内容边距的每次写入。
+    override var contentInset: UIEdgeInsets {
+        didSet { insetWrites += 1 }
+    }
+
+    /// 记录垂直滚动指示器边距的每次写入。
+    override var verticalScrollIndicatorInsets: UIEdgeInsets {
+        didSet { insetWrites += 1 }
+    }
+
+    /// 记录水平滚动指示器边距的每次写入。
+    override var horizontalScrollIndicatorInsets: UIEdgeInsets {
+        didSet { insetWrites += 1 }
     }
 }

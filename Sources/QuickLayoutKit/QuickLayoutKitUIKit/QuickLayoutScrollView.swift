@@ -197,7 +197,13 @@ open class QuickLayoutScrollView:
         setNeedsQuickLayout()
     }
 
-    /// 按旧边距记录起点状态，重算边距后在需要时保持内容位于起点。
+    /// 响应安全区域变化，更新内容边距并使依赖安全区域的布局失效。
+    ///
+    /// 接收者根据上一次布局完成时的边距判断内容是否停留在起点。若内容原先位于起点，
+    /// 且调整后边距发生变化，则请求在后续布局中恢复起点。
+    ///
+    /// 水平滚动内容的自然高度可能随可用宽度改变，因此还会使固有内容尺寸失效，
+    /// 并请求父视图重新布局。此方法不直接修改接收者的视口高度。
     open override func safeAreaInsetsDidChange() {
         let previousAdjustedContentInset = lastResolvedAdjustedContentInset
         let wasAtContentStart = previousAdjustedContentInset.map {
@@ -210,6 +216,13 @@ open class QuickLayoutScrollView:
             keepsContentAtStart: false
         )
         quickLayoutEnvironmentState.update(self, explicitReason: .safeArea)
+
+        // 水平视口的自然高度取决于可用宽度。安全区域可能在首次放置后才确定，
+        // 此时仅重新布局滚动内容会保留旧的视口高度；让外层布局重新测量视口。
+        if axis == .horizontal {
+            invalidateIntrinsicContentSize()
+            superview?.setNeedsLayout()
+        }
 
         if wasAtContentStart,
            previousAdjustedContentInset != adjustedContentInset {
@@ -256,8 +269,14 @@ open class QuickLayoutScrollView:
     ///
     /// 水平滚动视图使用内容的自然高度，宽度则继续由外层容器提供。该行为与 SwiftUI
     /// `ScrollView` 的交叉轴尺寸处理一致，使本地化内容或动态字体可以决定轮播视图高度，
-    /// 而无需由拥有者缓存固定值。
+    /// 而无需由拥有者缓存固定值。测量开始前会提交待应用的内容边距，使当前声明参与
+    /// 可用宽度及内容高度的计算。
+    ///
+    /// - Parameter size: 外层提供的视口建议尺寸。有限分量用于确定测量容器长度，
+    ///   非有限分量则回退到接收者当前的边界尺寸。
+    /// - Returns: 宽度由有限建议值决定、否则采用内容测量宽度，且高度采用内容测量高度的尺寸。
     func quickLayoutViewportSizeThatFits(_ size: CGSize) -> CGSize {
+        QuickLayoutContentMarginTransaction.flush()
         synchronizeQuickLayoutSemanticDirectionIfNeeded(
             for: self,
             behavior: quickLayoutSemanticDirectionBehavior
@@ -289,8 +308,13 @@ open class QuickLayoutScrollView:
         )
     }
 
-    /// 按当前视口测量并应用内容，更新滚动范围后执行起点恢复和待处理滚动请求。
+    /// 测量并放置当前滚动内容，随后更新滚动范围。
+    ///
+    /// 先提交待应用的边距，再按当前视口建立测量环境。内容尺寸仅在结果变化时写入；
+    /// 完成布局后执行待处理的起点恢复和滚动请求，并记录调整后边距供下一轮比较。
+    /// 内容在交叉轴上的滚动范围始终采用扣除实际边距后的视口长度。
     override open func layoutSubviews() {
+        QuickLayoutContentMarginTransaction.flush()
         synchronizeQuickLayoutSemanticDirectionIfNeeded(
             for: self,
             behavior: quickLayoutSemanticDirectionBehavior

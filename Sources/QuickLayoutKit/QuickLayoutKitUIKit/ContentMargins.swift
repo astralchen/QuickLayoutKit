@@ -129,7 +129,16 @@ private struct ContentMarginsElement: @MainActor Layout {
     /// 该声明作用于内容、指示器或自动位置。
     let placement: ContentMarginPlacement
 
-    /// 提取内容中的滚动宿主，并立即应用声明边距。
+    /// 创建向内容所暴露的滚动宿主声明边距的布局元素。
+    ///
+    /// 在宿主渲染作用域内，声明会合并到待提交的边距更新；作用域外会立即应用。
+    /// 此初始化方法只提取子元素直接暴露的视图，不遍历 UIKit 子视图层级。
+    ///
+    /// - Parameters:
+    ///   - child: 提供滚动宿主的子元素。
+    ///   - edges: 本层需要覆盖的方向性边缘。
+    ///   - insets: 已移除非有限分量的方向性边距。
+    ///   - placement: 接收边距的容器部分。
     init(
         child: Element,
         edges: EdgeSet,
@@ -183,6 +192,68 @@ private struct ContentMarginsElement: @MainActor Layout {
 }
 
 // MARK: - 边距解析与应用
+
+/// 在宿主渲染期间合并滚动视图的声明式边距更新。
+///
+/// 同一滚动视图在一次提交前只保留最近一次更新操作。嵌套渲染共享待提交记录，
+/// 最外层作用域退出时应用更新；依赖边距的测量也可以提前调用 `flush()`。
+/// 这种合并避免将声明重建过程中的临时零值写入 UIKit。
+///
+/// - Note: 所有操作均在主 actor 上执行。该类型不提供失败回滚；即使渲染操作抛出错误，
+///   退出最外层作用域时仍会提交已登记的更新。
+@MainActor
+enum QuickLayoutContentMarginTransaction {
+    /// 当前嵌套更新作用域的层数；零表示没有活动的更新作用域。
+    private static var depth = 0
+    /// 按滚动视图身份记录的待提交操作；记录之间没有执行顺序保证。
+    private static var pending: [ObjectIdentifier: () -> Void] = [:]
+
+    /// 在允许合并边距更新的作用域中同步执行操作。
+    ///
+    /// 退出最外层作用域时提交剩余更新。嵌套调用返回时不会自行提交，
+    /// 但作用域中的测量可以通过 `flush()` 提前应用当前声明。
+    ///
+    /// - Parameter operation: 在更新作用域中执行的操作。
+    /// - Returns: `operation` 返回的值。
+    /// - Throws: `operation` 抛出的错误。
+    static func withUpdates<Result>(_ operation: () throws -> Result) rethrows -> Result {
+        depth += 1
+        defer {
+            depth -= 1
+            if depth == 0 { flush() }
+        }
+        return try operation()
+    }
+
+    /// 登记指定滚动视图的边距更新，或在没有活动作用域时立即执行更新。
+    ///
+    /// 同一滚动视图的新操作会替换尚未提交的旧操作。操作应在执行时读取最新声明，
+    /// 避免捕获声明重建过程中的中间值。
+    ///
+    /// - Parameters:
+    ///   - scrollView: 用于标识待更新记录的滚动视图。
+    ///   - update: 提交时执行的操作。在作用域内登记时，该闭包会保留到提交或被替换。
+    static func schedule(on scrollView: UIScrollView, update: @escaping () -> Void) {
+        if depth > 0 {
+            pending[ObjectIdentifier(scrollView)] = update
+        } else {
+            update()
+        }
+    }
+
+    /// 同步执行当前待提交的边距更新。
+    ///
+    /// 测量或放置依赖内容边距的视图前调用此方法，以使 UIKit 边距反映当前声明。
+    /// 此方法不结束活动作用域；后续声明仍可继续合并。
+    ///
+    /// 方法先移除待提交记录，再执行其快照。执行过程中在活动作用域内登记的新更新
+    /// 留待下一次提交；没有待提交记录时，此方法不执行任何操作。
+    static func flush() {
+        let updates = pending
+        pending.removeAll(keepingCapacity: true)
+        for update in updates.values { update() }
+    }
+}
 
 /// 管理方向性覆盖与上次应用量，重算时保留调用方原有 UIKit 边距。
 final class QuickLayoutContentMarginState {
@@ -255,16 +326,30 @@ final class QuickLayoutContentMarginState {
     /// 上次记录的 UIKit 自动内容边距调整量。
     private var appliedAutomaticAdjustmentInsets: UIEdgeInsets?
 
-    /// 清空声明覆盖并重算边距，同时保留调用方自身的 UIKit 基线。
+    /// 清空上一轮声明的边距覆盖，并安排更新 UIKit 边距。
+    ///
+    /// 在活动渲染作用域内，清空操作与后续声明合并提交。如果没有后续声明，
+    /// 提交时移除框架此前添加的边距，保留调用方自身的 UIKit 边距基线。
+    ///
+    /// - Parameter scrollView: 持有这些声明覆盖的滚动视图。
     @MainActor
     func reset(on scrollView: UIScrollView) {
         automatic = Overrides()
         scrollContent = Overrides()
         scrollIndicators = Overrides()
-        updateInsets(on: scrollView)
+        scheduleInsetsUpdate(on: scrollView)
     }
 
-    /// 按目标位置合并显式覆盖，并立即重算滚动视图边距。
+    /// 合并指定位置和边缘的声明覆盖，并安排应用结果。
+    ///
+    /// 未包含在 `edges` 中的边缘保留当前声明。活动渲染作用域中的多次调用会合并，
+    /// 直到测量前提交或最外层作用域退出；在作用域外调用时立即应用结果。
+    ///
+    /// - Parameters:
+    ///   - edges: 本次声明需要覆盖的方向性边缘。
+    ///   - insets: 应用于选定边缘的方向性边距。
+    ///   - placement: 接收本次覆盖的内容或指示器位置。
+    ///   - scrollView: 接收解析后 UIKit 边距的滚动视图。
     @MainActor
     func set(
         edges: EdgeSet,
@@ -280,7 +365,21 @@ final class QuickLayoutContentMarginState {
         case .scrollIndicators:
             scrollIndicators.set(edges, to: insets)
         }
-        updateInsets(on: scrollView)
+        scheduleInsetsUpdate(on: scrollView)
+    }
+
+    /// 安排在提交时读取并应用当前的边距声明。
+    ///
+    /// 更新操作弱引用接收者和滚动视图，不延长两者的生命周期；任一对象已释放时，
+    /// 提交操作不产生效果。
+    ///
+    /// - Parameter scrollView: 接收边距更新的滚动视图。
+    @MainActor
+    private func scheduleInsetsUpdate(on scrollView: UIScrollView) {
+        QuickLayoutContentMarginTransaction.schedule(on: scrollView) { [weak self, weak scrollView] in
+            guard let self, let scrollView else { return }
+            self.updateInsets(on: scrollView)
+        }
     }
 
     /// 方向、安全区域或自动调整量变化时重算边距，不主动恢复内容起点。
@@ -317,7 +416,15 @@ final class QuickLayoutContentMarginState {
         updateInsets(on: scrollView, keepsContentAtStart: false)
     }
 
-    /// 先减去旧框架增量，再解析位置覆盖及安全区域补偿；必要时请求保持内容起点。
+    /// 根据当前声明和环境更新滚动内容及指示器边距。
+    ///
+    /// 先从 UIKit 当前边距中扣除上次记录的框架增量，再叠加新解析的覆盖值和安全区域
+    /// 补偿。结果与 UIKit 当前值相同时不调用对应属性的 setter。
+    ///
+    /// - Parameters:
+    ///   - scrollView: 接收边距的滚动视图。
+    ///   - keepsContentAtStart: 是否在内容边距改变且原先停留于起点时，请求恢复起点。
+    ///     默认值为 `true`。此参数不会将处于中途的内容主动滚回起点。
     @MainActor
     private func updateInsets(
         on scrollView: UIScrollView,
@@ -387,11 +494,21 @@ final class QuickLayoutContentMarginState {
         appliedVerticalIndicatorInsets = verticalIndicatorMargins
         appliedHorizontalIndicatorInsets = horizontalIndicatorMargins
 
-        scrollView.contentInset = baseContentInsets.adding(contentMargins)
-        scrollView.verticalScrollIndicatorInsets = baseVerticalIndicatorInsets
+        let contentInsets = baseContentInsets.adding(contentMargins)
+        let verticalIndicatorInsets = baseVerticalIndicatorInsets
             .adding(verticalIndicatorMargins)
-        scrollView.horizontalScrollIndicatorInsets = baseHorizontalIndicatorInsets
+        let horizontalIndicatorInsets = baseHorizontalIndicatorInsets
             .adding(horizontalIndicatorMargins)
+        // UIKit 的 setter 即使收到相同值也可能更新导航栏的 Observation 状态。
+        if scrollView.contentInset != contentInsets {
+            scrollView.contentInset = contentInsets
+        }
+        if scrollView.verticalScrollIndicatorInsets != verticalIndicatorInsets {
+            scrollView.verticalScrollIndicatorInsets = verticalIndicatorInsets
+        }
+        if scrollView.horizontalScrollIndicatorInsets != horizontalIndicatorInsets {
+            scrollView.horizontalScrollIndicatorInsets = horizontalIndicatorInsets
+        }
 
         if shouldKeepContentAtStart {
             (scrollView as? QuickLayoutScrollView)?

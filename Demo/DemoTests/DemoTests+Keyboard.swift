@@ -9,6 +9,47 @@ import QuickLayoutKit
 
 extension DemoTests {
 
+    /// 验证隐藏及硬件键盘的空框架无需经过 UIKit 坐标转换。
+    ///
+    /// 先后使用横竖屏尺寸的零高度框架，覆盖旋转后仍保存上一屏幕几何信息的情况。
+    /// 非空框架作为对照，确认转换计数能够观测正常的坐标转换路径。
+    @Test func keyboardContextSkipsConversionForEmptyFrames() {
+        let view = KeyboardConversionTrackingView(
+            frame: CGRect(x: 0, y: 0, width: 951, height: 669)
+        )
+        let frames = [
+            CGRect(x: 0, y: 951, width: 669, height: 0),
+            CGRect(x: 0, y: 669, width: 951, height: 0),
+            CGRect.zero,
+        ]
+        for frame in frames {
+            for isVisible in [false, true] {
+                let context = QuickLayoutKeyboardContext(
+                    endFrame: frame,
+                    animationDuration: 0,
+                    animationOptions: [],
+                    isVisible: isVisible
+                )
+                let resolved = context.resolved(in: view)
+                #expect(resolved.keyboardFrameInView.isNull)
+                #expect(resolved.intersection.isNull)
+                #expect(resolved.height == 0)
+                #expect(!resolved.isFloatingOrSplitKeyboard)
+                #expect(resolved.isHardwareKeyboardLikely == isVisible)
+            }
+        }
+        #expect(view.conversionCount == 0)
+
+        let visible = QuickLayoutKeyboardContext(
+            endFrame: CGRect(x: 0, y: 400, width: 951, height: 269),
+            animationDuration: 0,
+            animationOptions: [],
+            isVisible: true
+        ).resolved(in: view)
+        #expect(view.conversionCount > 0)
+        #expect(visible.height == 269)
+    }
+
     @Test func keyboardContextParsesUIKitNotification() throws {
         let beginFrame = CGRect(x: 0, y: 844, width: 390, height: 0)
         let frame = CGRect(x: 0, y: 320, width: 390, height: 240)
@@ -331,5 +372,17 @@ private final class TestSafeAreaScrollView: UIScrollView {
 
     override var safeAreaInsets: UIEdgeInsets {
         testSafeAreaInsets
+    }
+}
+
+/// 记录从其他视图坐标空间转换矩形的调用次数。
+private final class KeyboardConversionTrackingView: UIView {
+    /// 自创建以来观测到的矩形转换次数。
+    var conversionCount = 0
+
+    /// 记录转换后沿用 UIKit 的坐标转换结果。
+    override func convert(_ rect: CGRect, from view: UIView?) -> CGRect {
+        conversionCount += 1
+        return super.convert(rect, from: view)
     }
 }
