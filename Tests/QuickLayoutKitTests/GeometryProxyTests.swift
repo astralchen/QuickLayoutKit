@@ -53,7 +53,7 @@ struct GeometryProxyTests {
             second.applyFrame(CGRect(x: 0, y: 0, width: 40, height: 20))
         }
         #expect(secondWidths == [40])
-        for _ in 0..<10 where secondWidths.count < 2 { try? await Task.sleep(for: .milliseconds(20)) }
+        for _ in 0..<10 where secondWidths.count < 2 { try? await Task.sleep(nanoseconds: 20_000_000) }
         #expect(secondWidths == [40, 60])
     }
 
@@ -86,7 +86,7 @@ struct GeometryProxyTests {
         for _ in 0..<5 {
             host.setNeedsQuickLayout(); host.layoutIfNeeded()
             GeometryWindowMonitor.forWindow(window).refresh()
-            try? await Task.sleep(for: .milliseconds(10))
+            try? await Task.sleep(nanoseconds: 10_000_000)
         }
         #expect(callbacks == settled)
         host = nil
@@ -95,14 +95,19 @@ struct GeometryProxyTests {
     @Test func swiftUIReferenceReportsSameLocalSize() async {
         var swiftUISize: CGSize?
         let content = SwiftUI.Color.clear.frame(width: 80, height: 40)
-            .onGeometryChange(for: CGSize.self, of: { $0.size }) { swiftUISize = $0 }
+            // 使用背景读取固定内容的实际尺寸，让 iOS 15 也执行系统尺寸对照。
+            .background {
+                SwiftUI.GeometryReader { geometry in
+                    SwiftUI.Color.clear.onAppear { swiftUISize = geometry.size }
+                }
+            }
         let controller = SwiftUI.UIHostingController(rootView: content)
         let window = makeWindow()
         window.rootViewController = controller
         window.isHidden = false
         defer { window.isHidden = true }
         window.layoutIfNeeded(); controller.view.layoutIfNeeded()
-        for _ in 0..<10 where swiftUISize == nil { try? await Task.sleep(for: .milliseconds(20)) }
+        for _ in 0..<10 where swiftUISize == nil { try? await Task.sleep(nanoseconds: 20_000_000) }
         let native = UIView(frame: CGRect(x: 0, y: 0, width: 80, height: 40))
         let proxy = QuickLayoutKitCore.GeometryProxy(observing: native, layoutDirection: .leftToRight)
         #expect(swiftUISize == proxy.size)
@@ -185,7 +190,7 @@ struct GeometryProxyTests {
             depth -= 1
         }
         element?.applyFrame(CGRect(x: 0, y: 0, width: 40, height: 20))
-        for _ in 0..<10 where widths.count < 2 { try? await Task.sleep(for: .milliseconds(20)) }
+        for _ in 0..<10 where widths.count < 2 { try? await Task.sleep(nanoseconds: 20_000_000) }
         #expect(maximumDepth == 1)
         #expect(widths == [40, 60])
         element = nil
@@ -335,7 +340,7 @@ struct GeometryProxyTests {
         let observers = host.subviews.compactMap { $0 as? GeometryObserverView }
         #expect(observers.count == 1)
         for observer in observers { observer.removeFromSuperview() }
-        try? await Task.sleep(for: .milliseconds(20))
+        try? await Task.sleep(nanoseconds: 20_000_000)
         #expect(observers.allSatisfy { !$0.hasAppliedGeometry })
         let detachedCount = snapshots.count
         GeometryWindowMonitor.forWindow(window).refresh()

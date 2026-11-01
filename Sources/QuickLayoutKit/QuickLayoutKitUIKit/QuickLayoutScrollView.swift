@@ -202,8 +202,8 @@ open class QuickLayoutScrollView:
     /// 接收者根据上一次布局完成时的边距判断内容是否停留在起点。若内容原先位于起点，
     /// 且调整后边距发生变化，则请求在后续布局中恢复起点。
     ///
-    /// 水平滚动内容的自然高度可能随可用宽度改变，因此还会使固有内容尺寸失效，
-    /// 并请求父视图重新布局。此方法不直接修改接收者的视口高度。
+    /// 两种滚动方向的交叉轴尺寸均由内容和边距决定，因此还会使固有内容尺寸失效，
+    /// 并请求父视图重新布局。此方法不直接修改接收者的视口尺寸。
     open override func safeAreaInsetsDidChange() {
         let previousAdjustedContentInset = lastResolvedAdjustedContentInset
         let wasAtContentStart = previousAdjustedContentInset.map {
@@ -217,12 +217,10 @@ open class QuickLayoutScrollView:
         )
         quickLayoutEnvironmentState.update(self, explicitReason: .safeArea)
 
-        // 水平视口的自然高度取决于可用宽度。安全区域可能在首次放置后才确定，
-        // 此时仅重新布局滚动内容会保留旧的视口高度；让外层布局重新测量视口。
-        if axis == .horizontal {
-            invalidateIntrinsicContentSize()
-            superview?.setNeedsLayout()
-        }
+        // 安全区域可能在首次放置后才确定。仅重新布局滚动内容会保留旧的交叉轴
+        // 尺寸；让父布局重新测量垂直视口的宽度或水平视口的高度。
+        invalidateIntrinsicContentSize()
+        superview?.setNeedsLayout()
 
         if wasAtContentStart,
            previousAdjustedContentInset != adjustedContentInset {
@@ -265,17 +263,14 @@ open class QuickLayoutScrollView:
 
     // MARK: - 布局
 
-    /// 返回最适合宿主滚动内容的视口尺寸。
+    /// 测量滚动视口；内容仍由 QuickLayout 的 body 测量机制负责。
     ///
-    /// 水平滚动视图使用内容的自然高度，宽度则继续由外层容器提供。该行为与 SwiftUI
-    /// `ScrollView` 的交叉轴尺寸处理一致，使本地化内容或动态字体可以决定轮播视图高度，
-    /// 而无需由拥有者缓存固定值。测量开始前会提交待应用的内容边距，使当前声明参与
-    /// 可用宽度及内容高度的计算。
-    ///
-    /// - Parameter size: 外层提供的视口建议尺寸。有限分量用于确定测量容器长度，
-    ///   非有限分量则回退到接收者当前的边界尺寸。
-    /// - Returns: 宽度由有限建议值决定、否则采用内容测量宽度，且高度采用内容测量高度的尺寸。
-    func quickLayoutViewportSizeThatFits(_ size: CGSize) -> CGSize {
+    /// 滚动轴接受有限建议（至少容纳内容边距），未指定时使用内容的理想长度。
+    /// 交叉轴将建议传给内容，保留内容测量结果（固定尺寸内容可以超出建议）。
+    /// QuickLayout 使用 `.infinity` 表示未指定／理想尺寸，对应 SwiftUI 的 `nil`，
+    /// 不等同于 SwiftUI 请求最大尺寸的 `.infinity`。
+    /// 测量不依赖上一次布局留下的 bounds 或 contentSize。
+    open override func sizeThatFits(_ size: CGSize) -> CGSize {
         QuickLayoutContentMarginTransaction.flush()
         synchronizeQuickLayoutSemanticDirectionIfNeeded(
             for: self,
@@ -284,7 +279,10 @@ open class QuickLayoutScrollView:
         quickLayoutEnvironmentState.update(self)
         quickLayoutUpdateContentMarginDirectionIfNeeded()
 
-        let containerSize = measurementContainerSize(for: size)
+        let containerSize = CGSize(
+            width: normalizedMeasurementLength(size.width),
+            height: normalizedMeasurementLength(size.height)
+        )
         let safeAreaRegionInsets = quickLayoutSafeAreaRegionInsets
         let measuredContentSize = withQuickLayoutManagedViewState {
             withQuickLayoutContainerSize(
@@ -299,12 +297,34 @@ open class QuickLayoutScrollView:
             }
         }
 
-        return CGSize(
-            width: resolvedViewportLength(
-                proposed: size.width,
-                fallback: measuredContentSize.width
-            ),
-            height: measuredContentSize.height
+        let insets = adjustedContentInset
+        switch axis {
+        case .vertical:
+            return CGSize(
+                width: max(0, measuredContentSize.width + insets.left + insets.right),
+                height: containerSize.height.isFinite
+                    ? max(containerSize.height, insets.top + insets.bottom)
+                    : max(0, measuredContentSize.height + insets.top + insets.bottom)
+            )
+        case .horizontal:
+            return CGSize(
+                width: containerSize.width.isFinite
+                    ? max(containerSize.width, insets.left + insets.right)
+                    : max(0, measuredContentSize.width + insets.left + insets.right),
+                height: max(0, measuredContentSize.height + insets.top + insets.bottom)
+            )
+        }
+    }
+
+    /// 滚动轴可填满可用空间；交叉轴按内容的理想尺寸参与空间分配。
+    ///
+    /// 至少使用 `.partial`，让空滚动视口仍参与栈布局。QuickLayout 会跳过尺寸为零的
+    /// `.fixedSize` 节点及其间距，但 SwiftUI 的空 ScrollView 仍保留与兄弟节点的间距。
+    open override func quick_flexibility(for axis: Axis) -> Flexibility {
+        guard axis != self.axis else { return .fullyFlexible }
+        return max(
+            .partial,
+            _QuickLayoutViewImplementation.quick_flexibility(self, for: axis) ?? .fixedSize
         )
     }
 
@@ -402,30 +422,10 @@ open class QuickLayoutScrollView:
 
     /// 沿滚动轴提供无界建议，交叉轴使用扣除实际边距后的视口长度。
     private var proposedContentSize: CGSize {
-        let viewportSize = contentMarginViewportSize
-        switch axis {
-        case .vertical:
-            return CGSize(width: viewportSize.width, height: .infinity)
-        case .horizontal:
-            return CGSize(width: .infinity, height: viewportSize.height)
-        }
+        measurementContentProposal(for: bounds.size)
     }
 
-    /// 优先使用有限建议，非有限轴回退到当前边界尺寸。
-    private func measurementContainerSize(for proposedSize: CGSize) -> CGSize {
-        CGSize(
-            width: resolvedMeasurementContainerLength(
-                proposed: proposedSize.width,
-                current: bounds.width
-            ),
-            height: resolvedMeasurementContainerLength(
-                proposed: proposedSize.height,
-                current: bounds.height
-            )
-        )
-    }
-
-    /// 垂直内容以视口宽度测量；水平内容双轴无界以获得自然高度。
+    /// 仅解除滚动轴约束；交叉轴继续使用扣除实际边距后的建议。
     private func measurementContentProposal(
         for containerSize: CGSize
     ) -> CGSize {
@@ -435,30 +435,13 @@ open class QuickLayoutScrollView:
         case .vertical:
             return CGSize(width: viewportSize.width, height: .infinity)
         case .horizontal:
-            return CGSize(
-                width: CGFloat.infinity,
-                height: CGFloat.infinity
-            )
+            return CGSize(width: .infinity, height: viewportSize.height)
         }
     }
 
-    /// 有限建议优先，否则使用当前容器长度，并将负值归零。
-    private func resolvedMeasurementContainerLength(
-        proposed: CGFloat,
-        current: CGFloat
-    ) -> CGFloat {
-        if proposed.isFinite {
-            return max(0, proposed)
-        }
-        return max(0, current)
-    }
-
-    /// 有限建议确定视口长度，未受约束时采用内容测量长度。
-    private func resolvedViewportLength(
-        proposed: CGFloat,
-        fallback: CGFloat
-    ) -> CGFloat {
-        proposed.isFinite ? max(0, proposed) : max(0, fallback)
+    /// 保留 QuickLayout 的无界提议，负数和 NaN 归零。
+    private func normalizedMeasurementLength(_ proposed: CGFloat) -> CGFloat {
+        proposed.isNaN ? 0 : max(0, proposed)
     }
 
     /// 当前边界扣除调整后内容边距所得的实际视口尺寸。

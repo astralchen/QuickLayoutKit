@@ -57,6 +57,35 @@ Duo 姿态控制入口。横竖屏交互不能替代折叠姿态验证，也没�
 iOS 15 实机/模拟器运行、VoiceOver 实际朗读及各 Dynamic Type 档位的完整视觉矩阵未执行。
 测试包含挂载、卸载与重建，但没有宣称覆盖所有列表适配器的实际滚动复用场景。
 
+## iOS 15 测试源码兼容修复（2026-11-01）
+
+Xcode 26.5 下按包声明的 iOS 15 最低版本编译测试目标时，发现
+`GeometryProxyTests.swift` 中的 `Task.sleep(for:)` 和 SwiftUI `onGeometryChange`
+需要 iOS 16。将五处等待改为 `Task.sleep(nanoseconds:)`，保留原有 10／20 ms 时长；
+静态尺寸对照改用背景 `GeometryReader` 在 `onAppear` 时采集布局尺寸，仍与
+QuickLayout 的 `GeometryProxy.size` 对照，没有通过版本判断跳过测试。
+`Package.swift`、工程部署版本和生产代码均未因此修改。
+
+验证使用 Xcode 26.5（17F42）、iPad mini (A17 Pro) 的 iOS 26.5 模拟器。
+通过 `.swiftpm/xcode/package.xcworkspace` 的 `QuickLayoutKit` scheme 运行 `test`，
+复用已有 DerivedData，设置 `-jobs 1 -parallel-testing-enabled NO -enableCodeCoverage NO`
+及 `ONLY_ACTIVE_ARCH=YES`，不覆盖 `IPHONEOS_DEPLOYMENT_TARGET`。日志确认测试目标以
+`x86_64-apple-ios15.0-simulator` 编译，构建及测试正常结束（`TEST SUCCEEDED`）。
+`vtool -show-build` 同时确认测试二进制的 `minos` 为 `15.0`。
+
+仅选择以下五项受影响用例，全部通过，无跳过，断言执行约 2.26 秒：
+
+- `layoutBatchFreezesSiblingSnapshotsBeforeActions()`
+- `scopesAndAnchorsSurviveBodyRebuilds()`
+- `swiftUIReferenceReportsSameLocalSize()`
+- `recursiveActionCoalescesWithoutLosingLatestValue()`
+- `marginChangesMeasurementAndUnmountLifecycle()`
+
+日志：`/private/tmp/quicklayout-geometry-ios15.log`；结果：
+`/private/tmp/quicklayout-geometry-ios15.xcresult`。结束后确认模拟器均已关闭，无残留构建或测试进程。
+本轮证明 iOS 15 目标编译兼容及上述定向回归；本机仅安装 iOS 26.5 运行时，
+未执行 iOS 15 系统运行验证，也未重跑全量测试。
+
 ## 复查方式
 
 几何用例同时参与 Swift Package 测试及 `DemoTests` app 宿主测试。Duo 的无宿主 `xctest`

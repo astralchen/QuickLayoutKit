@@ -18,8 +18,9 @@ import QuickLayout
 /// 显式传入滚动视图，可以提供稳定的 UIKit 对象标识；对于值类型的 `ScrollView`，
 /// 该标识通常由 SwiftUI 管理。
 ///
-/// 与 SwiftUI 的 `ScrollView` 一样，该滚动视图占据完整的建议视口。UIKit 通过调整后的
-/// 内容边距表示与滚动视图相交的安全区域，QuickLayout 会将这些值传递给滚动内容。
+/// 与 SwiftUI 的 `ScrollView` 一样，滚动轴接受建议长度，交叉轴按内容和建议尺寸测量。
+/// UIKit 通过调整后的内容边距表示与滚动视图相交的安全区域，QuickLayout 会将这些值
+/// 传递给滚动内容。
 /// 对必须保持在安全区域内的非滚动内容使用 `safeAreaPadding`；需要让可滚动内容的起止
 /// 边缘在安全区域内可达时，使用 `contentMargins`。
 ///
@@ -55,25 +56,14 @@ private struct ScrollElement: @MainActor Layout, @MainActor LeafElement {
         self.child = scrollView
     }
 
-    /// 水平滚动时用内容自然高度确定视口，垂直滚动时采用宿主默认测量。
+    /// 由 QuickLayout 的 UIScrollView 桥接调用宿主的 sizeThatFits。
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode {
-        if child.axis == .horizontal {
-            return LayoutNode(
-                view: child,
-                dimensions: ElementDimensions(
-                    child.quickLayoutViewportSizeThatFits(proposedSize)
-                )
-            )
-        }
-        return child.quick_layoutThatFits(proposedSize)
+        child.quick_layoutThatFits(proposedSize)
     }
 
-    /// 水平滚动的交叉轴固定为内容自然高度，其他轴沿用宿主弹性。
+    /// 构建器与直接使用宿主视图时采用相同的轴弹性。
     func quick_flexibility(for axis: Axis) -> Flexibility {
-        if child.axis == .horizontal, axis == .vertical {
-            return .fixedSize
-        }
-        return child.quick_flexibility(for: axis)
+        child.quick_flexibility(for: axis)
     }
 
     /// 沿用子元素的布局优先级。

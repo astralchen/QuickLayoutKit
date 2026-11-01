@@ -292,9 +292,10 @@ struct QuickLayoutKitTests {
     }
 
     @MainActor
-    @Test func scrollViewFillsItsProposedViewportByDefault() {
+    @Test(arguments: [false, true])
+    func emptyScrollViewFillsOnlyItsScrollingAxis(horizontal: Bool) {
         let scrollView = QuickLayoutScrollView()
-        let element = ScrollView(scrollView) {}
+        let element = ScrollView(scrollView, horizontal ? .horizontal : .vertical) {}
         let frame = CGRect(x: 0, y: 0, width: 844, height: 390)
         let safeAreaInsets = UIEdgeInsets(
             top: 0,
@@ -314,7 +315,46 @@ struct QuickLayoutKitTests {
             )
         }
 
-        #expect(scrollView.frame == frame)
+        // 空内容的交叉轴理想长度为零；父容器提议只填满滚动轴。
+        let expectedFrame = horizontal
+            ? CGRect(x: 0, y: frame.midY, width: frame.width, height: 0)
+            : CGRect(x: frame.midX, y: 0, width: 0, height: frame.height)
+        #expect(scrollView.frame == expectedFrame)
+    }
+
+    @MainActor
+    @Test(arguments: [false, true])
+    func scrollSafeAreaChangesRemeasureParentViewport(horizontal: Bool) {
+        let scrollView = AdjustedContentInsetQuickLayoutScrollView(safeAreaInsets: .zero)
+        _ = ScrollView(scrollView, horizontal ? .horizontal : .vertical) {
+            UIView().frame(width: 80, height: 60)
+        }
+        let host = QuickLayoutView { scrollView }
+        host.frame = CGRect(x: 0, y: 0, width: 300, height: 200)
+        host.layoutIfNeeded()
+        scrollView.layoutIfNeeded()
+        #expect(scrollView.bounds.size == (horizontal
+            ? CGSize(width: 300, height: 60)
+            : CGSize(width: 80, height: 200)))
+
+        for inset: CGFloat in [10, 20, 0] {
+            scrollView.updateSafeAreaInsets(horizontal
+                ? UIEdgeInsets(top: inset, left: 0, bottom: inset, right: 0)
+                : UIEdgeInsets(top: 0, left: inset, bottom: 0, right: inset))
+
+            // 不手动标记父布局失效：安全区回调必须自行触发视口重新测量。
+            host.layoutIfNeeded()
+            scrollView.layoutIfNeeded()
+
+            let expected = horizontal
+                ? CGSize(width: 300, height: 60 + inset * 2)
+                : CGSize(width: 80 + inset * 2, height: 200)
+            #expect(scrollView.bounds.size == expected)
+            #expect(scrollView.sizeThatFits(host.bounds.size) == expected)
+            // 安全区扩大和恢复不应改变交叉轴的可滚动内容范围。
+            #expect(horizontal ? scrollView.contentSize.height == 60
+                : scrollView.contentSize.width == 80)
+        }
     }
 
     @MainActor
@@ -827,7 +867,7 @@ struct QuickLayoutKitTests {
 
         #expect(size == CGSize(width: 300, height: 86))
         #expect(element.quick_flexibility(for: .horizontal) == .fullyFlexible)
-        #expect(element.quick_flexibility(for: .vertical) == .fixedSize)
+        #expect(element.quick_flexibility(for: .vertical) == .partial)
     }
 
     @MainActor
