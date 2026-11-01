@@ -71,6 +71,8 @@ struct GeometryReservedSnapshot: Equatable, Sendable {
     }
 }
 
+#if compiler(>=6.4)
+// 使用项目约定的 Xcode / Swift 6.4 配套 SDK；运行时仍由 iOS 27.1 availability 保护。
 /// 在单个窗口内为系统区域标识维护稳定的 UUID 映射。
 @available(iOS 27.1, *)
 @MainActor
@@ -85,3 +87,4 @@ final class GeometryRegionIdentifiers {
         return id
     }
 }
+#endif

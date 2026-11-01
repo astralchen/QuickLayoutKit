@@ -77,7 +77,10 @@ extension DemoTests {
         giftScrollView.layoutIfNeeded()
         recipientScrollView.layoutIfNeeded()
         categoryScrollView.layoutIfNeeded()
-        #expect(giftSheet.view.allSubviews(of: UIScrollView.self).count == 3)
+        for viewport in [giftSheet.giftScrollView, giftSheet.recipientScrollView, giftSheet.giftCategoryScrollView] {
+            #expect(viewport.isDescendant(of: giftSheet.view))
+            #expect(viewport.bounds.width > 0 && viewport.bounds.height > 0)
+        }
         #expect(giftScrollView.contentSize.height > giftScrollView.bounds.height)
         #expect(recipientScrollView.alwaysBounceHorizontal)
         #expect(!recipientScrollView.showsHorizontalScrollIndicator)
@@ -792,7 +795,10 @@ extension DemoTests {
         #expect(abs(sheetFrame.maxY - window.bounds.maxY) < 1)
         #expect(sheetBackgroundView.frame == sheetView.bounds)
         #expect(sheetBackgroundView.layer is CAGradientLayer)
-        #expect(giftSheet.view.allSubviews(of: UIScrollView.self).count == 3)
+        for viewport in [giftSheet.giftScrollView, giftSheet.recipientScrollView, giftSheet.giftCategoryScrollView] {
+            #expect(viewport.isDescendant(of: giftSheet.view))
+            #expect(viewport.bounds.width > 0 && viewport.bounds.height > 0)
+        }
         #expect(
             giftSheet.giftScrollView.contentSize.height
                 > giftSheet.giftScrollView.bounds.height
@@ -953,7 +959,10 @@ extension DemoTests {
 
         #expect(giftSheet.giftCount == 276)
         #expect(giftSheet.giftColumnCount == 6)
-        #expect(giftSheet.view.allSubviews(of: UIScrollView.self).count == 3)
+        for viewport in [giftSheet.giftScrollView, giftSheet.recipientScrollView, giftSheet.giftCategoryScrollView] {
+            #expect(viewport.isDescendant(of: giftSheet.view))
+            #expect(viewport.bounds.width > 0 && viewport.bounds.height > 0)
+        }
         let categoryScrollView = giftSheet.giftCategoryScrollView
         let allCategoryButton = try #require(
             giftSheet.view

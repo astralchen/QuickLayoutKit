@@ -7,7 +7,7 @@ extension ChatKeyboardUITests {
         let app = XCUIApplication()
         app.launchArguments += ["-quicklayoutkit.demo.locale.identifier", "zh-Hans"]
         app.launch()
-        let route = app.cells["demo.imessage.title"]
+        let route = app.buttons.matching(identifier: "app.tab.chat").firstMatch
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
         for _ in 0..<10 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
         XCTAssertTrue(route.waitForExistence(timeout: 5))
@@ -31,7 +31,7 @@ extension ChatKeyboardUITests {
         let app = XCUIApplication()
         app.launchArguments += ["-quicklayoutkit.demo.locale.identifier", locale]
         app.launch()
-        let route = app.cells["demo.imessage.title"]
+        let route = app.buttons.matching(identifier: "app.tab.chat").firstMatch
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
         for _ in 0..<10 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
         XCTAssertTrue(route.waitForExistence(timeout: 5))

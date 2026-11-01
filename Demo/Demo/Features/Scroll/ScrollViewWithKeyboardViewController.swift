@@ -287,6 +287,8 @@ class ScrollViewWithKeyboardViewController: LocalizedQuickLayoutHostingControlle
                 submitButton
                     .frame(height: 50)
             }
+            .frame(maxWidth: 720)
+            .frame(maxWidth: .infinity)
         }
         .contentMargins(.horizontal, 20)
         .contentMargins(.top, 20)

@@ -139,7 +139,7 @@ final class BottomObstructionCoordinator {
         guard pickerViewController === picker else { return }
         if let height = pickerPresentationHeight,
            let hostView,
-           let pickerHeight = visiblePickerHeight(in: hostView) {
+           let pickerHeight = visiblePickerHeight(in: hostView), pickerHeight > 0 {
             pickerGeometryOffset = max(0, height - pickerHeight)
         }
         pickerPresentationHeight = nil
@@ -182,6 +182,7 @@ final class BottomObstructionCoordinator {
     /// 页面真正退出时停止采样并清除交接状态，避免离屏后继续驱动布局。
     func stop() {
         stopDisplayLink()
+        currentHeight = 0
         pickerViewController = nil
         keyboardContext = nil
         pickerPresentationHeight = nil
@@ -259,7 +260,14 @@ final class BottomObstructionCoordinator {
         }
         // 暂不截断负值：面板离开屏幕时需要先抵消几何校准量，再由统一解析器归零，
         // 否则输入栏会在关闭动画末尾残留几像素高度，直到 dismiss 完成才突然落底。
+        guard Self.isBottomAttached(frame, to: view.safeAreaLayoutGuide.layoutFrame) else { return nil }
         return view.bounds.maxY - frame.minY - view.safeAreaInsets.bottom
+    }
+
+    /// 只有横向覆盖内容且贴近底边的面板，才参与整条输入栏的避让。
+    nonisolated static func isBottomAttached(_ frame: CGRect, to safeFrame: CGRect) -> Bool {
+        frame.minX <= safeFrame.minX + 32 && frame.maxX >= safeFrame.maxX - 32
+            && frame.maxY >= safeFrame.maxY - 32
     }
 
     /// 把键盘通知的最终 frame 转成不含底部安全区的稳定内容高度。

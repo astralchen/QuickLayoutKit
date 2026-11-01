@@ -188,6 +188,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
     /// 页面显示后接受新主特效；先前清空的队列不会恢复。
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        viewModel.startObservingStageSnapshots()
         isGiftEffectPageVisible = true
         if view.window?.windowScene?.activationState == .foregroundActive {
             giftMainEffectCoordinator.activate()
@@ -329,16 +330,11 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
                 .ignoresSafeArea(.all, edges: .all)
 
             VStack(spacing: 10) {
-                roomHeaderView
-                    .resizable(axis: .horizontal)
-                    .fixedSize(axis: .vertical)
-                seatStageView
-                    .resizable(axis: .horizontal)
-                    .fixedSize(axis: .vertical)
+                ContentFittingScroll(stageScrollView, maximumHeightFraction: 0.62) { stageContent }
                 messagesView
                     .resizable()
                     .frame(
-                        minHeight: usesCompactPageLayout ? 0 : 80,
+                        minHeight: 0,
                         maxHeight: .infinity
                     )
             }
@@ -378,9 +374,18 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
         }
     }
 
-    /// 一个布尔值，指示页面高度是否需要采用紧凑布局。
+    /// 矮窗口允许舞台独立滚动，不挤出公屏与底部操作栏。
+    private let stageScrollView = QuickLayoutScrollView()
+
+    private var stageContent: Layout {
+        VStack(spacing: 10) {
+            roomHeaderView.resizable(axis: .horizontal).fixedSize(axis: .vertical)
+            seatStageView.resizable(axis: .horizontal).fixedSize(axis: .vertical)
+        }
+    }
+
     var usesCompactPageLayout: Bool {
-        view.bounds.height < 780
+        view.safeAreaLayoutGuide.layoutFrame.height < 780
             || (viewModel.state.stagePresentation.layoutID == .roomPKNine
                 && isShowingMessageComposer)
             || traitCollection.preferredContentSizeCategory
@@ -389,7 +394,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
 
     /// 页面主体允许使用的最大内容宽度，单位为点。
     var maximumContentWidth: CGFloat {
-        view.bounds.width >= 700 ? 720 : 620
+        720
     }
 
     /// 配置子视图的样式、交互和辅助功能属性。

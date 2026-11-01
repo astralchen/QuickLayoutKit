@@ -189,6 +189,11 @@ override var body: Layout {
 此模式适用于 `contentInsetAdjustmentBehavior = .automatic` 的系统滚动容器。不要再为同一层级
 重复添加 `safeAreaPadding`，否则可能造成双重安全区域间距。
 
+对于需要明确触控高度的 UIKit 控件，应先声明对应轴可伸缩，再设置布局框，例如
+`submitButton.resizable().frame(height: 50)`。仅使用 `.frame(height:)`，或仅声明横向
+`.resizable(axis: .horizontal)`，不会强制控件本身放弃纵向固有尺寸；布局框高度与实际
+按钮高度可能不同。多行文本通常保留纵向固有尺寸，仅允许横向伸缩。
+
 ### 背景与页面滚动内容
 
 背景需要延伸到安全区域之外，而页面内容需要滚动时，将背景和滚动视图放入 `ZStack`：
@@ -295,6 +300,18 @@ Demo 首页的 **FixedSize 实验室** 使用自然高度、撑满容器、内�
 示例参考 [SwiftDifferently 的 fixedSize 用例](https://www.swiftdifferently.com/blog/swiftui/fixedsize-usecase)。
 
 ### `QuickLayoutView`
+
+需要使用 QuickLayoutKit 的 `safeAreaPadding`、`containerRelativeFrame` 或几何环境时，
+可复用组件应继承 `QuickLayoutView` 并重写 `body`。上游 `@QuickLayout` 修饰的普通
+`UIView` 只安装 QuickLayout 的布局生命周期，不会在自身每次测量／布局时建立
+QuickLayoutKit 的安全区与容器上下文；即使外层是 `QuickLayoutHostingController`，
+也不能依赖外层临时上下文跨越子视图独立的 `layoutSubviews` 调用。
+
+例如，把 `@QuickLayout class ContentView: UIView` 改为
+`class ContentView: QuickLayoutView`，并将 `var body: Layout` 改为
+`override var body: Layout`。不要再叠加 `@QuickLayout` 宏。分栏的左右安全区可能不相等，
+应在宿主中按边使用 `safeAreaPadding`；滚动页面则使用 `contentMargins`，由滚动宿主
+负责视口安全区，避免对同一内容重复扣减。
 
 现有 UIKit 控制器中只有局部区域需要 QuickLayout 时，使用 `QuickLayoutView`：
 

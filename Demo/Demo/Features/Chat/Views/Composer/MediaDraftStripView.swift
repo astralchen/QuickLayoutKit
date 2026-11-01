@@ -84,26 +84,31 @@ final class MediaDraftStripView: QuickLayoutView, MediaDraftCollectionViewLayout
         collectionView.isPrefetchingEnabled = false
         collectionView.register(DraftCell.self, forCellWithReuseIdentifier: "draft")
         dataSource = UICollectionViewDiffableDataSource<Int, UUID>(collectionView: collectionView) { [weak self] collection, indexPath, id in
-            guard let self, let strings = appliedStrings,
-                  let order = displayedItems.firstIndex(where: { $0.id == id }),
+            guard let self,
                   let cell = collection.dequeueReusableCell(withReuseIdentifier: "draft", for: indexPath) as? DraftCell else { return nil }
-            let item = displayedItems[order]
-            // 新 cell 已由插入/输入栏展开负责入场；只有已有占位的内容回填再淡入。
-            cell.itemView.imageView.thumbnailFadeDuration = cell.representedID == id ? 0.16 : 0
-            cell.representedID = id
-            if awaitingVideoGeometry.contains(id) { cell.itemView.imageView.isContentActive = false }
-            cell.itemView.configure(item, order: order, totalCount: displayedItems.count, strings: strings)
-            cell.itemView.removeRequested = { [weak self] in
-                guard let self, latestItems.contains(where: { $0.id == id }) else { return }
-                removeRequested?(id)
-            }
-            cell.itemView.previewRequested = { [weak self] in
-                guard let self, latestItems.contains(where: { $0.id == id && $0.mediaItem != nil }) else { return }
-                previewRequested?(id)
-            }
+            configure(cell, id: id)
             return cell
         }
         accessibilityIdentifier = "imessage.composer.mediaStrip"
+    }
+
+    private func configure(_ cell: DraftCell, id: UUID) {
+        guard let strings = appliedStrings,
+              let order = displayedItems.firstIndex(where: { $0.id == id }) else { return }
+        let item = displayedItems[order]
+        // 新 cell 已由插入/输入栏展开负责入场；只有已有占位的内容回填再淡入。
+        cell.itemView.imageView.thumbnailFadeDuration = cell.representedID == id ? 0.16 : 0
+        cell.representedID = id
+        if awaitingVideoGeometry.contains(id) { cell.itemView.imageView.isContentActive = false }
+        cell.itemView.configure(item, order: order, totalCount: displayedItems.count, strings: strings)
+        cell.itemView.removeRequested = { [weak self] in
+            guard let self, latestItems.contains(where: { $0.id == id }) else { return }
+            removeRequested?(id)
+        }
+        cell.itemView.previewRequested = { [weak self] in
+            guard let self, latestItems.contains(where: { $0.id == id && $0.mediaItem != nil }) else { return }
+            previewRequested?(id)
+        }
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -226,24 +231,27 @@ final class MediaDraftStripView: QuickLayoutView, MediaDraftCollectionViewLayout
             applyPendingUpdate()
         }
         if old.map(\.id) == next.map(\.id) {
-            // reconfigureItems 本身不会为自定义 layout 的宽度生成过渡。
-            // 先保留旧几何更新内容，再在独立的布局事务里动画失效尺寸。
-            dataSource.apply(snapshot, animatingDifferences: false) { [weak self] in
-                guard let self else { return }
-                collectionView.layoutIfNeeded()
-                let sizeChanged = itemSizes != nextSizes
-                itemSizes = nextSizes
-                draftLayout.updateAnchor = anchor
-                let changes = { [self] in draftLayout.invalidateMetrics() }
-                if animateWidthChange && sizeChanged {
-                    collectionView.performBatchUpdates(changes) { _ in completion() }
-                } else {
-                    UIView.performWithoutAnimation {
-                        changes()
-                        collectionView.layoutIfNeeded()
-                    }
-                    completion()
+            // 身份未变时直接更新可见内容，避免等待无动画 snapshot 的异步
+            // completion 才开始几何事务；离屏内容由 cell provider 读取最新状态。
+            let changedIDs = Set(snapshot.reconfiguredItemIdentifiers)
+            for case let cell as DraftCell in collectionView.visibleCells {
+                if let id = cell.representedID, changedIDs.contains(id) {
+                    configure(cell, id: id)
                 }
+            }
+            collectionView.layoutIfNeeded()
+            let sizeChanged = itemSizes != nextSizes
+            itemSizes = nextSizes
+            draftLayout.updateAnchor = anchor
+            let changes = { [self] in draftLayout.invalidateMetrics() }
+            if animateWidthChange && sizeChanged {
+                collectionView.performBatchUpdates(changes) { _ in completion() }
+            } else {
+                UIView.performWithoutAnimation {
+                    changes()
+                    collectionView.layoutIfNeeded()
+                }
+                completion()
             }
         } else {
             itemSizes = nextSizes
@@ -318,7 +326,7 @@ final class MediaDraftStripView: QuickLayoutView, MediaDraftCollectionViewLayout
         /// 标示草稿为视频的图像视图。
         let videoBadge = UIImageView()
         /// 视频时长的深色半透明底衬，使白色文字在明亮封面上保持可读。
-        lazy var durationBackgroundView = QuickLayoutView { [unowned self] in
+        lazy var durationBackgroundView = QuickLayoutView { [durationLabel] in
             durationLabel.fixedSize().padding(.horizontal, 4).padding(.vertical, 2)
         }
         /// 显示视频时长的标签。

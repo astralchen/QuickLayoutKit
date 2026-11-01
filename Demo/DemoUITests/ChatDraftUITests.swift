@@ -18,7 +18,7 @@ final class ChatDraftUITests: XCTestCase {
         let editor = app.textViews["imessage.composer.text"]
         editor.tap()
         editor.typeText(text)
-        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons.matching(identifier: "app.tab.examples").firstMatch.tap()
         enterChat(app)
         assertValue(editor, text)
         assertKeyboardHidden(app)
@@ -35,7 +35,7 @@ final class ChatDraftUITests: XCTestCase {
         editor.typeText(" continued")
         app.buttons["imessage.composer.send"].tap()
         assertValue(editor, "")
-        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons.matching(identifier: "app.tab.examples").firstMatch.tap()
         enterChat(app)
         assertValue(editor, "")
         app.terminate()
@@ -55,7 +55,7 @@ final class ChatDraftUITests: XCTestCase {
         let editor = app.textViews["imessage.composer.text"]
         editor.tap()
         editor.typeText("照片 GIF Live Photo 视频草稿")
-        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons.matching(identifier: "app.tab.examples").firstMatch.tap()
         app.terminate()
         app.launchArguments = arguments(session: session)
         app.launch()
@@ -72,7 +72,7 @@ final class ChatDraftUITests: XCTestCase {
         app.buttons["imessage.composer.send"].tap()
         assertValue(editor, "")
         XCTAssertTrue(previews.firstMatch.waitForNonExistence(timeout: 5))
-        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons.matching(identifier: "app.tab.examples").firstMatch.tap()
         enterChat(app)
         XCTAssertFalse(previews.firstMatch.exists)
         capture(app, "草稿-混合媒体发送后清空")
@@ -99,7 +99,7 @@ final class ChatDraftUITests: XCTestCase {
         selectAll.tap()
         editor.typeText(XCUIKeyboardKey.delete.rawValue)
         assertValue(editor, "")
-        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons.matching(identifier: "app.tab.examples").firstMatch.tap()
         enterChat(app)
         assertValue(editor, "")
     }
@@ -132,7 +132,7 @@ final class ChatDraftUITests: XCTestCase {
     ///
     /// - Parameter app: 已启动并停留在 Demo 列表的应用实例。
     @MainActor private func enterChat(_ app: XCUIApplication) {
-        let route = app.cells["demo.imessage.title"]
+        let route = app.buttons.matching(identifier: "app.tab.chat").firstMatch
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
         for _ in 0..<10 where !route.isHittable { app.collectionViews.firstMatch.swipeUp() }
         XCTAssertTrue(route.waitForExistence(timeout: 5))

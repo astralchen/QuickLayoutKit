@@ -173,10 +173,11 @@ final class LocalizationOverviewViewController: LocalizedQuickLayoutHostingContr
     }
 }
 
-final class UIKitLocalizationShowcaseViewController: LocalizedViewController {
+final class UIKitLocalizationShowcaseViewController: LocalizedQuickLayoutHostingController {
     override var localizedTitleKey: String? { "demo.uikitLocalization.title" }
 
     private let titleLabel = UILabel()
+    private let scrollView = QuickLayoutScrollView()
     private let subtitleLabel = UILabel()
     private let modalButton: UIButton = {
         var configuration = UIButton.Configuration.plain()
@@ -222,6 +223,7 @@ final class UIKitLocalizationShowcaseViewController: LocalizedViewController {
         subtitleLabel.font = .preferredFont(forTextStyle: .body)
         subtitleLabel.textColor = .secondaryLabel
         subtitleLabel.numberOfLines = 0
+        subtitleLabel.accessibilityIdentifier = "localization.demo.body"
 
         modalButton.addTarget(self, action: #selector(showModal), for: .touchUpInside)
         collectionView.backgroundColor = .clear
@@ -229,21 +231,25 @@ final class UIKitLocalizationShowcaseViewController: LocalizedViewController {
         collectionView.dataSource = self
         collectionView.delegate = self
 
-        let stack = UIStackView(arrangedSubviews: [titleLabel, subtitleLabel, modalButton, collectionView])
-        stack.axis = .vertical
-        stack.spacing = 16
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(stack)
-
-        NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
-            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            collectionView.heightAnchor.constraint(equalToConstant: 82)
-        ])
+        // 页面滚动宿主负责外层安全区，集合视图只负责自己的横向内容。
+        collectionView.contentInsetAdjustmentBehavior = .never
 
         reloadLocalizedContent()
         reloadLayoutDirection(Localization.currentUIKitDirection)
+    }
+
+    override var body: Layout {
+        ScrollView(scrollView) {
+            VStack(alignment: .leading, spacing: 16) {
+                titleLabel.resizable(axis: .horizontal)
+                subtitleLabel.resizable(axis: .horizontal)
+                modalButton.resizable(axis: .horizontal).frame(minHeight: 44)
+                collectionView.resizable().frame(height: 82)
+            }
+            .frame(maxWidth: 720)
+            .frame(maxWidth: .infinity)
+        }
+        .contentMargins(20, for: .scrollContent)
     }
 
     override func reloadLocalizedContent() {
@@ -339,25 +345,28 @@ private final class LocalizationShowcaseCell: UICollectionViewCell {
     }
 }
 
-private final class LocalizationModalViewController: LocalizedViewController {
+private final class LocalizationModalViewController: LocalizedQuickLayoutHostingController {
     override var localizedTitleKey: String? { "uikit.showModal" }
 
     private let label = UILabel()
+    private let scrollView = QuickLayoutScrollView()
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         label.font = .preferredFont(forTextStyle: .body)
         label.numberOfLines = 0
-        label.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(label)
-        NSLayoutConstraint.activate([
-            label.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 24),
-            label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
-            label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24)
-        ])
         navigationItem.leftBarButtonItem = UIBarButtonItem(title: Localization.text("common.close"), style: .done, target: self, action: #selector(close))
         reloadLocalizedContent()
+    }
+
+    override var body: Layout {
+        ScrollView(scrollView) {
+            label.resizable(axis: .horizontal)
+                .frame(maxWidth: 720)
+                .frame(maxWidth: .infinity)
+        }
+        .contentMargins(24, for: .scrollContent)
     }
 
     override func reloadLocalizedContent() {
@@ -380,11 +389,12 @@ private final class LocalizationModalViewController: LocalizedViewController {
     }
 }
 
-final class DirectionalNavigationDemoViewController: LocalizedViewController {
+final class DirectionalNavigationDemoViewController: LocalizedQuickLayoutHostingController {
     override var localizedTitleKey: String? { "demo.directionalNavigation.title" }
 
     private let label = UILabel()
     private let edgeLabel = UILabel()
+    private let scrollView = QuickLayoutScrollView()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -396,21 +406,23 @@ final class DirectionalNavigationDemoViewController: LocalizedViewController {
         label.font = .preferredFont(forTextStyle: .body)
         edgeLabel.font = .monospacedSystemFont(ofSize: 15, weight: .medium)
         edgeLabel.textColor = .secondaryLabel
-
-        let stack = UIStackView(arrangedSubviews: [label, edgeLabel])
-        stack.axis = .vertical
-        stack.spacing = 16
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(stack)
-
-        NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 24),
-            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
-        ])
+        edgeLabel.numberOfLines = 0
+        label.accessibilityIdentifier = "localization.demo.body"
 
         reloadLocalizedContent()
         reloadLayoutDirection(Localization.currentUIKitDirection)
+    }
+
+    override var body: Layout {
+        ScrollView(scrollView) {
+            VStack(alignment: .leading, spacing: 16) {
+                label.resizable(axis: .horizontal)
+                edgeLabel.resizable(axis: .horizontal)
+            }
+            .frame(maxWidth: 720)
+            .frame(maxWidth: .infinity)
+        }
+        .contentMargins(20, for: .scrollContent)
     }
 
     override func reloadLocalizedContent() {
@@ -470,10 +482,19 @@ final class DirectionalNavigationDemoViewController: LocalizedViewController {
     }
 }
 
-final class SemanticGestureDemoViewController: LocalizedViewController {
+final class SemanticGestureDemoViewController: LocalizedQuickLayoutHostingController {
     override var localizedTitleKey: String? { "demo.semanticGesture.title" }
 
-    private let containerView = UIView()
+    // UIKit may still measure this view after its controller has been released.
+    private lazy var containerView = QuickLayoutView { [hintLabel, resultLabel] in
+        VStack(spacing: 12) {
+            hintLabel.resizable(axis: .horizontal)
+            resultLabel.resizable(axis: .horizontal)
+        }
+        .padding(20)
+        .frame(minHeight: 180)
+    }
+    private let scrollView = QuickLayoutScrollView()
     private let hintLabel = UILabel()
     private let resultLabel = UILabel()
     private var translationX: CGFloat = 0
@@ -487,31 +508,22 @@ final class SemanticGestureDemoViewController: LocalizedViewController {
         hintLabel.font = .preferredFont(forTextStyle: .body)
         hintLabel.textAlignment = .center
         hintLabel.numberOfLines = 0
+        hintLabel.accessibilityIdentifier = "localization.demo.body"
         resultLabel.font = .preferredFont(forTextStyle: .headline)
         resultLabel.textAlignment = .center
         resultLabel.numberOfLines = 0
 
-        let stack = UIStackView(arrangedSubviews: [hintLabel, resultLabel])
-        stack.axis = .vertical
-        stack.alignment = .fill
-        stack.spacing = 12
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        containerView.addSubview(stack)
-        containerView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(containerView)
-
-        NSLayoutConstraint.activate([
-            containerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 24),
-            containerView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            containerView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            containerView.heightAnchor.constraint(equalToConstant: 180),
-            stack.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
-            stack.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
-            stack.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20)
-        ])
-
         containerView.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:))))
         reloadLocalizedContent()
+    }
+
+    override var body: Layout {
+        ScrollView(scrollView) {
+            containerView
+                .frame(maxWidth: 720)
+                .frame(maxWidth: .infinity)
+        }
+        .contentMargins(20, for: .scrollContent)
     }
 
     override func reloadLocalizedContent() {
@@ -573,14 +585,17 @@ final class SemanticGestureDemoViewController: LocalizedViewController {
             ),
             Localization.text("gesture.backSwipe", backSwipeText),
         ].joined(separator: "\n")
+        containerView.setNeedsQuickLayout()
+        setNeedsQuickLayout()
     }
 }
 
-final class LocalizationBoundaryDemoViewController: LocalizedViewController {
+final class LocalizationBoundaryDemoViewController: LocalizedQuickLayoutHostingController {
     override var localizedTitleKey: String? { "demo.localizationBoundary.title" }
 
     private let bodyLabel = UILabel()
     private let metadataLabel = UILabel()
+    private let scrollView = QuickLayoutScrollView()
     private let alertButton: UIButton = {
         var configuration = UIButton.Configuration.plain()
         configuration.title = Localization.text(
@@ -597,21 +612,23 @@ final class LocalizationBoundaryDemoViewController: LocalizedViewController {
             $0.font = .preferredFont(forTextStyle: .body)
         }
         metadataLabel.textColor = .secondaryLabel
+        bodyLabel.accessibilityIdentifier = "localization.demo.body"
         alertButton.addTarget(self, action: #selector(showBoundaryAlert), for: .touchUpInside)
 
-        let stack = UIStackView(arrangedSubviews: [bodyLabel, metadataLabel, alertButton])
-        stack.axis = .vertical
-        stack.spacing = 16
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(stack)
-
-        NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 24),
-            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
-        ])
-
         reloadLocalizedContent()
+    }
+
+    override var body: Layout {
+        ScrollView(scrollView) {
+            VStack(alignment: .leading, spacing: 16) {
+                bodyLabel.resizable(axis: .horizontal)
+                metadataLabel.resizable(axis: .horizontal)
+                alertButton.resizable(axis: .horizontal).frame(minHeight: 44)
+            }
+            .frame(maxWidth: 720)
+            .frame(maxWidth: .infinity)
+        }
+        .contentMargins(20, for: .scrollContent)
     }
 
     override func reloadLocalizedContent() {

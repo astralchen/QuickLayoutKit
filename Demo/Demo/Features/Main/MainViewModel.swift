@@ -35,50 +35,22 @@ final class MainViewModel {
     }
 
     private static let sectionDefinitions: [SectionDefinition] = [
-        SectionDefinition(
-            titleKey: "main.section.quicklayout",
-            routes: [
-                .horizontalScroll,
-                .safeAreaPadding,
-                .contentMargins,
-                .positionAndZIndex,
-                .viewThatFits,
-                // 先理解 frame 的尺寸提议，再学习 fixedSize 对提议的处理。
-                .frame,
-                .fixedSize,
-                .containerRelativeSize,
-                .geometry,
-                .profile,
-                .counter,
-                .dynamicScroll,
-                .dashboard,
-                .voiceRoom,
-                .chat,
-                .collectionContentConfiguration,
-                .waterfallContentConfiguration,
-                .tableContentConfiguration,
-                .keyboard,
-                .form,
-                .semanticContent,
-            ]
-        ),
-        SectionDefinition(
-            titleKey: "main.section.hosting",
-            routes: [
-                .representable,
-            ]
-        ),
-        SectionDefinition(
-            titleKey: "main.section.localization",
-            routes: [
-                .localizationOverview,
-                .uikitLocalization,
-                .directionalNavigation,
-                .semanticGesture,
-                .swiftUIBridge,
-                .localizationBoundary,
-            ]
-        ),
+        .init(titleKey: "main.section.layout", routes: [
+            .safeAreaPadding, .contentMargins, .positionAndZIndex, .viewThatFits,
+            .frame, .fixedSize, .containerRelativeSize, .geometry,
+        ]),
+        .init(titleKey: "main.section.input", routes: [
+            .horizontalScroll, .dynamicScroll, .keyboard, .form,
+        ]),
+        .init(titleKey: "main.section.lists", routes: [
+            .collectionContentConfiguration, .waterfallContentConfiguration, .tableContentConfiguration,
+        ]),
+        .init(titleKey: "main.section.screens", routes: [.profile, .dashboard, .counter]),
+        .init(titleKey: "main.section.hosting", routes: [.representable]),
+        .init(titleKey: "main.section.localization", routes: [
+            .semanticContent, .localizationOverview, .uikitLocalization,
+            .directionalNavigation, .semanticGesture, .swiftUIBridge, .localizationBoundary,
+        ]),
     ]
 
     private let localizer: Localizer

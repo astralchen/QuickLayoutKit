@@ -330,8 +330,9 @@ extension ComposerView {
             + textView.textContainerInset.top
             + textView.textContainerInset.bottom
         // 多附件不能把整页推出窗口；超过可见预算后仍由原 UITextView 滚动编辑。
-        let viewportLimit = textAttachments.isEmpty ? contentLimit
-            : max(180, (window?.bounds.height ?? 874) * 0.42) - documentActionHeight
+        let viewportLimit = availableViewportHeight.map { height in
+            max(44, min(height * 0.42, height - 96) - documentActionHeight - mediaDraftAdditionalHeight)
+        } ?? contentLimit
         let maximumHeight = min(contentLimit, viewportLimit)
         let measuredHeight = measuredContentHeight + verticalInset * 2
         let resolvedHeight = min(max(44, ceil(measuredHeight)), maximumHeight)

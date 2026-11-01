@@ -71,22 +71,37 @@ final class SeatUserCardViewController:
     }
 
     /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
+    private let cardScrollView = QuickLayoutScrollView()
+
     override var body: Layout {
         ZStack {
             dismissButton
                 .resizable()
                 .ignoresSafeArea(.container, edges: .all)
 
-            cardView
-                .resizable(axis: .horizontal)
-                .fixedSize(axis: .vertical)
-                .frame(maxWidth: 340)
-                .padding(.horizontal, 24)
+            ContentFittingScroll(cardScrollView) {
+                cardView
+                    .resizable(axis: .horizontal)
+                    .fixedSize(axis: .vertical)
+            }
+            .frame(maxWidth: 340)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+            .safeAreaPadding(.all, 0)
         }
     }
 
+    override var keyCommands: [UIKeyCommand]? {
+        [UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(dismissUserCard))]
+    }
+
+    override func accessibilityPerformEscape() -> Bool {
+        dismissUserCard()
+        return true
+    }
+
     /// 关闭当前麦位用户资料卡。
-    private func dismissUserCard() {
+    @objc private func dismissUserCard() {
         dismiss(animated: true)
     }
 }

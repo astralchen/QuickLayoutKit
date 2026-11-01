@@ -131,7 +131,7 @@ final class RoomPKUITests: XCTestCase {
         app.launchArguments += ["-AppleLanguages", "(en)", "-quicklayoutkit.demo.locale.identifier", locale]
         app.launch()
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
-        let route = app.cells["demo.liveRoom.title"]
+        let route = app.buttons.matching(identifier: "app.tab.voiceRoom").firstMatch
         for _ in 0..<10 where !route.isHittable { app.collectionViews.firstMatch.swipeUp() }
         XCTAssertTrue(route.isHittable)
         route.tap()

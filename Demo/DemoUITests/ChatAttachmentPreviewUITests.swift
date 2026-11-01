@@ -13,7 +13,7 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments += ["-imessage-save-fixture", fixture, "-quicklayoutkit.demo.locale.identifier", locale] + extra
         app.launch()
-        let route = app.cells["demo.imessage.title"]
+        let route = app.buttons.matching(identifier: "app.tab.chat").firstMatch
         if extra.contains("-UIPreferredContentSizeCategoryName") {
             let search = app.searchFields.firstMatch
             XCTAssertTrue(search.waitForExistence(timeout: 10))

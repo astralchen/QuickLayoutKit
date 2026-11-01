@@ -283,8 +283,8 @@ struct MainNavigationRTLTests {
             window.isHidden = true
             Localization.setLocale(identifier: "en-US")
         }
-        #expect(await waitForCondition { main.collectionView.numberOfItems(inSection: 0) > 10 })
-        main.collectionView.scrollToItem(at: IndexPath(item: 10, section: 0), at: .top, animated: false)
+        #expect(await waitForCondition { main.collectionView.numberOfSections == 6 })
+        main.collectionView.scrollToItem(at: IndexPath(item: 0, section: 4), at: .top, animated: false)
         main.collectionView.contentOffset.y += 17
         // 等待导航栏完成滚动联动，再记录用户实际看到的条目与偏移。
         try await Task.sleep(nanoseconds: 100_000_000)

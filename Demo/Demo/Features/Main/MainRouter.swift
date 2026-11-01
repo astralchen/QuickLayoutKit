@@ -29,6 +29,15 @@ final class MainRouter: MainRouting {
         to route: MainRoute,
         from sourceViewController: UIViewController
     ) {
+        if let tabs = sourceViewController.tabBarController as? AppTabBarController,
+           let tab = AppTab(route: route) {
+            tabs.select(tab)
+            return
+        }
+        if let split = sourceViewController.splitViewController as? DemoSplitViewController {
+            split.select(route)
+            return
+        }
         guard let destination = makeViewController(for: route) else { return }
         destination.navigationItem.title = localizer.text(route.titleKey)
         destination.navigationItem.largeTitleDisplayMode = .never
@@ -38,7 +47,7 @@ final class MainRouter: MainRouting {
         )
     }
 
-    private func makeViewController(for route: MainRoute) -> UIViewController? {
+    func makeViewController(for route: MainRoute) -> UIViewController? {
         switch route {
         case .horizontalScroll:
             HorizontalScrollViewViewController()

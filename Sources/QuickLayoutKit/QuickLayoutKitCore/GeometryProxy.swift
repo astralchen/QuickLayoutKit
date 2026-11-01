@@ -261,6 +261,7 @@ public struct GeometryProxy: Sendable, Equatable {
                 candidate = source.superview
             }
         }
+        #if compiler(>=6.4)
         if #available(iOS 27.1, *), let window = view.window {
             let ids = GeometryWindowMonitor.forWindow(window).regionIdentifiers
             for kind in [UIView.ReservedRegion.Kind.occlusion, .division] {
@@ -272,6 +273,7 @@ public struct GeometryProxy: Sendable, Equatable {
                 }
             }
         }
+        #endif
     }
 }
 

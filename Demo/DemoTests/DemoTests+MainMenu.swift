@@ -29,11 +29,11 @@ extension DemoTests {
 
         let cell = try mainMenuCell(at: IndexPath(item: 0, section: 0), in: main)
         let configuration = try #require(cell.contentConfiguration as? UIListContentConfiguration)
-        #expect(configuration.text == "横向滚动")
+        #expect(configuration.text == Localization.text("demo.safeAreaPadding.title"))
         #expect(configuration.image != nil)
         #expect(configuration.textProperties.numberOfLines == 0)
         #expect(cell.accessories.count == 1)
-        #expect(cell.accessibilityIdentifier == "demo.horizontalScroll.title")
+        #expect(cell.accessibilityIdentifier == "demo.safeAreaPadding.title")
         #expect(!cell.allSubviews(of: UIListContentView.self).isEmpty)
         for route in MainRoute.allCases {
             #expect(UIImage(systemName: route.iconSystemName) != nil)
@@ -52,9 +52,9 @@ extension DemoTests {
             Localization.setLocale(identifier: "en-US")
         }
 
-        let chineseTitles = try [0, 1, 4].map { item in
+        let chineseTitles = try [1, 2, 5].map { item in
             try mainMenuConfiguration(
-                at: IndexPath(item: item, section: 2),
+                at: IndexPath(item: item, section: 5),
                 in: main
             ).text
         }
@@ -67,12 +67,12 @@ extension DemoTests {
         main.view.layoutIfNeeded()
 
         let arabicConfiguration = try mainMenuConfiguration(
-            at: IndexPath(item: 0, section: 2),
+            at: IndexPath(item: 1, section: 5),
             in: main
         )
         let arabicCell = try #require(
             main.collectionView.cellForItem(
-                at: IndexPath(item: 0, section: 2)
+                at: IndexPath(item: 1, section: 5)
             ) as? UICollectionViewListCell
         )
 
@@ -137,7 +137,11 @@ extension DemoTests {
     @Test func mainMenuSectionHeaderMeasuresMultilineAccessibilityText() async throws {
         Localization.setLocale(identifier: "zh-Hans")
         defer { Localization.setLocale(identifier: "en-US") }
-        let main = MainViewController()
+        let main = MainViewController(
+            viewModel: MainViewModel(localizer: Localizer { key, _ in
+                key == "main.section.layout" ? String(repeating: "布局基础示例与窗口适配 ", count: 4) : Localization.text(key)
+            }), router: MainRouter()
+        )
         let window = try makeVisibleTestWindow(
             rootViewController: main,
             size: CGSize(width: 320, height: 844),
@@ -183,7 +187,7 @@ extension DemoTests {
         ) as? MainMenuSectionHeaderView)
         #expect(header.listContentView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
         #expect(header.accessibilityTraits.contains(.header))
-        #expect((header.listContentView.configuration as? UIListContentConfiguration)?.text == Localization.text("main.section.quicklayout"))
+        #expect((header.listContentView.configuration as? UIListContentConfiguration)?.text == Localization.text("main.section.layout"))
 
         Localization.setLocale(identifier: "zh-Hans")
         main.reloadLocalizedContent()
@@ -195,7 +199,7 @@ extension DemoTests {
             at: IndexPath(item: 0, section: 0)
         ) as? MainMenuSectionHeaderView)
         #expect(restored.listContentView.effectiveUserInterfaceLayoutDirection == .leftToRight)
-        #expect((restored.listContentView.configuration as? UIListContentConfiguration)?.text == "QuickLayout 示例")
+        #expect((restored.listContentView.configuration as? UIListContentConfiguration)?.text == "基础布局")
     }
 
     @Test func mainMenuRebuildsAndMirrorsItsNativeListContentRoundTrip() throws {
@@ -329,8 +333,8 @@ extension DemoTests {
         }
         search.searchBar.text = ""
         main.updateSearchResults(for: search)
-        #expect(await waitForCondition { main.collectionView.numberOfSections == 3 })
-        #expect(main.collectionView.numberOfSections == 3)
+        #expect(await waitForCondition { main.collectionView.numberOfSections == 6 })
+        #expect(main.collectionView.numberOfSections == 6)
         if #available(iOS 17.0, *) {
             #expect(main.contentUnavailableConfiguration == nil)
         } else {
@@ -367,7 +371,7 @@ extension DemoTests {
             didSelectItemAt: indexPath
         )
 
-        #expect(router.routes == [.horizontalScroll])
+        #expect(router.routes == [.safeAreaPadding])
     }
 }
 

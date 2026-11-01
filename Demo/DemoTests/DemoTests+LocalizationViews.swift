@@ -9,6 +9,71 @@ import QuickLayoutKit
 
 extension DemoTests {
 
+    @Test func semanticGestureContentCanLayoutAfterControllerDeallocation() throws {
+        weak var releasedController: SemanticGestureDemoViewController?
+        let scrollView: QuickLayoutScrollView = try autoreleasepool {
+            let controller = SemanticGestureDemoViewController()
+            releasedController = controller
+            controller.loadViewIfNeeded()
+            controller.view.frame = CGRect(x: 0, y: 0, width: 744, height: 1133)
+            controller.view.layoutIfNeeded()
+            let scroll = try #require(
+                controller.view.allSubviews(of: QuickLayoutScrollView.self).first
+            )
+            scroll.layoutIfNeeded()
+            scroll.removeFromSuperview()
+            return scroll
+        }
+        #expect(releasedController == nil)
+
+        let hint = try #require(scrollView.allSubviews(of: UILabel.self).first {
+            $0.accessibilityIdentifier == "localization.demo.body"
+        })
+        let content = try #require(hint.superview as? QuickLayoutView)
+        for width in [320.0, 720.0] {
+            let size = content.sizeThatFits(CGSize(width: width, height: .infinity))
+            #expect(size.width.isFinite)
+            #expect(size.height.isFinite)
+            #expect(size.height >= 180)
+            scrollView.frame.size = CGSize(width: width, height: 544)
+            scrollView.setNeedsLayout()
+            scrollView.layoutIfNeeded()
+            #expect(hint.frame.width > 0)
+        }
+    }
+
+    /// 页面内容应跟随安全区而非整窗宽度，覆盖侧栏两侧与窄窗口。
+    @Test func localizationPagesRespectDetailViewport() throws {
+        let pages: [(UIViewController, String)] = [
+            (UIKitLocalizationShowcaseViewController(), "uikit.showcase.subtitle"),
+            (DirectionalNavigationDemoViewController(), "navigation.body"),
+            (SemanticGestureDemoViewController(), "gesture.hint"),
+            (LocalizationBoundaryDemoViewController(), "boundary.body"),
+        ]
+        for (controller, key) in pages {
+            let window = try makeVisibleTestWindow(rootViewController: controller, size: CGSize(width: 744, height: 1133))
+            defer { window.isHidden = true }
+            for (width, left, right) in [(744.0, 268.0, 0.0), (1133.0, 0.0, 320.0), (390.0, 0.0, 0.0)] {
+                window.frame.size.width = width
+                controller.additionalSafeAreaInsets = UIEdgeInsets(top: 0, left: left, bottom: 0, right: right)
+                window.layoutIfNeeded()
+                controller.view.setNeedsLayout()
+                controller.view.layoutIfNeeded()
+                let scroll = try #require(controller.view.allSubviews(of: QuickLayoutScrollView.self).first)
+                scroll.layoutIfNeeded()
+                let label = try #require(controller.view.allSubviews(of: UILabel.self).first { $0.text == Localization.text(key) })
+                label.superview?.layoutIfNeeded()
+                let frame = label.convert(label.bounds, to: controller.view)
+                let safe = controller.view.safeAreaLayoutGuide.layoutFrame
+                #expect(frame.width > 0)
+                #expect(frame.minX >= safe.minX + 19)
+                #expect(frame.maxX <= safe.maxX - 19)
+                #expect(frame.width <= 721)
+                #expect(frame.minY >= safe.minY)
+            }
+        }
+    }
+
     @Test func overviewPageReflectsArabicDirection() {
         Localization.setLocale(identifier: "ar")
         let viewController = LocalizationOverviewViewController()
@@ -32,6 +97,9 @@ extension DemoTests {
         let viewController = UIKitLocalizationShowcaseViewController()
         viewController.loadViewIfNeeded()
         viewController.reloadLayoutDirection(.rightToLeft)
+        // 声明式宿主在首次布局时挂载 body，而非在 viewDidLoad 中立即 addSubview。
+        viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        viewController.view.layoutIfNeeded()
 
         let collectionView = try #require(viewController.view.allSubviews(of: UICollectionView.self).first)
 

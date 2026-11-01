@@ -368,6 +368,8 @@ final class GiftSheetViewController:
     }
 
     /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
+    private let panelScrollView = QuickLayoutScrollView()
+
     override var body: Layout {
         ZStack(alignment: .bottom) {
             backdropButton
@@ -382,9 +384,14 @@ final class GiftSheetViewController:
                 .resizable()
                 .ignoresSafeArea(.container, edges: .all)
 
-            sheetView
-                .resizable(axis: .horizontal)
-                .fixedSize(axis: .vertical)
+            ContentFittingScroll(panelScrollView) {
+                sheetView
+                    .resizable(axis: .horizontal)
+                    .fixedSize(axis: .vertical)
+            }
+            .frame(maxWidth: 620)
+            // 面板背景延伸至底边；GiftSheetView 自己为底部操作区消费安全区。
+            .safeAreaPadding([.top, .horizontal], 0)
         }
     }
 

@@ -258,19 +258,20 @@ final class FrameLabOptions: NSObject {
         }
     }
 
-    /// pageWidth 必须传入页面宽度，不能使用扣除卡片内边距后的选项区宽度。
-    @LayoutBuilder func layout(scenario: FrameLabScenario, pageWidth: CGFloat, accessibilityCategory: Bool) -> Layout {
+    /// 由选项区实际收到的尺寸提议选择排列，不反推页面或分栏宽度。
+    @LayoutBuilder func layout(scenario: FrameLabScenario, accessibilityCategory: Bool) -> Layout {
         if scenario == .alignment {
             if presentation == .guided {
-                if pageWidth < 360 || accessibilityCategory {
+                ViewThatFits(in: .horizontal) {
+                    if !accessibilityCategory {
+                        HStack(alignment: .center, spacing: 12) {
+                            alignmentGrid.frame(width: 156, height: 156)
+                            alignmentText.frame(minWidth: 144, maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
                     VStack(alignment: .leading, spacing: 12) {
                         alignmentGrid.frame(width: 156, height: 156)
                         alignmentText
-                    }
-                } else {
-                    HStack(alignment: .center, spacing: 12) {
-                        alignmentGrid.frame(width: 156, height: 156)
-                        alignmentText.frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             } else {
@@ -771,7 +772,7 @@ private final class FrameLabComponentPreview: QuickLayoutView {
     let host = FrameLabComponentPreview { width, accessibility in
         VStack(alignment: .leading, spacing: 12) {
             options.heading
-            options.layout(scenario: state.scenario, pageWidth: width, accessibilityCategory: accessibility)
+            options.layout(scenario: state.scenario, accessibilityCategory: accessibility)
         }
     }
     options.onSelectAlignment = { [weak options, weak host] in
@@ -788,7 +789,7 @@ private final class FrameLabComponentPreview: QuickLayoutView {
     var state = FrameLabState()
     options.update(state: state)
     let host = FrameLabComponentPreview { width, accessibility in
-        options.layout(scenario: state.scenario, pageWidth: width, accessibilityCategory: accessibility)
+        options.layout(scenario: state.scenario, accessibilityCategory: accessibility)
     }
     options.onSelectOption = { [weak options, weak host] in
         state.option = $0

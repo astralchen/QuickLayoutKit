@@ -8,6 +8,38 @@ import QuickLayoutKitUIKit
 @MainActor
 @Suite(.serialized)
 struct GeometryProxyTests {
+    @Test func siblingRefreshRequestsSampleWindowOnce() async {
+        let window = makeWindow()
+        // 隐藏窗口不运行显示链接，精确检查这一轮异步刷新所做的几何读取。
+        window.isHidden = true
+        let scroll = GeometryReadCountingScrollView(frame: window.bounds)
+        window.addSubview(scroll)
+        let observers = (0..<8).map { index in
+            let observer = GeometryObserverView()
+            scroll.addSubview(observer)
+            observer.bounds.size = CGSize(width: 20, height: 20)
+            observer.center = CGPoint(x: 20, y: 20 + index * 25)
+            return observer
+        }
+        let monitor = GeometryWindowMonitor.forWindow(window)
+        let readings: (single: Int, batch: Int) = await withCheckedContinuation { continuation in
+            // 先排空挂载过程的刷新；之后的请求都属于同一轮更新。
+            DispatchQueue.main.async {
+                scroll.geometryReadCount = 0
+                monitor.refresh()
+                let single = scroll.geometryReadCount
+                scroll.geometryReadCount = 0
+                for observer in observers { observer.requestRefresh() }
+                DispatchQueue.main.async {
+                    continuation.resume(returning: (single, scroll.geometryReadCount))
+                }
+            }
+        }
+        #expect(readings.single > 0)
+        #expect(readings.batch == readings.single,
+            "多个观察者同时失效时只应采样一次窗口，不能重复遍历全部观察者")
+    }
+
     @Test func layoutBatchFreezesSiblingSnapshotsBeforeActions() async {
         let registry = QuickLayoutGeometryObservationRegistry()
         let firstView = UIView(), secondView = UIView()
@@ -76,6 +108,7 @@ struct GeometryProxyTests {
         #expect(swiftUISize == proxy.size)
     }
 
+    #if compiler(>=6.4)
     @Test func nativeReservedRegionsMatchUIKitAndKeepIdentifiers() {
         guard #available(iOS 27.1, *) else { return }
         let view = UIView()
@@ -92,6 +125,17 @@ struct GeometryProxyTests {
             #expect(regions.map(\.id) == b.reservedRegions(kind: kind, options: .includeInactive).map(\.id))
         }
     }
+
+    #else
+    @Test func olderSDKKeepsGeometryWithoutNativeReservedRegions() {
+        let view = UIView()
+        let window = mount(view)
+        defer { window.isHidden = true }
+        let proxy = QuickLayoutKitCore.GeometryProxy(observing: view, layoutDirection: .leftToRight)
+        #expect(proxy.size == view.bounds.size)
+        #expect(proxy.regionSnapshots.isEmpty)
+    }
+    #endif
 
     @Test func namedSpaceCrossesNestedUIKitHosts() {
         let child = UIView()
@@ -314,5 +358,17 @@ struct GeometryProxyTests {
             return UIWindow(windowScene: scene)
         }
         return UIWindow(frame: CGRect(x: 0, y: 0, width: 300, height: 400))
+    }
+}
+
+@MainActor
+private final class GeometryReadCountingScrollView: UIScrollView {
+    var geometryReadCount = 0
+    override var contentSize: CGSize {
+        get {
+            geometryReadCount += 1
+            return super.contentSize
+        }
+        set { super.contentSize = newValue }
     }
 }

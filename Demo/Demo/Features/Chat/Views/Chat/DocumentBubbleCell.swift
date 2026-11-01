@@ -36,7 +36,7 @@ final class DocumentBubbleCell: QuickLayoutCollectionViewCell {
     override var quickLayoutDirectionViews: [UIView] { super.quickLayoutDirectionViews + [card] }
     /// 定义 `DocumentBubbleCell` 的布局层级、间距和对齐方式。
     @LayoutBuilder override var body: Layout {
-        ContainerRelativeSize(.horizontal, length: { width, _ in width * 0.70 }) {
+        ContainerRelativeSize(.horizontal, length: { width, _ in min(420, width * 0.70) }) {
             HStack(spacing: 0) {
                 if message?.direction == .outgoing { Spacer() }
                 VStack(alignment: message?.direction == .outgoing ? .trailing : .leading, spacing: 3) {

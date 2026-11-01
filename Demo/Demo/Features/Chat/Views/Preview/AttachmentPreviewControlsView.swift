@@ -38,29 +38,31 @@ final class AttachmentPreviewControlsView: QuickLayoutView {
     var prefersStatusBarHidden: Bool { !controlsVisible || (isScrubbingPresentation && !UIAccessibility.isVoiceOverRunning) }
 
     /// 玻璃合成容器只承载控制层，不参与主图布局。
-    private lazy var glassContainer = QuickLayoutVisualEffectView(effect: UIGlassContainerEffect()) { [unowned self] in
-        VStack(spacing: 0) {
-            ZStack {
-                titleView.resizable().frame(width: titleWidth, height: titleView.preferredHeight)
-                HStack(spacing: 0) {
-                    closeButton.resizable().frame(width: 44, height: 44)
-                    Spacer()
-                    moreButton.resizable().frame(width: 44, height: 44)
-                }
-            }.frame(height: titleView.preferredHeight)
-            Spacer()
-            if bottomHeight > 0 {
-                VStack(spacing: 0) {
-                    if isPlayable { playbackControls.resizable().frame(height: playbackControls.preferredHeight).padding(.horizontal, 12) }
-                    if itemCount > 1 {
-                        if isPlayable { Spacer().frame(height: 4) }
-                        thumbnailStrip.resizable().frame(height: AttachmentThumbnailStripView.preferredHeight)
+    private lazy var glassContainer = QuickLayoutVisualEffectView(effect: UIGlassContainerEffect()) { [weak self] in
+        if let self {
+            VStack(spacing: 0) {
+                ZStack {
+                    titleView.resizable().frame(width: titleWidth, height: titleView.preferredHeight)
+                    HStack(spacing: 0) {
+                        closeButton.resizable().frame(width: 44, height: 44)
+                        Spacer()
+                        moreButton.resizable().frame(width: 44, height: 44)
                     }
-                }.frame(width: min(560, max(0, bounds.width - safeAreaInsets.left - safeAreaInsets.right - 32)), height: bottomHeight)
+                }.frame(height: titleView.preferredHeight)
+                Spacer()
+                if bottomHeight > 0 {
+                    VStack(spacing: 0) {
+                        if isPlayable { playbackControls.resizable().frame(height: playbackControls.preferredHeight).padding(.horizontal, 12) }
+                        if itemCount > 1 {
+                            if isPlayable { Spacer().frame(height: 4) }
+                            thumbnailStrip.resizable().frame(height: AttachmentThumbnailStripView.preferredHeight)
+                        }
+                    }.frame(width: min(560, max(0, bounds.width - safeAreaInsets.left - safeAreaInsets.right - 32)), height: bottomHeight)
+                }
             }
+            .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 16)
+            .safeAreaPadding(.all, 0)
         }
-        .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 16)
-        .safeAreaPadding(.all, 0)
     }
     /// 标题视图独立管理文本和内容尺寸。
     private let titleView = AttachmentPreviewTitleView()

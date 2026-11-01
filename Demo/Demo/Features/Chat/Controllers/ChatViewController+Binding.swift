@@ -30,7 +30,8 @@ extension ChatViewController {
         keyboardObserver.$context
             .dropFirst()
             .sink { [weak self] context in
-                guard let self else { return }
+                guard let self, viewIfLoaded?.window != nil,
+                      tabBarController == nil || tabBarController?.selectedViewController === navigationController else { return }
                 _ = bottomObstructionCoordinator.updateKeyboard(
                     context
                 )

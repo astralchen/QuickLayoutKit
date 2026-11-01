@@ -41,7 +41,7 @@ extension ChatKeyboardUITests {
         app.launchArguments += ["-imessage-basic-history", "-AppleLanguages", "(en)",
                                 "-quicklayoutkit.demo.locale.identifier", "en"]
         app.launch()
-        let route = app.cells["demo.imessage.title"]
+        let route = app.buttons.matching(identifier: "app.tab.chat").firstMatch
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
         for _ in 0..<8 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
         XCTAssertTrue(route.waitForExistence(timeout: 5))

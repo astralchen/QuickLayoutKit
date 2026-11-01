@@ -23,9 +23,9 @@ final class SeatStageView: TranslucentCardView {
     )
 
     /// 按需创建的 PK 房间标记装饰视图。
-    private lazy var pkDecoration = LazyView { [unowned self] in
+    private lazy var pkDecoration = LazyView { [weak self] in
         let view = RoomPKDecorationView()
-        view.sizeClass = layoutMetrics.sizeClass
+        view.sizeClass = self?.layoutMetrics.sizeClass ?? .regular
         return view
     }
     /// 提交中的布局描述独立于 Cell 内容，确保相同身份的几何在 batch update 内才变化。

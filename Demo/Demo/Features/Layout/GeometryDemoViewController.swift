@@ -38,6 +38,7 @@ final class GeometryDemoViewController: LocalizedQuickLayoutHostingController {
         code.semanticContentAttribute = .forceLeftToRight
         code.textAlignment = .left
         metrics.accessibilityIdentifier = "geometry.metrics"
+        page.accessibilityIdentifier = "geometry.page"
         code.accessibilityIdentifier = "geometry.code"
         canvas.accessibilityIdentifier = "geometry.canvas"
         width.minimumValue = 0.35; width.maximumValue = 1; width.value = 0.8
@@ -61,7 +62,8 @@ final class GeometryDemoViewController: LocalizedQuickLayoutHostingController {
     }
 
     override var body: Layout {
-        ScrollView(page) {
+        let widthFraction = CGFloat(width.value)
+        return ScrollView(page) {
             VStack(alignment: .leading, spacing: 12) {
                 scenario.resizable(axis: .horizontal).frame(minHeight: 44)
                 instructions
@@ -77,11 +79,17 @@ final class GeometryDemoViewController: LocalizedQuickLayoutHostingController {
                     radiusLabel
                     radius.resizable(axis: .horizontal).frame(height: 32)
                 }
-                canvas.resizable().frame(width: max(100, (view.bounds.width - 32) * CGFloat(width.value)), height: 260)
+                // 滚动容器的参照宽度已扣除分栏安全区及内容边距，不能使用根视图宽度。
+                canvas.resizable()
+                    .containerRelativeFrame(.horizontal, alignment: .leading) { length, _ in
+                        max(0, length) * widthFraction
+                    }
+                    .frame(height: 260)
                 metrics
                 code
-            }.safeAreaPadding(.horizontal, 16).padding(.vertical, 16)
+            }.padding(.vertical, 16)
         }
+        .contentMargins(.horizontal, 16, for: .scrollContent)
     }
 
     override func reloadLocalizedContent() {

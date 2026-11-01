@@ -43,7 +43,7 @@ final class ChatFullscreenUITests: XCTestCase {
         }
         assertFullScreen(list, in: app)
         backButton(in: app).tap()
-        XCTAssertTrue(app.cells["demo.imessage.title"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons.matching(identifier: "app.tab.chat").firstMatch.waitForExistence(timeout: 5))
     }
 
     @MainActor func testFullScreenAfterRotation() throws {
@@ -56,7 +56,7 @@ final class ChatFullscreenUITests: XCTestCase {
         if XCTWaiter.wait(for: [landscape], timeout: 10) != .completed {
             // Duo 折叠屏与 iPad 窗口都可能维持原尺寸；必须先在首页确认同一限制。
             backButton(in: app).tap()
-            XCTAssertTrue(app.cells["demo.imessage.title"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons.matching(identifier: "app.tab.chat").firstMatch.waitForExistence(timeout: 5))
             let mainRotated = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
                 app.frame.width > app.frame.height
             }, object: app)
@@ -150,9 +150,7 @@ final class ChatFullscreenUITests: XCTestCase {
 
     /// 导航按钮在 Duo 侧栏中的 AX 顺序不同，返回操作须排除语言菜单。
     @MainActor private func backButton(in app: XCUIApplication) -> XCUIElement {
-        let sidebarBack = app.buttons["BackButton"]
-        if sidebarBack.exists { return sidebarBack }
-        return app.navigationBars.buttons.matching(NSPredicate(format: "identifier != %@", "demo.language.menu")).firstMatch
+        app.buttons.matching(identifier: "app.tab.examples").firstMatch
     }
 
     @MainActor private func openChat(rtl: Bool = false, loadsHistory: Bool = false) -> XCUIApplication {
@@ -171,7 +169,7 @@ final class ChatFullscreenUITests: XCTestCase {
                                     "-AppleInterfaceStyle", "Dark"]
         }
         app.launch()
-        let route = app.cells["demo.imessage.title"]
+        let route = app.buttons.matching(identifier: "app.tab.chat").firstMatch
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
         for _ in 0..<10 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
         XCTAssertTrue(route.waitForExistence(timeout: 5))
@@ -182,7 +180,7 @@ final class ChatFullscreenUITests: XCTestCase {
 
     @MainActor private func assertFullScreen(_ list: XCUIElement, in app: XCUIApplication) {
         XCTAssertTrue(list.waitForExistence(timeout: 5))
-        let window = app.windows.firstMatch.frame
+        let window = app.otherElements["imessage.page"].frame
         XCTAssertEqual(list.frame.minX, window.minX, accuracy: 1)
         XCTAssertEqual(list.frame.minY, window.minY, accuracy: 1)
         XCTAssertEqual(list.frame.width, window.width, accuracy: 1)

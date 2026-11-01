@@ -205,8 +205,9 @@ private extension ViewControllerRepresentableDemoViewController {
         refreshStateLabel()
     }
 
-    func makeLazyChild(name: String) -> LazyView<QuickLayoutViewControllerRepresentable> {
-        LazyView { [unowned self] in
+    internal func makeLazyChild(name: String) -> LazyView<QuickLayoutViewControllerRepresentable> {
+        LazyView { [weak self] in
+            guard let self else { return QuickLayoutViewControllerRepresentable(UIViewController()) }
             appendLog("LazyView factory invoked for child \(name)")
 
             let child = makeLoggingChild(name: name)

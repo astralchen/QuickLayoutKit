@@ -113,8 +113,12 @@ final class RoomPublicChatView: QuickLayoutView, UIScrollViewDelegate {
                 }
             }
             .selectionMode(.none)
-            .layout(.list(itemHeight: .estimated(32), spacing: 6,
-                          contentInsets: .init(top: 4, leading: 0, bottom: 4, trailing: 0)))
+            .layout {
+                GridLayout(tracks: 1)
+                    .itemMainAxisSize(.estimated(32))
+                    .lineSpacing(6)
+                    .sectionInsets(.init(top: 4, leading: 0, bottom: 4, trailing: 0))
+            }
         }
     }
 

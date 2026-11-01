@@ -18,10 +18,10 @@ struct MVVMViewModelTests {
         let viewModel = MainViewModel(localizer: strings.localizer)
         let routes = viewModel.state.sections.flatMap(\.routes).map(\.route)
 
-        #expect(viewModel.state.sections.count == 3)
-        #expect(routes.count == MainRoute.allCases.filter(\.isAvailable).count)
-        #expect(Set(routes) == Set(MainRoute.allCases.filter(\.isAvailable)))
-        #expect(viewModel.state.sections[0].title == "first.main.section.quicklayout")
+        #expect(viewModel.state.sections.count == 6)
+        #expect(routes.count == MainRoute.allCases.filter { $0.isAvailable && AppTab(route: $0) == nil }.count)
+        #expect(Set(routes) == Set(MainRoute.allCases.filter { $0.isAvailable && AppTab(route: $0) == nil }))
+        #expect(viewModel.state.sections[0].title == "first.main.section.layout")
 
         var replayedState: MainViewModel.State?
         var selectedRoute: MainRoute?
@@ -36,7 +36,7 @@ struct MVVMViewModelTests {
 
         strings.prefix = "second."
         viewModel.reloadLocalizedContent()
-        #expect(viewModel.state.sections[0].title == "second.main.section.quicklayout")
+        #expect(viewModel.state.sections[0].title == "second.main.section.layout")
         #expect(viewModel.state.sections[0].routes[0].title.hasPrefix("second."))
     }
 
@@ -62,7 +62,7 @@ struct MVVMViewModelTests {
         viewModel.updateSearchQuery("计数")
         #expect(viewModel.state.sections.flatMap(\.routes).map(\.route) == [.counter])
         viewModel.updateSearchQuery("languages")
-        #expect(viewModel.state.sections == [original.sections[2]])
+        #expect(viewModel.state.sections == [original.sections[5]])
         viewModel.updateSearchQuery("does-not-exist")
         #expect(viewModel.state.sections.isEmpty)
         viewModel.updateSearchQuery(" \n")
@@ -80,7 +80,7 @@ struct MVVMViewModelTests {
         #expect(viewModel.searchQuery == "first.demo.counter")
         #expect(viewModel.state.sections.isEmpty)
         viewModel.updateSearchQuery("")
-        #expect(viewModel.state.sections.flatMap(\.routes).count == MainRoute.allCases.filter(\.isAvailable).count)
+        #expect(viewModel.state.sections.flatMap(\.routes).count == MainRoute.allCases.filter { $0.isAvailable && AppTab(route: $0) == nil }.count)
         #expect(viewModel.state.sections[0].routes[0].title.hasPrefix("second."))
     }
 

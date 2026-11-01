@@ -65,45 +65,67 @@ final class FrameLabView: QuickLayoutView {
 
     override var body: Layout {
         ScrollView(pageScrollView) {
-            VStack(alignment: .leading, spacing: 12) {
-                if presentation == .freeform {
-                    introduction.layout
-                    VStack(spacing: 8) {
-                        scenarioNavigation
-                        experimentOptions
-                    }.padding(12).background { surfaces.scenario.resizable() }
-                    preview.layout(height: state.containerHeight).padding(12)
-                        .background { surfaces.stage.resizable() }
-                    VStack(spacing: 4) {
-                        parameters.widthLayout
-                        parameters.heightLayout
-                    }.padding(12).background { surfaces.controls.resizable() }
-                    if state.supportsStretching {
-                        parameters.stretchingLayout.padding(12).background { surfaces.stretch.resizable() }
-                    }
-                } else {
-                    scenarioNavigation
-                    introduction.layout.padding(.top, 4)
-                    VStack(alignment: .leading, spacing: 12) {
-                        preview.layout(height: state.containerHeight).padding(.vertical, 4)
-                        surfaces.operationDivider.resizable().frame(height: 0.5)
-                        options.heading
-                        experimentOptions
-                        surfaces.heightDivider.resizable().frame(height: 0.5)
-                        parameters.heightLayout
-                        surfaces.moreDivider.resizable().frame(height: 0.5)
-                        parameters.moreLayout
-                        if showsMoreParameters {
+            ViewThatFits(in: .horizontal) {
+                if !traitCollection.preferredContentSizeCategory.isAccessibilityCategory {
+                    HStack(alignment: .top, spacing: 20) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            preview.layout(height: state.containerHeight).padding(12)
+                                .background { surfaces.stage.resizable() }
+                            code.layout
+                        }.frame(maxWidth: .infinity)
+                        VStack(alignment: .leading, spacing: 12) {
+                            introduction.layout
+                            scenarioNavigation
+                            experimentOptions
                             parameters.widthLayout
+                            parameters.heightLayout
                             if state.supportsStretching { parameters.stretchingLayout }
-                        }
-                    }.padding(12).background { surfaces.stage.resizable() }
+                        }.padding(12).frame(maxWidth: .infinity)
+                            .background { surfaces.controls.resizable() }
+                    }.frame(minWidth: 900)
                 }
-                code.layout
+                VStack(alignment: .leading, spacing: 12) {
+                    if presentation == .freeform {
+                        introduction.layout
+                        VStack(spacing: 8) {
+                            scenarioNavigation
+                            experimentOptions
+                        }.padding(12).background { surfaces.scenario.resizable() }
+                        preview.layout(height: state.containerHeight).padding(12)
+                            .background { surfaces.stage.resizable() }
+                        VStack(spacing: 4) {
+                            parameters.widthLayout
+                            parameters.heightLayout
+                        }.padding(12).background { surfaces.controls.resizable() }
+                        if state.supportsStretching {
+                            parameters.stretchingLayout.padding(12).background { surfaces.stretch.resizable() }
+                        }
+                    } else {
+                        scenarioNavigation
+                        introduction.layout.padding(.top, 4)
+                        VStack(alignment: .leading, spacing: 12) {
+                            preview.layout(height: state.containerHeight).padding(.vertical, 4)
+                            surfaces.operationDivider.resizable().frame(height: 0.5)
+                            options.heading
+                            experimentOptions
+                            surfaces.heightDivider.resizable().frame(height: 0.5)
+                            parameters.heightLayout
+                            surfaces.moreDivider.resizable().frame(height: 0.5)
+                            parameters.moreLayout
+                            if showsMoreParameters {
+                                parameters.widthLayout
+                                if state.supportsStretching { parameters.stretchingLayout }
+                            }
+                        }.padding(12).background { surfaces.stage.resizable() }
+                    }
+                    code.layout
+                }
             }
-            .safeAreaPadding(.horizontal, 16)
+            .frame(maxWidth: 1080)
+            .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
         }
+        .contentMargins(.horizontal, 16, for: .scrollContent)
     }
 
     private var scenarioNavigation: Layout {
@@ -111,7 +133,7 @@ final class FrameLabView: QuickLayoutView {
     }
 
     private var experimentOptions: Layout {
-        options.layout(scenario: state.scenario, pageWidth: bounds.width,
+        options.layout(scenario: state.scenario,
                        accessibilityCategory: traitCollection.preferredContentSizeCategory.isAccessibilityCategory)
     }
 

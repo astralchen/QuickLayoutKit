@@ -17,7 +17,7 @@ final class ChatAudioCardUITests: XCTestCase {
         app.launchArguments += ["-AppleLanguages", "(en)", "-quicklayoutkit.demo.locale.identifier", "zh-Hans"]
         app.launch()
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
-        let route = app.cells["demo.imessage.title"]
+        let route = app.buttons.matching(identifier: "app.tab.chat").firstMatch
         for _ in 0..<8 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
         route.tap()
         let text = app.textViews["imessage.composer.text"]
@@ -82,7 +82,7 @@ final class ChatAudioCardUITests: XCTestCase {
         app.launchArguments += ["-AppleLanguages", "(en)", "-quicklayoutkit.demo.locale.identifier", language]
         if largeText { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
         app.launch()
-        let route = app.cells["demo.imessage.title"]
+        let route = app.buttons.matching(identifier: "app.tab.chat").firstMatch
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
         for _ in 0..<8 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
         route.tap()
@@ -155,7 +155,7 @@ final class ChatAudioCardUITests: XCTestCase {
         app.launchArguments += ["-imessage-basic-history"]
         app.launchArguments += ["-AppleLanguages", "(zh-Hans)", "-quicklayoutkit.demo.locale.identifier", "zh-Hans"]
         app.launch()
-        let route = app.cells["demo.imessage.title"]
+        let route = app.buttons.matching(identifier: "app.tab.chat").firstMatch
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
         for _ in 0..<8 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
         route.tap()
@@ -196,7 +196,7 @@ final class ChatAudioCardUITests: XCTestCase {
         app.launchArguments += ["-AppleLanguages", "(en)", "-quicklayoutkit.demo.locale.identifier", "zh-Hans"]
         app.launch()
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
-        let route = app.cells["demo.imessage.title"]
+        let route = app.buttons.matching(identifier: "app.tab.chat").firstMatch
         for _ in 0..<8 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
         route.tap()
         let text = app.textViews["imessage.composer.text"]
@@ -252,7 +252,7 @@ final class ChatAudioCardUITests: XCTestCase {
             app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
         }
         app.launch()
-        let route = app.cells["demo.imessage.title"]
+        let route = app.buttons.matching(identifier: "app.tab.chat").firstMatch
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
         for _ in 0..<8 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
         XCTAssertTrue(route.exists)

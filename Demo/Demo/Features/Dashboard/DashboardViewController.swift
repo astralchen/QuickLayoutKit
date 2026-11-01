@@ -118,25 +118,41 @@ final class DashboardViewController: LocalizedQuickLayoutHostingController {
                 .ignoresSafeArea(.container)
 
             ScrollView(scrollView) {
-                VStack(alignment: .leading, spacing: 20) {
-                    profileSummaryView
-                        .resizable(axis: .horizontal)
-
-                    overviewLabel
-                    metricsOverviewView
-                        .resizable(axis: .horizontal)
-
-                    weeklyGoalView
-                        .resizable(axis: .horizontal)
-
-                    recentActivityLabel
-                    activityFeedView
-                        .resizable(axis: .horizontal)
+                ViewThatFits(in: .horizontal) {
+                    if !traitCollection.preferredContentSizeCategory.isAccessibilityCategory {
+                        HStack(alignment: .top, spacing: 20) {
+                            overviewContent.frame(maxWidth: .infinity)
+                            activityContent.frame(maxWidth: .infinity)
+                        }
+                        .frame(minWidth: 900)
+                    }
+                    VStack(alignment: .leading, spacing: 20) {
+                        overviewContent
+                        activityContent
+                    }
                 }
+                .frame(maxWidth: 1080)
+                .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
             }
             .contentMargins(.horizontal, 16)
             .contentMargins(.bottom, 24)
+        }
+    }
+
+    private var overviewContent: Layout {
+        VStack(alignment: .leading, spacing: 20) {
+            profileSummaryView.resizable(axis: .horizontal)
+            overviewLabel
+            metricsOverviewView.resizable(axis: .horizontal)
+        }
+    }
+
+    private var activityContent: Layout {
+        VStack(alignment: .leading, spacing: 20) {
+            weeklyGoalView.resizable(axis: .horizontal)
+            recentActivityLabel
+            activityFeedView.resizable(axis: .horizontal)
         }
     }
 

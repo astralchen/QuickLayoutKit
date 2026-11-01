@@ -13,13 +13,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
-        // 在此配置窗口，并将其关联到传入的 `UIWindowScene`。
-        // 使用 storyboard 时，系统会自动初始化 `window` 并关联场景。
-        // 连接到此代理并不表示场景或会话刚刚创建；新会话配置由 AppDelegate 提供。
-        guard scene is UIWindowScene else { return }
-        if let window {
-            Localization.register(window: window)
-        }
+        guard let windowScene = scene as? UIWindowScene else { return }
+        let window = UIWindow(windowScene: windowScene)
+        window.rootViewController = AppTabBarController()
+        self.window = window
+        Localization.register(window: window)
+        window.makeKeyAndVisible()
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {

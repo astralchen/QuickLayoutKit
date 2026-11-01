@@ -9,6 +9,37 @@ import QuickLayoutKit
 
 extension DemoTests {
 
+    /// 分栏遮挡只应从实际所在的一侧扣除，旋转及窄窗口下控件继续填满可用宽度。
+    @Test func keyboardLayoutUsesAsymmetricSafeArea() {
+        let view = KeyboardLayoutSafeAreaView()
+        let cases: [(CGSize, UIEdgeInsets)] = [
+            (CGSize(width: 744, height: 1133), UIEdgeInsets(top: 100, left: 268, bottom: 20, right: 0)),
+            (CGSize(width: 1133, height: 744), UIEdgeInsets(top: 100, left: 320, bottom: 20, right: 0)),
+            (CGSize(width: 744, height: 1133), UIEdgeInsets(top: 100, left: 0, bottom: 20, right: 268)),
+            (CGSize(width: 390, height: 844), UIEdgeInsets(top: 59, left: 0, bottom: 34, right: 0)),
+            (CGSize(width: 852, height: 393), UIEdgeInsets(top: 0, left: 59, bottom: 21, right: 59)),
+        ]
+        for (size, insets) in cases {
+            view.frame = CGRect(origin: .zero, size: size)
+            view.testSafeAreaInsets = insets
+            view.safeAreaInsetsDidChange()
+            for direction in [UIUserInterfaceLayoutDirection.leftToRight, .rightToLeft] {
+                view.applyLayoutDirection(direction)
+                view.setNeedsLayout()
+                view.layoutIfNeeded()
+                view.contentScrollView.layoutIfNeeded()
+                for control in [view.textField, view.submitButton, view.diagnosticsBackgroundView] {
+                    let frame = control.convert(control.bounds, to: view)
+                    #expect(abs(frame.minX - (insets.left + 20)) < 1)
+                    #expect(abs(frame.maxX - (size.width - insets.right - 20)) < 1)
+                }
+                #expect(view.diagnosticsBackgroundView.frame.maxY < view.textField.frame.minY)
+                #expect(view.textField.frame.maxY < view.submitButton.frame.minY)
+                #expect(view.submitButton.convert(view.submitButton.bounds, to: view).maxY <= size.height - insets.bottom)
+            }
+        }
+    }
+
     /// 验证隐藏及硬件键盘的空框架无需经过 UIKit 坐标转换。
     ///
     /// 先后使用横竖屏尺寸的零高度框架，覆盖旋转后仍保存上一屏幕几何信息的情况。
@@ -364,6 +395,12 @@ extension DemoTests {
                 .approximatelyEquals(ltrSubmitFrame)
         )
     }
+}
+
+private final class KeyboardLayoutSafeAreaView: AnimatedKeyboardResponsiveView {
+    var testSafeAreaInsets: UIEdgeInsets = .zero
+
+    override var safeAreaInsets: UIEdgeInsets { testSafeAreaInsets }
 }
 
 private final class TestSafeAreaScrollView: UIScrollView {

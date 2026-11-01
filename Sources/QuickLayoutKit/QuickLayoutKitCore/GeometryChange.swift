@@ -388,9 +388,11 @@ final class GeometryObserverView: UIView {
         isUserInteractionEnabled = false
         isAccessibilityElement = false
         accessibilityElementsHidden = true
+        #if compiler(>=6.4)
         if #available(iOS 27.1, *) {
             addInteraction(UIHingeInteraction { [weak self] _, _ in self?.requestRefresh() })
         }
+        #endif
     }
 
     /// 不支持归档初始化；该内部观察视图仅由框架创建。
@@ -426,12 +428,16 @@ final class GeometryObserverView: UIView {
     /// 合并刷新请求，在后续主线程轮次通过窗口监测器或独立采样更新。
     func requestRefresh() {
         guard hasAppliedGeometry, !refreshScheduled else { return }
+        if let monitor {
+            monitor.requestRefresh()
+            return
+        }
         refreshScheduled = true
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.refreshScheduled = false
             guard self.hasAppliedGeometry else { return }
-            if let monitor = self.monitor { monitor.refresh() }
+            if let monitor = self.monitor { monitor.requestRefresh() }
             else { self.deliver(self.snapshot()) }
         }
     }

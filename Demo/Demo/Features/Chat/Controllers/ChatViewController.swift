@@ -251,6 +251,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
         quickLayoutKeyboardSafeAreaBehavior = .disabled
         super.viewDidLoad()
 
+        view.accessibilityIdentifier = "imessage.page"
         contactTitleView.sizeToFit()
         navigationItem.titleView = contactTitleView
         setContentScrollView(conversationView.collectionView, for: .top)
@@ -353,6 +354,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         bottomObstructionCoordinator.refreshGeometry()
+        composerView.updateAvailableViewportHeight(view.safeAreaLayoutGuide.layoutFrame.height - bottomObstruction)
         updateConversationViewport()
     }
 
@@ -414,6 +416,17 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
     var hasCleanedUpChat = false
 
     /// 在页面即将出现时重置退出标记，使取消返回手势后仍可继续使用。
+    override var keyCommands: [UIKeyCommand]? {
+        let send = UIKeyCommand(input: "\r", modifierFlags: .command, action: #selector(sendFromKeyboard))
+        send.discoverabilityTitle = Localization.text("imessage.composer.send")
+        return (super.keyCommands ?? []) + [send]
+    }
+
+    @objc private func sendFromKeyboard() {
+        guard composerView.textView.markedTextRange == nil else { return }
+        composerView.sendButtonDidTap()
+    }
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         isLeavingChat = false

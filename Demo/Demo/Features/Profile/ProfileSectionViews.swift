@@ -220,7 +220,7 @@ final class ProfileStatsView: ProfileSectionView {
     private func statLayout(_ view: ProfileStatView) -> Layout {
         view
             .resizable(axis: .horizontal)
-            .frame(height: 86)
+            .frame(minHeight: 86)
     }
 }
 
@@ -455,7 +455,7 @@ final class ProfileActionsView: ProfileSectionView {
     private func actionLayout(_ button: UIButton) -> Layout {
         button
             .resizable(axis: .horizontal)
-            .frame(height: 50)
+            .frame(minHeight: 50)
     }
 
     private func updateTitle(_ title: String, for button: UIButton) {

@@ -25,6 +25,16 @@ final class ComposerActionContainer: QuickLayoutView {
 /// Auto Layout、QuickLayout 或辅助功能报告的视觉边界。
 final class ComposerHitButton: UIButton {
 
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isPointerInteractionEnabled = true
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        isPointerInteractionEnabled = true
+    }
+
     /// 按钮响应触控所使用的最小尺寸。
     var minimumHitSize = CGSize(width: 44, height: 44)
 

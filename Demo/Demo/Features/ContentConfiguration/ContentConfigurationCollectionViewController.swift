@@ -121,10 +121,11 @@ final class ContentConfigurationCollectionViewController: LocalizedViewControlle
                         item.model.imageName,
                     ])
                 }
-            } header: {
+            } supplementaries: {
                 if let title = state.headerTitle {
-                    Header(
+                    SectionSupplementary(
                         ContentConfigurationCollectionHeaderFooterView.self,
+                        kind: UICollectionView.elementKindSectionHeader,
                         id: "content-configuration-header"
                     ) { header, _ in
                         header.configure(
@@ -134,33 +135,39 @@ final class ContentConfigurationCollectionViewController: LocalizedViewControlle
                         )
                     }
                     .refreshID([title, state.headerDetail])
-                    .layout(height: .estimated(64), extendsBoundary: true)
                 }
-            } footer: {
                 if let title = state.footerTitle {
-                    Footer(
+                    SectionSupplementary(
                         ContentConfigurationCollectionHeaderFooterView.self,
+                        kind: UICollectionView.elementKindSectionFooter,
                         id: "content-configuration-footer"
                     ) { footer, _ in
                         footer.configure(title: title, detail: nil, role: .footer)
                     }
                     .refreshID(title)
-                    .layout(height: .estimated(48), extendsBoundary: true)
                 }
             }
             .selectionMode(.single)
-            .layout(
-                .list(
-                    itemHeight: .estimated(80),
-                    spacing: 8,
-                    contentInsets: .init(
-                        top: 8,
-                        leading: 12,
-                        bottom: 8,
-                        trailing: 12
-                    )
-                )
-            )
+            .layout {
+                GridLayout(tracks: 1)
+                    .itemMainAxisSize(.estimated(80))
+                    .lineSpacing(8)
+                    .sectionInsets(.init(top: 8, leading: 12, bottom: 8, trailing: 12))
+                    .boundarySupplementaries {
+                        BoundarySupplementaryLayout(
+                            kind: UICollectionView.elementKindSectionHeader,
+                            size: .init(width: .fractionalWidth(1), height: .estimated(64)),
+                            alignment: .top
+                        )
+                        .whenContentExists()
+                        BoundarySupplementaryLayout(
+                            kind: UICollectionView.elementKindSectionFooter,
+                            size: .init(width: .fractionalWidth(1), height: .estimated(48)),
+                            alignment: .bottom
+                        )
+                        .whenContentExists()
+                    }
+            }
         }
     }
 

@@ -122,6 +122,7 @@ extension ChatViewController {
     /// 展示条件不满足时保留提示；跨页面保存失败按会话延迟到下次可展示时消费。
     func presentPendingDraftNotice() {
         guard !hasCleanedUpChat, viewIfLoaded?.window != nil, !isRestoringDraft,
+              tabBarController == nil || tabBarController?.selectedViewController === navigationController,
               UIApplication.shared.applicationState == .active, presentedViewController == nil else { return }
         if pendingDraftNotice == nil, ChatDraftCoordinator.pendingFailures.contains(conversationID) {
             pendingDraftNotice = "imessage.draft.saveFailed"

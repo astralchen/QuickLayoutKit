@@ -764,7 +764,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                 }
             }
             .selectionMode(.none)
-            .layout(timelineSectionLayout)
+            .layout { timelineSectionLayout }
         }
         if restoresHistoryAnchor, let localizationAnchor, !pendingExplicitScroll,
            collectionView.numberOfSections > 0,
@@ -1043,8 +1043,12 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     /// 在全屏容器内收窄消息行，左右安全区不作为 UIScrollView 的额外滚动边距。
     ///
     /// provider 每次失效时读取最新物理边距，再转换成语义边距，兼容折叠、旋转与 RTL。
-    private var timelineSectionLayout: ListCustomSectionLayout<Section> {
-        ListCustomSectionLayout(id: Section.timeline) { [weak self] _, _, _ in
+    private var timelineSectionLayout: ListCustomLayout<Section> {
+        CustomLayout(layoutKey: [
+            viewportInsets.left,
+            viewportInsets.right,
+            CGFloat(collectionView.effectiveUserInterfaceLayoutDirection.rawValue),
+        ]) { [weak self] _ in
             let size = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1),
                                               heightDimension: .estimated(52))
             let item = NSCollectionLayoutItem(layoutSize: size)

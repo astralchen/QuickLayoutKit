@@ -13,7 +13,26 @@ import QuickLayoutKit
 
 final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLocalizationPreparing {
 
-    override var localizedTitleKey: String? { "main.title" }
+    override var localizedTitleKey: String? { "app.tab.examples" }
+
+    var selectedRoute: MainRoute? {
+        didSet { if isViewLoaded { updateSelectedRoute() } }
+    }
+
+    /// Restore selection by route identity after filtering or rebuilding the list.
+    func updateSelectedRoute() {
+        guard isViewLoaded, let state = latestState else { return }
+        collectionView.indexPathsForSelectedItems?.forEach {
+            collectionView.deselectItem(at: $0, animated: false)
+        }
+        guard splitViewController?.isCollapsed != true, let selectedRoute else { return }
+        for (section, group) in state.sections.enumerated() {
+            if let item = group.routes.firstIndex(where: { $0.route == selectedRoute }) {
+                collectionView.selectItem(at: IndexPath(item: item, section: section), animated: false, scrollPosition: [])
+                break
+            }
+        }
+    }
 
     private(set) var collectionView: UICollectionView
 
@@ -106,6 +125,10 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
         super.viewWillAppear(animated)
         navigationController?.navigationBar.prefersLargeTitles = true
 
+        if splitViewController is DemoSplitViewController {
+            updateSelectedRoute()
+            return
+        }
         let selectedItems = collectionView.indexPathsForSelectedItems ?? []
         guard !selectedItems.isEmpty else { return }
         let deselect = { [weak self] in
@@ -126,6 +149,17 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
         } else {
             deselect()
         }
+    }
+
+    override var keyCommands: [UIKeyCommand]? {
+        let search = UIKeyCommand(input: "f", modifierFlags: .command, action: #selector(focusSearch))
+        search.discoverabilityTitle = Localization.text("app.action.search")
+        return (super.keyCommands ?? []) + [search]
+    }
+
+    @objc private func focusSearch() {
+        searchController.isActive = true
+        searchController.searchBar.becomeFirstResponder()
     }
 
     private func configureNavigation() {
@@ -283,6 +317,7 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
             // 等待 Controller 完成下一次容器布局；此时新列表的 safe area、
             // adjustedContentInset 和 self-sizing attributes 才是最终值。
             completedRenderGeneration = generation
+            updateSelectedRoute()
             view.setNeedsLayout()
             // 下一轮主线程任务中，导航栏与新列表已完成挂载和内容边距调整。
             Task { @MainActor [weak self] in
@@ -389,9 +424,10 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
                         .restoreOnAttachment(cell)
                 }
             }
-        } header: {
-            Header(
+        } supplementaries: {
+            SectionSupplementary(
                 MainMenuSectionHeaderView.self,
+                kind: UICollectionView.elementKindSectionHeader,
                 id: "\(section.id).header"
             ) { header, _ in
                 localizationContext

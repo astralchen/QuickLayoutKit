@@ -125,6 +125,15 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
     )
     /// 最近一次测量得到的文本输入高度，单位为点。
     var currentInputHeight = Metrics.textInputHeight
+    /// 页面扣除系统栏与底部遮挡后的实际高度，独立组件测试可保持未设置。
+    private(set) var availableViewportHeight: CGFloat?
+
+    func updateAvailableViewportHeight(_ height: CGFloat) {
+        let height = max(0, height)
+        guard availableViewportHeight.map({ abs($0 - height) > 0.5 }) ?? true else { return }
+        availableViewportHeight = height
+        updateTextHeight()
+    }
     /// 指示正在回填识别文本的布尔值，避免将更新误判为手动输入。
     var isApplyingTranscription = false
     /// 按稳定身份保存的活跃 TextKit 附件对象。
@@ -153,7 +162,7 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
         effect.isInteractive = true
         let glassView = QuickLayoutVisualEffectView(
             effect: effect
-        ) { [unowned self] in
+        ) { [attachmentButton] in
             attachmentButton.resizable().frame(width: 44, height: 44)
         }
         glassView.cornerConfiguration = .capsule()
@@ -161,10 +170,10 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
     }()
 
     /// 组织文本编辑器、媒体草稿与操作区域的布局容器。
-    lazy var editorContainer: QuickLayoutView = QuickLayoutView { [self] in
-        ZStack(alignment: .topLeading) { [unowned self] in
-            self.textView.resizable()
-            self.placeholderLabel
+    lazy var editorContainer: QuickLayoutView = QuickLayoutView { [textView, placeholderLabel, recordingUnavailableLabel] in
+        ZStack(alignment: .topLeading) {
+            textView.resizable()
+            placeholderLabel
                 .resizable(axis: .horizontal)
                 .fixedSize(axis: .vertical)
                 .padding(.horizontal, 8)
@@ -173,58 +182,62 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
                     maxHeight: .infinity,
                     alignment: .leading
                 )
-            self.recordingUnavailableLabel
+            recordingUnavailableLabel
                 .resizable()
                 .padding(.horizontal, 8)
         }
     }
 
     /// 持续挂载的底部操作容器，让淡出的旧按钮也跟随底部布局。
-    lazy var textActionContainer = ComposerActionContainer { [unowned self] in
-        textActionContent.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+    lazy var textActionContainer = ComposerActionContainer { [weak self] in
+        if let self {
+            textActionContent.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        }
     }
 
     /// 常规文本输入区域使用的玻璃背景容器。
     lazy var inputGlassView: QuickLayoutVisualEffectView = {
         let effect = UIGlassEffect(style: .regular)
         effect.isInteractive = true
-        return QuickLayoutVisualEffectView(effect: effect) { [unowned self] in
-            VStack(spacing: 0) {
-                // 保留零高度的裁剪容器，让首张入场也有真实的旧几何。
-                // 动画中临时挂入固定高度视图会直接盖到下方文本行。
-                mediaDraftStripView
-                    .resizable()
-                    .frame(height: hasVisibleMediaDraft && !isShowingRecordingUnavailableHint
-                        ? Metrics.mediaDraftHeight : 0)
-                    .padding(.horizontal, 4)
-                    .padding(.top, hasVisibleMediaDraft && !isShowingRecordingUnavailableHint ? 4 : 0)
-                if hasVisibleMediaDraft && !isShowingRecordingUnavailableHint {
-                    mediaDraftSeparatorView
-                        .resizable(axis: .horizontal)
-                        .frame(height: hairlineHeight)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 4)
-                        .padding(
-                            .bottom,
-                            Metrics.mediaDraftSpacing
-                                - 4
-                                - hairlineHeight
-                        )
-                }
+        return QuickLayoutVisualEffectView(effect: effect) { [weak self] in
+            if let self {
                 VStack(spacing: 0) {
-                    if documentActionHeight > 0 {
-                        // 附件占用完整编辑宽度，发送操作只占下方一行。
-                        textEditorLayout
-                        textActionLayout.frame(maxWidth: .infinity, alignment: .trailing)
-                    } else {
-                        HStack(alignment: .bottom, spacing: Metrics.textActionSpacing) {
+                    // 保留零高度的裁剪容器，让首张入场也有真实的旧几何。
+                    // 动画中临时挂入固定高度视图会直接盖到下方文本行。
+                    mediaDraftStripView
+                        .resizable()
+                        .frame(height: hasVisibleMediaDraft && !isShowingRecordingUnavailableHint
+                            ? Metrics.mediaDraftHeight : 0)
+                        .padding(.horizontal, 4)
+                        .padding(.top, hasVisibleMediaDraft && !isShowingRecordingUnavailableHint ? 4 : 0)
+                    if hasVisibleMediaDraft && !isShowingRecordingUnavailableHint {
+                        mediaDraftSeparatorView
+                            .resizable(axis: .horizontal)
+                            .frame(height: hairlineHeight)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 4)
+                            .padding(
+                                .bottom,
+                                Metrics.mediaDraftSpacing
+                                    - 4
+                                    - hairlineHeight
+                            )
+                    }
+                    VStack(spacing: 0) {
+                        if documentActionHeight > 0 {
+                            // 附件占用完整编辑宽度，发送操作只占下方一行。
                             textEditorLayout
-                            textActionLayout
+                            textActionLayout.frame(maxWidth: .infinity, alignment: .trailing)
+                        } else {
+                            HStack(alignment: .bottom, spacing: Metrics.textActionSpacing) {
+                                textEditorLayout
+                                textActionLayout
+                            }
                         }
                     }
+                    .padding(.leading, Metrics.textLeadingPadding)
+                    .padding(.trailing, Metrics.textTrailingPadding)
                 }
-                .padding(.leading, Metrics.textLeadingPadding)
-                .padding(.trailing, Metrics.textTrailingPadding)
             }
         }
     }()
@@ -235,7 +248,7 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
         effect.isInteractive = true
         let glassView = QuickLayoutVisualEffectView(
             effect: effect
-        ) { [unowned self] in
+        ) { [recordingWaveformView, recordingDurationLabel, recordingStopButton] in
             HStack(
                 alignment: .center,
                 spacing: Metrics.recordingHorizontalSpacing
@@ -267,7 +280,7 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
         effect.isInteractive = true
         let glassView = QuickLayoutVisualEffectView(
             effect: effect
-        ) { [unowned self] in
+        ) { [audioPlayButton, previewWaveformView, previewDurationContainer, audioSendButton] in
             HStack(spacing: Metrics.previewHorizontalSpacing) {
                 audioPlayButton
                     .resizable()
@@ -298,7 +311,7 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
         effect.isInteractive = true
         let glassView = QuickLayoutVisualEffectView(
             effect: effect
-        ) { [unowned self] in
+        ) { [audioCancelButton] in
             audioCancelButton
                 .resizable()
                 .frame(
@@ -311,8 +324,8 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
     }()
 
     /// 固定音频预览时长标签布局的容器。
-    lazy var previewDurationContainer = QuickLayoutView { [unowned self] in
-        self.previewDurationLabel
+    lazy var previewDurationContainer = QuickLayoutView { [previewDurationLabel] in
+        previewDurationLabel
             .fixedSize()
             .padding(.horizontal, 8)
             .padding(.vertical, 4)

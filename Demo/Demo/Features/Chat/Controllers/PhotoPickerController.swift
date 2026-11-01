@@ -208,6 +208,7 @@ final class PhotoPickerController: NSObject,
         let picker = PHPickerViewController(configuration: configuration)
         picker.delegate = self
         let sheetHost = SheetHostController(picker: picker)
+        sheetHost.finishSelection = { [weak self] in self?.dismissPicker(animated: true) }
         sheetHost.modalPresentationStyle = .pageSheet
         if let sheet = sheetHost.sheetPresentationController {
             configureDetents(of: sheet)
@@ -405,7 +406,7 @@ final class PhotoPickerController: NSObject,
         let height = max(220, storedKeyboardHeight)
         let keyboardDetent = UISheetPresentationController.Detent.custom(
             identifier: Self.keyboardDetentIdentifier
-        ) { _ in height }
+        ) { context in min(height, context.maximumDetentValue) }
         sheet.detents = [keyboardDetent, .large()]
     }
 }

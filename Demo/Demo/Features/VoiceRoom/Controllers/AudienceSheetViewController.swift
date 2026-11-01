@@ -169,18 +169,12 @@ final class AudienceSheetViewController:
                 }
             }
             .selectionMode(.single)
-            .layout(
-                .list(
-                    itemHeight: .estimated(66),
-                    spacing: 8,
-                    contentInsets: .init(
-                        top: 2,
-                        leading: 16,
-                        bottom: 24,
-                        trailing: 16
-                    )
-                )
-            )
+            .layout {
+                GridLayout(tracks: 1)
+                    .itemMainAxisSize(.estimated(66))
+                    .lineSpacing(8)
+                    .sectionInsets(.init(top: 2, leading: 16, bottom: 24, trailing: 16))
+            }
         }
     }
 

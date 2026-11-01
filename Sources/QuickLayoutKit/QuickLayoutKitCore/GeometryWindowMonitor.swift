@@ -10,11 +10,16 @@ final class GeometryWindowMonitor: NSObject {
     private var observers: [ObjectIdentifier: WeakObserver] = [:]
     /// 窗口可见且有活动观察者时运行的显示链接。
     private var displayLink: CADisplayLink?
+    /// 合并同一轮中多个观察者的请求，避免逐个重复采样整个窗口。
+    private var refreshScheduled = false
+    #if compiler(>=6.4)
     /// 使用类型擦除保存新系统版本的区域标识映射。
     private var identifiers: Any?
+    #endif
     /// 将单个监测器关联到窗口的唯一键。
     private static var associationKey: UInt8 = 0
 
+    #if compiler(>=6.4)
     /// 延迟创建的窗口级系统区域身份映射，仅在支持保留区域的系统中访问。
     @available(iOS 27.1, *)
     var regionIdentifiers: GeometryRegionIdentifiers {
@@ -23,6 +28,7 @@ final class GeometryWindowMonitor: NSObject {
         identifiers = ids
         return ids
     }
+    #endif
 
     /// 取得窗口已有监测器，或创建并关联一个新监测器。
     static func forWindow(_ window: UIWindow) -> GeometryWindowMonitor {
@@ -71,6 +77,17 @@ final class GeometryWindowMonitor: NSObject {
         } else if !active {
             displayLink?.invalidate()
             displayLink = nil
+        }
+    }
+
+    /// 将当前窗口的几何刷新合并到下一轮主线程更新。
+    func requestRefresh() {
+        guard !refreshScheduled else { return }
+        refreshScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.refreshScheduled = false
+            self.refresh()
         }
     }
 

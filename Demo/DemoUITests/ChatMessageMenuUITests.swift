@@ -20,7 +20,7 @@ final class ChatMessageMenuUITests: XCTestCase {
         app.launchArguments += arguments + ["-AppleLanguages", "(en)", "-quicklayoutkit.demo.locale.identifier", locale]
         app.launch()
         XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
-        let route = app.cells["demo.imessage.title"]
+        let route = app.buttons.matching(identifier: "app.tab.chat").firstMatch
         if arguments.contains("-UIPreferredContentSizeCategoryName") {
             let search = app.searchFields.firstMatch
             XCTAssertTrue(search.waitForExistence(timeout: 5))
@@ -205,9 +205,16 @@ final class ChatMessageMenuUITests: XCTestCase {
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue)!
             context.draw(crop, in: CGRect(x: 0, y: 0, width: 64, height: 32))
         }
-        return stride(from: 0, to: bytes.count, by: 4).filter {
-            Int(bytes[$0 + 2]) > Int(bytes[$0]) + 60 && Int(bytes[$0 + 2]) > Int(bytes[$0 + 1]) + 25
-        }.count
+        var count = 0
+        for offset in stride(from: 0, to: bytes.count, by: 4) {
+            let red = Int(bytes[offset])
+            let green = Int(bytes[offset + 1])
+            let blue = Int(bytes[offset + 2])
+            if blue > red + 60 && blue > green + 25 {
+                count += 1
+            }
+        }
+        return count
     }
 
     /// 验证正文中识别出的链接在长按时使用消息操作菜单。

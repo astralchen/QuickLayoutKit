@@ -113,6 +113,8 @@ final class ProfileViewController: LocalizedQuickLayoutHostingController {
                 skillsView
                 actionsView
             }
+            .frame(maxWidth: 720)
+            .frame(maxWidth: .infinity)
         }
         .contentMargins(.horizontal, 16, for: .scrollContent)
     }

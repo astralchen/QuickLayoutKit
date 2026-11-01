@@ -11,8 +11,7 @@ import QuickLayoutKit
 import Combine
 
 
-@QuickLayout
-class AnimatedKeyboardResponsiveView: UIView {
+class AnimatedKeyboardResponsiveView: QuickLayoutView {
 
     let textField = UITextField()
     private lazy var inputBinding = Localization.inputContext(for: self).makeTextInputBinding(to: textField)
@@ -23,6 +22,7 @@ class AnimatedKeyboardResponsiveView: UIView {
     }()
     let diagnosticsBackgroundView = UIView()
     let diagnosticsLabel = UILabel()
+    let contentScrollView = QuickLayoutScrollView()
 
     let keyboardObserver = QuickLayoutKeyboardObserver()
 
@@ -53,6 +53,8 @@ class AnimatedKeyboardResponsiveView: UIView {
 
     private func setupViews() {
         textField.borderStyle = .roundedRect
+        textField.accessibilityIdentifier = "keyboard.input"
+        submitButton.accessibilityIdentifier = "keyboard.submit"
 
         diagnosticsLabel.numberOfLines = 0
         diagnosticsLabel.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
@@ -119,6 +121,9 @@ class AnimatedKeyboardResponsiveView: UIView {
             animations: {
                 self.setNeedsLayout()
                 self.layoutIfNeeded()
+                if self.keyboardContext.isVisible {
+                    self.contentScrollView.scrollTo(.bottom, animated: false)
+                }
             }
         )
     }
@@ -146,25 +151,29 @@ class AnimatedKeyboardResponsiveView: UIView {
         ].joined(separator: "\n")
     }
 
-    var body: Layout {
-        VStack(spacing: 16) {
-            Spacer()
+    override var body: Layout {
+        ContentFittingScroll(contentScrollView) {
+            VStack(spacing: 16) {
+                diagnosticsLabel
+                    .resizable(axis: .horizontal)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .background {
+                        diagnosticsBackgroundView
+                    }
 
-            diagnosticsLabel
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background {
-                    diagnosticsBackgroundView
-                }
+                textField
+                    .resizable()
+                    .frame(height: 44)
 
-            textField
-                .frame(height: 44)
-
-            submitButton
-                .frame(height: 50)
+                submitButton
+                    .resizable()
+                    .frame(height: 50)
+            }
         }
-        .padding(.horizontal, 20)
-        .padding(.horizontal, quickLayoutSafeAreaInsets.maximumHorizontalInset)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        // 分栏的安全区可能只在一侧；逐边消费，避免将侧栏宽度重复扣到另一侧。
+        .safeAreaPadding([.top, .horizontal], 20)
         .padding(.bottom, max(keyboardHeight + 20, safeAreaInsets.bottom))
     }
 }
