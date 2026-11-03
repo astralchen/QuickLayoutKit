@@ -5,6 +5,113 @@ import UIKit
 @testable import Demo
 
 extension AppNavigationTests {
+    @Test func nestedSafeAreaChangeInvalidatesNaturalScrollViewport() {
+        let child = MutableSafeAreaLayoutView {
+            UILabel().frame(height: 40).safeAreaPadding(.bottom, 0)
+        }
+        let scroll = QuickLayoutScrollView()
+        let host = QuickLayoutView {
+            ContentFittingScroll(scroll) {
+                child.resizable(axis: .horizontal).fixedSize(axis: .vertical)
+            }
+        }
+        host.frame = CGRect(x: 0, y: 0, width: 320, height: 800)
+        host.layoutIfNeeded()
+        for bottom in [34.0, 58.0, 0.0, 34.0] {
+            child.testInsets.bottom = bottom
+            child.safeAreaInsetsDidChange()
+            // 只消费已发布的失效，不手动将外层标记为需要布局。
+            for _ in 0..<4 { host.layoutIfNeeded() }
+            #expect(abs(scroll.bounds.height - (40 + bottom)) < 1)
+            #expect(abs(child.bounds.height - scroll.bounds.height) < 1)
+        }
+    }
+
+    /// 遍历目录中的真实页面；同一控制器连续缩放，检查页面滚动视口的交叉轴范围。
+    @Test func catalogPagesKeepVerticalScrollContentWithinResizedViewport() throws {
+        let router = MainRouter()
+        for route in MainRoute.allCases where AppTab(route: route) == nil && route.isAvailable {
+            let controller = try #require(router.makeViewController(for: route))
+            let window = try makeVisibleTestWindow(rootViewController: controller, size: CGSize(width: 1024, height: 900))
+            defer { window.isHidden = true }
+            (controller as? ViewThatFitsDemoViewController)?.setProposedSize(CGSize(width: 320, height: 160))
+            for width in [1024.0, 768.0, 600.0, 375.0, 320.0, 1366.0, 1024.0] {
+                window.frame.size.width = width
+                controller.view.frame = window.bounds
+                window.layoutIfNeeded()
+                controller.view.setNeedsLayout()
+                controller.view.layoutIfNeeded()
+                for scroll in controller.view.allSubviews(of: QuickLayoutScrollView.self) where scroll.axis == .vertical {
+                    scroll.layoutIfNeeded()
+                    guard scroll.bounds.width > 0 else { continue }
+                    let available = max(0, scroll.bounds.width - scroll.adjustedContentInset.left - scroll.adjustedContentInset.right)
+                    #expect(scroll.contentSize.width <= available + 1,
+                            "\(route) at \(width): content \(scroll.contentSize.width), viewport \(available)")
+                    #expect(scroll.contentSize.height.isFinite)
+                    var contentViews: [UIView] = []
+                    scroll.body.quick_extractViewsIntoArray(&contentViews)
+                    for child in contentViews where child.bounds.width > 0 && !child.isHidden {
+                        let frame = child.convert(child.bounds, to: scroll)
+                        #expect(frame.minX >= -1 && frame.maxX <= available + 1,
+                                "\(route) at \(width): \(type(of: child)) \(frame), viewport \(available)")
+                    }
+                }
+            }
+        }
+    }
+
+    @Test func fittingScrollMeasuresInsideItsOwnContainerContext() {
+        let label = UILabel()
+        label.numberOfLines = 0
+        label.text = String(repeating: "Content follows its scroll viewport. ", count: 20)
+        let scroll = QuickLayoutScrollView()
+        scroll.contentInset = UIEdgeInsets(top: 10, left: 16, bottom: 20, right: 16)
+        let host = QuickLayoutView {
+            ContentFittingScroll(scroll) {
+                label.resizable(axis: .horizontal).containerRelativeFrame(.horizontal)
+            }.frame(maxWidth: 620)
+        }
+        for width in [1000.0, 320.0, 600.0, 1000.0] {
+            host.frame = CGRect(x: 0, y: 0, width: width, height: 1800)
+            host.setNeedsLayout()
+            host.layoutIfNeeded()
+            scroll.layoutIfNeeded()
+            #expect(abs(scroll.bounds.height - scroll.contentSize.height - 30) < 1)
+            #expect(abs(label.bounds.width - (min(width, 620) - 32)) < 1)
+        }
+    }
+
+    @Test func roomHeaderMeasurementDoesNotDependOnPreviousBounds() {
+        let header = RoomHeaderView()
+        header.configure(roomTitle: "Room", roomSubtitle: "Music", audience: "12 online",
+                         audienceAccessibilityHint: "Audience", avatarAccessibilityLabel: "Room",
+                         avatarAccessibilityHint: "Details")
+        header.configureFollowing(followTitle: "Follow", followedTitle: "Following",
+                                  accessibilityTitle: "Follow", isFollowing: false, isRequesting: false)
+        let proposal = CGSize(width: 620, height: CGFloat.infinity)
+        let initial = header.sizeThatFits(proposal)
+        for width in [280.0, 620.0, 320.0, 620.0] {
+            header.frame = CGRect(x: 0, y: 0, width: width, height: 160)
+            header.setNeedsLayout()
+            header.layoutIfNeeded()
+            #expect(header.sizeThatFits(proposal) == initial)
+        }
+    }
+
+    @Test func giftSheetMeasuresCurrentWidthBeforePlacement() {
+        let sheet = GiftSheetView(recipients: VoiceRoomPreviewData.occupiedSeats, gifts: Gift.catalog,
+                                  initiallySelectedRecipientSeatIDs: [], initialBalance: 12_800)
+        for width in [320.0, 620.0, 340.0, 390.0, 320.0] {
+            let proposal = CGSize(width: width, height: .infinity)
+            let measured = sheet.sizeThatFits(proposal)
+            sheet.frame = CGRect(origin: .zero, size: measured)
+            sheet.setNeedsLayout()
+            sheet.layoutIfNeeded()
+            #expect(sheet.sizeThatFits(proposal) == measured)
+            #expect(sheet.usesCompactMetrics == (width < 350))
+        }
+    }
+
     @Test func keyboardControlsRemainReachableInShortContainer() {
         let view = AnimatedKeyboardResponsiveView()
         for height in [700.0, 180.0, 320.0, 700.0] {
@@ -77,7 +184,11 @@ extension AppNavigationTests {
             #expect(weekly.minX >= safe.minX && weekly.maxX <= safe.maxX)
             #expect(profile.width > 0 && weekly.width > 0)
             if width - inset >= 1000 {
-                #expect(weekly.minX >= profile.maxX)
+                if controller.view.effectiveUserInterfaceLayoutDirection == .rightToLeft {
+                    #expect(weekly.maxX <= profile.minX)
+                } else {
+                    #expect(weekly.minX >= profile.maxX)
+                }
             } else {
                 #expect(weekly.minY >= profile.maxY)
             }
@@ -111,4 +222,9 @@ extension AppNavigationTests {
             #expect(controller.contentView === page)
         }
     }
+}
+
+private final class MutableSafeAreaLayoutView: QuickLayoutView {
+    var testInsets = UIEdgeInsets.zero
+    override var safeAreaInsets: UIEdgeInsets { testInsets }
 }

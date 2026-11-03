@@ -59,6 +59,7 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
     }
     private var adapter: CollectionListAdapter<String>!
     private let searchController = UISearchController(searchResultsController: nil)
+    private let clearSearchButton = UIButton(type: .system)
     private lazy var searchInputBinding = Localization.reusableContext
         .makeTextInputBinding(to: searchController.searchBar)
 
@@ -124,6 +125,7 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.navigationBar.prefersLargeTitles = true
+        updateNavigationTitlePresentation()
 
         if splitViewController is DemoSplitViewController {
             updateSelectedRoute()
@@ -178,11 +180,50 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
             navigationItem.preferredSearchBarPlacement = .stacked
         }
         definesPresentationContext = true
+        configureSearchClearAction()
+    }
+
+    private func configureSearchClearAction() {
+        let field = searchController.searchBar.searchTextField
+        // 当前系统的 iPad 原生清除按钮会同时取消 UISearchController 的呈现。
+        // 目录需要连续筛选：通过公开 accessory API 提供独立的清空文本动作，
+        // 保留原生输入与取消搜索，不替换内部 delegate，也不重新请求焦点。
+        field.clearButtonMode = .never
+        clearSearchButton.frame.size = CGSize(width: 44, height: 44)
+        clearSearchButton.setImage(UIImage(systemName: "xmark.circle.fill"), for: .normal)
+        clearSearchButton.setPreferredSymbolConfiguration(.init(textStyle: .body), forImageIn: .normal)
+        clearSearchButton.tintColor = .secondaryLabel
+        clearSearchButton.accessibilityIdentifier = "main.search.clear"
+        clearSearchButton.accessibilityLabel = Localization.text("main.search.clear")
+        clearSearchButton.addTarget(self, action: #selector(clearSearchQuery), for: .touchUpInside)
+        field.rightView = clearSearchButton
+        updateSearchClearVisibility()
+    }
+
+    @objc private func clearSearchQuery() {
+        searchController.searchBar.text = ""
+        updateSearchResults(for: searchController)
+    }
+
+    private func updateSearchClearVisibility() {
+        searchController.searchBar.searchTextField.rightViewMode =
+            (searchController.searchBar.text ?? "").isEmpty ? .never : .always
     }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        updateNavigationTitlePresentation()
         restorePendingVisibleItemIfNeeded()
+    }
+
+    private func updateNavigationTitlePresentation() {
+        // 展开的目录侧栏使用原生行内标题，避免大标题与侧栏工具按钮重叠。
+        // 跟随真实分栏的折叠状态，单列导航仍保留原有大标题体验。
+        let isSidebar = splitViewController.map { !$0.isCollapsed } ?? false
+        let mode: UINavigationItem.LargeTitleDisplayMode = isSidebar ? .never : .always
+        if navigationItem.largeTitleDisplayMode != mode {
+            navigationItem.largeTitleDisplayMode = mode
+        }
     }
 
     private func configureCollectionView() {
@@ -202,6 +243,7 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
     override func reloadLocalizedContent() {
         super.reloadLocalizedContent()
         searchController.searchBar.placeholder = Localization.text("main.search.placeholder")
+        clearSearchButton.accessibilityLabel = Localization.text("main.search.clear")
         viewModel.reloadLocalizedContent()
     }
 
@@ -499,6 +541,7 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
 
 extension MainViewController: UISearchResultsUpdating {
     func updateSearchResults(for searchController: UISearchController) {
+        updateSearchClearVisibility()
         let query = (searchController.searchBar.text ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard query != viewModel.searchQuery else { return }

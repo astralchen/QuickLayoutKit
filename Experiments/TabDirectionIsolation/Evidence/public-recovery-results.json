@@ -1,0 +1,1347 @@
+[
+  {
+    "case": "idiom",
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x000000010616c000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010569d380)",
+            "layout": "ObjectIdentifier(0x0000000106213700)",
+            "layoutRTL": false,
+            "axisFlip": false
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "1-rtl-settled",
+        "root": "ObjectIdentifier(0x000000010616c000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010569d380)",
+            "layout": "ObjectIdentifier(0x0000000106213700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "2-ltr-settled",
+        "root": "ObjectIdentifier(0x000000010616c000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010569d380)",
+            "layout": "ObjectIdentifier(0x0000000106213700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-recovered",
+        "root": "ObjectIdentifier(0x000000010616c000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010569d380)",
+            "layout": "ObjectIdentifier(0x0000000106213700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-stress",
+        "root": "ObjectIdentifier(0x000000010616c000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010569d380)",
+            "layout": "ObjectIdentifier(0x0000000106213700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "3-rtl-settled",
+        "root": "ObjectIdentifier(0x000000010616c000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010569d380)",
+            "layout": "ObjectIdentifier(0x0000000106213700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "4-ltr-settled",
+        "root": "ObjectIdentifier(0x000000010616c000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010569d380)",
+            "layout": "ObjectIdentifier(0x0000000106213700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-recovered",
+        "root": "ObjectIdentifier(0x000000010616c000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010569d380)",
+            "layout": "ObjectIdentifier(0x0000000106213700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-stress",
+        "root": "ObjectIdentifier(0x000000010616c000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010569d380)",
+            "layout": "ObjectIdentifier(0x0000000106213700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      }
+    ]
+  },
+  {
+    "case": "compact-idiom",
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001055b0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104b49920)",
+            "layout": "ObjectIdentifier(0x00000001055fb700)",
+            "layoutRTL": false,
+            "axisFlip": false
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "1-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001055b0000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104b49920)",
+            "layout": "ObjectIdentifier(0x00000001055fb700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "2-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001055b0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104b49920)",
+            "layout": "ObjectIdentifier(0x00000001055fb700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-recovered",
+        "root": "ObjectIdentifier(0x00000001055b0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104b49920)",
+            "layout": "ObjectIdentifier(0x00000001055fb700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-stress",
+        "root": "ObjectIdentifier(0x00000001055b0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104b49920)",
+            "layout": "ObjectIdentifier(0x00000001055fb700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "3-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001055b0000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104b49920)",
+            "layout": "ObjectIdentifier(0x00000001055fb700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "4-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001055b0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104b49920)",
+            "layout": "ObjectIdentifier(0x00000001055fb700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-recovered",
+        "root": "ObjectIdentifier(0x00000001055b0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104b49920)",
+            "layout": "ObjectIdentifier(0x00000001055fb700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-stress",
+        "root": "ObjectIdentifier(0x00000001055b0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104b49920)",
+            "layout": "ObjectIdentifier(0x00000001055fb700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      }
+    ]
+  },
+  {
+    "case": "sidebar",
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001055a0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001049c0830)",
+            "layout": "ObjectIdentifier(0x0000000105603700)",
+            "layoutRTL": false,
+            "axisFlip": false
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "1-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001055a0000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001049c0830)",
+            "layout": "ObjectIdentifier(0x0000000105603700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "2-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001055a0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001049c0830)",
+            "layout": "ObjectIdentifier(0x0000000105603700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-recovered",
+        "root": "ObjectIdentifier(0x00000001055a0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001049c0830)",
+            "layout": "ObjectIdentifier(0x0000000105603700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10,
+          -10
+        ]
+      },
+      {
+        "stage": "2-stress",
+        "root": "ObjectIdentifier(0x00000001055a0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001049c0830)",
+            "layout": "ObjectIdentifier(0x0000000105603700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10,
+          -10
+        ]
+      },
+      {
+        "stage": "3-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001055a0000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001049c0830)",
+            "layout": "ObjectIdentifier(0x0000000105603700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "4-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001055a0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001049c0830)",
+            "layout": "ObjectIdentifier(0x0000000105603700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-recovered",
+        "root": "ObjectIdentifier(0x00000001055a0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001049c0830)",
+            "layout": "ObjectIdentifier(0x0000000105603700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10,
+          -10
+        ]
+      },
+      {
+        "stage": "4-stress",
+        "root": "ObjectIdentifier(0x00000001055a0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001049c0830)",
+            "layout": "ObjectIdentifier(0x0000000105603700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10,
+          -10
+        ]
+      }
+    ]
+  },
+  {
+    "case": "hide",
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001021a4000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000101594a10)",
+            "layout": "ObjectIdentifier(0x000000010221b700)",
+            "layoutRTL": false,
+            "axisFlip": false
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "1-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001021a4000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000101594a10)",
+            "layout": "ObjectIdentifier(0x000000010221b700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "2-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001021a4000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000101594a10)",
+            "layout": "ObjectIdentifier(0x000000010221b700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-recovered",
+        "root": "ObjectIdentifier(0x00000001021a4000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000101594a10)",
+            "layout": "ObjectIdentifier(0x000000010221b700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-stress",
+        "root": "ObjectIdentifier(0x00000001021a4000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000101594a10)",
+            "layout": "ObjectIdentifier(0x000000010221b700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "3-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001021a4000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000101594a10)",
+            "layout": "ObjectIdentifier(0x000000010221b700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "4-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001021a4000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000101594a10)",
+            "layout": "ObjectIdentifier(0x000000010221b700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-recovered",
+        "root": "ObjectIdentifier(0x00000001021a4000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000101594a10)",
+            "layout": "ObjectIdentifier(0x000000010221b700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-stress",
+        "root": "ObjectIdentifier(0x00000001021a4000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000101594a10)",
+            "layout": "ObjectIdentifier(0x000000010221b700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      }
+    ]
+  },
+  {
+    "case": "items",
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001015a8000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100aa2f00)",
+            "layout": "ObjectIdentifier(0x00000001015f3700)",
+            "layoutRTL": false,
+            "axisFlip": false
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "1-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001015a8000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100aa2f00)",
+            "layout": "ObjectIdentifier(0x00000001015f3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "2-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001015a8000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100aa2f00)",
+            "layout": "ObjectIdentifier(0x00000001015f3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-recovered",
+        "root": "ObjectIdentifier(0x00000001015a8000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100aa2f00)",
+            "layout": "ObjectIdentifier(0x00000001015f3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-stress",
+        "root": "ObjectIdentifier(0x00000001015a8000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100aa2f00)",
+            "layout": "ObjectIdentifier(0x00000001015f3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "3-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001015a8000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100aa2f00)",
+            "layout": "ObjectIdentifier(0x00000001015f3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "4-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001015a8000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100aa2f00)",
+            "layout": "ObjectIdentifier(0x00000001015f3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-recovered",
+        "root": "ObjectIdentifier(0x00000001015a8000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100aa2f00)",
+            "layout": "ObjectIdentifier(0x00000001015f3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-stress",
+        "root": "ObjectIdentifier(0x00000001015a8000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100aa2f00)",
+            "layout": "ObjectIdentifier(0x00000001015f3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      }
+    ]
+  },
+  {
+    "case": "appearance",
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001061ac000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010554d530)",
+            "layout": "ObjectIdentifier(0x0000000106203700)",
+            "layoutRTL": false,
+            "axisFlip": false
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "1-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001061ac000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010554d530)",
+            "layout": "ObjectIdentifier(0x0000000106203700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "2-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001061ac000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010554d530)",
+            "layout": "ObjectIdentifier(0x0000000106203700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-recovered",
+        "root": "ObjectIdentifier(0x00000001061ac000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010554d530)",
+            "layout": "ObjectIdentifier(0x0000000106203700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-stress",
+        "root": "ObjectIdentifier(0x00000001061ac000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010554d530)",
+            "layout": "ObjectIdentifier(0x0000000106203700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "3-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001061ac000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010554d530)",
+            "layout": "ObjectIdentifier(0x0000000106203700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "4-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001061ac000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010554d530)",
+            "layout": "ObjectIdentifier(0x0000000106203700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-recovered",
+        "root": "ObjectIdentifier(0x00000001061ac000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010554d530)",
+            "layout": "ObjectIdentifier(0x0000000106203700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-stress",
+        "root": "ObjectIdentifier(0x00000001061ac000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010554d530)",
+            "layout": "ObjectIdentifier(0x0000000106203700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      }
+    ]
+  },
+  {
+    "case": "batch",
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001045a4000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000103867b20)",
+            "layout": "ObjectIdentifier(0x00000001045ff700)",
+            "layoutRTL": false,
+            "axisFlip": false
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "1-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001045a4000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000103867b20)",
+            "layout": "ObjectIdentifier(0x00000001045ff700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "2-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001045a4000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000103867b20)",
+            "layout": "ObjectIdentifier(0x00000001045ff700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-recovered",
+        "root": "ObjectIdentifier(0x00000001045a4000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000103867b20)",
+            "layout": "ObjectIdentifier(0x00000001045ff700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-stress",
+        "root": "ObjectIdentifier(0x00000001045a4000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000103867b20)",
+            "layout": "ObjectIdentifier(0x00000001045ff700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "3-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001045a4000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000103867b20)",
+            "layout": "ObjectIdentifier(0x00000001045ff700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "4-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001045a4000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000103867b20)",
+            "layout": "ObjectIdentifier(0x00000001045ff700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-recovered",
+        "root": "ObjectIdentifier(0x00000001045a4000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000103867b20)",
+            "layout": "ObjectIdentifier(0x00000001045ff700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-stress",
+        "root": "ObjectIdentifier(0x00000001045a4000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000103867b20)",
+            "layout": "ObjectIdentifier(0x00000001045ff700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      }
+    ]
+  },
+  {
+    "case": "minimize",
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001055ac000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104961820)",
+            "layout": "ObjectIdentifier(0x00000001055f3700)",
+            "layoutRTL": false,
+            "axisFlip": false
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "1-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001055ac000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104961820)",
+            "layout": "ObjectIdentifier(0x00000001055f3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "2-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001055ac000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104961820)",
+            "layout": "ObjectIdentifier(0x00000001055f3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-recovered",
+        "root": "ObjectIdentifier(0x00000001055ac000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104961820)",
+            "layout": "ObjectIdentifier(0x00000001055f3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-stress",
+        "root": "ObjectIdentifier(0x00000001055ac000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104961820)",
+            "layout": "ObjectIdentifier(0x00000001055f3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "3-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001055ac000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104961820)",
+            "layout": "ObjectIdentifier(0x00000001055f3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "4-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001055ac000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104961820)",
+            "layout": "ObjectIdentifier(0x00000001055f3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-recovered",
+        "root": "ObjectIdentifier(0x00000001055ac000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104961820)",
+            "layout": "ObjectIdentifier(0x00000001055f3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-stress",
+        "root": "ObjectIdentifier(0x00000001055ac000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000104961820)",
+            "layout": "ObjectIdentifier(0x00000001055f3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      }
+    ]
+  },
+  {
+    "case": "content-size",
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001065a0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001058c4f10)",
+            "layout": "ObjectIdentifier(0x000000010661f700)",
+            "layoutRTL": false,
+            "axisFlip": false
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "1-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001065a0000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001058c4f10)",
+            "layout": "ObjectIdentifier(0x000000010661f700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "2-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001065a0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001058c4f10)",
+            "layout": "ObjectIdentifier(0x000000010661f700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-recovered",
+        "root": "ObjectIdentifier(0x00000001065a0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001058c4f10)",
+            "layout": "ObjectIdentifier(0x000000010661f700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-stress",
+        "root": "ObjectIdentifier(0x00000001065a0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001058c4f10)",
+            "layout": "ObjectIdentifier(0x000000010661f700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "3-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001065a0000)",
+        "trait": 1,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001058c4f10)",
+            "layout": "ObjectIdentifier(0x000000010661f700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "4-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001065a0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001058c4f10)",
+            "layout": "ObjectIdentifier(0x000000010661f700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-recovered",
+        "root": "ObjectIdentifier(0x00000001065a0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001058c4f10)",
+            "layout": "ObjectIdentifier(0x000000010661f700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-stress",
+        "root": "ObjectIdentifier(0x00000001065a0000)",
+        "trait": 0,
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001058c4f10)",
+            "layout": "ObjectIdentifier(0x000000010661f700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      }
+    ]
+  }
+]

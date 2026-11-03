@@ -148,6 +148,7 @@ final class ViewThatFitsDemoViewController: LocalizedQuickLayoutHostingControlle
         showsIndicators: true
     )
     let previewView = ViewThatFitsPreviewView()
+    let previewScrollView = QuickLayoutScrollView(.horizontal)
 
     private let introLabel = UILabel()
     private let previousButton = UIButton(type: .system)
@@ -255,13 +256,14 @@ final class ViewThatFitsDemoViewController: LocalizedQuickLayoutHostingControlle
                         .frame(height: 32)
                 }
 
-                previewView
-                    .resizable()
-                    .frame(
-                        width: proposedSize.width,
-                        height: proposedSize.height
-                    )
-                    .frame(maxWidth: .infinity, alignment: .center)
+                // 保留用户指定的实验尺寸；窄视口只滚动画布，不让整个页面横向越界。
+                ScrollView(previewScrollView, .horizontal) {
+                    previewView.resizable()
+                        .frame(width: proposedSize.width, height: proposedSize.height)
+                }
+                .frame(maxWidth: proposedSize.width)
+                .frame(height: proposedSize.height)
+                .frame(maxWidth: .infinity, alignment: .center)
 
                 metricsLabel
             }
@@ -295,6 +297,8 @@ final class ViewThatFitsDemoViewController: LocalizedQuickLayoutHostingControlle
         pageScrollView.backgroundColor = .systemGroupedBackground
         pageScrollView.quickLayoutSemanticDirectionBehavior =
             .followEnclosingContainer
+        previewScrollView.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+        previewScrollView.contentInsetAdjustmentBehavior = .never
 
         introLabel.font = .preferredFont(forTextStyle: .body)
         introLabel.textColor = .secondaryLabel

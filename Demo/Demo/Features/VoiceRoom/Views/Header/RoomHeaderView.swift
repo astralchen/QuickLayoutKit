@@ -52,8 +52,7 @@ final class RoomHeaderView: TranslucentCardView {
     /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {
         ViewThatFits(in: .horizontal) {
-            if !traitCollection.preferredContentSizeCategory.isAccessibilityCategory,
-               bounds.width == 0 || bounds.width >= 360 {
+            if !traitCollection.preferredContentSizeCategory.isAccessibilityCategory {
                 HStack(spacing: 11) {
                     avatarLayout
                     titleLayout
@@ -63,6 +62,8 @@ final class RoomHeaderView: TranslucentCardView {
                     }
                 }
                 .padding(12)
+                // 360 是单行组合的设计下限；由当前测量提议选择，不读取上一次 bounds。
+                .frame(minWidth: 360)
             }
 
             VStack(alignment: .leading, spacing: 10) {

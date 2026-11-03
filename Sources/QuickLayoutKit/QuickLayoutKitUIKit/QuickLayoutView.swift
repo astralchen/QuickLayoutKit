@@ -188,6 +188,9 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         super.safeAreaInsetsDidChange()
         keyboardSafeAreaCoordinator?.refresh()
         quickLayoutEnvironmentState.update(self, explicitReason: .safeArea)
+        // safeAreaPadding 会改变宿主的自然尺寸；只重排内部内容会使父级继续使用旧高度。
+        invalidateIntrinsicContentSize()
+        superview?.setNeedsLayout()
     }
 
     /// 将布局边距变化发布给宿主环境。
@@ -315,7 +318,7 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
             keyboardSafeAreaCoordinator?.stop()
             keyboardSafeAreaCoordinator = nil
             applyQuickLayoutKeyboardSafeAreaInsets(.zero, context: nil)
-        case .docked:
+        case .followsDockedKeyboard:
             if keyboardSafeAreaCoordinator == nil {
                 keyboardSafeAreaCoordinator =
                     QuickLayoutKeyboardSafeAreaCoordinator(

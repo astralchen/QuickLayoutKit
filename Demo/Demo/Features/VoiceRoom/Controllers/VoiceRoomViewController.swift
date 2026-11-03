@@ -176,7 +176,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
     /// 在视图加载后配置界面并连接内容与交互。
     override func viewDidLoad() {
         super.viewDidLoad()
-        quickLayoutKeyboardSafeAreaBehavior = .docked(
+        quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard(
             usesBottomSafeArea: true
         )
         configureViews()

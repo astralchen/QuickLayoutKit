@@ -722,6 +722,8 @@ extension DemoTests {
             layout(controller, in: navigation)
             giftSheet.view.layoutIfNeeded()
             sheet.layoutIfNeeded()
+            // 子宿主的物理安全区在放置后确定；消费向外传播的自然尺寸失效。
+            for _ in 0..<3 { giftSheet.view.layoutIfNeeded() }
             let sheetFrame = sheet.convert(sheet.bounds, to: giftSheet.view)
             let sendFrame = send.convert(send.bounds, to: giftSheet.view)
             let safeFrame = giftSheet.view.safeAreaLayoutGuide.layoutFrame
@@ -974,13 +976,18 @@ extension DemoTests {
             allCategoryButton.bounds,
             to: categoryScrollView
         )
-        #expect(
-            categoryScrollView.contentSize.width
-                <= categoryScrollView.bounds.width + 1
-        )
+        // 面板的阅读宽度上限为 620；分类允许横向滚动，验证末项可达而非要求全部挤入视口。
+        let lastCategory = try #require(categoryScrollView.allSubviews(of: CapsuleTextButton.self).max {
+            $0.convert($0.bounds, to: categoryScrollView).maxX
+                < $1.convert($1.bounds, to: categoryScrollView).maxX
+        })
         #expect(categoryScrollView.contentInset == .zero)
         #expect(categoryScrollView.contentOffset.x == 0)
         #expect(allCategoryFrame.midX < categoryScrollView.bounds.midX)
+        let lastCategoryFrame = lastCategory.convert(lastCategory.bounds, to: categoryScrollView)
+        categoryScrollView.scrollRectToVisible(lastCategoryFrame, animated: false)
+        #expect(lastCategoryFrame.minX >= categoryScrollView.bounds.minX - 1)
+        #expect(lastCategoryFrame.maxX <= categoryScrollView.bounds.maxX + 1)
         #expect(
             giftSheet.giftScrollView.contentSize.height
                 > giftSheet.giftScrollView.bounds.height

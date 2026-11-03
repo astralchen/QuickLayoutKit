@@ -88,6 +88,9 @@
                   Identifier = "AdaptiveNavigationUITests">
                </Test>
                <Test
+                  Identifier = "TabLocalizationUITests">
+               </Test>
+               <Test
                   Identifier = "GeometryDemoUITests/testGeometryScenariosAndDirection()">
                </Test>
             </SelectedTests>

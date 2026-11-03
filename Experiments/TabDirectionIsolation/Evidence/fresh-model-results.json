@@ -1,0 +1,720 @@
+[
+  {
+    "case": "scene-atomic-fresh-tabs",
+    "os": "27.2",
+    "configuration": {
+      "directionSource": "scene",
+      "timing": "atomic",
+      "presentation": "fresh-tabs",
+      "semantics": "traits",
+      "initialRTL": false
+    },
+    "privateSetterCalls": 0,
+    "stableSamples": 4,
+    "directionAndGeometryFailures": [],
+    "sameControllerBarAndModels": false,
+    "replacementBlocked": true,
+    "replacementEvents": [
+      {
+        "additionalReleaseWaitMilliseconds": 2000,
+        "remainingOldBindings": [
+          "ObjectIdentifier(0x0000000104402120)",
+          "ObjectIdentifier(0x00000001044021c0)",
+          "ObjectIdentifier(0x0000000104402260)"
+        ],
+        "stage": 1
+      }
+    ],
+    "sameControllerAndBar": true,
+    "sameSelectedControllerAndPage": true,
+    "sameInput": true,
+    "sampledFocusPreserved": true,
+    "draftPreserved": true,
+    "stableLayoutIdentities": [
+      "ObjectIdentifier(0x00000001019fc780)"
+    ],
+    "candidatePassed": false,
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001019a4000)",
+        "navigation": "ObjectIdentifier(0x0000000101988000)",
+        "bar": "ObjectIdentifier(0x0000000100bae220)",
+        "trait": 0,
+        "windowTrait": 0,
+        "sceneTrait": 0,
+        "models": {
+          "models": [
+            "ObjectIdentifier(0x0000000104402120)",
+            "ObjectIdentifier(0x00000001044021c0)",
+            "ObjectIdentifier(0x0000000104402260)"
+          ],
+          "page": "ObjectIdentifier(0x000000010199c800)",
+          "selectedController": "ObjectIdentifier(0x0000000101988000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104402120)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100bafa20)",
+            "layout": "ObjectIdentifier(0x00000001019fc780)",
+            "cacheRTL": false,
+            "axis": false,
+            "effective": 0,
+            "trait": 0,
+            "hidden": false,
+            "frame": [
+              4,
+              0,
+              226.5,
+              44
+            ]
+          }
+        ],
+        "labels": [
+          {
+            "text": "示例",
+            "axisX": 10,
+            "originX": 280.75
+          },
+          {
+            "text": "Gamma",
+            "axisX": 10,
+            "originX": 414.75
+          },
+          {
+            "text": "Beta",
+            "axisX": 10,
+            "originX": 346.75
+          }
+        ],
+        "inputs": [
+          {
+            "id": "ObjectIdentifier(0x0000000101938000)",
+            "inputText": "草稿 Draft مسودة",
+            "firstResponder": true,
+            "selection": [
+              14,
+              0
+            ],
+            "hasMarkedText": false
+          }
+        ]
+      },
+      {
+        "stage": "0-cache-content",
+        "root": "ObjectIdentifier(0x00000001019a4000)",
+        "navigation": "ObjectIdentifier(0x0000000101988000)",
+        "bar": "ObjectIdentifier(0x0000000100bae220)",
+        "trait": 0,
+        "windowTrait": 0,
+        "sceneTrait": 0,
+        "models": {
+          "models": [
+            "ObjectIdentifier(0x0000000104402120)",
+            "ObjectIdentifier(0x00000001044021c0)",
+            "ObjectIdentifier(0x0000000104402260)"
+          ],
+          "page": "ObjectIdentifier(0x000000010199c800)",
+          "selectedController": "ObjectIdentifier(0x0000000101988000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104402120)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100bafa20)",
+            "layout": "ObjectIdentifier(0x00000001019fc780)",
+            "cacheRTL": false,
+            "axis": false,
+            "effective": 0,
+            "trait": 0,
+            "hidden": false,
+            "frame": [
+              4,
+              0,
+              226.5,
+              44
+            ]
+          }
+        ],
+        "labels": [
+          {
+            "text": "示例",
+            "axisX": 10,
+            "originX": 280.75
+          },
+          {
+            "text": "Gamma",
+            "axisX": 10,
+            "originX": 414.75
+          },
+          {
+            "text": "Beta",
+            "axisX": 10,
+            "originX": 346.75
+          }
+        ],
+        "inputs": [
+          {
+            "id": "ObjectIdentifier(0x0000000101938000)",
+            "inputText": "草稿 Draft مسودة",
+            "firstResponder": true,
+            "selection": [
+              14,
+              0
+            ],
+            "hasMarkedText": false
+          }
+        ]
+      },
+      {
+        "stage": "0-cache-resized",
+        "root": "ObjectIdentifier(0x00000001019a4000)",
+        "navigation": "ObjectIdentifier(0x0000000101988000)",
+        "bar": "ObjectIdentifier(0x0000000100bae220)",
+        "trait": 0,
+        "windowTrait": 0,
+        "sceneTrait": 0,
+        "models": {
+          "models": [
+            "ObjectIdentifier(0x0000000104402120)",
+            "ObjectIdentifier(0x00000001044021c0)",
+            "ObjectIdentifier(0x0000000104402260)"
+          ],
+          "page": "ObjectIdentifier(0x000000010199c800)",
+          "selectedController": "ObjectIdentifier(0x0000000101988000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104402120)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100bafa20)",
+            "layout": "ObjectIdentifier(0x00000001019fc780)",
+            "cacheRTL": false,
+            "axis": false,
+            "effective": 0,
+            "trait": 0,
+            "hidden": false,
+            "frame": [
+              4,
+              0,
+              226.5,
+              44
+            ]
+          }
+        ],
+        "labels": [
+          {
+            "text": "示例",
+            "axisX": 10,
+            "originX": 240.75
+          },
+          {
+            "text": "Gamma",
+            "axisX": 10,
+            "originX": 374.75
+          },
+          {
+            "text": "Beta",
+            "axisX": 10,
+            "originX": 306.75
+          }
+        ],
+        "inputs": [
+          {
+            "id": "ObjectIdentifier(0x0000000101938000)",
+            "inputText": "草稿 Draft مسودة",
+            "firstResponder": true,
+            "selection": [
+              14,
+              0
+            ],
+            "hasMarkedText": false
+          }
+        ]
+      },
+      {
+        "stage": "0-cache-final",
+        "root": "ObjectIdentifier(0x00000001019a4000)",
+        "navigation": "ObjectIdentifier(0x0000000101988000)",
+        "bar": "ObjectIdentifier(0x0000000100bae220)",
+        "trait": 0,
+        "windowTrait": 0,
+        "sceneTrait": 0,
+        "models": {
+          "models": [
+            "ObjectIdentifier(0x0000000104402120)",
+            "ObjectIdentifier(0x00000001044021c0)",
+            "ObjectIdentifier(0x0000000104402260)"
+          ],
+          "page": "ObjectIdentifier(0x000000010199c800)",
+          "selectedController": "ObjectIdentifier(0x0000000101988000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104402120)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100bafa20)",
+            "layout": "ObjectIdentifier(0x00000001019fc780)",
+            "cacheRTL": false,
+            "axis": false,
+            "effective": 0,
+            "trait": 0,
+            "hidden": false,
+            "frame": [
+              4,
+              0,
+              226.5,
+              44
+            ]
+          }
+        ],
+        "labels": [
+          {
+            "text": "示例",
+            "axisX": 10,
+            "originX": 280.75
+          },
+          {
+            "text": "Gamma",
+            "axisX": 10,
+            "originX": 414.75
+          },
+          {
+            "text": "Beta",
+            "axisX": 10,
+            "originX": 346.75
+          }
+        ],
+        "inputs": [
+          {
+            "id": "ObjectIdentifier(0x0000000101938000)",
+            "inputText": "草稿 Draft مسودة续",
+            "firstResponder": true,
+            "selection": [
+              15,
+              0
+            ],
+            "hasMarkedText": false
+          }
+        ]
+      },
+      {
+        "stage": "1-presentation-entered",
+        "root": "ObjectIdentifier(0x00000001019a4000)",
+        "navigation": "ObjectIdentifier(0x0000000101988000)",
+        "bar": "ObjectIdentifier(0x0000000100bae220)",
+        "trait": 0,
+        "windowTrait": 0,
+        "sceneTrait": 0,
+        "models": {
+          "models": [],
+          "page": "ObjectIdentifier(0x000000010199c800)",
+          "selectedController": "",
+          "selectedTab": ""
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100bafa20)",
+            "layout": "ObjectIdentifier(0x00000001019fc780)",
+            "cacheRTL": false,
+            "axis": false,
+            "effective": 0,
+            "trait": 0,
+            "hidden": false,
+            "frame": [
+              4,
+              0,
+              0,
+              23.5
+            ]
+          }
+        ],
+        "labels": [
+          {
+            "text": "示例",
+            "axisX": 10,
+            "originX": 398
+          },
+          {
+            "text": "Gamma",
+            "axisX": 10,
+            "originX": 532
+          },
+          {
+            "text": "Beta",
+            "axisX": 10,
+            "originX": 464
+          }
+        ],
+        "inputs": [
+          {
+            "id": "ObjectIdentifier(0x0000000101938000)",
+            "inputText": "草稿 Draft مسودة续",
+            "firstResponder": true,
+            "selection": [
+              15,
+              0
+            ],
+            "hasMarkedText": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "case": "scene-atomic-fresh-identifiers",
+    "os": "27.2",
+    "configuration": {
+      "directionSource": "scene",
+      "timing": "atomic",
+      "presentation": "fresh-identifiers",
+      "semantics": "traits",
+      "initialRTL": false
+    },
+    "privateSetterCalls": 0,
+    "stableSamples": 4,
+    "directionAndGeometryFailures": [],
+    "sameControllerBarAndModels": false,
+    "replacementBlocked": true,
+    "replacementEvents": [
+      {
+        "additionalReleaseWaitMilliseconds": 2000,
+        "remainingOldBindings": [
+          "ObjectIdentifier(0x000000010705dfe0)",
+          "ObjectIdentifier(0x000000010705e080)",
+          "ObjectIdentifier(0x000000010705e120)"
+        ],
+        "stage": 1
+      }
+    ],
+    "sameControllerAndBar": true,
+    "sameSelectedControllerAndPage": true,
+    "sameInput": true,
+    "sampledFocusPreserved": true,
+    "draftPreserved": true,
+    "stableLayoutIdentities": [
+      "ObjectIdentifier(0x00000001045f3700)"
+    ],
+    "candidatePassed": false,
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001045a0000)",
+        "navigation": "ObjectIdentifier(0x0000000104584000)",
+        "bar": "ObjectIdentifier(0x0000000103910300)",
+        "trait": 0,
+        "windowTrait": 0,
+        "sceneTrait": 0,
+        "models": {
+          "models": [
+            "ObjectIdentifier(0x000000010705dfe0)",
+            "ObjectIdentifier(0x000000010705e080)",
+            "ObjectIdentifier(0x000000010705e120)"
+          ],
+          "page": "ObjectIdentifier(0x000000010459c800)",
+          "selectedController": "ObjectIdentifier(0x0000000104584000)",
+          "selectedTab": "ObjectIdentifier(0x000000010705dfe0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010391b480)",
+            "layout": "ObjectIdentifier(0x00000001045f3700)",
+            "cacheRTL": false,
+            "axis": false,
+            "effective": 0,
+            "trait": 0,
+            "hidden": false,
+            "frame": [
+              4,
+              0,
+              226.5,
+              44
+            ]
+          }
+        ],
+        "labels": [
+          {
+            "text": "示例",
+            "axisX": 10,
+            "originX": 280.75
+          },
+          {
+            "text": "Gamma",
+            "axisX": 10,
+            "originX": 414.75
+          },
+          {
+            "text": "Beta",
+            "axisX": 10,
+            "originX": 346.75
+          }
+        ],
+        "inputs": [
+          {
+            "id": "ObjectIdentifier(0x0000000104530000)",
+            "inputText": "草稿 Draft مسودة",
+            "firstResponder": true,
+            "selection": [
+              14,
+              0
+            ],
+            "hasMarkedText": false
+          }
+        ]
+      },
+      {
+        "stage": "0-cache-content",
+        "root": "ObjectIdentifier(0x00000001045a0000)",
+        "navigation": "ObjectIdentifier(0x0000000104584000)",
+        "bar": "ObjectIdentifier(0x0000000103910300)",
+        "trait": 0,
+        "windowTrait": 0,
+        "sceneTrait": 0,
+        "models": {
+          "models": [
+            "ObjectIdentifier(0x000000010705dfe0)",
+            "ObjectIdentifier(0x000000010705e080)",
+            "ObjectIdentifier(0x000000010705e120)"
+          ],
+          "page": "ObjectIdentifier(0x000000010459c800)",
+          "selectedController": "ObjectIdentifier(0x0000000104584000)",
+          "selectedTab": "ObjectIdentifier(0x000000010705dfe0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010391b480)",
+            "layout": "ObjectIdentifier(0x00000001045f3700)",
+            "cacheRTL": false,
+            "axis": false,
+            "effective": 0,
+            "trait": 0,
+            "hidden": false,
+            "frame": [
+              4,
+              0,
+              226.5,
+              44
+            ]
+          }
+        ],
+        "labels": [
+          {
+            "text": "示例",
+            "axisX": 10,
+            "originX": 280.75
+          },
+          {
+            "text": "Gamma",
+            "axisX": 10,
+            "originX": 414.75
+          },
+          {
+            "text": "Beta",
+            "axisX": 10,
+            "originX": 346.75
+          }
+        ],
+        "inputs": [
+          {
+            "id": "ObjectIdentifier(0x0000000104530000)",
+            "inputText": "草稿 Draft مسودة",
+            "firstResponder": true,
+            "selection": [
+              14,
+              0
+            ],
+            "hasMarkedText": false
+          }
+        ]
+      },
+      {
+        "stage": "0-cache-resized",
+        "root": "ObjectIdentifier(0x00000001045a0000)",
+        "navigation": "ObjectIdentifier(0x0000000104584000)",
+        "bar": "ObjectIdentifier(0x0000000103910300)",
+        "trait": 0,
+        "windowTrait": 0,
+        "sceneTrait": 0,
+        "models": {
+          "models": [
+            "ObjectIdentifier(0x000000010705dfe0)",
+            "ObjectIdentifier(0x000000010705e080)",
+            "ObjectIdentifier(0x000000010705e120)"
+          ],
+          "page": "ObjectIdentifier(0x000000010459c800)",
+          "selectedController": "ObjectIdentifier(0x0000000104584000)",
+          "selectedTab": "ObjectIdentifier(0x000000010705dfe0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010391b480)",
+            "layout": "ObjectIdentifier(0x00000001045f3700)",
+            "cacheRTL": false,
+            "axis": false,
+            "effective": 0,
+            "trait": 0,
+            "hidden": false,
+            "frame": [
+              4,
+              0,
+              226.5,
+              44
+            ]
+          }
+        ],
+        "labels": [
+          {
+            "text": "示例",
+            "axisX": 10,
+            "originX": 240.75
+          },
+          {
+            "text": "Gamma",
+            "axisX": 10,
+            "originX": 374.75
+          },
+          {
+            "text": "Beta",
+            "axisX": 10,
+            "originX": 306.75
+          }
+        ],
+        "inputs": [
+          {
+            "id": "ObjectIdentifier(0x0000000104530000)",
+            "inputText": "草稿 Draft مسودة",
+            "firstResponder": true,
+            "selection": [
+              14,
+              0
+            ],
+            "hasMarkedText": false
+          }
+        ]
+      },
+      {
+        "stage": "0-cache-final",
+        "root": "ObjectIdentifier(0x00000001045a0000)",
+        "navigation": "ObjectIdentifier(0x0000000104584000)",
+        "bar": "ObjectIdentifier(0x0000000103910300)",
+        "trait": 0,
+        "windowTrait": 0,
+        "sceneTrait": 0,
+        "models": {
+          "models": [
+            "ObjectIdentifier(0x000000010705dfe0)",
+            "ObjectIdentifier(0x000000010705e080)",
+            "ObjectIdentifier(0x000000010705e120)"
+          ],
+          "page": "ObjectIdentifier(0x000000010459c800)",
+          "selectedController": "ObjectIdentifier(0x0000000104584000)",
+          "selectedTab": "ObjectIdentifier(0x000000010705dfe0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010391b480)",
+            "layout": "ObjectIdentifier(0x00000001045f3700)",
+            "cacheRTL": false,
+            "axis": false,
+            "effective": 0,
+            "trait": 0,
+            "hidden": false,
+            "frame": [
+              4,
+              0,
+              226.5,
+              44
+            ]
+          }
+        ],
+        "labels": [
+          {
+            "text": "示例",
+            "axisX": 10,
+            "originX": 280.75
+          },
+          {
+            "text": "Gamma",
+            "axisX": 10,
+            "originX": 414.75
+          },
+          {
+            "text": "Beta",
+            "axisX": 10,
+            "originX": 346.75
+          }
+        ],
+        "inputs": [
+          {
+            "id": "ObjectIdentifier(0x0000000104530000)",
+            "inputText": "草稿 Draft مسودة续",
+            "firstResponder": true,
+            "selection": [
+              15,
+              0
+            ],
+            "hasMarkedText": false
+          }
+        ]
+      },
+      {
+        "stage": "1-presentation-entered",
+        "root": "ObjectIdentifier(0x00000001045a0000)",
+        "navigation": "ObjectIdentifier(0x0000000104584000)",
+        "bar": "ObjectIdentifier(0x0000000103910300)",
+        "trait": 0,
+        "windowTrait": 0,
+        "sceneTrait": 0,
+        "models": {
+          "models": [],
+          "page": "ObjectIdentifier(0x000000010459c800)",
+          "selectedController": "",
+          "selectedTab": ""
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010391b480)",
+            "layout": "ObjectIdentifier(0x00000001045f3700)",
+            "cacheRTL": false,
+            "axis": false,
+            "effective": 0,
+            "trait": 0,
+            "hidden": false,
+            "frame": [
+              4,
+              0,
+              0,
+              23.5
+            ]
+          }
+        ],
+        "labels": [
+          {
+            "text": "示例",
+            "axisX": 10,
+            "originX": 398
+          },
+          {
+            "text": "Gamma",
+            "axisX": 10,
+            "originX": 532
+          },
+          {
+            "text": "Beta",
+            "axisX": 10,
+            "originX": 464
+          }
+        ],
+        "inputs": [
+          {
+            "id": "ObjectIdentifier(0x0000000104530000)",
+            "inputText": "草稿 Draft مسودة续",
+            "firstResponder": true,
+            "selection": [
+              15,
+              0
+            ],
+            "hasMarkedText": false
+          }
+        ]
+      }
+    ]
+  }
+]

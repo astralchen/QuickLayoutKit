@@ -1,6 +1,14 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "main.search.clear": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Clear search text" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "清除搜索文字" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "مسح نص البحث" } }
+      }
+    },
     "common.done": {
       "extractionState": "manual",
       "localizations": {

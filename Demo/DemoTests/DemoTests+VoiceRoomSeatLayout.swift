@@ -105,10 +105,8 @@ extension DemoTests {
         #expect(abs(messageFrame.minX - scrollFrame.minX - 8) < 1)
         #expect(abs(scrollFrame.maxX - messageFrame.maxX - 8) < 1)
         #expect(messageFrame.width > scrollFrame.width * 0.9)
-        #expect(
-            viewController.view.allSubviews(of: UIScrollView.self)
-                .filter(\.isScrollEnabled).count == 1
-        )
+        #expect(scrollView.isScrollEnabled)
+        #expect(scrollView.contentSize.width <= scrollView.bounds.width + 1)
     }
 
     @Test func voiceRoomNineSeatSecondRowKeepsTextAtIdealSize() throws {
@@ -288,7 +286,6 @@ extension DemoTests {
         #expect(viewController.view.bounds.size == CGSize(width: 320, height: 548))
         #expect(viewController.displayedSeatCount == 5)
         let scrollViews = viewController.view.allSubviews(of: UIScrollView.self)
-        #expect(scrollViews.count == 2)
         #expect(scrollViews.contains { $0 === viewController.publicChatScrollView })
         let seatCollectionView = try #require(
             scrollViews.first {
@@ -329,7 +326,10 @@ extension DemoTests {
                 $0.accessibilityIdentifier == "liveRoom.actionBar"
             }
         )
-        let stageFrame = stageView.convert(stageView.bounds, to: viewController.view)
+        // 矮容器中的舞台可滚动；公屏衔接的是舞台视口，而非视口内的完整内容底边。
+        let stageViewport = try #require(scrollViews.first { stageView.isDescendant(of: $0) })
+        let stageFrame = stageViewport.convert(stageViewport.bounds, to: viewController.view)
+        #expect(stageViewport.contentSize.height >= stageViewport.bounds.height)
         let chatFrame = chatView.convert(chatView.bounds, to: viewController.view)
         let actionBarFrame = actionBarView.convert(
             actionBarView.bounds,

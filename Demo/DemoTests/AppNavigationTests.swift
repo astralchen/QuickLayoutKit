@@ -6,6 +6,37 @@ import UIKit
 @MainActor
 @Suite(.serialized)
 struct AppNavigationTests {
+    @Test func catalogClearActionPreservesFirstResponderAndSearchPresentation() async throws {
+        let tabs = AppTabBarController(viewModel: AppNavigationViewModel(chatAvailable: false))
+        let window = try makeVisibleTestWindow(rootViewController: tabs, size: CGSize(width: 1024, height: 768))
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        let split = try #require(tabs.featureControllers[.examples] as? DemoSplitViewController)
+        split.select(.frame)
+        let detail = try #require(split.detailNavigationController.viewControllers.first)
+        split.show(.primary)
+        let search = try #require(split.menuController.navigationItem.searchController)
+        let field = search.searchBar.searchTextField
+        search.isActive = true
+        field.becomeFirstResponder()
+        try #require(await waitForCondition { field.isFirstResponder && search.isActive })
+        let clear = try #require(field.rightView as? UIButton)
+        for query in ["Frame", "Counter", "Geometry"] {
+            field.insertText(query)
+            #expect(await waitForCondition { search.searchBar.text == query && field.rightViewMode == .always })
+            clear.sendActions(for: .touchUpInside)
+            #expect(await waitForCondition {
+                (search.searchBar.text ?? "").isEmpty && field.rightViewMode == .never
+            })
+            #expect(field.isFirstResponder)
+            #expect(search.isActive)
+            #expect(field.clearButtonMode == .never)
+            #expect(split.selectedRoute == .frame)
+            #expect(split.detailNavigationController.viewControllers.first === detail)
+            // 下一轮直接输入，不再次 becomeFirstResponder；也不重建搜索宿主。
+        }
+    }
+
     @Test func tabsExcludeUnavailableChatAndIgnoreRepeatedSelections() {
         let model = AppNavigationViewModel(chatAvailable: false)
         var changes = 0
@@ -89,6 +120,7 @@ struct AppNavigationTests {
         defer { window.isHidden = true }
         let split = try #require(tabs.featureControllers[.examples] as? DemoSplitViewController)
         #expect(await waitForCondition { !split.isCollapsed })
+        #expect(split.menuController.navigationItem.largeTitleDisplayMode == .never)
         split.select(.counter)
         let detail = try #require(split.detailNavigationController.viewControllers.first)
         tabs.traitOverrides.horizontalSizeClass = .compact
@@ -98,6 +130,7 @@ struct AppNavigationTests {
         #expect(split.selectedRoute == .counter)
         split.show(.primary)
         #expect(await waitForCondition { split.menuController.view.window === window })
+        #expect(split.menuController.navigationItem.largeTitleDisplayMode == .always)
         split.select(.counter)
         #expect(await waitForCondition { detail.view.window === window })
         tabs.traitOverrides.horizontalSizeClass = .regular
@@ -108,6 +141,7 @@ struct AppNavigationTests {
         })
         #expect(split.detailNavigationController.viewControllers.first === detail)
         #expect(split.selectedRoute == .counter)
+        #expect(split.menuController.navigationItem.largeTitleDisplayMode == .never)
     }
 
     @Test func composerReflowsAgainstContentViewportInsteadOfWindow() {

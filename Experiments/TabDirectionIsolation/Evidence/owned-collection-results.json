@@ -1,0 +1,548 @@
+[
+  {
+    "stage": "0-ltr-settled",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb1400)",
+        "layoutRTL": false,
+        "axisFlip": false,
+        "axisToWindow": 10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": false,
+        "axisFlip": false,
+        "axisToWindow": 10
+      }
+    ],
+    "ownedLabelAxes": [
+      10,
+      10,
+      10
+    ]
+  },
+  {
+    "stage": "1-rtl-settled",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb1400)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      10,
+      10,
+      10
+    ]
+  },
+  {
+    "stage": "2-ltr-settled",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb1400)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      -10,
+      -10,
+      -10
+    ]
+  },
+  {
+    "stage": "2-owned-invalidate",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb1400)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      -10,
+      -10,
+      -10
+    ]
+  },
+  {
+    "stage": "2-owned-invalidate-stress",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb1400)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      -10,
+      -10,
+      -10
+    ]
+  },
+  {
+    "stage": "2-owned-configuration",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb1400)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      -10,
+      -10,
+      -10
+    ]
+  },
+  {
+    "stage": "2-owned-configuration-stress",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb1400)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      -10,
+      -10,
+      -10
+    ]
+  },
+  {
+    "stage": "2-owned-reattach-layout",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb1400)",
+        "layoutRTL": true,
+        "axisFlip": false,
+        "axisToWindow": 10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      10,
+      10,
+      10
+    ]
+  },
+  {
+    "stage": "2-owned-reattach-layout-stress",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb1400)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      -10,
+      -10,
+      -10
+    ]
+  },
+  {
+    "stage": "2-owned-fresh-layout",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb2800)",
+        "layoutRTL": false,
+        "axisFlip": false,
+        "axisToWindow": 10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      10,
+      10,
+      10
+    ]
+  },
+  {
+    "stage": "2-owned-fresh-layout-stress",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb2800)",
+        "layoutRTL": false,
+        "axisFlip": false,
+        "axisToWindow": 10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      10,
+      10,
+      10
+    ]
+  },
+  {
+    "stage": "3-rtl-settled",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb2800)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      10,
+      10,
+      10
+    ]
+  },
+  {
+    "stage": "4-ltr-settled",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb2800)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      -10,
+      -10,
+      -10
+    ]
+  },
+  {
+    "stage": "4-owned-invalidate",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb2800)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      -10,
+      -10,
+      -10
+    ]
+  },
+  {
+    "stage": "4-owned-invalidate-stress",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb2800)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      -10,
+      -10,
+      -10
+    ]
+  },
+  {
+    "stage": "4-owned-configuration",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb2800)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      -10,
+      -10,
+      -10
+    ]
+  },
+  {
+    "stage": "4-owned-configuration-stress",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb2800)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      -10,
+      -10,
+      -10
+    ]
+  },
+  {
+    "stage": "4-owned-reattach-layout",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb2800)",
+        "layoutRTL": true,
+        "axisFlip": false,
+        "axisToWindow": 10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      10,
+      10,
+      10
+    ]
+  },
+  {
+    "stage": "4-owned-reattach-layout-stress",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb2800)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      -10,
+      -10,
+      -10
+    ]
+  },
+  {
+    "stage": "4-owned-fresh-layout",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb1400)",
+        "layoutRTL": false,
+        "axisFlip": false,
+        "axisToWindow": 10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      10,
+      10,
+      10
+    ]
+  },
+  {
+    "stage": "4-owned-fresh-layout-stress",
+    "collections": [
+      {
+        "class": "UICollectionView",
+        "id": "ObjectIdentifier(0x0000000106f60000)",
+        "layout": "ObjectIdentifier(0x0000000106eb1400)",
+        "layoutRTL": false,
+        "axisFlip": false,
+        "axisToWindow": 10
+      },
+      {
+        "class": "_UIFloatingTabBarCollectionView",
+        "id": "ObjectIdentifier(0x0000000103544a70)",
+        "layout": "ObjectIdentifier(0x00000001041d7980)",
+        "layoutRTL": true,
+        "axisFlip": true,
+        "axisToWindow": -10
+      }
+    ],
+    "ownedLabelAxes": [
+      10,
+      10,
+      10
+    ]
+  }
+]

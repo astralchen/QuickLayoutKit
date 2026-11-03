@@ -36,8 +36,8 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
     weak var attachmentPreviewController: UIViewController?
     var attachmentPreviewSource: AttachmentPreviewRequest.Source?
 
-    /// 聊天演示页面标题使用的本地化资源键。
-    override var localizedTitleKey: String? { "demo.imessage.title" }
+    /// 根页面标题会传播到系统 Tab 栏，使用简短且随语言切换的“聊天”。
+    override var localizedTitleKey: String? { "app.tab.chat" }
 
     /// 保存消息并生成时间线展示状态的视图模型。
     let viewModel: ChatViewModel

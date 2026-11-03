@@ -36,7 +36,10 @@ class AnimatedKeyboardResponsiveView: QuickLayoutView {
     }
 
     private var keyboardHeight: CGFloat {
-        keyboardContext.resolved(in: self).height
+        // 原始相交高度也包含悬浮／分离键盘。让 Kit 结合当前容器和
+        // UIKeyboardLayoutGuide 判定停靠，只为真正覆盖底边的键盘抬升内容。
+        let bottom = quickLayoutKeyboardSafeAreaInsets.bottom
+        return bottom > safeAreaInsets.bottom ? bottom : 0
     }
 
     private var cancellables : Set<AnyCancellable> = []
@@ -52,6 +55,7 @@ class AnimatedKeyboardResponsiveView: QuickLayoutView {
     }
 
     private func setupViews() {
+        quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard()
         textField.borderStyle = .roundedRect
         textField.accessibilityIdentifier = "keyboard.input"
         submitButton.accessibilityIdentifier = "keyboard.submit"

@@ -35,10 +35,11 @@ struct ChatFullscreenLayoutTests {
             conversation.updateViewportInsets(UIEdgeInsets(top: top, left: safe.left,
                                                           bottom: bottom, right: safe.right))
             list.layoutIfNeeded()
-            #expect(abs(list.contentOffset.y - originalOffset.y) < 0.5,
-                    "top=\(top), before=\(originalOffset), after=\(list.contentOffset)")
             let frame = try #require(list.layoutAttributesForItem(at: anchor.indexPath)?.frame)
-            #expect(abs((frame.minY - list.contentOffset.y) - (originalFrame.minY - originalOffset.y)) < 0.5)
+            // estimated 行在物化后会修正前方内容高度；UIKit 可同步补偿 contentOffset。
+            // 要求同一消息在屏幕上保持原位，不能把合法的几何补偿误判成导航栏抢滚动。
+            #expect(abs((frame.minY - list.contentOffset.y) - (originalFrame.minY - originalOffset.y)) < 0.5,
+                    "top=\(top), before=\(originalOffset), after=\(list.contentOffset), rowDelta=\(frame.minY - originalFrame.minY)")
             #expect(abs(list.contentInset.top - top) < 0.5)
             #expect(abs(list.verticalScrollIndicatorInsets.top - top) < 0.5)
         }

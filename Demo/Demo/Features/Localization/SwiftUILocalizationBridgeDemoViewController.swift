@@ -58,7 +58,8 @@ final class SwiftUILocalizationBridgeDemoViewController: LocalizedViewController
         hostingController.view.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(hostingController.view)
         NSLayoutConstraint.activate([
-            hostingController.view.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            // 让 SwiftUI 统一消费继承的安全区；UIKit 仅传递完整容器边界。
+            hostingController.view.topAnchor.constraint(equalTo: view.topAnchor),
             hostingController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             hostingController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
@@ -74,31 +75,41 @@ private struct SwiftUILocalizationBridgeView: View {
     @State private var isSheetPresented = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text(resolver.string("swiftui.bridge.body", bundle: .main))
-                .font(.body)
-            // 文案已由 resolver 本地化，直接展示，避免 SwiftUI 再次提取插值模板。
-            Text(verbatim: "\(resolver.string("language.direction", bundle: .main)): \(localizationController.layoutDirection == .rightToLeft ? "RTL" : "LTR")")
-                .foregroundStyle(.secondary)
-            Button(resolver.string("swiftui.showSheet", bundle: .main)) {
-                isSheetPresented = true
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                Text(resolver.string("swiftui.bridge.body", bundle: .main))
+                    .font(.body)
+                // 文案已由 resolver 本地化，直接展示，避免 SwiftUI 再次提取插值模板。
+                Text(verbatim: "\(resolver.string("language.direction", bundle: .main)): \(localizationController.layoutDirection == .rightToLeft ? "RTL" : "LTR")")
+                    .foregroundStyle(.secondary)
+                Button(resolver.string("swiftui.showSheet", bundle: .main)) {
+                    isSheetPresented = true
+                }
+                .accessibilityIdentifier("localization.swiftUI.showSheet")
             }
-            Spacer()
+            .frame(maxWidth: 720, alignment: .leading)
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
-        .padding(20)
         .sheet(isPresented: $isSheetPresented) {
             NavigationView {
-                Text(resolver.string("swiftui.sheet.message", bundle: .main))
-                    .padding()
+                ScrollView {
+                    Text(resolver.string("swiftui.sheet.message", bundle: .main))
+                        .frame(maxWidth: 720, alignment: .leading)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                }
                     .navigationTitle(resolver.string("demo.swiftUIBridge.title", bundle: .main))
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
                             Button(resolver.string("common.close", bundle: .main)) {
                                 isSheetPresented = false
                             }
+                            .accessibilityIdentifier("localization.swiftUI.closeSheet")
                         }
                     }
             }
+            .navigationViewStyle(.stack)
             .appLocalizationEnvironment(localizationController)
         }
     }

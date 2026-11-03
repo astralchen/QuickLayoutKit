@@ -2634,7 +2634,7 @@ struct QuickLayoutKitTests {
         )
         #expect(host.quickLayoutKeyboardSafeAreaInsets == .zero)
 
-        host.quickLayoutKeyboardSafeAreaBehavior = .docked(
+        host.quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard(
             usesBottomSafeArea: true
         )
         host.layoutIfNeeded()
@@ -2642,7 +2642,7 @@ struct QuickLayoutKitTests {
         #expect(abs(host.keyboardSafeAreaView.frame.maxY - 446) < 1)
         #expect(abs(host.containerSafeAreaView.frame.maxY - 446) < 1)
 
-        host.quickLayoutKeyboardSafeAreaBehavior = .docked(
+        host.quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard(
             usesBottomSafeArea: false
         )
         host.layoutIfNeeded()
@@ -2678,7 +2678,7 @@ struct QuickLayoutKitTests {
         host.layoutIfNeeded()
         #expect(host.keyboardSafeAreaView.frame == initialKeyboardFrame)
 
-        host.quickLayoutKeyboardSafeAreaBehavior = .docked(
+        host.quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard(
             usesBottomSafeArea: true
         )
         host.layoutIfNeeded()
@@ -2729,7 +2729,7 @@ struct QuickLayoutKitTests {
             !dockingState.treatsKeyboardAsSplitOrUndocked
                 && view.window === dockingState.window
         }
-        host.quickLayoutKeyboardSafeAreaBehavior = .docked(
+        host.quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard(
             usesBottomSafeArea: true
         )
         host.layoutIfNeeded()
@@ -2751,7 +2751,7 @@ struct QuickLayoutKitTests {
         #expect(host.quickLayoutKeyboardSafeAreaInsets.bottom == 180)
         #expect(abs(host.keyboardSafeAreaView.frame.maxY - 300) < 1)
         #expect(abs(host.containerSafeAreaView.frame.maxY - 446) < 1)
-        host.quickLayoutKeyboardSafeAreaBehavior = .docked(
+        host.quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard(
             usesBottomSafeArea: false
         )
         #expect(host.quickLayoutKeyboardSafeAreaInsets.bottom == 180)
@@ -2770,7 +2770,7 @@ struct QuickLayoutKitTests {
         host.layoutIfNeeded()
         #expect(host.quickLayoutKeyboardSafeAreaInsets.bottom == 0)
 
-        host.quickLayoutKeyboardSafeAreaBehavior = .docked(
+        host.quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard(
             usesBottomSafeArea: true
         )
         dockingState.treatsKeyboardAsSplitOrUndocked = false
@@ -2819,7 +2819,7 @@ struct QuickLayoutKitTests {
         #expect(host.quickLayoutKeyboardSafeAreaInsets == .zero)
 
         // 重新启用后通过公开属性重新建立监听，bounds 变化后使用新窗口几何解析。
-        host.quickLayoutKeyboardSafeAreaBehavior = .docked(
+        host.quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard(
             usesBottomSafeArea: true
         )
         window.frame = CGRect(x: 0, y: 0, width: 480, height: 320)

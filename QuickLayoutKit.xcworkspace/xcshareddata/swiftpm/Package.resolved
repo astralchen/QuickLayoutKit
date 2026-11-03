@@ -1,5 +1,5 @@
 {
-  "originHash" : "549cb427f9aad28c860569c586bf05596bba7f21ec29f118060067f25126ec73",
+  "originHash" : "89426c4bc58f1e6578513fc3b9594d2b6025aafda845cbc95ed3d30bc3449b94",
   "pins" : [
     {
       "identity" : "applocalization",
@@ -7,7 +7,7 @@
       "location" : "https://github.com/astralchen/AppLocalization",
       "state" : {
         "branch" : "main",
-        "revision" : "a15471628569cb10404f599466b11f1036f9c86b"
+        "revision" : "2fe1d665fd4ff6983ea858adf6c75b888577e221"
       }
     },
     {

@@ -118,6 +118,8 @@ open class QuickLayoutScrollView:
 
     /// 记录上一次环境快照，并向宿主合并发布实际环境变化。
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
+    /// 避让器由调用方持有；宿主仅在几何更新后通知它，避免循环引用。
+    weak var quickLayoutKeyboardAvoider: QuickLayoutKeyboardAvoider?
     /// 等待有效视口与内容尺寸后执行的最近一次滚动请求。
     private var pendingScroll: (edge: Edge, animated: Bool)?
     /// 边距改变后是否需要在下一次布局恢复内容起点。
@@ -375,12 +377,17 @@ open class QuickLayoutScrollView:
 
             if contentSize != contentLayoutSize {
                 contentSize = contentLayoutSize
+                // 自然尺寸视口的父级可能已经用旧内容高度完成测量。
+                // 子宿主安全区或内容改变后，继续向外传播测量失效。
+                invalidateIntrinsicContentSize()
+                superview?.setNeedsLayout()
             }
 
             applyContentMarginStartPositionIfPossible()
             applyPendingScrollIfPossible()
             lastResolvedAdjustedContentInset = adjustedContentInset
         }
+        quickLayoutKeyboardAvoider?.refreshGeometry()
     }
 
     /// 将宿主滚动内容标记为需要更新。

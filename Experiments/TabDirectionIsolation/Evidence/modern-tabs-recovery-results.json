@@ -1,0 +1,1675 @@
+[
+  {
+    "case": "tabs-assign",
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x0000000103970000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106445e00)",
+            "ObjectIdentifier(0x0000000106445ea0)",
+            "ObjectIdentifier(0x0000000106445f40)"
+          ],
+          "page": "ObjectIdentifier(0x000000010397c800)",
+          "selectedController": "ObjectIdentifier(0x000000010396c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106445e00)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102dcbf50)",
+            "layout": "ObjectIdentifier(0x0000000103a37700)",
+            "layoutRTL": false,
+            "axisFlip": false
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "1-rtl-settled",
+        "root": "ObjectIdentifier(0x0000000103970000)",
+        "trait": 1,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106445e00)",
+            "ObjectIdentifier(0x0000000106445ea0)",
+            "ObjectIdentifier(0x0000000106445f40)"
+          ],
+          "page": "ObjectIdentifier(0x000000010397c800)",
+          "selectedController": "ObjectIdentifier(0x000000010396c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106445e00)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102dcbf50)",
+            "layout": "ObjectIdentifier(0x0000000103a37700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "2-ltr-settled",
+        "root": "ObjectIdentifier(0x0000000103970000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106445e00)",
+            "ObjectIdentifier(0x0000000106445ea0)",
+            "ObjectIdentifier(0x0000000106445f40)"
+          ],
+          "page": "ObjectIdentifier(0x000000010397c800)",
+          "selectedController": "ObjectIdentifier(0x000000010396c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106445e00)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102dcbf50)",
+            "layout": "ObjectIdentifier(0x0000000103a37700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-recovered",
+        "root": "ObjectIdentifier(0x0000000103970000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106445e00)",
+            "ObjectIdentifier(0x0000000106445ea0)",
+            "ObjectIdentifier(0x0000000106445f40)"
+          ],
+          "page": "ObjectIdentifier(0x000000010397c800)",
+          "selectedController": "ObjectIdentifier(0x000000010396c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106445e00)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102dcbf50)",
+            "layout": "ObjectIdentifier(0x0000000103a37700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-stress",
+        "root": "ObjectIdentifier(0x0000000103970000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106445e00)",
+            "ObjectIdentifier(0x0000000106445ea0)",
+            "ObjectIdentifier(0x0000000106445f40)"
+          ],
+          "page": "ObjectIdentifier(0x000000010397c800)",
+          "selectedController": "ObjectIdentifier(0x000000010396c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106445e00)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102dcbf50)",
+            "layout": "ObjectIdentifier(0x0000000103a37700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "3-rtl-settled",
+        "root": "ObjectIdentifier(0x0000000103970000)",
+        "trait": 1,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106445e00)",
+            "ObjectIdentifier(0x0000000106445ea0)",
+            "ObjectIdentifier(0x0000000106445f40)"
+          ],
+          "page": "ObjectIdentifier(0x000000010397c800)",
+          "selectedController": "ObjectIdentifier(0x000000010396c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106445e00)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102dcbf50)",
+            "layout": "ObjectIdentifier(0x0000000103a37700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "4-ltr-settled",
+        "root": "ObjectIdentifier(0x0000000103970000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106445e00)",
+            "ObjectIdentifier(0x0000000106445ea0)",
+            "ObjectIdentifier(0x0000000106445f40)"
+          ],
+          "page": "ObjectIdentifier(0x000000010397c800)",
+          "selectedController": "ObjectIdentifier(0x000000010396c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106445e00)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102dcbf50)",
+            "layout": "ObjectIdentifier(0x0000000103a37700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-recovered",
+        "root": "ObjectIdentifier(0x0000000103970000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106445e00)",
+            "ObjectIdentifier(0x0000000106445ea0)",
+            "ObjectIdentifier(0x0000000106445f40)"
+          ],
+          "page": "ObjectIdentifier(0x000000010397c800)",
+          "selectedController": "ObjectIdentifier(0x000000010396c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106445e00)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102dcbf50)",
+            "layout": "ObjectIdentifier(0x0000000103a37700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-stress",
+        "root": "ObjectIdentifier(0x0000000103970000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106445e00)",
+            "ObjectIdentifier(0x0000000106445ea0)",
+            "ObjectIdentifier(0x0000000106445f40)"
+          ],
+          "page": "ObjectIdentifier(0x000000010397c800)",
+          "selectedController": "ObjectIdentifier(0x000000010396c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106445e00)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102dcbf50)",
+            "layout": "ObjectIdentifier(0x0000000103a37700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      }
+    ]
+  },
+  {
+    "case": "tabs-set",
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x000000010619c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000108c4dea0)",
+            "ObjectIdentifier(0x0000000108c4df40)",
+            "ObjectIdentifier(0x0000000108c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000106198800)",
+          "selectedController": "ObjectIdentifier(0x0000000106154000)",
+          "selectedTab": "ObjectIdentifier(0x0000000108c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001055c1d30)",
+            "layout": "ObjectIdentifier(0x00000001061e3700)",
+            "layoutRTL": false,
+            "axisFlip": false
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "1-rtl-settled",
+        "root": "ObjectIdentifier(0x000000010619c000)",
+        "trait": 1,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000108c4dea0)",
+            "ObjectIdentifier(0x0000000108c4df40)",
+            "ObjectIdentifier(0x0000000108c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000106198800)",
+          "selectedController": "ObjectIdentifier(0x0000000106154000)",
+          "selectedTab": "ObjectIdentifier(0x0000000108c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001055c1d30)",
+            "layout": "ObjectIdentifier(0x00000001061e3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "2-ltr-settled",
+        "root": "ObjectIdentifier(0x000000010619c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000108c4dea0)",
+            "ObjectIdentifier(0x0000000108c4df40)",
+            "ObjectIdentifier(0x0000000108c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000106198800)",
+          "selectedController": "ObjectIdentifier(0x0000000106154000)",
+          "selectedTab": "ObjectIdentifier(0x0000000108c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001055c1d30)",
+            "layout": "ObjectIdentifier(0x00000001061e3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-recovered",
+        "root": "ObjectIdentifier(0x000000010619c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000108c4dea0)",
+            "ObjectIdentifier(0x0000000108c4df40)",
+            "ObjectIdentifier(0x0000000108c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000106198800)",
+          "selectedController": "ObjectIdentifier(0x0000000106154000)",
+          "selectedTab": "ObjectIdentifier(0x0000000108c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001055c1d30)",
+            "layout": "ObjectIdentifier(0x00000001061e3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-stress",
+        "root": "ObjectIdentifier(0x000000010619c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000108c4dea0)",
+            "ObjectIdentifier(0x0000000108c4df40)",
+            "ObjectIdentifier(0x0000000108c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000106198800)",
+          "selectedController": "ObjectIdentifier(0x0000000106154000)",
+          "selectedTab": "ObjectIdentifier(0x0000000108c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001055c1d30)",
+            "layout": "ObjectIdentifier(0x00000001061e3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "3-rtl-settled",
+        "root": "ObjectIdentifier(0x000000010619c000)",
+        "trait": 1,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000108c4dea0)",
+            "ObjectIdentifier(0x0000000108c4df40)",
+            "ObjectIdentifier(0x0000000108c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000106198800)",
+          "selectedController": "ObjectIdentifier(0x0000000106154000)",
+          "selectedTab": "ObjectIdentifier(0x0000000108c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001055c1d30)",
+            "layout": "ObjectIdentifier(0x00000001061e3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "4-ltr-settled",
+        "root": "ObjectIdentifier(0x000000010619c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000108c4dea0)",
+            "ObjectIdentifier(0x0000000108c4df40)",
+            "ObjectIdentifier(0x0000000108c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000106198800)",
+          "selectedController": "ObjectIdentifier(0x0000000106154000)",
+          "selectedTab": "ObjectIdentifier(0x0000000108c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001055c1d30)",
+            "layout": "ObjectIdentifier(0x00000001061e3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-recovered",
+        "root": "ObjectIdentifier(0x000000010619c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000108c4dea0)",
+            "ObjectIdentifier(0x0000000108c4df40)",
+            "ObjectIdentifier(0x0000000108c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000106198800)",
+          "selectedController": "ObjectIdentifier(0x0000000106154000)",
+          "selectedTab": "ObjectIdentifier(0x0000000108c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001055c1d30)",
+            "layout": "ObjectIdentifier(0x00000001061e3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-stress",
+        "root": "ObjectIdentifier(0x000000010619c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000108c4dea0)",
+            "ObjectIdentifier(0x0000000108c4df40)",
+            "ObjectIdentifier(0x0000000108c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000106198800)",
+          "selectedController": "ObjectIdentifier(0x0000000106154000)",
+          "selectedTab": "ObjectIdentifier(0x0000000108c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001055c1d30)",
+            "layout": "ObjectIdentifier(0x00000001061e3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      }
+    ]
+  },
+  {
+    "case": "tabs-animated",
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x000000010219c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104c4dea0)",
+            "ObjectIdentifier(0x0000000104c4df40)",
+            "ObjectIdentifier(0x0000000104c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000102194800)",
+          "selectedController": "ObjectIdentifier(0x000000010217c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010163e220)",
+            "layout": "ObjectIdentifier(0x00000001021df700)",
+            "layoutRTL": false,
+            "axisFlip": false
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "1-rtl-settled",
+        "root": "ObjectIdentifier(0x000000010219c000)",
+        "trait": 1,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104c4dea0)",
+            "ObjectIdentifier(0x0000000104c4df40)",
+            "ObjectIdentifier(0x0000000104c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000102194800)",
+          "selectedController": "ObjectIdentifier(0x000000010217c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010163e220)",
+            "layout": "ObjectIdentifier(0x00000001021df700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "2-ltr-settled",
+        "root": "ObjectIdentifier(0x000000010219c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104c4dea0)",
+            "ObjectIdentifier(0x0000000104c4df40)",
+            "ObjectIdentifier(0x0000000104c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000102194800)",
+          "selectedController": "ObjectIdentifier(0x000000010217c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010163e220)",
+            "layout": "ObjectIdentifier(0x00000001021df700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-recovered",
+        "root": "ObjectIdentifier(0x000000010219c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104c4dea0)",
+            "ObjectIdentifier(0x0000000104c4df40)",
+            "ObjectIdentifier(0x0000000104c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000102194800)",
+          "selectedController": "ObjectIdentifier(0x000000010217c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010163e220)",
+            "layout": "ObjectIdentifier(0x00000001021df700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-stress",
+        "root": "ObjectIdentifier(0x000000010219c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104c4dea0)",
+            "ObjectIdentifier(0x0000000104c4df40)",
+            "ObjectIdentifier(0x0000000104c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000102194800)",
+          "selectedController": "ObjectIdentifier(0x000000010217c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010163e220)",
+            "layout": "ObjectIdentifier(0x00000001021df700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "3-rtl-settled",
+        "root": "ObjectIdentifier(0x000000010219c000)",
+        "trait": 1,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104c4dea0)",
+            "ObjectIdentifier(0x0000000104c4df40)",
+            "ObjectIdentifier(0x0000000104c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000102194800)",
+          "selectedController": "ObjectIdentifier(0x000000010217c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010163e220)",
+            "layout": "ObjectIdentifier(0x00000001021df700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "4-ltr-settled",
+        "root": "ObjectIdentifier(0x000000010219c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104c4dea0)",
+            "ObjectIdentifier(0x0000000104c4df40)",
+            "ObjectIdentifier(0x0000000104c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000102194800)",
+          "selectedController": "ObjectIdentifier(0x000000010217c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010163e220)",
+            "layout": "ObjectIdentifier(0x00000001021df700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-recovered",
+        "root": "ObjectIdentifier(0x000000010219c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104c4dea0)",
+            "ObjectIdentifier(0x0000000104c4df40)",
+            "ObjectIdentifier(0x0000000104c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000102194800)",
+          "selectedController": "ObjectIdentifier(0x000000010217c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010163e220)",
+            "layout": "ObjectIdentifier(0x00000001021df700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-stress",
+        "root": "ObjectIdentifier(0x000000010219c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104c4dea0)",
+            "ObjectIdentifier(0x0000000104c4df40)",
+            "ObjectIdentifier(0x0000000104c4dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000102194800)",
+          "selectedController": "ObjectIdentifier(0x000000010217c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104c4dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x000000010163e220)",
+            "layout": "ObjectIdentifier(0x00000001021df700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      }
+    ]
+  },
+  {
+    "case": "tabs-empty",
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001025a0000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x000000010504dea0)",
+            "ObjectIdentifier(0x000000010504df40)",
+            "ObjectIdentifier(0x000000010504dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x000000010258c800)",
+          "selectedController": "ObjectIdentifier(0x0000000102570000)",
+          "selectedTab": "ObjectIdentifier(0x000000010504dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001019653f0)",
+            "layout": "ObjectIdentifier(0x00000001025db980)",
+            "layoutRTL": false,
+            "axisFlip": false
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "1-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001025a0000)",
+        "trait": 1,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x000000010504dea0)",
+            "ObjectIdentifier(0x000000010504df40)",
+            "ObjectIdentifier(0x000000010504dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x000000010258c800)",
+          "selectedController": "ObjectIdentifier(0x0000000102570000)",
+          "selectedTab": "ObjectIdentifier(0x000000010504dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001019653f0)",
+            "layout": "ObjectIdentifier(0x00000001025db980)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "2-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001025a0000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x000000010504dea0)",
+            "ObjectIdentifier(0x000000010504df40)",
+            "ObjectIdentifier(0x000000010504dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x000000010258c800)",
+          "selectedController": "ObjectIdentifier(0x0000000102570000)",
+          "selectedTab": "ObjectIdentifier(0x000000010504dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001019653f0)",
+            "layout": "ObjectIdentifier(0x00000001025db980)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-recovered",
+        "root": "ObjectIdentifier(0x00000001025a0000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x000000010504dea0)",
+            "ObjectIdentifier(0x000000010504df40)",
+            "ObjectIdentifier(0x000000010504dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x000000010258c800)",
+          "selectedController": "ObjectIdentifier(0x0000000102570000)",
+          "selectedTab": "ObjectIdentifier(0x000000010504dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001019653f0)",
+            "layout": "ObjectIdentifier(0x00000001025db980)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-stress",
+        "root": "ObjectIdentifier(0x00000001025a0000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x000000010504dea0)",
+            "ObjectIdentifier(0x000000010504df40)",
+            "ObjectIdentifier(0x000000010504dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x000000010258c800)",
+          "selectedController": "ObjectIdentifier(0x0000000102570000)",
+          "selectedTab": "ObjectIdentifier(0x000000010504dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001019653f0)",
+            "layout": "ObjectIdentifier(0x00000001025db980)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "3-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001025a0000)",
+        "trait": 1,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x000000010504dea0)",
+            "ObjectIdentifier(0x000000010504df40)",
+            "ObjectIdentifier(0x000000010504dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x000000010258c800)",
+          "selectedController": "ObjectIdentifier(0x0000000102570000)",
+          "selectedTab": "ObjectIdentifier(0x000000010504dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001019653f0)",
+            "layout": "ObjectIdentifier(0x00000001025db980)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "4-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001025a0000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x000000010504dea0)",
+            "ObjectIdentifier(0x000000010504df40)",
+            "ObjectIdentifier(0x000000010504dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x000000010258c800)",
+          "selectedController": "ObjectIdentifier(0x0000000102570000)",
+          "selectedTab": "ObjectIdentifier(0x000000010504dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001019653f0)",
+            "layout": "ObjectIdentifier(0x00000001025db980)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-recovered",
+        "root": "ObjectIdentifier(0x00000001025a0000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x000000010504dea0)",
+            "ObjectIdentifier(0x000000010504df40)",
+            "ObjectIdentifier(0x000000010504dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x000000010258c800)",
+          "selectedController": "ObjectIdentifier(0x0000000102570000)",
+          "selectedTab": "ObjectIdentifier(0x000000010504dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001019653f0)",
+            "layout": "ObjectIdentifier(0x00000001025db980)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-stress",
+        "root": "ObjectIdentifier(0x00000001025a0000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x000000010504dea0)",
+            "ObjectIdentifier(0x000000010504df40)",
+            "ObjectIdentifier(0x000000010504dfe0)"
+          ],
+          "page": "ObjectIdentifier(0x000000010258c800)",
+          "selectedController": "ObjectIdentifier(0x0000000102570000)",
+          "selectedTab": "ObjectIdentifier(0x000000010504dea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001019653f0)",
+            "layout": "ObjectIdentifier(0x00000001025db980)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      }
+    ]
+  },
+  {
+    "case": "tabs-reorder",
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x0000000101998000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104455ea0)",
+            "ObjectIdentifier(0x0000000104455f40)",
+            "ObjectIdentifier(0x0000000104455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000101990800)",
+          "selectedController": "ObjectIdentifier(0x000000010197c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100c39db0)",
+            "layout": "ObjectIdentifier(0x00000001019d7980)",
+            "layoutRTL": false,
+            "axisFlip": false
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "1-rtl-settled",
+        "root": "ObjectIdentifier(0x0000000101998000)",
+        "trait": 1,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104455ea0)",
+            "ObjectIdentifier(0x0000000104455f40)",
+            "ObjectIdentifier(0x0000000104455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000101990800)",
+          "selectedController": "ObjectIdentifier(0x000000010197c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100c39db0)",
+            "layout": "ObjectIdentifier(0x00000001019d7980)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "2-ltr-settled",
+        "root": "ObjectIdentifier(0x0000000101998000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104455ea0)",
+            "ObjectIdentifier(0x0000000104455f40)",
+            "ObjectIdentifier(0x0000000104455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000101990800)",
+          "selectedController": "ObjectIdentifier(0x000000010197c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100c39db0)",
+            "layout": "ObjectIdentifier(0x00000001019d7980)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-recovered",
+        "root": "ObjectIdentifier(0x0000000101998000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104455ea0)",
+            "ObjectIdentifier(0x0000000104455f40)",
+            "ObjectIdentifier(0x0000000104455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000101990800)",
+          "selectedController": "ObjectIdentifier(0x000000010197c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100c39db0)",
+            "layout": "ObjectIdentifier(0x00000001019d7980)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-stress",
+        "root": "ObjectIdentifier(0x0000000101998000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104455ea0)",
+            "ObjectIdentifier(0x0000000104455f40)",
+            "ObjectIdentifier(0x0000000104455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000101990800)",
+          "selectedController": "ObjectIdentifier(0x000000010197c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100c39db0)",
+            "layout": "ObjectIdentifier(0x00000001019d7980)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "3-rtl-settled",
+        "root": "ObjectIdentifier(0x0000000101998000)",
+        "trait": 1,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104455ea0)",
+            "ObjectIdentifier(0x0000000104455f40)",
+            "ObjectIdentifier(0x0000000104455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000101990800)",
+          "selectedController": "ObjectIdentifier(0x000000010197c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100c39db0)",
+            "layout": "ObjectIdentifier(0x00000001019d7980)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "4-ltr-settled",
+        "root": "ObjectIdentifier(0x0000000101998000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104455ea0)",
+            "ObjectIdentifier(0x0000000104455f40)",
+            "ObjectIdentifier(0x0000000104455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000101990800)",
+          "selectedController": "ObjectIdentifier(0x000000010197c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100c39db0)",
+            "layout": "ObjectIdentifier(0x00000001019d7980)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-recovered",
+        "root": "ObjectIdentifier(0x0000000101998000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104455ea0)",
+            "ObjectIdentifier(0x0000000104455f40)",
+            "ObjectIdentifier(0x0000000104455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000101990800)",
+          "selectedController": "ObjectIdentifier(0x000000010197c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100c39db0)",
+            "layout": "ObjectIdentifier(0x00000001019d7980)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-stress",
+        "root": "ObjectIdentifier(0x0000000101998000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000104455ea0)",
+            "ObjectIdentifier(0x0000000104455f40)",
+            "ObjectIdentifier(0x0000000104455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000101990800)",
+          "selectedController": "ObjectIdentifier(0x000000010197c000)",
+          "selectedTab": "ObjectIdentifier(0x0000000104455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000100c39db0)",
+            "layout": "ObjectIdentifier(0x00000001019d7980)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      }
+    ]
+  },
+  {
+    "case": "tabs-remove-unselected",
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001039a0000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106455ea0)",
+            "ObjectIdentifier(0x0000000106455f40)",
+            "ObjectIdentifier(0x0000000106455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103998800)",
+          "selectedController": "ObjectIdentifier(0x0000000103984000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102f19530)",
+            "layout": "ObjectIdentifier(0x00000001039df700)",
+            "layoutRTL": false,
+            "axisFlip": false
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "1-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001039a0000)",
+        "trait": 1,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106455ea0)",
+            "ObjectIdentifier(0x0000000106455f40)",
+            "ObjectIdentifier(0x0000000106455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103998800)",
+          "selectedController": "ObjectIdentifier(0x0000000103984000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102f19530)",
+            "layout": "ObjectIdentifier(0x00000001039df700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "2-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001039a0000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106455ea0)",
+            "ObjectIdentifier(0x0000000106455f40)",
+            "ObjectIdentifier(0x0000000106455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103998800)",
+          "selectedController": "ObjectIdentifier(0x0000000103984000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102f19530)",
+            "layout": "ObjectIdentifier(0x00000001039df700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-recovered",
+        "root": "ObjectIdentifier(0x00000001039a0000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106455ea0)",
+            "ObjectIdentifier(0x0000000106455f40)",
+            "ObjectIdentifier(0x0000000106455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103998800)",
+          "selectedController": "ObjectIdentifier(0x0000000103984000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102f19530)",
+            "layout": "ObjectIdentifier(0x00000001039df700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-stress",
+        "root": "ObjectIdentifier(0x00000001039a0000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106455ea0)",
+            "ObjectIdentifier(0x0000000106455f40)",
+            "ObjectIdentifier(0x0000000106455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103998800)",
+          "selectedController": "ObjectIdentifier(0x0000000103984000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102f19530)",
+            "layout": "ObjectIdentifier(0x00000001039df700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "3-rtl-settled",
+        "root": "ObjectIdentifier(0x00000001039a0000)",
+        "trait": 1,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106455ea0)",
+            "ObjectIdentifier(0x0000000106455f40)",
+            "ObjectIdentifier(0x0000000106455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103998800)",
+          "selectedController": "ObjectIdentifier(0x0000000103984000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102f19530)",
+            "layout": "ObjectIdentifier(0x00000001039df700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "4-ltr-settled",
+        "root": "ObjectIdentifier(0x00000001039a0000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106455ea0)",
+            "ObjectIdentifier(0x0000000106455f40)",
+            "ObjectIdentifier(0x0000000106455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103998800)",
+          "selectedController": "ObjectIdentifier(0x0000000103984000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102f19530)",
+            "layout": "ObjectIdentifier(0x00000001039df700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-recovered",
+        "root": "ObjectIdentifier(0x00000001039a0000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106455ea0)",
+            "ObjectIdentifier(0x0000000106455f40)",
+            "ObjectIdentifier(0x0000000106455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103998800)",
+          "selectedController": "ObjectIdentifier(0x0000000103984000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102f19530)",
+            "layout": "ObjectIdentifier(0x00000001039df700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-stress",
+        "root": "ObjectIdentifier(0x00000001039a0000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106455ea0)",
+            "ObjectIdentifier(0x0000000106455f40)",
+            "ObjectIdentifier(0x0000000106455fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103998800)",
+          "selectedController": "ObjectIdentifier(0x0000000103984000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106455ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x0000000102f19530)",
+            "layout": "ObjectIdentifier(0x00000001039df700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      }
+    ]
+  },
+  {
+    "case": "tabs-reselect",
+    "stages": [
+      {
+        "stage": "0-ltr-settled",
+        "root": "ObjectIdentifier(0x0000000103d9c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106849ea0)",
+            "ObjectIdentifier(0x0000000106849f40)",
+            "ObjectIdentifier(0x0000000106849fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103d94800)",
+          "selectedController": "ObjectIdentifier(0x0000000103d80000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106849ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001031f2230)",
+            "layout": "ObjectIdentifier(0x0000000103df3700)",
+            "layoutRTL": false,
+            "axisFlip": false
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "1-rtl-settled",
+        "root": "ObjectIdentifier(0x0000000103d9c000)",
+        "trait": 1,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106849ea0)",
+            "ObjectIdentifier(0x0000000106849f40)",
+            "ObjectIdentifier(0x0000000106849fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103d94800)",
+          "selectedController": "ObjectIdentifier(0x0000000103d80000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106849ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001031f2230)",
+            "layout": "ObjectIdentifier(0x0000000103df3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "2-ltr-settled",
+        "root": "ObjectIdentifier(0x0000000103d9c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106849ea0)",
+            "ObjectIdentifier(0x0000000106849f40)",
+            "ObjectIdentifier(0x0000000106849fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103d94800)",
+          "selectedController": "ObjectIdentifier(0x0000000103d80000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106849ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001031f2230)",
+            "layout": "ObjectIdentifier(0x0000000103df3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-recovered",
+        "root": "ObjectIdentifier(0x0000000103d9c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106849ea0)",
+            "ObjectIdentifier(0x0000000106849f40)",
+            "ObjectIdentifier(0x0000000106849fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103d94800)",
+          "selectedController": "ObjectIdentifier(0x0000000103d80000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106849ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001031f2230)",
+            "layout": "ObjectIdentifier(0x0000000103df3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "2-stress",
+        "root": "ObjectIdentifier(0x0000000103d9c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106849ea0)",
+            "ObjectIdentifier(0x0000000106849f40)",
+            "ObjectIdentifier(0x0000000106849fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103d94800)",
+          "selectedController": "ObjectIdentifier(0x0000000103d80000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106849ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001031f2230)",
+            "layout": "ObjectIdentifier(0x0000000103df3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "3-rtl-settled",
+        "root": "ObjectIdentifier(0x0000000103d9c000)",
+        "trait": 1,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106849ea0)",
+            "ObjectIdentifier(0x0000000106849f40)",
+            "ObjectIdentifier(0x0000000106849fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103d94800)",
+          "selectedController": "ObjectIdentifier(0x0000000103d80000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106849ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001031f2230)",
+            "layout": "ObjectIdentifier(0x0000000103df3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          10
+        ]
+      },
+      {
+        "stage": "4-ltr-settled",
+        "root": "ObjectIdentifier(0x0000000103d9c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106849ea0)",
+            "ObjectIdentifier(0x0000000106849f40)",
+            "ObjectIdentifier(0x0000000106849fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103d94800)",
+          "selectedController": "ObjectIdentifier(0x0000000103d80000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106849ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001031f2230)",
+            "layout": "ObjectIdentifier(0x0000000103df3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-recovered",
+        "root": "ObjectIdentifier(0x0000000103d9c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106849ea0)",
+            "ObjectIdentifier(0x0000000106849f40)",
+            "ObjectIdentifier(0x0000000106849fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103d94800)",
+          "selectedController": "ObjectIdentifier(0x0000000103d80000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106849ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001031f2230)",
+            "layout": "ObjectIdentifier(0x0000000103df3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      },
+      {
+        "stage": "4-stress",
+        "root": "ObjectIdentifier(0x0000000103d9c000)",
+        "trait": 0,
+        "modernTabState": {
+          "models": [
+            "ObjectIdentifier(0x0000000106849ea0)",
+            "ObjectIdentifier(0x0000000106849f40)",
+            "ObjectIdentifier(0x0000000106849fe0)"
+          ],
+          "page": "ObjectIdentifier(0x0000000103d94800)",
+          "selectedController": "ObjectIdentifier(0x0000000103d80000)",
+          "selectedTab": "ObjectIdentifier(0x0000000106849ea0)"
+        },
+        "collections": [
+          {
+            "id": "ObjectIdentifier(0x00000001031f2230)",
+            "layout": "ObjectIdentifier(0x0000000103df3700)",
+            "layoutRTL": true,
+            "axisFlip": true
+          }
+        ],
+        "labelAxes": [
+          -10
+        ]
+      }
+    ]
+  }
+]

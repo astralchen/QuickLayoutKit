@@ -9,6 +9,59 @@ import QuickLayoutKit
 
 extension DemoTests {
 
+    @Test func keyboardAvoiderRecalculatesInsetsWhenContainerResizesWithoutNotification() {
+        for scroll in [QuickLayoutScrollView(), UIScrollView()] as [UIScrollView] {
+            scroll.frame = CGRect(x: 0, y: 0, width: 320, height: 480)
+            scroll.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 10, right: 0)
+            let avoider = QuickLayoutKeyboardAvoider(scrollView: scroll, notificationCenter: NotificationCenter())
+            avoider.apply(QuickLayoutKeyboardContext(
+                endFrame: CGRect(x: 0, y: 360, width: 320, height: 120),
+                animationDuration: 0, animationOptions: [], isVisible: true
+            ))
+            #expect(scroll.contentInset.bottom == 130)
+            for (height, expectedInset) in [(300.0, 10.0), (430.0, 80.0), (480.0, 130.0)] {
+                scroll.frame.size.height = height
+                scroll.setNeedsLayout()
+                scroll.layoutIfNeeded()
+                if !(scroll is QuickLayoutScrollView) { avoider.refreshGeometry() }
+                #expect(abs(scroll.contentInset.bottom - expectedInset) < 1)
+            }
+            withExtendedLifetime(avoider) {}
+        }
+    }
+
+    @Test func keyboardDemoOnlyAvoidsDockedKeyboardAndReevaluatesGeometry() {
+        let center = NotificationCenter()
+        let view = KeyboardLayoutSafeAreaView(frame: CGRect(x: 0, y: 0, width: 640, height: 700))
+        view.quickLayoutKeyboardSafeAreaBehavior = .disabled
+        view.configureQuickLayoutKeyboardSafeAreaForTesting(notificationCenter: center) { _, _ in true }
+        view.quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard()
+        view.textField.text = "Preserved while resizing"
+
+        func update(frame: CGRect) -> CGFloat {
+            center.post(name: UIResponder.keyboardWillChangeFrameNotification, object: nil, userInfo: [
+                UIResponder.keyboardFrameEndUserInfoKey: frame,
+                UIResponder.keyboardAnimationDurationUserInfoKey: 0,
+            ])
+            view.setNeedsLayout()
+            view.layoutIfNeeded()
+            view.contentScrollView.layoutIfNeeded()
+            view.contentScrollView.scrollTo(.bottom, animated: false)
+            return view.submitButton.convert(view.submitButton.bounds, to: view).maxY
+        }
+
+        #expect(abs(update(frame: CGRect(x: 80, y: 300, width: 300, height: 220)) - 680) < 1)
+        #expect(abs(update(frame: CGRect(x: 0, y: 480, width: 640, height: 220)) - 460) < 1)
+        // 不发新通知，改变容器的底边：原键盘与新视口不再相交。
+        view.frame.size = CGSize(width: 320, height: 400)
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+        view.contentScrollView.layoutIfNeeded()
+        view.contentScrollView.scrollTo(.bottom, animated: false)
+        #expect(abs(view.submitButton.convert(view.submitButton.bounds, to: view).maxY - 380) < 1)
+        #expect(view.textField.text == "Preserved while resizing")
+    }
+
     /// 分栏遮挡只应从实际所在的一侧扣除，旋转及窄窗口下控件继续填满可用宽度。
     @Test func keyboardLayoutUsesAsymmetricSafeArea() {
         let view = KeyboardLayoutSafeAreaView()
@@ -293,6 +346,10 @@ extension DemoTests {
         avoider.apply(visibleContext)
         #expect(scrollView.contentInset.bottom == 104)
 
+        scrollView.testSafeAreaInsets.bottom = 20
+        avoider.refreshGeometry()
+        #expect(scrollView.contentInset.bottom == 118)
+
         avoider.apply(nonOverlappingContext)
         #expect(scrollView.contentInset.bottom == 10)
     }
@@ -327,6 +384,8 @@ extension DemoTests {
         #expect(scrollView.contentOffset.y > 0)
 
         scrollView.setContentOffset(.zero, animated: false)
+        avoider.refreshGeometry()
+        #expect(scrollView.contentOffset.y == 0, "用户滚动不应重新定位仍处于编辑状态的输入框")
         notificationCenter.post(name: .quickLayoutKeyboardActiveInputDidEndEditing, object: activeInput)
         avoider.apply(visibleContext)
 

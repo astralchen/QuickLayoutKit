@@ -43,7 +43,7 @@ public enum QuickLayoutKeyboardSafeAreaBehavior: Equatable, Sendable {
     /// 浮动键盘、分离键盘以及未与宿主相交的键盘均按隐藏状态处理。
     /// `usesBottomSafeArea` 为 `true` 时，隐藏状态的键盘安全区域底边使用宿主的
     /// `safeAreaInsets.bottom`；为 `false` 时使用宿主底边。
-    case docked(usesBottomSafeArea: Bool = true)
+    case followsDockedKeyboard(usesBottomSafeArea: Bool = true)
 }
 
 /// 针对具体视图解析后的键盘几何信息。
@@ -464,7 +464,7 @@ final class QuickLayoutKeyboardSafeAreaCoordinator {
         in view: UIView,
         isDocked dockedOverride: Bool? = nil
     ) -> UIEdgeInsets {
-        guard case let .docked(usesBottomSafeArea) = behavior else {
+        guard case let .followsDockedKeyboard(usesBottomSafeArea) = behavior else {
             return .zero
         }
 
@@ -551,6 +551,10 @@ public final class QuickLayoutKeyboardAvoider {
     private weak var activeView: UIView?
     /// 最近一次应用的键盘底部增量，用于计算输入视图的可见范围。
     private var keyboardInsetDelta: CGFloat = 0
+    /// 容器变化时重新转换最近的键盘框架，不依赖系统再次发送键盘通知。
+    private var latestContext = QuickLayoutKeyboardContext.hidden
+    private var lastAppliedViewportSize: CGSize?
+    private var isApplyingContext = false
     /// 添加框架内容边距和键盘增量前的内容边距基线。
     private var baseContentInset: UIEdgeInsets
     /// 叠加框架边距和键盘增量前的垂直指示器基线。
@@ -598,9 +602,11 @@ public final class QuickLayoutKeyboardAvoider {
         self.baseContentInset = scrollView.contentInset
             .subtracting(scrollView.quickLayoutAppliedContentMarginInsets)
         self.baseVerticalScrollIndicatorInsets = scrollView.verticalScrollIndicatorInsets
-            .subtracting(scrollView.quickLayoutAppliedIndicatorMarginInsets)
+            .subtracting(scrollView.quickLayoutAppliedVerticalIndicatorMarginInsets)
         self.baseHorizontalScrollIndicatorInsets = scrollView.horizontalScrollIndicatorInsets
-            .subtracting(scrollView.quickLayoutAppliedIndicatorMarginInsets)
+            .subtracting(scrollView.quickLayoutAppliedHorizontalIndicatorMarginInsets)
+
+        (scrollView as? QuickLayoutScrollView)?.quickLayoutKeyboardAvoider = self
 
         observer.$context
             .sink { [weak self] context in
@@ -640,16 +646,38 @@ public final class QuickLayoutKeyboardAvoider {
         baseContentInset = scrollView.contentInset
             .subtracting(scrollView.quickLayoutAppliedContentMarginInsets)
         baseVerticalScrollIndicatorInsets = scrollView.verticalScrollIndicatorInsets
-            .subtracting(scrollView.quickLayoutAppliedIndicatorMarginInsets)
+            .subtracting(scrollView.quickLayoutAppliedVerticalIndicatorMarginInsets)
         baseHorizontalScrollIndicatorInsets = scrollView.horizontalScrollIndicatorInsets
-            .subtracting(scrollView.quickLayoutAppliedIndicatorMarginInsets)
+            .subtracting(scrollView.quickLayoutAppliedHorizontalIndicatorMarginInsets)
     }
 
     /// 立即应用指定的键盘上下文。
     ///
     /// - Parameter context: 要应用的键盘上下文。
     public func apply(_ context: QuickLayoutKeyboardContext) {
+        apply(context, animated: true)
+    }
+
+    /// 容器尺寸或安全区改变后，按当前几何重新计算最近键盘事件的避让量。
+    ///
+    /// `QuickLayoutScrollView` 在布局结束时自动调用。普通 `UIScrollView` 的宿主应在
+    /// `viewDidLayoutSubviews` / `layoutSubviews` 中调用；不需要伪造键盘通知。
+    /// 单纯滚动不会触发重新避让，避免把用户的阅读位置拉回输入框。
+    public func refreshGeometry() {
+        guard !isApplyingContext, let scrollView else { return }
+        let delta = insetDelta(for: latestContext.resolved(in: scrollView), in: scrollView)
+        guard lastAppliedViewportSize != scrollView.bounds.size
+                || abs(delta - keyboardInsetDelta) > 0.5 else { return }
+        apply(latestContext, animated: false)
+    }
+
+    private func apply(_ context: QuickLayoutKeyboardContext, animated: Bool) {
+        guard !isApplyingContext else { return }
         guard let scrollView else { return }
+        isApplyingContext = true
+        defer { isApplyingContext = false }
+        latestContext = context
+        lastAppliedViewportSize = scrollView.bounds.size
 
         let resolved = context.resolved(in: scrollView)
         let insetDelta = insetDelta(for: resolved, in: scrollView)
@@ -659,16 +687,16 @@ public final class QuickLayoutKeyboardAvoider {
         var contentInset = baseContentInset
             .adding(scrollView.quickLayoutAppliedContentMarginInsets)
         var verticalIndicatorInsets = baseVerticalScrollIndicatorInsets
-            .adding(scrollView.quickLayoutAppliedIndicatorMarginInsets)
+            .adding(scrollView.quickLayoutAppliedVerticalIndicatorMarginInsets)
         var horizontalIndicatorInsets = baseHorizontalScrollIndicatorInsets
-            .adding(scrollView.quickLayoutAppliedIndicatorMarginInsets)
+            .adding(scrollView.quickLayoutAppliedHorizontalIndicatorMarginInsets)
 
         contentInset.bottom += insetDelta
         verticalIndicatorInsets.bottom += insetDelta
         horizontalIndicatorInsets.bottom += insetDelta
 
         UIView.animate(
-            withDuration: context.animationDuration,
+            withDuration: animated ? context.animationDuration : 0,
             delay: 0,
             options: context.animationOptions,
             animations: {
@@ -678,7 +706,7 @@ public final class QuickLayoutKeyboardAvoider {
                 scrollView.superview?.layoutIfNeeded()
             },
             completion: { [weak self] _ in
-                self?.scrollActiveViewIntoVisibleArea(animated: resolved.height > 0)
+                self?.scrollActiveViewIntoVisibleArea(animated: animated && resolved.height > 0)
             }
         )
     }

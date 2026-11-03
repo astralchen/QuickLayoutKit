@@ -5,6 +5,198 @@ import UIKit
 final class AdaptiveNavigationUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
+    /// 需要 iPadOS 窗口模式；并排用例的系统选择器需可见“设置”（中文或英文）。
+    /// 通过 SpringBoard 窗口边框进行真实触摸缩放，不修改应用的 frame。
+    @MainActor func testSystemWindowResizePreservesSelectedExample() throws {
+        guard #available(iOS 26.0, *), UIDevice.current.userInterfaceIdiom == .pad else { throw XCTSkip("iPadOS 26 system window controls") }
+        let app = launch()
+        let system = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        func zoom() {
+            system.buttons["window-controls:com.sondra.Demo"].tap()
+            let button = system.buttons["Zoom-button"].firstMatch
+            XCTAssertTrue(button.waitForExistence(timeout: 5))
+            button.tap()
+        }
+        if app.windows.firstMatch.frame.width < system.windows.firstMatch.frame.width - 30 {
+            zoom()
+        }
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        waitFor(app) { app.windows.firstMatch.frame.width > 1000 }
+        let full = app.windows.firstMatch.frame
+        let search = app.searchFields.firstMatch
+        search.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        search.typeText("Counter")
+        app.cells["demo.counter.title"].tap()
+        let increment = app.buttons["counter.increment"]
+        func revealControls() {
+            for _ in 0..<5 {
+                let bottomTabs = app.tabBars.firstMatch
+                let covered = bottomTabs.exists && bottomTabs.frame.minY > increment.frame.minY && increment.frame.maxY > bottomTabs.frame.minY
+                if increment.isHittable && !covered { break }
+                app.scrollViews.firstMatch.swipeUp()
+            }
+            XCTAssertTrue(increment.isHittable)
+            let tabs = app.tabBars.firstMatch
+            if tabs.exists && tabs.frame.minY > increment.frame.minY {
+                XCTAssertLessThanOrEqual(increment.frame.maxY, tabs.frame.minY)
+            }
+        }
+        revealControls()
+        increment.tap()
+        let count = app.staticTexts.matching(NSPredicate(format: "label == %@ AND value == %@", "Log a glass", "4 of 8 glasses")).firstMatch
+        XCTAssertTrue(count.exists)
+        let origin = system.coordinate(withNormalizedOffset: .zero)
+        for (index, size) in [CGSize(width: 560, height: 520), CGSize(width: 500, height: 540), CGSize(width: 420, height: 500), CGSize(width: 650, height: 540)].enumerated() {
+            let before = app.windows.firstMatch.frame
+            let target = CGPoint(x: min(before.minX + size.width, full.maxX - 80), y: min(before.minY + size.height, full.maxY - 80))
+            origin.withOffset(CGVector(dx: before.maxX - 8, dy: before.maxY - 8))
+                .press(forDuration: 0.2, thenDragTo: origin.withOffset(CGVector(dx: target.x, dy: target.y)), withVelocity: .slow, thenHoldForDuration: 0.2)
+            waitFor(app) { abs(app.windows.firstMatch.frame.width - before.width) > 20 }
+            print("SYSTEM_WINDOW step \(index): \(before) -> \(app.windows.firstMatch.frame)")
+            revealControls()
+            XCTAssertTrue(count.exists, "窗口缩放必须保留已修改的计数")
+            let window = app.windows.firstMatch.frame
+            XCTAssertGreaterThanOrEqual(increment.frame.minX, window.minX)
+            XCTAssertLessThanOrEqual(increment.frame.maxX, window.maxX)
+            capture(app, "system-window-resize-\(index)")
+        }
+        if app.windows.firstMatch.frame.width < full.width - 30 { zoom() }
+        waitFor(app) { app.windows.firstMatch.frame.width == full.width }
+        revealControls()
+        XCTAssertTrue(count.exists)
+        XCTAssertTrue(app.cells["demo.counter.title"].isHittable)
+        capture(app, "system-window-restored")
+    }
+
+    @MainActor func testSystemTilingPreservesNavigationAndSearchFocus() throws {
+        guard #available(iOS 26.0, *), UIDevice.current.userInterfaceIdiom == .pad else { throw XCTSkip("iPadOS 26 system window controls") }
+        let app = launch()
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+        let system = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        if app.windows.firstMatch.frame.width < system.windows.firstMatch.frame.width - 30 {
+            system.buttons["window-controls:com.sondra.Demo"].tap()
+            system.buttons["Zoom-button"].firstMatch.tap()
+        }
+        XCUIDevice.shared.orientation = .landscapeLeft
+        waitFor(app) { app.windows.firstMatch.frame.width > 1000 }
+        let frame = app.windows.firstMatch.frame
+        let origin = system.coordinate(withNormalizedOffset: .zero)
+        origin.withOffset(CGVector(dx: frame.maxX - 8, dy: frame.maxY - 8))
+            .press(forDuration: 0.2, thenDragTo: origin.withOffset(CGVector(dx: frame.midX, dy: frame.midY)), withVelocity: .slow, thenHoldForDuration: 0.2)
+        system.buttons["window-controls:com.sondra.Demo"].tap()
+        system.buttons["Zoom-button"].firstMatch.press(forDuration: 1)
+        system.buttons.containing(.image, identifier: "inset.filled.lefthalf.righthalf.rectangle").firstMatch.tap()
+        let settingsIcons = system.icons.matching(NSPredicate(format: "identifier IN %@", ["设置", "Settings"]))
+        XCTAssertTrue(settingsIcons.firstMatch.waitForExistence(timeout: 5))
+        guard let settingsIcon = settingsIcons.allElementsBoundByIndex.first(where: \.isHittable) else { return XCTFail("设置图标不可点击") }
+        settingsIcon.tap()
+        waitFor(app) { app.windows.firstMatch.frame.minX >= 0 && app.windows.firstMatch.frame.width < 800 }
+        // 第二个应用由系统管理；只验证真实窗口，不假定“设置”内部使用 UITableView。
+        XCTAssertTrue(system.otherElements["card:com.apple.Preferences:sceneID:com.apple.Preferences-default"].exists)
+        XCTAssertTrue(settings.windows.firstMatch.waitForExistence(timeout: 5))
+        let right = settings.windows.firstMatch.frame
+        XCTAssertGreaterThanOrEqual(right.minX, app.windows.firstMatch.frame.maxX)
+        let search = app.searchFields.firstMatch
+        search.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        search.typeText("Frame")
+        search.buttons["main.search.clear"].tap()
+        search.typeText("Counter")
+        XCTAssertEqual(search.value as? String, "Counter")
+        app.cells["demo.counter.title"].tap()
+        let increment = app.buttons["counter.increment"]
+        for _ in 0..<4 where !increment.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        increment.tap()
+        let count = app.staticTexts.matching(NSPredicate(format: "label == %@ AND value == %@", "Log a glass", "4 of 8 glasses")).firstMatch
+        XCTAssertTrue(count.exists)
+        capture(app, "system-two-apps-search-and-detail")
+        for fraction in [0.4, 0.6] {
+            let before = app.windows.firstMatch.frame
+            let other = settings.windows.firstMatch.frame
+            let divider = (before.maxX + other.minX) / 2
+            origin.withOffset(CGVector(dx: divider, dy: before.midY))
+                .press(forDuration: 0.2, thenDragTo: origin.withOffset(CGVector(dx: system.windows.firstMatch.frame.width * fraction, dy: before.midY)), withVelocity: .slow, thenHoldForDuration: 0.2)
+            waitFor(app) { abs(app.windows.firstMatch.frame.width - before.width) > 20 }
+            XCTAssertTrue(count.exists)
+            print("SYSTEM_TILE \(before) -> \(app.windows.firstMatch.frame)")
+            capture(app, "system-divider-\(fraction)")
+        }
+        XCUIDevice.shared.orientation = .portrait
+        XCTAssertTrue(count.waitForExistence(timeout: 5))
+        capture(app, "system-two-apps-portrait")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        system.buttons["window-controls:com.sondra.Demo"].tap()
+        system.buttons["Zoom-button"].firstMatch.tap()
+        waitFor(app) { app.windows.firstMatch.frame.width > 1000 }
+        XCTAssertTrue(count.exists)
+        app.buttons["Hide Sidebar"].tap()
+        waitFor(app) { !app.cells["demo.counter.title"].isHittable }
+        XCTAssertTrue(count.exists)
+        app.buttons["Show Sidebar"].tap()
+        waitFor(app) { app.cells["demo.counter.title"].isHittable }
+        XCTAssertEqual(search.value as? String, "Counter")
+        XCTAssertTrue(count.exists)
+        settings.terminate()
+        capture(app, "system-tiling-restored")
+    }
+
+    @MainActor func testSearchClearKeepsTypingFocusAcrossRotation() {
+        let app = launch()
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 10))
+        search.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft, .portrait] {
+            XCUIDevice.shared.orientation = orientation
+            waitFor(app) { orientation == .portrait ? app.frame.height > app.frame.width : app.frame.width > app.frame.height }
+            for query in ["Frame", "Counter"] {
+                search.typeText(query)
+                XCTAssertEqual(search.value as? String, query)
+                let clear = search.buttons["main.search.clear"]
+                XCTAssertTrue(clear.waitForExistence(timeout: 5))
+                clear.tap()
+                XCTAssertTrue(clear.waitForNonExistence(timeout: 5))
+                XCTAssertTrue(app.keyboards.firstMatch.exists)
+                // 下一次 typeText 直接要求现有焦点，不再点击搜索框。
+            }
+        }
+        search.typeText("Geometry")
+        XCTAssertEqual(search.value as? String, "Geometry")
+        capture(app, "search-clear-focus-preserved")
+    }
+
+    @MainActor func testSwiftUIBridgeScrollsAndPresentsSingleColumnSheet() {
+        let app = launch()
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 10))
+        search.tap()
+        if !app.keyboards.firstMatch.waitForExistence(timeout: 5) { search.tap() }
+        search.typeText("SwiftUI")
+        let route = app.cells["demo.swiftUIBridge.title"]
+        XCTAssertTrue(route.waitForExistence(timeout: 5))
+        route.tap()
+        let show = app.buttons["localization.swiftUI.showSheet"]
+        XCTAssertTrue(show.waitForExistence(timeout: 5))
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+            XCUIDevice.shared.orientation = orientation
+            waitFor(app) { orientation == .portrait ? app.frame.height > app.frame.width : app.frame.width > app.frame.height }
+            for _ in 0..<3 where !show.isHittable { app.scrollViews.firstMatch.swipeUp() }
+            XCTAssertTrue(show.isHittable)
+            show.tap()
+            let close = app.buttons["localization.swiftUI.closeSheet"]
+            XCTAssertTrue(close.waitForExistence(timeout: 5))
+            XCTAssertTrue(close.isHittable)
+            capture(app, "swiftui-bridge-sheet-\(orientation.rawValue)")
+            close.tap()
+            XCTAssertTrue(show.waitForExistence(timeout: 5))
+        }
+    }
+
     /// 检查原生项目边界，并留存各选中态截图以核对符号和文字基线。
     @MainActor func testTabSelectionKeepsItemsAligned() throws {
         guard #available(iOS 26.0, *) else { throw XCTSkip("Three root tabs require iOS 26") }
@@ -19,7 +211,10 @@ final class AdaptiveNavigationUITests: XCTestCase {
             let frames = items.map(\.frame)
             for (item, frame) in zip(items, frames) {
                 XCTAssertTrue(item.isHittable)
-                XCTAssertGreaterThanOrEqual(frame.height, 44)
+                // 原生 iPad 顶部 Tab 的 AX 边界是视觉按钮，不代表系统命中区域。
+                // 验证实际点击、选中、同高和边界，不将 iPhone 的 44 点外观套给它。
+                XCTAssertGreaterThan(frame.height, 0)
+                XCTAssertEqual(frame.height, frames[0].height, accuracy: 1)
                 XCTAssertGreaterThan(frame.width, 0)
                 XCTAssertEqual(frame.midY, frames[0].midY, accuracy: 1)
                 XCTAssertGreaterThanOrEqual(frame.minX, app.frame.minX)
@@ -51,8 +246,10 @@ final class AdaptiveNavigationUITests: XCTestCase {
             XCTAssertTrue(search.waitForExistence(timeout: 10))
             search.tap()
             if !app.keyboards.firstMatch.waitForExistence(timeout: 5) { search.tap() }
-            let clear = search.buttons.firstMatch
-            if clear.exists { clear.tap() }
+            let clear = search.buttons["main.search.clear"]
+            if clear.exists {
+                clear.tap()
+            }
             search.typeText(query)
             let route = app.cells[identifier]
             XCTAssertTrue(route.waitForExistence(timeout: 5))

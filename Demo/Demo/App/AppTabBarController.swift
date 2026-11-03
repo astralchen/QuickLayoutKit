@@ -7,13 +7,17 @@ protocol AppTabActivity: AnyObject {
     func resignActiveTab()
 }
 
-final class AppTabBarController: UITabBarController, UITabBarControllerDelegate, UIKitLocalizationApplying {
+final class AppTabBarController: UITabBarController, UITabBarControllerDelegate, UIKitLocalizationPreparing, UIKitLocalizationApplying {
     let viewModel: AppNavigationViewModel
     private(set) var featureControllers: [AppTab: UIViewController] = [:]
 
     init(viewModel: AppNavigationViewModel = AppNavigationViewModel()) {
         self.viewModel = viewModel
         super.init(nibName: nil, bundle: nil)
+        // 首次创建系统栏之前，同步应用所选语言的真实布局方向。
+        if #available(iOS 17.0, *) {
+            traitOverrides.layoutDirection = Localization.currentUIKitDirection == .rightToLeft ? .rightToLeft : .leftToRight
+        }
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -50,7 +54,18 @@ final class AppTabBarController: UITabBarController, UITabBarControllerDelegate,
         for item in state.items {
             guard let controller = featureControllers[item.id] else { continue }
             if controller.tabBarItem.title != item.title {
-                controller.tabBarItem.title = item.title
+                // 语言变化时重新提供 item，促使系统按钮刷新其缓存的辅助功能名称。
+                // 仅修改旧 item 的 title/accessibilityLabel 在 iPhone 上不会刷新该名称。
+                // 控制器、页面、选中状态及系统 Tab 栏均继续复用。
+                let previous = controller.tabBarItem!
+                let replacement = UITabBarItem(title: item.title, image: previous.image, selectedImage: previous.selectedImage)
+                replacement.accessibilityIdentifier = "app.tab.\(item.id.rawValue)"
+                replacement.accessibilityLabel = item.title
+                replacement.badgeValue = previous.badgeValue
+                replacement.badgeColor = previous.badgeColor
+                replacement.isEnabled = previous.isEnabled
+                replacement.tag = previous.tag
+                controller.tabBarItem = replacement
             }
         }
         guard let destination = featureControllers[state.selectedTab],
@@ -81,10 +96,16 @@ final class AppTabBarController: UITabBarController, UITabBarControllerDelegate,
         controllers.forEach { ($0 as? AppTabActivity)?.resignActiveTab() }
     }
 
+    func prepareForLocalization(_ update: UIKitLocalizationUpdate) {
+        guard update.requiresLayoutDirectionRefresh else { return }
+        // 必须早于协调器更新 window / 容器方向；applyLocalization 时可能已触发系统布局。
+        // 此处仅同步临时兼容缓存，真实方向、文案仍由正常本地化流程更新。
+        FloatingTabBarDirectionWorkaround.prepare(in: viewIfLoaded, direction: update.layoutDirection)
+    }
+
     func applyLocalization(_ update: UIKitLocalizationUpdate) {
         view.semanticContentAttribute = update.semanticContentAttribute
         tabBar.semanticContentAttribute = update.semanticContentAttribute
-        if #available(iOS 17.0, *) { traitOverrides.layoutDirection = update.layoutDirection == .rightToLeft ? .rightToLeft : .leftToRight }
         viewModel.reloadLocalizedContent()
     }
 }

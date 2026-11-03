@@ -190,14 +190,25 @@ final class GiftSheetView:
         return nil
     }
 
-    /// 在布局完成后更新网格尺寸并处理待居中的礼物栏目。
-    override func layoutSubviews() {
-        let shouldUseCompactMetrics = bounds.width > 0 && bounds.width < 350
+    /// 父级自然高度测量与实际放置采用相同的宽度规则。
+    override func sizeThatFits(_ size: CGSize) -> CGSize {
+        updateCompactMetrics(for: size.width)
+        return super.sizeThatFits(size)
+    }
+
+    private func updateCompactMetrics(for width: CGFloat) {
+        let availableWidth = max(0, width - safeAreaInsets.left - safeAreaInsets.right)
+        let shouldUseCompactMetrics = availableWidth > 0 && availableWidth < 350
         if usesCompactMetrics != shouldUseCompactMetrics {
             usesCompactMetrics = shouldUseCompactMetrics
             updateButtons()
             setNeedsQuickLayout()
         }
+    }
+
+    /// 在布局完成后更新网格尺寸并处理待居中的礼物栏目。
+    override func layoutSubviews() {
+        updateCompactMetrics(for: bounds.width)
         super.layoutSubviews()
         updateGiftGridMetrics()
         // 分类内容的方向和尺寸先完成布局，再用新的内容坐标计算居中位置。

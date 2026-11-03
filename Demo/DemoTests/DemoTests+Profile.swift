@@ -33,7 +33,9 @@ extension DemoTests {
                     "size=\(size), content=\(scroll.contentSize), bounds=\(scroll.bounds), inset=\(inset)")
             #expect(abs(scroll.contentOffset.x + inset.left) < 1)
             scroll.scrollTo(.bottom, animated: false)
-            #expect(scroll.contentOffset.y > -inset.top)
+            // iPad 高视口可以容纳全部内容，此时底部与顶部是同一个合法滚动位置。
+            let bottomOffset = max(-inset.top, scroll.contentSize.height - scroll.bounds.height + inset.bottom)
+            #expect(abs(scroll.contentOffset.y - bottomOffset) < 1)
         }
     }
 

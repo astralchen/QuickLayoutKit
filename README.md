@@ -819,7 +819,7 @@ final class ParentViewController: QuickLayoutHostingController {
 发布为 `.keyboard` 安全区域：
 
 ```swift
-quickLayoutKeyboardSafeAreaBehavior = .docked(
+quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard(
     usesBottomSafeArea: true
 )
 ```
@@ -869,6 +869,11 @@ avoider.setActiveView(textField)
 
 如果外部代码修改了滚动视图基础边距，应调用 `captureCurrentInsetsAsBase()`，再让避让器继续
 叠加键盘值。
+
+宿主需要持有避让器。`QuickLayoutScrollView` 在每次布局后自动检查当前容器几何，即使
+窗口缩放没有产生新键盘通知，也会重新计算遮挡与安全区域。普通 `UIScrollView` 的宿主应在
+`viewDidLayoutSubviews()` 或 `layoutSubviews()` 中调用 `avoider.refreshGeometry()`。
+单纯滚动且避让量未改变时不会重新定位输入框。
 
 ## 诊断
 

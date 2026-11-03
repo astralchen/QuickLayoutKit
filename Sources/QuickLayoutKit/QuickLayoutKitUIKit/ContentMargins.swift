@@ -555,26 +555,23 @@ extension QuickLayoutScrollView {
 
 extension UIScrollView {
 
+    /// 分别读取两个轴已实际应用的增量，避免把另一轴的边距当作基线扣除或重复添加。
+    var quickLayoutAppliedVerticalIndicatorMarginInsets: UIEdgeInsets {
+        (self as? QuickLayoutScrollView)?
+            .quickLayoutContentMarginState.appliedVerticalIndicatorInsets ?? .zero
+    }
+
+    var quickLayoutAppliedHorizontalIndicatorMarginInsets: UIEdgeInsets {
+        (self as? QuickLayoutScrollView)?
+            .quickLayoutContentMarginState.appliedHorizontalIndicatorInsets ?? .zero
+    }
+
     /// QuickLayout 最近添加的内容边距增量；普通滚动视图为零。
     var quickLayoutAppliedContentMarginInsets: UIEdgeInsets {
         (self as? QuickLayoutScrollView)?
             .quickLayoutContentMarginState.appliedContentInsets ?? .zero
     }
 
-    /// 当前滚动轴对应的框架指示器边距增量；普通滚动视图为零。
-    var quickLayoutAppliedIndicatorMarginInsets: UIEdgeInsets {
-        guard let scrollView = self as? QuickLayoutScrollView else {
-            return .zero
-        }
-        switch scrollView.axis {
-        case .vertical:
-            return scrollView.quickLayoutContentMarginState
-                .appliedVerticalIndicatorInsets
-        case .horizontal:
-            return scrollView.quickLayoutContentMarginState
-                .appliedHorizontalIndicatorInsets
-        }
-    }
 }
 
 private extension EdgeInsets {
