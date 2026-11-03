@@ -148,7 +148,7 @@ struct TaskQueueTests {
     @Test func destructionCancelsRunningAndReleasesPendingWithoutCycle() async throws {
         let gate = ControlledTaskOperation()
         var queue: TaskQueue? = TaskQueue(maxConcurrentTasks: 1)
-        weak var weakQueue = queue
+        weak let weakQueue = queue
         let current = try #require(queue?.addTask { try await gate.run() })
         await gate.started.wait()
         let waiting = try #require(queue?.addTask { Issue.record("销毁后不能执行") })
@@ -164,7 +164,7 @@ struct TaskQueueTests {
         let gate = ControlledTaskOperation()
         let parent = Task {
             try await gate.run()
-            try await queue.withTask { Issue.record("预取消不能提交操作") }
+            _ = try await queue.withTask { Issue.record("预取消不能提交操作") }
         }
         await gate.started.wait()
         parent.cancel()
@@ -219,7 +219,7 @@ struct TaskQueueTests {
         let queue = TaskQueue(maxConcurrentTasks: 1)
         let gate = ControlledTaskOperation()
         let cancellation = TaskTestSignal()
-        try await withThrowingTaskGroup(of: Void.self) { group in
+        await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
                 try await queue.withTask { @MainActor in
                     try await withTaskCancellationHandler {

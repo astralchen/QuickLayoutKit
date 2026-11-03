@@ -325,8 +325,11 @@ struct ChatMessageMenuPreviewTests {
         let older = MessagePresentation(id: 4, direction: .incoming, text: "Older history", deliveryText: nil)
         view.render(state([older, message]), reason: .olderHistoryLoaded)
         for _ in 0..<20 { try await Task.sleep(nanoseconds: 20_000_000); list.layoutIfNeeded() }
-        let dismissal = list.delegate?.collectionView?(list, previewForDismissingContextMenuWithConfiguration: config)
         let currentSource = try #require(view.menuSourceView(for: .init(messageID: 5)))
+        let currentIndex = try #require(list.indexPathsForVisibleItems.first {
+            (list.cellForItem(at: $0) as? TextBubbleCell)?.bubbleView === currentSource
+        })
+        let dismissal = list.delegate?.collectionView?(list, contextMenuConfiguration: config, dismissalPreviewForItemAt: currentIndex)
         #expect(dismissal != nil)
         #expect(dismissal?.view !== currentSource)
         #expect(dismissal?.view.bounds.size == currentSource.bounds.size)

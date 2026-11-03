@@ -200,10 +200,14 @@ extension DemoTests {
         parent.addChild(room)
         parent.view.addSubview(room.view)
         room.didMove(toParent: parent)
-        parent.setOverrideTraitCollection(
-            UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge),
-            forChild: room
-        )
+        if #available(iOS 17.0, *) {
+            room.traitOverrides.preferredContentSizeCategory = .accessibilityExtraExtraExtraLarge
+        } else {
+            parent.setOverrideTraitCollection(
+                UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge),
+                forChild: room
+            )
+        }
         let window = try makeVisibleTestWindow(rootViewController: parent, size: CGSize(width: 320, height: 852))
         defer { window.isHidden = true }
         room.view.frame = parent.view.bounds

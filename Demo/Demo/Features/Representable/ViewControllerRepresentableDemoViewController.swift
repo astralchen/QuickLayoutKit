@@ -120,6 +120,28 @@ final class ViewControllerRepresentableDemoViewController: LocalizedQuickLayoutH
         .contentMargins(16)
         .safeAreaPadding(0)
     }
+
+    func makeLazyChild(name: String) -> LazyView<QuickLayoutViewControllerRepresentable> {
+        LazyView { [weak self] in
+            guard let self else { return QuickLayoutViewControllerRepresentable(UIViewController()) }
+            appendLog("LazyView factory invoked for child \(name)")
+
+            let child = makeLoggingChild(name: name)
+            let host = QuickLayoutViewControllerRepresentable(child)
+            applyLayoutDirection(
+                Localization.currentUIKitDirection,
+                to: host
+            )
+            host.eventHandler = { [weak self] event in
+                self?.appendLog("Representable event: \(event.name)")
+            }
+            host.detailedEventHandler = { [weak self] event in
+                self?.appendLog("Representable detailed: \(Self.describeDetailedEvent(event))")
+            }
+
+            return host
+        }
+    }
 }
 
 private extension ViewControllerRepresentableDemoViewController {
@@ -203,28 +225,6 @@ private extension ViewControllerRepresentableDemoViewController {
         setNeedsQuickLayout()
         quickLayoutIfNeeded()
         refreshStateLabel()
-    }
-
-    internal func makeLazyChild(name: String) -> LazyView<QuickLayoutViewControllerRepresentable> {
-        LazyView { [weak self] in
-            guard let self else { return QuickLayoutViewControllerRepresentable(UIViewController()) }
-            appendLog("LazyView factory invoked for child \(name)")
-
-            let child = makeLoggingChild(name: name)
-            let host = QuickLayoutViewControllerRepresentable(child)
-            applyLayoutDirection(
-                Localization.currentUIKitDirection,
-                to: host
-            )
-            host.eventHandler = { [weak self] event in
-                self?.appendLog("Representable event: \(event.name)")
-            }
-            host.detailedEventHandler = { [weak self] event in
-                self?.appendLog("Representable detailed: \(Self.describeDetailedEvent(event))")
-            }
-
-            return host
-        }
     }
 
     func applyLayoutDirection(

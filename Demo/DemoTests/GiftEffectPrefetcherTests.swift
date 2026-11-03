@@ -246,7 +246,7 @@ struct GiftEffectPrefetcherTests {
     @Test func destructionCancelsWithoutRetainingPrefetcher() async throws {
         let loader = ControlledGiftLoader()
         var prefetcher: GiftEffectPrefetcher? = GiftEffectPrefetcher(load: loader.load)
-        weak var weakPrefetcher = prefetcher
+        weak let weakPrefetcher = prefetcher
         prefetcher?.register(effects: [vap])
         try await waitForTaskCondition { loader.effects.count == 1 }
         prefetcher = nil
@@ -316,9 +316,9 @@ struct GiftEffectPrefetcherTests {
     @Test func reducedMotionSkipsRegistrationAndRechecksAtPlaybackStart() async throws {
         let loader = ControlledGiftLoader()
         let prefetcher = GiftEffectPrefetcher(load: loader.load)
-        var reduced = true
+        let reducedMotion = PrefetchReducedMotionPreference()
         var players: [PrefetchTestPlayer] = []
-        let coordinator = GiftMainEffectCoordinator(reduceMotionEnabled: { reduced }, prefetcher: prefetcher) {
+        let coordinator = GiftMainEffectCoordinator(reduceMotionEnabled: { reducedMotion.isEnabled }, prefetcher: prefetcher) {
             let player = PrefetchTestPlayer()
             players.append(player)
             return player
@@ -327,10 +327,10 @@ struct GiftEffectPrefetcherTests {
         let first = try #require(coordinator.enqueue(gift: gift([vap, svga]), quantity: 1))
         try await waitForTaskCondition { players.count == 1 }
         #expect(prefetcher.requestCount == 0 && loader.effects.isEmpty)
-        reduced = false
+        reducedMotion.isEnabled = false
         let second = try #require(coordinator.enqueue(gift: gift([vap, svga]), quantity: 1))
         try await waitForTaskCondition { loader.effects.count == 2 }
-        reduced = true
+        reducedMotion.isEnabled = true
         players[0].finish()
         try await first.value
         try await waitForTaskCondition { players.count == 2 && loader.cancelled.count == 2 }
@@ -347,7 +347,7 @@ struct GiftEffectPrefetcherTests {
             let prefetcher = GiftEffectPrefetcher(load: loader.load)
             let player = PrefetchTestPlayer()
             var coordinator: GiftMainEffectCoordinator? = GiftMainEffectCoordinator(reduceMotionEnabled: { false }, prefetcher: prefetcher) { player }
-            weak var weakCoordinator = coordinator
+            weak let weakCoordinator = coordinator
             coordinator?.activate()
             let task = try #require(coordinator?.enqueue(gift: gift([vap, svga, other]), quantity: 1))
             try await waitForTaskCondition { loader.effects.count == 2 && player.effect != nil }
@@ -361,6 +361,11 @@ struct GiftEffectPrefetcherTests {
             #expect(loader.effects.count == 2 && loader.effects.contains(vap) && loader.effects.contains(svga))
         }
     }
+}
+
+@MainActor
+private final class PrefetchReducedMotionPreference {
+    var isEnabled = true
 }
 
 /// 报告进入退避计算；长间隔让取消测试无需依赖生产环境的 300 毫秒时序。
