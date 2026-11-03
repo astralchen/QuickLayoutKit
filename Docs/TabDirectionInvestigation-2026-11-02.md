@@ -333,3 +333,16 @@ iPhone 18 Pro / iOS 27.2 UI 回归保留失败：聊天草稿/焦点测试通过
 最终 iPad 两项 UI 测试也全部通过：`/tmp/QuickLayoutKit-tab-ipad-final-ui.xcresult`，复用与 iPhone 最终 UI 测试相同的构建产物。覆盖实际菜单的两轮中→阿→中、三个系统 Tab 点击，以及聊天短标题/草稿/焦点。附件导出在 `/tmp/QuickLayoutKit-tab-ipad-final-ui-attachments/`。本轮最终结果为 iPhone UI 2/2、iPad UI 2/2、iPad 宿主回归 22/22；最初的失败证据继续保留。验证范围为 iOS 27.2 模拟器，没有扩展为真机、其他系统版本或中文输入法 marked text 的保证。
 
 提交前按用户要求恢复 AppLocalization 远程引用：`https://github.com/astralchen/AppLocalization`，分支 `main`，两个 Package.resolved 均锁定 `2fe1d665fd4ff6983ea858adf6c75b888577e221`。工作区和 Demo 工程分别完成依赖解析；远程检出包含 `UIKitLocalizationPreparing` 以及方向变化前的 prepare 调用，提交与本地干净副本一致。本次切换依赖来源未重新运行 UI 测试；此前本地源码验证结果与远程解析验证分别记录。
+
+
+## 2026-11-03：修复英文与中文切换时浮动栏可见标题残留
+
+用户截图中的中文页面与英文 Tab 混用已在 iPad mini (A20 Pro) / iOS 27.2 重现。仅替换 `UITabBarItem` 时，辅助功能名称已切为中文，浮动栏可见文字仍为 `Examples / Chat / Voice room`。英文与中文的 LTR → LTR 切换没有方向变化，原有只检查辅助功能名称的 UI 断言因此通过；原宿主方向测试从整个控制器查找任意匹配标题，也没有逐项验证浮动栏文字。
+
+复现证据：`/tmp/QuickLayoutKit-tab-english-chinese-baseline.xcresult`，附件目录 `/tmp/QuickLayoutKit-tab-english-chinese-baseline-attachments/`。新增浮动 collection 可见 cell 标题断言后，修复前测试失败：`/tmp/QuickLayoutKit-tab-visible-labels-before.xcresult`。这些结果保留，不能把前一项 UI 测试通过视为可见文字正确。
+
+修复在 `AppTabBarController.render(_:)` 替换 item 前，先更新原 item 的 `title` 和 `accessibilityLabel`；继续保留原替换流程，使可见标题和辅助功能名称都刷新。本次仅使用公开 item 属性，不新增私有调用，也不替换页面或 Tab 容器。
+
+回归增加英文启动及连续中英切换，逐项验证浮动栏实际可见 UILabel 标题，并保留原方向、badge、容器/页面身份、草稿和焦点检查。iPad `AppNavigationTests` 21 项及新增中英菜单 UI 测试 1 项全部通过：`/tmp/QuickLayoutKit-tab-visible-labels-fixed.xcresult`。附件目录 `/tmp/QuickLayoutKit-tab-visible-labels-fixed-attachments/`，两次中文阶段截图均已目视确认顶部为“示例 / 聊天 / 语音房”。本轮范围为 iOS 27.2 模拟器，未覆盖真机及其他系统版本。
+
+iPhone 18 Pro / iOS 27.2 复用同一构建产物执行新增中英菜单 UI 回归，1/1 通过：`/tmp/QuickLayoutKit-tab-visible-labels-iphone.xcresult`。验证连续英文→中文→英文→中文后，三个系统 Tab 的辅助功能名称均与当前语言一致。

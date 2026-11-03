@@ -9,6 +9,42 @@ final class TabLocalizationUITests: XCTestCase {
         return identified.exists ? identified : app.buttons.matching(NSPredicate(format: "label == %@", title)).firstMatch
     }
 
+    @MainActor func testEnglishChineseTabTitlesRoundTrip() throws {
+        guard #available(iOS 26.0, *) else { throw XCTSkip("Chat requires iOS 26") }
+        let app = XCUIApplication()
+        app.launchArguments += ["-AppleLanguages", "(en)",
+                                "-quicklayoutkit.demo.locale.identifier", "en-US"]
+        app.launch()
+        let identifiers = ["examples", "chat", "voiceRoom"]
+        for (language, titles) in [
+            ("简体中文", ["示例", "聊天", "语音房"]),
+            ("English", ["Examples", "Chat", "Voice room"]),
+            ("简体中文", ["示例", "聊天", "语音房"])
+        ] {
+            let menu = app.buttons.matching(identifier: "demo.language.menu").firstMatch
+            XCTAssertTrue(menu.waitForExistence(timeout: 10))
+            menu.tap()
+            let option = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", language)).firstMatch
+            XCTAssertTrue(option.waitForExistence(timeout: 5))
+            option.tap()
+            let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                zip(identifiers, titles).allSatisfy { id, title in
+                    let item = self.tabButton(in: app, id: id, title: title)
+                    return item.exists && item.label == title
+                }
+            }, object: app)
+            let result = XCTWaiter.wait(for: [ready], timeout: 10)
+            let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            screenshot.name = "tabs-english-chinese-\(language)"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            let tree = XCTAttachment(string: app.debugDescription)
+            tree.lifetime = .keepAlways
+            add(tree)
+            XCTAssertEqual(result, .completed)
+        }
+    }
+
     @MainActor func testChatDraftAndFocusSurviveLanguageRoundTrip() throws {
         guard #available(iOS 26.0, *) else { throw XCTSkip("Chat requires iOS 26") }
         let app = XCUIApplication()

@@ -56,7 +56,7 @@ extension AppNavigationTests {
         }
     }
 
-    @Test(arguments: ["zh-Hans", "ar"])
+    @Test(arguments: ["zh-Hans", "ar", "en-US"])
     func tabLabelsKeepTheirOrientationAcrossLanguageRoundTrips(initialLanguage: String) async throws {
         let previousLocale = Localization.localizationController.currentLocale.identifier
         let followedSystem = Localization.localizationController.followsSystemLocale
@@ -78,7 +78,7 @@ extension AppNavigationTests {
         let originalTabBar = tabs.tabBar
         var originalFloatingCollection: UICollectionView?
 
-        for language in [initialLanguage, "ar", "zh-Hans", "ar", "en-US", "zh-Hans"] {
+        for language in [initialLanguage, "zh-Hans", "en-US", "zh-Hans", "ar", "zh-Hans", "ar", "en-US", "zh-Hans"] {
             split.tabBarItem.badgeValue = "7"
             Localization.setLocale(identifier: language)
             let expectedDirection: UIUserInterfaceLayoutDirection = language == "ar" ? .rightToLeft : .leftToRight
@@ -105,6 +105,14 @@ extension AppNavigationTests {
             }
             func expectReadableLabels() {
                 let titles = tabs.viewModel.state.items.map(\.title)
+                if let floatingCollection = floatingCollections.first {
+                    let visibleTitles = floatingCollection.visibleCells.flatMap {
+                        $0.allSubviews(of: UILabel.self)
+                    }.filter { !$0.isHidden && $0.bounds.width > 0 }.compactMap(\.text)
+                    for title in titles {
+                        #expect(visibleTitles.contains(title), "Missing tab title \(title); visible: \(visibleTitles)")
+                    }
+                }
                 let labels = tabs.view.allSubviews(of: UILabel.self).filter {
                     titles.contains($0.text ?? "") && !$0.isHidden && $0.bounds.width > 0
                 }

@@ -58,6 +58,11 @@ final class AppTabBarController: UITabBarController, UITabBarControllerDelegate,
                 // 仅修改旧 item 的 title/accessibilityLabel 在 iPhone 上不会刷新该名称。
                 // 控制器、页面、选中状态及系统 Tab 栏均继续复用。
                 let previous = controller.tabBarItem!
+                // iPad 浮动栏在 LTR → LTR（如英文 → 中文）切换时，仅替换 item
+                // 会更新辅助功能名称，却可能保留旧的可见标题。先通知原 item 的
+                // 标题观察者，再替换 item，兼顾浮动栏绘制与 iPhone 辅助功能刷新。
+                previous.title = item.title
+                previous.accessibilityLabel = item.title
                 let replacement = UITabBarItem(title: item.title, image: previous.image, selectedImage: previous.selectedImage)
                 replacement.accessibilityIdentifier = "app.tab.\(item.id.rawValue)"
                 replacement.accessibilityLabel = item.title
