@@ -15,8 +15,8 @@ import UIKit
 /// 主要初始化方法与 SwiftUI 的 `ScrollView` 形式一致：指定滚动轴、是否显示指示器，
 /// 并通过构建器提供内容。不同于 SwiftUI，该类型是 UIKit 引用类型，也可以使用
 /// `init(frame:)` 创建，再传入 ``ScrollView(_:_:showsIndicators:content:)``。
-/// 运行时布局方向变化会重新布局现有内容，但不会修改数值形式的滚动位置；该行为与
-/// SwiftUI 的 `ScrollView` 一致。
+/// 运行时布局方向变化会重新布局现有内容，但不会主动重置主轴的数值滚动位置。
+/// 交叉轴始终按调整后的内容边距对齐视口，不形成独立的滚动位置。
 open class QuickLayoutScrollView:
     UIScrollView,
     HasBody,
@@ -333,7 +333,7 @@ open class QuickLayoutScrollView:
     /// 测量并放置当前滚动内容，随后更新滚动范围。
     ///
     /// 先提交待应用的边距，再按当前视口建立测量环境。内容尺寸仅在结果变化时写入；
-    /// 完成布局后执行待处理的起点恢复和滚动请求，并记录调整后边距供下一轮比较。
+    /// 完成布局后先对齐交叉轴，再执行待处理的起点恢复和滚动请求，并记录调整后边距。
     /// 内容在交叉轴上的滚动范围始终采用扣除实际边距后的视口长度。
     override open func layoutSubviews() {
         QuickLayoutContentMarginTransaction.flush()
@@ -383,7 +383,21 @@ open class QuickLayoutScrollView:
                 superview?.setNeedsLayout()
             }
 
+            // 分栏/安全区变化时 UIKit 可能保留旧的交叉轴偏移，即使内容宽高已更新。
+            // 只改 bounds 的交叉轴原点，不用无动画滚动请求覆盖主轴正在进行的动画。
+            // 动画后续帧仍可能携带旧交叉轴值，因此每轮布局都维持单轴视口对齐。
+            var alignedBounds = bounds
+            switch axis {
+            case .vertical:
+                alignedBounds.origin.x = -adjustedContentInset.left
+            case .horizontal:
+                alignedBounds.origin.y = -adjustedContentInset.top
+            }
+            if alignedBounds != bounds {
+                bounds = alignedBounds
+            }
             applyContentMarginStartPositionIfPossible()
+            // 延迟滚动在对齐之后发起，其目标也使用本轮正确的交叉轴位置。
             applyPendingScrollIfPossible()
             lastResolvedAdjustedContentInset = adjustedContentInset
         }
@@ -405,7 +419,7 @@ open class QuickLayoutScrollView:
 
     /// 响应可能影响滚动内容的 UIKit 环境变化。
     ///
-    /// 默认实现会使测量和放置失效，同时保留现有的数值内容偏移量。
+    /// 默认实现会使测量和放置失效，同时保留主轴的数值内容偏移量；交叉轴由布局统一对齐。
     ///
     /// - Parameters:
     ///   - environment: 变化后的当前环境快照。

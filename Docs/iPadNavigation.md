@@ -4,7 +4,7 @@
 
 ```text
 SceneDelegate → AppTabBarController
-├─ 示例 → DemoSplitViewController（doubleColumn）
+├─ 示例 → ExampleSplitViewController（doubleColumn）
 │  ├─ primary → UINavigationController → MainViewController
 │  └─ secondary → UINavigationController → 示例详情／未选择占位页
 ├─ 聊天 → FeatureNavigationController → ChatViewController（iOS 26+）
@@ -12,6 +12,8 @@ SceneDelegate → AppTabBarController
 ```
 
 `AppNavigationViewModel` 管理可用功能、选中 Tab 和本地化标题；`ExampleNavigationViewModel` 管理详情路由身份。控制器负责 UIKit 容器、生命周期和布局，`MainRouter` 负责创建页面及分发导航。继续复用各功能已有的 ViewModel，不把 UIKit 控制器存入 ViewModel。
+
+分栏容器按业务命名：示例使用 `ExampleSplitViewController`；后续聊天引入分栏时使用 `ChatSplitViewController`。当前示例容器保留自己的菜单、路由与占位页职责。
 
 用户点击 Tab 时由 UIKit 完成原生选择，在 `didSelect` 中同步 ViewModel；程序导航由 ViewModel 状态驱动控制器选择。重复点击保留 UIKit 默认行为，状态同步不会重复清理或重建页面。
 

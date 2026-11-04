@@ -34,7 +34,7 @@ final class MainRouter: MainRouting {
             tabs.select(tab)
             return
         }
-        if let split = sourceViewController.splitViewController as? DemoSplitViewController {
+        if let split = sourceViewController.splitViewController as? ExampleSplitViewController {
             split.select(route)
             return
         }

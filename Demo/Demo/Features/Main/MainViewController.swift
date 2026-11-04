@@ -19,13 +19,36 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
         didSet { if isViewLoaded { updateSelectedRoute() } }
     }
 
+    private var isExpandedSidebar: Bool {
+        splitViewController.map { !$0.isCollapsed } ?? false
+    }
+    private var lastExpandedSidebar: Bool?
+
+    /// 使用容器的实际状态，兼容 iOS 15；不把 size class 当作分栏状态。
+    /// 转场完成、重新显示以及布局时都会调用，只有状态变化才更新已有 cell。
+    func updateSplitPresentation() {
+        guard isViewLoaded else { return }
+        updateNavigationTitlePresentation()
+        let expanded = isExpandedSidebar
+        guard lastExpandedSidebar != expanded else { return }
+        lastExpandedSidebar = expanded
+        for case let cell as UICollectionViewListCell in collectionView.visibleCells {
+            updateDisclosureAccessory(cell)
+        }
+        updateSelectedRoute()
+    }
+
+    private func updateDisclosureAccessory(_ cell: UICollectionViewListCell) {
+        cell.accessories = isExpandedSidebar ? [] : [.disclosureIndicator()]
+    }
+
     /// Restore selection by route identity after filtering or rebuilding the list.
     func updateSelectedRoute() {
         guard isViewLoaded, let state = latestState else { return }
         collectionView.indexPathsForSelectedItems?.forEach {
             collectionView.deselectItem(at: $0, animated: false)
         }
-        guard splitViewController?.isCollapsed != true, let selectedRoute else { return }
+        guard isExpandedSidebar, let selectedRoute else { return }
         for (section, group) in state.sections.enumerated() {
             if let item = group.routes.firstIndex(where: { $0.route == selectedRoute }) {
                 collectionView.selectItem(at: IndexPath(item: item, section: section), animated: false, scrollPosition: [])
@@ -125,9 +148,9 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.navigationBar.prefersLargeTitles = true
-        updateNavigationTitlePresentation()
+        updateSplitPresentation()
 
-        if splitViewController is DemoSplitViewController {
+        if splitViewController is ExampleSplitViewController {
             updateSelectedRoute()
             return
         }
@@ -212,14 +235,14 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        updateNavigationTitlePresentation()
+        updateSplitPresentation()
         restorePendingVisibleItemIfNeeded()
     }
 
     private func updateNavigationTitlePresentation() {
         // 展开的目录侧栏使用原生行内标题，避免大标题与侧栏工具按钮重叠。
         // 跟随真实分栏的折叠状态，单列导航仍保留原有大标题体验。
-        let isSidebar = splitViewController.map { !$0.isCollapsed } ?? false
+        let isSidebar = isExpandedSidebar
         let mode: UINavigationItem.LargeTitleDisplayMode = isSidebar ? .never : .always
         if navigationItem.largeTitleDisplayMode != mode {
             navigationItem.largeTitleDisplayMode = mode
@@ -452,18 +475,21 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
                 Row(
                     model: routeState,
                     cell: UICollectionViewListCell.self
-                ) { cell, routeState, _ in
+                ) { [weak self] cell, routeState, _ in
                     localizationContext
                         .prepareForConfiguration(cell)
                     Self.configure(cell, with: routeState)
+                    self?.updateDisclosureAccessory(cell)
                 }
                 .refreshID(routeState.title)
                 .onSelect { [weak self] routeState, _ in
                     self?.viewModel.select(routeState.route)
                 }
-                .onDisplay { cell, _ in
+                .onDisplay { [weak self] cell, _ in
                     localizationContext
                         .restoreOnAttachment(cell)
+                    // 复用或预取的 cell 可能在另一种分栏状态下完成配置。
+                    self?.updateDisclosureAccessory(cell)
                 }
             }
         } supplementaries: {

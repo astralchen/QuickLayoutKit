@@ -5,6 +5,51 @@ import UIKit
 final class AdaptiveNavigationUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
+    /// 拖动 App 内部的 Split 分隔线；不修改列宽属性或注入 trait。
+    @MainActor func testSplitColumnDragPreservesSelectionAndSafeContent() throws {
+        guard #available(iOS 26.0, *), UIDevice.current.userInterfaceIdiom == .pad else {
+            throw XCTSkip("Interactive split column resizing requires iPadOS 26")
+        }
+        let app = launch()
+        let system = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        defer { XCUIDevice.shared.orientation = .portrait }
+        if app.windows.firstMatch.frame.width < system.windows.firstMatch.frame.width - 30 {
+            system.buttons["window-controls:com.sondra.Demo"].tap()
+            system.buttons["Zoom-button"].firstMatch.tap()
+        }
+        XCUIDevice.shared.orientation = .landscapeLeft
+        waitFor(app) { app.windows.firstMatch.frame.width > 1000 }
+        let search = app.searchFields.firstMatch
+        search.tap()
+        search.typeText("Counter")
+        let route = app.cells["demo.counter.title"]
+        route.tap()
+        let increment = app.buttons["counter.increment"]
+        XCTAssertTrue(increment.waitForExistence(timeout: 5))
+        for _ in 0..<4 where !increment.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        increment.tap()
+        let count = app.staticTexts.matching(NSPredicate(format: "label == %@ AND value == %@", "Log a glass", "4 of 8 glasses")).firstMatch
+        let catalog = app.collectionViews.containing(.cell, identifier: "demo.counter.title").firstMatch
+        XCTAssertTrue(catalog.exists)
+        let window = app.windows.firstMatch.frame
+        capture(app, "split-column-before")
+        for (index, offset) in [60.0, -80.0, 40.0].enumerated() {
+            let before = catalog.frame
+            let origin = system.coordinate(withNormalizedOffset: .zero)
+            origin.withOffset(CGVector(dx: before.maxX, dy: before.midY))
+                .press(forDuration: 0.2, thenDragTo: origin.withOffset(CGVector(dx: before.maxX + offset, dy: before.midY)), withVelocity: .slow, thenHoldForDuration: 0.2)
+            waitFor(app) { abs(catalog.frame.width - before.width) > 15 }
+            print("SPLIT_COLUMN \(before) -> \(catalog.frame)")
+            XCTAssertEqual(app.windows.firstMatch.frame, window, "只调整列宽，窗口保持不变")
+            XCTAssertTrue(route.isSelected)
+            XCTAssertEqual(search.value as? String, "Counter")
+            XCTAssertTrue(count.exists)
+            XCTAssertGreaterThanOrEqual(increment.frame.minX, catalog.frame.maxX)
+            XCTAssertLessThanOrEqual(increment.frame.maxX, window.maxX)
+            capture(app, "split-column-drag-\(index)")
+        }
+    }
+
     /// 需要 iPadOS 窗口模式；并排用例的系统选择器需可见“设置”（中文或英文）。
     /// 通过 SpringBoard 窗口边框进行真实触摸缩放，不修改应用的 frame。
     @MainActor func testSystemWindowResizePreservesSelectedExample() throws {
@@ -61,12 +106,24 @@ final class AdaptiveNavigationUITests: XCTestCase {
             XCTAssertGreaterThanOrEqual(increment.frame.minX, window.minX)
             XCTAssertLessThanOrEqual(increment.frame.maxX, window.maxX)
             capture(app, "system-window-resize-\(index)")
+            let route = app.cells["demo.counter.title"]
+            if window.width < 600 && !route.isHittable {
+                app.navigationBars["Counter"].buttons.firstMatch.tap()
+                waitFor(app) { route.isHittable }
+                XCTAssertFalse(route.isSelected, "折叠后返回目录不保留侧栏高亮")
+                XCTAssertEqual(search.value as? String, "Counter")
+                capture(app, "system-window-collapsed-menu-\(index)")
+                route.tap()
+                revealControls()
+                XCTAssertTrue(count.exists, "返回目录再进入必须复用详情状态")
+            }
         }
         if app.windows.firstMatch.frame.width < full.width - 30 { zoom() }
         waitFor(app) { app.windows.firstMatch.frame.width == full.width }
         revealControls()
         XCTAssertTrue(count.exists)
         XCTAssertTrue(app.cells["demo.counter.title"].isHittable)
+        XCTAssertTrue(app.cells["demo.counter.title"].isSelected, "展开后恢复当前详情的目录高亮")
         capture(app, "system-window-restored")
     }
 

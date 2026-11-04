@@ -1007,6 +1007,35 @@ struct QuickLayoutKitTests {
     }
 
     @MainActor
+    @Test(arguments: [false, true])
+    func changingCrossAxisInsetsRealignsContentWithoutResettingScroll(horizontal: Bool) {
+        let scroll = AdjustedContentInsetQuickLayoutScrollView(safeAreaInsets: .zero)
+        let content = UIView()
+        _ = ScrollView(scroll, horizontal ? .horizontal : .vertical) {
+            content.frame(
+                maxWidth: horizontal ? nil : .infinity,
+                maxHeight: horizontal ? .infinity : nil
+            ).frame(width: horizontal ? 1200 : nil, height: horizontal ? nil : 1200)
+        }
+        scroll.frame = CGRect(x: 0, y: 0, width: 600, height: 600)
+        scroll.layoutIfNeeded()
+        scroll.contentOffset = horizontal ? CGPoint(x: 180, y: 0) : CGPoint(x: 0, y: 180)
+        for leading: CGFloat in [80, 12, 64, 0] {
+            let insets = horizontal
+                ? UIEdgeInsets(top: leading, left: 0, bottom: 90 - leading, right: 0)
+                : UIEdgeInsets(top: 0, left: leading, bottom: 0, right: 90 - leading)
+            scroll.updateSafeAreaInsets(insets)
+            scroll.layoutIfNeeded()
+            #expect(horizontal ? scroll.contentOffset.x == 180 : scroll.contentOffset.y == 180)
+            #expect(horizontal ? scroll.contentOffset.y == -leading : scroll.contentOffset.x == -leading)
+            // 内容转换为视口坐标后，两侧都位于安全区内；只检查 contentSize 会漏掉旧偏移。
+            let viewportFrame = content.frame.offsetBy(dx: -scroll.contentOffset.x, dy: -scroll.contentOffset.y)
+            #expect(horizontal ? viewportFrame.minY == leading : viewportFrame.minX == leading)
+            #expect(horizontal ? viewportFrame.maxY == 600 - insets.bottom : viewportFrame.maxX == 600 - insets.right)
+        }
+    }
+
+    @MainActor
     @Test func verticalScrollContentFitsAutomaticallyAdjustedHorizontalInsets() {
         let scrollView = AdjustedContentInsetQuickLayoutScrollView(
             safeAreaInsets: UIEdgeInsets(top: 62, left: 80, bottom: 34, right: 0)

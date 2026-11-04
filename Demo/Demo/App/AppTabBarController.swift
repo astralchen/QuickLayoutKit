@@ -27,7 +27,7 @@ final class AppTabBarController: UITabBarController, UITabBarControllerDelegate,
         delegate = self
         // 示例 Split 拥有唯一的目录侧边栏，避免再叠加全局功能侧边栏。
         if #available(iOS 18.0, *) { mode = .tabBar }
-        featureControllers[.examples] = DemoSplitViewController()
+        featureControllers[.examples] = ExampleSplitViewController()
         if #available(iOS 26.0, *), viewModel.state.items.contains(where: { $0.id == .chat }) {
             featureControllers[.chat] = FeatureNavigationController { ChatViewController() }
         }

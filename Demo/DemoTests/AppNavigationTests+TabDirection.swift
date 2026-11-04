@@ -72,7 +72,7 @@ extension AppNavigationTests {
                 ? LocalizationController.followSystemLocaleIdentifier : previousLocale)
         }
         let originalControllers = tabs.featureControllers
-        let split = try #require(originalControllers[.examples] as? DemoSplitViewController)
+        let split = try #require(originalControllers[.examples] as? ExampleSplitViewController)
         split.select(.frame)
         let detail = try #require(split.detailNavigationController.viewControllers.first)
         let originalTabBar = tabs.tabBar

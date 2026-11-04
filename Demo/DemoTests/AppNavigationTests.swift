@@ -11,7 +11,7 @@ struct AppNavigationTests {
         let window = try makeVisibleTestWindow(rootViewController: tabs, size: CGSize(width: 1024, height: 768))
         window.makeKeyAndVisible()
         defer { window.isHidden = true }
-        let split = try #require(tabs.featureControllers[.examples] as? DemoSplitViewController)
+        let split = try #require(tabs.featureControllers[.examples] as? ExampleSplitViewController)
         split.select(.frame)
         let detail = try #require(split.detailNavigationController.viewControllers.first)
         split.show(.primary)
@@ -91,7 +91,7 @@ struct AppNavigationTests {
         let tabs = AppTabBarController(viewModel: AppNavigationViewModel(chatAvailable: false))
         let window = try makeVisibleTestWindow(rootViewController: tabs, size: CGSize(width: 1024, height: 768))
         defer { window.isHidden = true }
-        let split = try #require(tabs.featureControllers[.examples] as? DemoSplitViewController)
+        let split = try #require(tabs.featureControllers[.examples] as? ExampleSplitViewController)
         split.select(.frame)
         let detail = try #require(split.detailNavigationController.viewControllers.first)
         let search = try #require(split.menuController.navigationItem.searchController)
@@ -118,19 +118,35 @@ struct AppNavigationTests {
         tabs.traitOverrides.horizontalSizeClass = .regular
         let window = try makeVisibleTestWindow(rootViewController: tabs, size: CGSize(width: 1024, height: 768))
         defer { window.isHidden = true }
-        let split = try #require(tabs.featureControllers[.examples] as? DemoSplitViewController)
+        let split = try #require(tabs.featureControllers[.examples] as? ExampleSplitViewController)
         #expect(await waitForCondition { !split.isCollapsed })
         #expect(split.menuController.navigationItem.largeTitleDisplayMode == .never)
+        let menu = split.menuController
+        let search = try #require(menu.navigationItem.searchController)
+        let counterQuery = Localization.text(MainRoute.counter.titleKey)
+        search.searchBar.text = counterQuery
+        menu.updateSearchResults(for: search)
+        let collection = menu.collectionView
+        let first = IndexPath(item: 0, section: 0)
+        #expect(await waitForCondition {
+            (collection.cellForItem(at: first) as? UICollectionViewListCell)?.accessories.isEmpty == true
+        })
         split.select(.counter)
+        #expect(await waitForCondition { collection.indexPathsForSelectedItems == [first] })
         let detail = try #require(split.detailNavigationController.viewControllers.first)
         tabs.traitOverrides.horizontalSizeClass = .compact
         window.frame.size = CGSize(width: 390, height: 768)
         window.layoutIfNeeded()
         #expect(await waitForCondition { split.isCollapsed && detail.view.window === window })
         #expect(split.selectedRoute == .counter)
+        #expect(collection.indexPathsForSelectedItems?.isEmpty == true)
         split.show(.primary)
         #expect(await waitForCondition { split.menuController.view.window === window })
         #expect(split.menuController.navigationItem.largeTitleDisplayMode == .always)
+        #expect(await waitForCondition {
+            (collection.cellForItem(at: first) as? UICollectionViewListCell)?.accessories.count == 1
+        })
+        #expect(collection.indexPathsForSelectedItems?.isEmpty == true)
         split.select(.counter)
         #expect(await waitForCondition { detail.view.window === window })
         tabs.traitOverrides.horizontalSizeClass = .regular
@@ -142,6 +158,38 @@ struct AppNavigationTests {
         #expect(split.detailNavigationController.viewControllers.first === detail)
         #expect(split.selectedRoute == .counter)
         #expect(split.menuController.navigationItem.largeTitleDisplayMode == .never)
+        #expect(await waitForCondition {
+            (collection.cellForItem(at: first) as? UICollectionViewListCell)?.accessories.isEmpty == true
+                && collection.indexPathsForSelectedItems == [first]
+        })
+        #expect(menu.collectionView === collection)
+        #expect(search.searchBar.text == counterQuery)
+
+        // 筛选掉当前选择再恢复：新配置/复用的 cell 也必须遵循展开状态。
+        search.searchBar.text = Localization.text(MainRoute.geometry.titleKey)
+        menu.updateSearchResults(for: search)
+        #expect(await waitForCondition {
+            collection.indexPathsForSelectedItems?.isEmpty == true
+                && (collection.cellForItem(at: first) as? UICollectionViewListCell)?.accessories.isEmpty == true
+        })
+        search.searchBar.text = counterQuery
+        menu.updateSearchResults(for: search)
+        #expect(await waitForCondition { collection.indexPathsForSelectedItems == [first] })
+        #expect(split.detailNavigationController.viewControllers.first === detail)
+    }
+
+    @Test func standaloneMenuKeepsDisclosureWithoutSidebarSelection() async throws {
+        let menu = MainViewController()
+        let navigation = UINavigationController(rootViewController: menu)
+        let window = try makeVisibleTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
+        defer { window.isHidden = true }
+        menu.selectedRoute = .safeAreaPadding
+        #expect(await waitForCondition {
+            let cells = menu.collectionView.visibleCells.compactMap { $0 as? UICollectionViewListCell }
+            return !cells.isEmpty && cells.allSatisfy { $0.accessories.count == 1 }
+        })
+        #expect(menu.collectionView.indexPathsForSelectedItems?.isEmpty == true)
+        #expect(menu.navigationItem.largeTitleDisplayMode == .always)
     }
 
     @Test func composerReflowsAgainstContentViewportInsteadOfWindow() {
