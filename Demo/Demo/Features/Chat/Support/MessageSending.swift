@@ -22,7 +22,7 @@ final class SimulatedMessageSender: MessageSending {
     }
 
     /// 创建页面使用的模拟发送器，调试构建可通过启动参数启用首次失败。
-    static func liveDemo() -> SimulatedMessageSender {
+    static func configured() -> SimulatedMessageSender {
         #if DEBUG
         return .init(failsNextSend: ProcessInfo.processInfo.arguments.contains("-imessage-fail-first-send"))
         #else

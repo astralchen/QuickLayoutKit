@@ -112,7 +112,7 @@ xcodebuild -project Demo/Demo.xcodeproj -scheme GeometryRegression \
   -disableAutomaticPackageResolution -parallel-testing-enabled NO test
 ```
 
-`GeometryRegression` 仅选择 `GeometryDemoUITests`；几何 Swift Testing suite 使用上述独立命令。
+`GeometryRegression` 仅选择 `GeometryUITests`；几何 Swift Testing suite 使用上述独立命令。
 本次 `.xcresult` 与控制台日志位于 `/private/tmp/qlk-geometry-*`，属于本机临时验证产物。
 
 ## 验证源码标识
@@ -122,4 +122,4 @@ xcodebuild -project Demo/Demo.xcodeproj -scheme GeometryRegression \
 `459409c6c749d8dfc3f7e44bb7369c107ed24a5ad5dadc71e4c2aa5124225f3a`
 
 范围：Core 的 `Geometry*.swift` 与 `ReservedRegion.swift`、`QuickLayoutScrollView.swift`、
-`GeometryDemoViewController.swift`、`GeometryProxyTests.swift` 和 `GeometryDemoUITests.swift`。
+`GeometryViewController.swift`、`GeometryProxyTests.swift` 和 `GeometryUITests.swift`。

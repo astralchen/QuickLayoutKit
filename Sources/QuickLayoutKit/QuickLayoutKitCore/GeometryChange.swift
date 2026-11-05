@@ -104,8 +104,7 @@ public extension Element {
         } else {
             state = GeometryObservationState()
         }
-        state.update(transform: transform, action: action)
-        return GeometryChangeElement(child: self, state: state)
+        return GeometryChangeElement(child: self, state: state, transform: transform, action: action)
     }
 }
 
@@ -125,6 +124,21 @@ package final class QuickLayoutGeometryObservationRegistry: @unchecked Sendable 
     private var scopeStates: [GeometryScopeKey: GeometryScope] = [:]
     /// 当前轮次同位置匿名作用域的出现计数。
     private var scopeCounts: [GeometryScopeKey: Int] = [:]
+    /// Reader 按声明位置与出现序号复用同级观察标记；不拥有内容宿主。
+    private var readerMarkers: [String: WeakGeometryReaderMarker] = [:]
+    private var readerCounts: [String: Int] = [:]
+
+    /// 复用 Reader 的观察标记；内容节点由每次测量独立生成。
+    package func readerMarker(file: String, line: UInt, column: UInt, make: () -> UIView) -> UIView {
+        let base = "\(file):\(line):\(column)"
+        let occurrence = readerCounts[base, default: 0]
+        readerCounts[base] = occurrence + 1
+        let key = "\(base):\(occurrence)"
+        if let host = readerMarkers[key]?.view { return host }
+        let host = make()
+        readerMarkers[key] = WeakGeometryReaderMarker(host)
+        return host
+    }
 
     /// 创建空的宿主几何注册表。
     package init() {}
@@ -137,7 +151,6 @@ package final class QuickLayoutGeometryObservationRegistry: @unchecked Sendable 
             scopeCounts[base, default: 0] += 1
         }
         if let scope = scopeStates[key] {
-            scope.update(name: name, container: container, anchorID: anchorID)
             return scope
         }
         let scope = GeometryScope(name: name, container: container, anchorID: anchorID)
@@ -191,11 +204,20 @@ package final class QuickLayoutGeometryObservationRegistry: @unchecked Sendable 
         if accessDepth == 0 {
             anonymousUseCounts.removeAll(keepingCapacity: true)
             scopeCounts.removeAll(keepingCapacity: true)
+            readerCounts.removeAll(keepingCapacity: true)
+            readerMarkers = readerMarkers.filter { $0.value.view != nil }
         }
         accessDepth += 1
         defer { accessDepth -= 1 }
         return try operation()
     }
+}
+
+/// 注册表弱引用 Reader 标记，其生命周期由布局元素与视图层级决定。
+@MainActor
+private final class WeakGeometryReaderMarker {
+    weak var view: UIView?
+    init(_ view: UIView) { self.view = view }
 }
 
 /// QuickLayoutKit 宿主建立的任务局部几何观察注册表。
@@ -358,7 +380,7 @@ where Value: Equatable & Sendable {
 // MARK: - UIKit 几何采样
 
 /// 以实际 UIKit 几何为采样来源的透明观察视图。
-final class GeometryObserverView: UIView {
+class GeometryObserverView: UIView {
 
     /// 冻结快照发生变化后执行的内部回调。
     var geometryDidChange: ((GeometryProxy) -> Void)?
@@ -498,6 +520,9 @@ where Value: Equatable & Sendable {
     let child: Element
     /// 跨布局构建复用的业务观察状态。
     let state: GeometryObservationState<Value>
+    /// 本元素自己的回调，不因另一个候选测量或 body 重建而替换。
+    let transform: @Sendable (GeometryProxy) -> Value
+    let action: (Value?, Value) -> Void
 
     /// 沿用子元素在指定轴上的尺寸弹性。
     func quick_flexibility(for axis: Axis) -> Flexibility {
@@ -511,12 +536,18 @@ where Value: Equatable & Sendable {
 
     /// 测量内容并暂存方向与作用域，仅在节点实际应用时触发几何交付。
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode {
-        state.observerView.pendingLayoutDirection = LayoutContext.layoutDirection
-        state.observerView.pendingScopes = GeometryScopeContext.scopes
+        let direction = LayoutContext.layoutDirection
+        let scopes = GeometryScopeContext.scopes
         let childLayout = child.quick_layoutThatFits(proposedSize)
+        let commit = GeometryMetadataCommit {
+            state.update(transform: transform, action: action)
+            state.observerView.pendingLayoutDirection = direction
+            state.observerView.pendingScopes = scopes
+        }
         return ZStackElement(
             children: [
                 GeometryPrecomputedLayoutElement(layout: childLayout),
+                GeometryPrecomputedLayoutElement(layout: LayoutNode(view: commit, dimensions: ElementDimensions(childLayout.size))),
                 GeometryObserverLayoutElement(
                     view: state.observerView,
                     size: childLayout.size
@@ -582,4 +613,17 @@ private func firstExtractedView(from element: Element) -> UIView? {
     var views: [UIView] = []
     element.quick_extractViewsIntoArray(&views)
     return views.first { !($0 is GeometryScopeView) && !($0 is GeometryObserverView) }
+}
+
+/// 每份测量节点独立携带观察器提交信息；仅在该缓存节点实际应用时恢复其回调与方向。
+/// 此辅助视图不挂载到 UIKit 层级，也不参与交互。
+@MainActor
+final class GeometryMetadataCommit: UIView {
+    let apply: () -> Void
+    init(apply: @escaping () -> Void) {
+        self.apply = apply
+        super.init(frame: .zero)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override var center: CGPoint { didSet { apply() } }
 }

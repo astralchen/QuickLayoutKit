@@ -910,8 +910,8 @@ iOS 26。Demo 单元测试和 UI 测试目标同样支持 iOS 15；聊天相关�
 
 Demo 展示全屏集合视图根布局、背景与垂直滚动页面、外层垂直滚动与内层横向轮播、横屏和
 安全区域、动态字体、等高卡片、列表自适应尺寸、运行时 LTR/RTL 切换、键盘避让和子控制器
-包含关系。`SafeAreaPaddingDemoViewController` 提供 10 种 `safeAreaPadding` 组合，并显示实时
-安全区域与页面 frame；`ContentMarginsDemoViewController` 分别验证内容和滚动指示器的
+包含关系。`SafeAreaPaddingViewController` 提供 10 种 `safeAreaPadding` 组合，并显示实时
+安全区域与页面 frame；`ContentMarginsViewController` 分别验证内容和滚动指示器的
 placement、覆盖顺序及 QuickLayout `nil` 契约。
 
 运行 Swift Package 测试：
@@ -937,6 +937,40 @@ xcodebuild -workspace QuickLayoutKit.xcworkspace -scheme Demo \
 单元测试、界面测试、模拟器运行和真机验证属于不同验证层级，应分别记录结果。
 
 ## 二维几何查询与 iPhone Duo
+
+### GeometryReader
+
+`GeometryReader` 根据自身的实际几何构建内容，支持条件、循环和多个直接子元素：
+
+```swift
+GeometryReader { proxy in
+    card.resizable()
+        .frame(width: proxy.size.width * 0.5, height: proxy.size.height * 0.6)
+}
+.frame(height: 240)
+```
+
+它接受父布局的有限尺寸建议，未指定的轴使用 **10 点**理想长度；子内容不会撑大
+Reader。多个直接子元素分别按顶部前缘叠放，RTL 时前缘位于右侧；默认不裁剪溢出。
+放在垂直滚动内容中时，通常需要 `.frame(height:)`；只包一层 Reader 不会自动获得
+整个滚动视口的高度。`.fixedSize()` 则使用 10 × 10 的理想尺寸。
+
+闭包在主线程测量阶段执行，每次 Reader 测量生成完整内容节点树；不会在应用阶段再次
+测量内容，业务视图直接挂在外层宿主。父布局（如 Grid）仍可能用不同建议多次测量。
+`size` 和局部矩形立即对应本轮建议；安全区域、其他坐标空间及 Anchor 查询使用最近一次
+已应用的快照，首次测量时按缺失信息回退。实际几何变化会使宿主在后续布局周期更新。
+内容闭包应只返回布局声明，不执行挂载视图或修改业务状态等副作用。
+Reader 使用现有不可变 `GeometryProxy` 快照，不提供 SwiftUI 的属性图或 `@State` 协调；
+业务 UIView 应保存在控制器或宿主属性中，避免每次构建都创建新视图。需要捕获拥有该
+Reader 的对象时使用弱引用，避免闭包循环持有。只需观察既有元素时使用 `.onGeometryChange`。
+
+同时导入 SwiftUI 时，使用 `QuickLayoutKit.GeometryReader` 或
+`QuickLayoutKitUIKit.GeometryReader` 区分同名类型。Demo 的 Geometry 页面包含
+GeometryReader 场景，可调宽度并切换 LTR/RTL；另有“自适应网格”场景，用 Reader 的
+可用宽度把 6 张卡片排成 1～4 列。卡片目标最小宽度为 104 点、间距为 12 点，
+可通过宽度和内边距滑杆观察换列，末行保留空列，RTL 从右侧开始排列。
+
+### 几何快照与变化观察
 
 `GeometryProxy` 是布局应用后的不可变 `Sendable` 快照。`transform` 不访问实时 UIKit 状态，
 可把几何数据转换为业务需要的 `Equatable & Sendable` 值；不要把不断变化的完整快照用于

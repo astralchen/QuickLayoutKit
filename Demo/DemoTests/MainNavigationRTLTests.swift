@@ -314,7 +314,7 @@ struct MainNavigationRTLTests {
 
     @Test func swiftUIBridgeKeepsItsHostedControllerAcrossLanguageChanges() async throws {
         Localization.setLocale(identifier: "zh-Hans")
-        let bridge = SwiftUILocalizationBridgeDemoViewController()
+        let bridge = SwiftUILocalizationBridgeViewController()
         let navigation = UINavigationController(rootViewController: bridge)
         let window = try makeVisibleTestWindow(rootViewController: navigation)
         Localization.register(window: window)

@@ -288,7 +288,7 @@ final class AdaptiveNavigationUITests: XCTestCase {
         capture(app, "tabs-landscape")
     }
 
-    @MainActor func testDemoContentStaysInsideDetailColumn() {
+    @MainActor func testContentStaysInsideDetailColumn() {
         let app = launch()
         defer { XCUIDevice.shared.orientation = .portrait }
         let pages = [

@@ -481,7 +481,7 @@ MainRoute.chat
 
 ## 测试重点
 
-聊天流程、音频与视图测试分别位于 `Demo/DemoTests/DemoTests+ChatFlow.swift`、`DemoTests+ChatAudio.swift` 和 `DemoTests+ChatViews.swift`，媒体测试位于 `Demo/DemoTests/ChatMediaTests.swift`；录音前提示和焦点分别由 `ChatRecordingHintTests.swift` 与 `ChatComposerFocusTests.swift` 验证。测试必须使用协议注入的假服务、固定 Clock、受控 Sleeper 与确定性附件，不能读取真实麦克风、依赖在线识别、调用真实系统声线或用真实休眠等待结果。
+聊天流程、音频与视图测试分别位于 `Demo/DemoTests/ApplicationTests+ChatFlow.swift`、`ApplicationTests+ChatAudio.swift` 和 `ApplicationTests+ChatViews.swift`，媒体测试位于 `Demo/DemoTests/ChatMediaTests.swift`；录音前提示和焦点分别由 `ChatRecordingHintTests.swift` 与 `ChatComposerFocusTests.swift` 验证。测试必须使用协议注入的假服务、固定 Clock、受控 Sleeper 与确定性附件，不能读取真实麦克风、依赖在线识别、调用真实系统声线或用真实休眠等待结果。
 
 当前回归重点包括：
 

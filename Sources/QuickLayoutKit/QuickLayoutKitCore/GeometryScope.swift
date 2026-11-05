@@ -208,7 +208,7 @@ public extension Element {
                                    kind: kind, childView: child.map(ObjectIdentifier.init))
         let scope = QuickLayoutGeometryObservationContext.current?.scope(for: key, name: name, container: container, anchorID: anchorID)
             ?? GeometryScope(name: name, container: container, anchorID: anchorID)
-        return GeometryScopeElement(child: self, scope: scope)
+        return GeometryScopeElement(child: self, scope: scope, name: name, container: container, anchorID: anchorID)
     }
 }
 
@@ -219,6 +219,9 @@ private struct GeometryScopeElement: @MainActor Layout {
     let child: Element
     /// 当前布局声明使用的持久作用域。
     let scope: GeometryScope
+    let name: GeometryCoordinateSpace?
+    let container: GeometryContainerValues?
+    let anchorID: UUID?
 
     /// 沿用子元素在指定轴上的尺寸弹性。
     func quick_flexibility(for axis: Axis) -> Flexibility { child.quick_flexibility(for: axis) }
@@ -227,14 +230,19 @@ private struct GeometryScopeElement: @MainActor Layout {
 
     /// 冻结待提交方向，记录继承作用域，并把标记节点置于内容节点之前。
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode {
-        scope.view.pendingLayoutDirection = LayoutContext.layoutDirection
+        let direction = LayoutContext.layoutDirection
         let scopes = GeometryScopeContext.scopes + [scope]
         let layout = GeometryScopeContext.$scopes.withValue(scopes) {
             child.quick_layoutThatFits(proposedSize)
         }
         GeometryInheritedScopes.record(scopes, in: layout)
-        // 先应用作用域标记，再应用后代，保证回调读取到已应用的作用域边界。
+        let commit = GeometryMetadataCommit {
+            scope.update(name: name, container: container, anchorID: anchorID)
+            scope.view.pendingLayoutDirection = direction
+        }
+        // 先恢复本节点的声明，再应用作用域和后代；候选测量不覆盖已应用的空间与锚点。
         return ZStackElement(children: [
+            GeometryFixedNode(node: LayoutNode(view: commit, dimensions: ElementDimensions(layout.size))),
             GeometryFixedNode(node: LayoutNode(view: scope.view, dimensions: ElementDimensions(layout.size))),
             GeometryFixedNode(node: layout),
         ], alignment: .topLeading).quick_layoutThatFits(proposedSize)

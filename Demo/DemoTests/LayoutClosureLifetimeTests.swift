@@ -46,9 +46,9 @@ struct LayoutClosureLifetimeTests {
     }
 
     @Test func deferredRepresentableCanLoadAfterControllerDeallocation() throws {
-        weak var owner: ViewControllerRepresentableDemoViewController?
+        weak var owner: ViewControllerRepresentableViewController?
         let deferred = autoreleasepool {
-            let controller = ViewControllerRepresentableDemoViewController()
+            let controller = ViewControllerRepresentableViewController()
             owner = controller
             return controller.makeLazyChild(name: "Detached")
         }

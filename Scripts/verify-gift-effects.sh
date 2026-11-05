@@ -23,18 +23,18 @@ unit_tests=(-only-testing:DemoTests/TaskQueueTests
             -only-testing:DemoTests/GiftEffectPrefetcherTests
             -only-testing:DemoTests/VoiceRoomGiftMainEffectTests
             -only-testing:DemoTests/SeatStageTransitionTests
-            '-only-testing:DemoTests/DemoTests/voiceRoomGiftFlowSelectsOccupiedRecipientAndCompletesFlight()'
-            '-only-testing:DemoTests/DemoTests/voiceRoomGiftCategoriesStayVisibleAndCenterAfterRepeatedDirectionChanges()'
-            '-only-testing:DemoTests/DemoTests/voiceRoomGiftQuantityMenuUpdatesCostBalanceAndLayout()'
-            '-only-testing:DemoTests/DemoTests/voiceRoomGiftSheetMotionMovesFullyBelowContainer()'
-            '-only-testing:DemoTests/DemoTests/voiceRoomGiftSheetFitsIPhoneSEAndCurrentFiveSeatState()'
-            '-only-testing:DemoTests/DemoTests/voiceRoomGiftRecipientListScrollsWhenUsersExceedViewport()'
-            '-only-testing:DemoTests/DemoTests/voiceRoomGiftSheetAcceptsExternalRecipientSelection()'
-            '-only-testing:DemoTests/DemoTests/voiceRoomGiftGridExpandsColumnsInsideIPadContainer()'
-            '-only-testing:DemoTests/DemoTests/voiceRoomGiftGridUsesFiveColumnsInsideMediumContainer()'
-            '-only-testing:DemoTests/DemoTests/voiceRoomViewModelOwnsMessageGiftAndBalanceBusinessState()'
-            '-only-testing:DemoTests/DemoTests/voiceRoomGiftSheetViewModelKeepsSelectionAndSendRules()'
-            '-only-testing:DemoTests/DemoTests/voiceRoomGiftRecipientsUpdateByStableUserID()'
+            '-only-testing:DemoTests/ApplicationTests/voiceRoomGiftFlowSelectsOccupiedRecipientAndCompletesFlight()'
+            '-only-testing:DemoTests/ApplicationTests/voiceRoomGiftCategoriesStayVisibleAndCenterAfterRepeatedDirectionChanges()'
+            '-only-testing:DemoTests/ApplicationTests/voiceRoomGiftQuantityMenuUpdatesCostBalanceAndLayout()'
+            '-only-testing:DemoTests/ApplicationTests/voiceRoomGiftSheetMotionMovesFullyBelowContainer()'
+            '-only-testing:DemoTests/ApplicationTests/voiceRoomGiftSheetFitsIPhoneSEAndCurrentFiveSeatState()'
+            '-only-testing:DemoTests/ApplicationTests/voiceRoomGiftRecipientListScrollsWhenUsersExceedViewport()'
+            '-only-testing:DemoTests/ApplicationTests/voiceRoomGiftSheetAcceptsExternalRecipientSelection()'
+            '-only-testing:DemoTests/ApplicationTests/voiceRoomGiftGridExpandsColumnsInsideIPadContainer()'
+            '-only-testing:DemoTests/ApplicationTests/voiceRoomGiftGridUsesFiveColumnsInsideMediumContainer()'
+            '-only-testing:DemoTests/ApplicationTests/voiceRoomViewModelOwnsMessageGiftAndBalanceBusinessState()'
+            '-only-testing:DemoTests/ApplicationTests/voiceRoomGiftSheetViewModelKeepsSelectionAndSendRules()'
+            '-only-testing:DemoTests/ApplicationTests/voiceRoomGiftRecipientsUpdateByStableUserID()'
 )
 xcodebuild "${common[@]}" -scheme Demo "${unit_tests[@]}" test
 

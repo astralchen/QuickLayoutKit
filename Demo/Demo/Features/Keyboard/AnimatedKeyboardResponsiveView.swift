@@ -138,15 +138,15 @@ class AnimatedKeyboardResponsiveView: QuickLayoutView {
             Localization.text("keyboard.diagnostics.title"),
             Localization.text(
                 "keyboard.diagnostics.event",
-                keyboardContext.event.demoDescription
+                keyboardContext.event.displayDescription
             ),
             Localization.text(
                 "keyboard.diagnostics.rawFrame",
-                keyboardContext.endFrame.demoDescription
+                keyboardContext.endFrame.displayDescription
             ),
             Localization.text(
                 "keyboard.diagnostics.intersection",
-                resolved.intersection.demoDescription
+                resolved.intersection.displayDescription
             ),
             Localization.text(
                 "keyboard.diagnostics.height",
@@ -190,7 +190,7 @@ class AnimatedKeyboardResponsiveView: QuickLayoutView {
 }
 
 private extension QuickLayoutKeyboardEvent {
-    var demoDescription: String {
+    var displayDescription: String {
         switch self {
         case .willShow:
             return "willShow"
@@ -207,7 +207,7 @@ private extension QuickLayoutKeyboardEvent {
 }
 
 private extension CGRect {
-    var demoDescription: String {
+    var displayDescription: String {
         guard !isNull else { return "null" }
         return "(\(Int(origin.x)), \(Int(origin.y)), \(Int(width)), \(Int(height)))"
     }

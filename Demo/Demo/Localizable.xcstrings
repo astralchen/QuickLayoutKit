@@ -1,6 +1,144 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+  "geometry.grid": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Adaptive Grid"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "自适应网格"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "شبكة متكيفة"
+        }
+      }
+    }
+  },
+  "geometry.grid.detail": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Resize the canvas or change its padding to switch between 1–4 columns. Cards aim for a minimum width of 104 pt, with 12 pt spacing. Switch LTR/RTL to reverse the reading direction."
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "调整画布宽度或内边距，观察网格在 1～4 列之间切换。卡片以 104 点为最小目标宽度，间距为 12 点。切换 LTR/RTL 可改变排列方向。"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "غيّر عرض اللوحة أو الحشوة للتبديل بين عمود واحد و4 أعمدة. العرض المستهدف الأدنى للبطاقة 104 نقاط والتباعد 12 نقطة. بدّل اتجاه التخطيط لعكس ترتيب القراءة."
+        }
+      }
+    }
+  },
+  "geometry.grid.width": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Available width"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "可用宽度"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "العرض المتاح"
+        }
+      }
+    }
+  },
+  "geometry.grid.inset": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Grid padding"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "网格内边距"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "حشوة الشبكة"
+        }
+      }
+    }
+  },
+    "geometry.reader": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GeometryReader"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GeometryReader 容器"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GeometryReader"
+          }
+        }
+      }
+    },
+    "geometry.reader.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The card uses half the reader width and 60% of its height. Resize the canvas and switch LTR/RTL to see top-leading placement. In scroll content, set a height explicitly; an unspecified axis uses 10 points."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卡片宽度为 Reader 的一半，高度为 60%。调整画布宽度并切换 LTR/RTL，观察顶部前缘对齐。在滚动内容中应显式指定高度；未指定轴使用 10 点理想长度。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تستخدم البطاقة نصف عرض القارئ و60٪ من ارتفاعه. غيّر العرض واتجاه التخطيط لمشاهدة المحاذاة العلوية عند الحافة الأمامية. حدّد الارتفاع صراحةً داخل محتوى التمرير؛ يستخدم المحور غير المحدد 10 نقاط."
+          }
+        }
+      }
+    },
     "main.search.clear": {
       "extractionState": "manual",
       "localizations": {

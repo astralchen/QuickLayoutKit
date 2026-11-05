@@ -16,8 +16,8 @@
 | `RoomHeaderView` | 示例使用错误：`body` 用旧 `bounds.width` 决定是否构建宽排列，导致相同提议的测量结果依赖此前布局。 | 保留 `ViewThatFits`，将单行排列的 360 点设计下限声明为候选布局的 minWidth，由当前提议选择。 |
 | `GiftSheetView` | 示例使用错误：仅在放置时切换紧凑尺寸；父级测量自然高度时仍使用旧字号、间距和网格高度。 | 测量和放置都按当前宽度及实际水平安全区更新尺寸参数；不重建 ViewModel 或清空选择。 |
 | `AnimatedKeyboardResponsiveView` | 示例使用错误：直接使用键盘相交高度，悬浮／分离键盘也会抬升整块底部内容。 | 使用 Kit 的 `.followsDockedKeyboard()` 协调器，结合 UIKit keyboardLayoutGuide 判定；保留原有底部留白和诊断信息。容器变化时重新解析键盘几何。 |
-| `ViewThatFitsDemoViewController` | 示例使用错误：允许指定 320 点实验画布，在 320 点窗口扣除页面边距后会越界。 | 增加稳定的横向画布滚动宿主，视口受当前提议限制，画布保留用户指定尺寸和实验选择语义。 |
-| `SwiftUILocalizationBridgeDemoViewController` | 示例能力缺口：正文和弹窗没有滚动回退；宽屏没有阅读宽度限制，NavigationView 未声明单列呈现。 | SwiftUI ScrollView + 可收缩的 720 点最大阅读宽度；弹窗使用 stack 导航样式。UIKit 传递完整父容器，SwiftUI 负责安全区。 |
+| `ViewThatFitsViewController` | 示例使用错误：允许指定 320 点实验画布，在 320 点窗口扣除页面边距后会越界。 | 增加稳定的横向画布滚动宿主，视口受当前提议限制，画布保留用户指定尺寸和实验选择语义。 |
+| `SwiftUILocalizationBridgeViewController` | 示例能力缺口：正文和弹窗没有滚动回退；宽屏没有阅读宽度限制，NavigationView 未声明单列呈现。 | SwiftUI ScrollView + 可收缩的 720 点最大阅读宽度；弹窗使用 stack 导航样式。UIKit 传递完整父容器，SwiftUI 负责安全区。 |
 | `QuickLayoutKeyboardAvoider` / `QuickLayoutScrollView` | 框架缺陷：避让器仅在键盘事件到来时更新 inset；无新通知的容器缩放或安全区变化会留下旧避让量。 | 新增 `refreshGeometry()`，使用最近键盘上下文重新转换到当前容器。Kit 滚动宿主在布局完成后自动刷新；普通 UIScrollView 的宿主可显式调用。保持原有相交与安全区策略。 |
 | `ContentMargins` / `QuickLayoutKeyboardAvoider` | 框架缺陷：避让器用当前滚动轴的指示器增量处理两个轴；垂直表单会给水平指示器误加同样的 margin。 | 分别读取、扣除和恢复 vertical / horizontal 已应用增量，不改变内容 margin 或键盘策略。 |
 | `QuickLayoutView` / `QuickLayoutScrollView` | 框架失效传播缺口：子宿主放置后更新物理安全区会改变自然尺寸，但外层自然高度滚动视口可能继续使用旧测量值。 | 子宿主安全区变化和滚动内容尺寸变化向父级发布测量失效。使用多层自然高度回归验证传播，不在面板补偿固定高度。 |
@@ -130,9 +130,9 @@ override func viewDidLayoutSubviews() {
 ## 修改文件
 
 - `Demo/Demo/Features/Keyboard/AnimatedKeyboardResponsiveView.swift`
-- `Demo/Demo/Features/Layout/ViewThatFitsDemoViewController.swift`
+- `Demo/Demo/Features/Layout/ViewThatFitsViewController.swift`
 - `Demo/Demo/Features/Main/MainViewController.swift`
-- `Demo/Demo/Features/Localization/SwiftUILocalizationBridgeDemoViewController.swift`
+- `Demo/Demo/Features/Localization/SwiftUILocalizationBridgeViewController.swift`
 - `Demo/Demo/Features/VoiceRoom/Views/Gift/GiftSheetView.swift`
 - `Demo/Demo/Features/VoiceRoom/Views/Header/RoomHeaderView.swift`
 - `Demo/Demo/Features/VoiceRoom/Views/Seats/SeatView.swift`
@@ -140,10 +140,10 @@ override func viewDidLayoutSubviews() {
 - `Demo/DemoTests/AppNavigationTests+DynamicLayout.swift`
 - `Demo/DemoTests/AppNavigationTests.swift`
 - `Demo/DemoTests/ChatFullscreenLayoutTests.swift`
-- `Demo/DemoTests/DemoTests+Keyboard.swift`
-- `Demo/DemoTests/DemoTests+Profile.swift`
-- `Demo/DemoTests/DemoTests+VoiceRoomGift.swift`
-- `Demo/DemoTests/DemoTests+VoiceRoomSeatLayout.swift`
+- `Demo/DemoTests/ApplicationTests+Keyboard.swift`
+- `Demo/DemoTests/ApplicationTests+Profile.swift`
+- `Demo/DemoTests/ApplicationTests+VoiceRoomGift.swift`
+- `Demo/DemoTests/ApplicationTests+VoiceRoomSeatLayout.swift`
 - `Demo/DemoUITests/AdaptiveNavigationUITests.swift`
 - `README.md`
 - `Sources/QuickLayoutKit/QuickLayoutKitUIKit/ContentMargins.swift`

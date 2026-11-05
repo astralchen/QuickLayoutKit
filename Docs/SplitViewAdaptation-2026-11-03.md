@@ -42,7 +42,7 @@
 - iPad 上菜单、搜索、本地化、折叠展开、动态布局与安全区回归 25/25 通过，结果保留为 `/tmp/quicklayout-split-evidence/ipad-regression-25.xcresult`。
 - iPhone 17 / iOS 27.2 上同组回归 22 通过、0 失败，3 项仅适用于 iPad 展开分栏的测试按条件跳过。结果保留为 `/tmp/quicklayout-split-evidence/iphone-regression-22.xcresult`。
 - 上述 25/22 项结果属于撤回 `.always` 之前的快照。原基线文本边界测试已改为 `splitSafeAreaScenariosPreserveModifierContrast()`，在三个列宽下验证 baseline → zeroAll → baseline 的页面范围与默认 inset 策略；撤回后的验证单独记录。
-- 撤回后的验证（17:15，iPad）：`splitSafeAreaScenariosPreserveModifierContrast()`、`safeAreaPaddingDemoCoversQuickLayoutCombinations()`、`safeAreaPaddingDemoFollowsLandscapeSafeAreaChanges()` 三项均通过，测试执行共 2.691 秒。MCP 首次读取报告 xcresult 未写完；随后直接读取 Xcode 实际日志目录的结果包，确认 3/3 通过，已归档到 `/tmp/quicklayout-split-evidence/scenario-automatic-final.xcresult`。
+- 撤回后的验证（17:15，iPad）：`splitSafeAreaScenariosPreserveModifierContrast()`、`safeAreaPaddingCoversQuickLayoutCombinations()`、`safeAreaPaddingFollowsLandscapeSafeAreaChanges()` 三项均通过，测试执行共 2.691 秒。MCP 首次读取报告 xcresult 未写完；随后直接读取 Xcode 实际日志目录的结果包，确认 3/3 通过，已归档到 `/tmp/quicklayout-split-evidence/scenario-automatic-final.xcresult`。
 - 库测试使用仓库 `Package.swift`、`Sources`、`Tests` 的临时副本，在 iPhone 17 / iOS 27.2 上运行：190 个测试方法，188 通过，2 失败。新双轴 inset／主轴位置回归的两个参数分支均通过。
 - 两个库失败为 `cellFittingUsesSubclassMeasurementWithoutMeasuringBodyAgain()` 和 `gradientViewUsesGradientAsItsRootLayerAndUpdatesConfiguration()`。用 Git HEAD 的原始 `QuickLayoutScrollView.swift` 对照后，两项同样失败；新增 inset 回归在旧实现的两个轴上均失败，证明新用例能够捕获修复的问题。未修改这两项无关行为。
 - 库完整结果：`/tmp/quicklayout-split-library-test.xcresult`；修改前对照：`/tmp/quicklayout-split-library-baseline-final.xcresult`。日志已复制到证据目录。

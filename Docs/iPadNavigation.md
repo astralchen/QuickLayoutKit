@@ -83,7 +83,7 @@ UI 用例等待搜索输入焦点，交互式收起键盘时将手势拖至键�
 
 调整为滚动宿主的 `contentMargins(.horizontal, 16, for: .scrollContent)`，画布通过 `containerRelativeFrame` 按该宿主扣除安全区及内容边距后的可用宽度计算比例。不新增设备型号判断，保留画布内部用于演示坐标空间的横向滚动。
 
-扩展 `GeometryDemoUITests/testGeometryScenariosAndDirection()`，检查默认／最大画布宽度、横竖屏及场景切换后，按钮、滑块、画布、指标和代码说明不越过目录或窗口的水平边界，并保存完整屏幕截图。该用例已加入专用 Scheme，启用测试数由 11 增加到 12。
+扩展 `GeometryUITests/testGeometryScenariosAndDirection()`，检查默认／最大画布宽度、横竖屏及场景切换后，按钮、滑块、画布、指标和代码说明不越过目录或窗口的水平边界，并保存完整屏幕截图。该用例已加入专用 Scheme，启用测试数由 11 增加到 12。
 
 Xcode MCP 发起的构建通过。首轮 UI 运行器在准备阶段异常退出，未执行用例；串行重试后，iPad mini (A17 Pro)、iOS 26.5 的该专项测试 **1 项通过、0 失败**，原始结果包为 `Test-AdaptiveNavigationRegression-2026.10.31_14-32-34-+0800.xcresult`。已核对横竖屏截图，详情内容均处于侧栏右侧。
 
@@ -93,7 +93,7 @@ iPhone 17 Pro 的同一用例尚未验收：`14-50-27` 轮在应用启动后黑�
 
 `AnimatedKeyboardResponsiveView` 原先将 `maximumHorizontalInset` 同时用作左右内边距，在分栏仅有一侧安全区时重复扣减宽度。改为 `safeAreaPadding(.horizontal, 20)` 逐边消费安全区，并为诊断文字、输入框及提交按钮声明横向伸展；保留原有底部输入排列和键盘动画。
 
-新增 `DemoTests/keyboardLayoutUsesAsymmetricSafeArea()`，覆盖左右侧栏、横竖屏尺寸和 LTR／RTL，检查三个控件共享可用区域的左右边界及垂直顺序。
+新增 `ApplicationTests/keyboardLayoutUsesAsymmetricSafeArea()`，覆盖左右侧栏、横竖屏尺寸和 LTR／RTL，检查三个控件共享可用区域的左右边界及垂直顺序。
 
 验证状态：`git diff --check` 通过。Xcode MCP 构建持续停在 `7/61`，316.768 秒后由本次任务主动取消，返回无编译错误但未完成构建；专项测试及修复后截图尚未取得，不计为验收通过。环境恢复后需运行新增边界测试、现有 `keyboardControllerUpdatesItsNestedViewWithoutMovingVerticalContent()`，并验证 iPad 分栏下软键盘显示／收起及 iPhone 横竖屏。
 
@@ -103,7 +103,7 @@ iPhone 17 Pro 的同一用例尚未验收：`14-50-27` 轮在应用启动后黑�
 
 UIKit 本地化、方向导航、语义手势及刷新边界页面原先仅将顶部约束到安全区，左右仍使用整个根视图边界。现统一采用 `LocalizedQuickLayoutHostingController` + `QuickLayoutScrollView`，通过 `contentMargins(20, for: .scrollContent)` 管理内容边距。正文最大宽度 720 点，居中于安全视口；手势卡片最小高度 180 点，文本增多时可增长。关联 Modal 同样采用滚动宿主，保留原来的本地化刷新与交互入口。
 
-不以固定侧栏宽度、`UIScreen` 或设备型号作为布局依据，不在滚动内容上重复叠加安全区。新增 `localizationPagesRespectDetailViewport()` 检查左右侧栏及窄窗口；UI 用例 `testDemoContentStaysInsideDetailColumn()` 覆盖五个截图页面和键盘输入／收起／旋转。
+不以固定侧栏宽度、`UIScreen` 或设备型号作为布局依据，不在滚动内容上重复叠加安全区。新增 `localizationPagesRespectDetailViewport()` 检查左右侧栏及窄窗口；UI 用例 `testContentStaysInsideDetailColumn()` 覆盖五个截图页面和键盘输入／收起／旋转。
 
 API 评估：目前未确认安全区计算算法缺陷；已确认上游宏宿主与 Kit 宿主能力不同，缺少 Kit 上下文时 `safeAreaPadding` 按零继承边距继续布局，容易被误用。README 已补充宿主选型规则。后续可考虑仅在调试环境增加缺失宿主的诊断，不应直接修改无上下文时的默认行为，以免影响独立测量等既有用途。
 

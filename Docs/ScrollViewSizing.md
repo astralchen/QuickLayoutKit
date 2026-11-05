@@ -59,7 +59,7 @@
 [Geometry 验证记录](GeometryValidation.md#ios-15-测试源码兼容修复2026-11-01)。
 这次后续验证未重跑 ScrollView 或全量测试。
 
-回归位于 `Demo/DemoTests/DemoTests+ScrollSizing.swift`。自定义 SwiftUI `Layout`
+回归位于 `Demo/DemoTests/ApplicationTests+ScrollSizing.swift`。自定义 SwiftUI `Layout`
 直接向 `LayoutSubview` 传递所需提议，再通过 `UIHostingController` 驱动测量。
 这样未指定尺寸不会被 hosting controller 的输入转换替代，也不混入窗口安全区。
 测试逐次释放 hosting controller，适合在单个模拟器中运行。

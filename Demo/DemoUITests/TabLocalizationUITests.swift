@@ -3,6 +3,35 @@ import XCTest
 final class TabLocalizationUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
+    /// UIBarButtonItem 的 identifier 通过可访问性暴露，不要求 UIKit 内部 UIView 复制它。
+    @MainActor func testLanguageMenuMirrorsAcrossDirectionChanges() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(en)",
+                               "-quicklayoutkit.demo.locale.identifier", "en-US"]
+        app.launch()
+        for (index, rtl) in [false, true, false].enumerated() {
+            let menu = app.buttons.matching(identifier: "demo.language.menu").firstMatch
+            let bar = app.navigationBars.containing(.button, identifier: "demo.language.menu").firstMatch
+            let positioned = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                guard menu.exists, bar.exists, menu.isHittable else { return false }
+                return rtl ? menu.frame.midX < bar.frame.midX : menu.frame.midX > bar.frame.midX
+            }, object: app)
+            XCTAssertEqual(XCTWaiter.wait(for: [positioned], timeout: 10), .completed)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "language-menu-\(index)-\(rtl ? "rtl" : "ltr")"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            if index < 2 {
+                menu.tap()
+                let language = rtl ? "English" : "العربية"
+                let option = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", language)).firstMatch
+                XCTAssertTrue(option.waitForExistence(timeout: 5))
+                option.tap()
+            }
+        }
+    }
+
     @MainActor private func tabButton(in app: XCUIApplication, id: String, title: String) -> XCUIElement {
         let identified = app.buttons.matching(identifier: "app.tab.\(id)").firstMatch
         // 系统重新配置 item 后可能不再暴露 identifier；名称仍必须匹配当前语言。

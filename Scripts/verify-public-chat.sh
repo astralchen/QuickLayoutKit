@@ -28,15 +28,15 @@ PY
 )
 [[ ${#SELECTORS[@]} -gt 0 ]]
 SELECTORS+=(
-    '-only-testing:DemoTests/DemoTests/followButtonKeepsSizeAcrossStates(locale:)'
-    '-only-testing:DemoTests/DemoTests/followButtonInterruptionsAndReducedMotionSettleCorrectly()'
-    '-only-testing:DemoTests/DemoTests/followButtonRestoresConfirmedStateAfterFailure(initiallyFollowing:)'
-    '-only-testing:DemoTests/DemoTests/publicChatCommitsTextAndGiftsOnlyAfterValidation()'
-    '-only-testing:DemoTests/DemoTests/publicChatPresentationLocalizesWithoutChangingMessageIdentity()'
-    '-only-testing:DemoTests/DemoTests/publicChatPreservesReadingPositionAndCountsOnlyNewIDs()'
-    '-only-testing:DemoTests/DemoTests/publicChatEmptyShortAndLongMessagesFitAvailableWidth()'
-    '-only-testing:DemoTests/DemoTests/publicChatShortMessagesStayBelowSeatsDuringModeChanges(width:locale:)'
-    '-only-testing:DemoTests/DemoTests/publicChatAdaptsToNarrowLargeTypeAndRTL(locale:)'
+    '-only-testing:DemoTests/ApplicationTests/followButtonKeepsSizeAcrossStates(locale:)'
+    '-only-testing:DemoTests/ApplicationTests/followButtonInterruptionsAndReducedMotionSettleCorrectly()'
+    '-only-testing:DemoTests/ApplicationTests/followButtonRestoresConfirmedStateAfterFailure(initiallyFollowing:)'
+    '-only-testing:DemoTests/ApplicationTests/publicChatCommitsTextAndGiftsOnlyAfterValidation()'
+    '-only-testing:DemoTests/ApplicationTests/publicChatPresentationLocalizesWithoutChangingMessageIdentity()'
+    '-only-testing:DemoTests/ApplicationTests/publicChatPreservesReadingPositionAndCountsOnlyNewIDs()'
+    '-only-testing:DemoTests/ApplicationTests/publicChatEmptyShortAndLongMessagesFitAvailableWidth()'
+    '-only-testing:DemoTests/ApplicationTests/publicChatShortMessagesStayBelowSeatsDuringModeChanges(width:locale:)'
+    '-only-testing:DemoTests/ApplicationTests/publicChatAdaptsToNarrowLargeTypeAndRTL(locale:)'
 )
 RESULT_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/QuickLayoutPublicChat.XXXXXX")"
 verify_nonempty_result() {

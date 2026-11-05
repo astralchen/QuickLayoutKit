@@ -192,7 +192,7 @@ final class ChatViewModel {
         self.localeProvider = localeProvider
         self.replyAudioSynthesizer = replyAudioSynthesizer
         self.sleeper = sleeper
-        self.messageSender = messageSender ?? SimulatedMessageSender.liveDemo()
+        self.messageSender = messageSender ?? SimulatedMessageSender.configured()
         self.readReceiptsEnabled = readReceiptsEnabled
 
         messages = []

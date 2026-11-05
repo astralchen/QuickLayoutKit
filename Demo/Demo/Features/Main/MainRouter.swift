@@ -52,22 +52,22 @@ final class MainRouter: MainRouting {
         case .horizontalScroll:
             HorizontalScrollViewViewController()
         case .safeAreaPadding:
-            SafeAreaPaddingDemoViewController()
+            SafeAreaPaddingViewController()
         case .contentMargins:
-            ContentMarginsDemoViewController()
+            ContentMarginsViewController()
         case .positionAndZIndex:
-            PositionAndZIndexDemoViewController()
+            PositionAndZIndexViewController()
         case .viewThatFits:
-            ViewThatFitsDemoViewController()
+            ViewThatFitsViewController()
         case .fixedSize:
-            FixedSizeDemoViewController()
+            FixedSizeViewController()
         // 每次进入创建新的实验室，实验状态只保留在该控制器生命周期内。
         case .frame:
             FrameLabViewController()
         case .containerRelativeSize:
-            ContainerRelativeSizeDemoViewController()
+            ContainerRelativeSizeViewController()
         case .geometry:
-            GeometryDemoViewController()
+            GeometryViewController()
         case .profile:
             ProfileViewController()
         case .counter:
@@ -95,21 +95,21 @@ final class MainRouter: MainRouting {
         case .form:
             ScrollViewWithKeyboardViewController()
         case .semanticContent:
-            SemanticContentDemoViewController()
+            SemanticContentViewController()
         case .representable:
-            ViewControllerRepresentableDemoViewController()
+            ViewControllerRepresentableViewController()
         case .localizationOverview:
             LocalizationOverviewViewController()
         case .uikitLocalization:
             UIKitLocalizationShowcaseViewController()
         case .directionalNavigation:
-            DirectionalNavigationDemoViewController()
+            DirectionalNavigationViewController()
         case .semanticGesture:
-            SemanticGestureDemoViewController()
+            SemanticGestureViewController()
         case .swiftUIBridge:
-            SwiftUILocalizationBridgeDemoViewController()
+            SwiftUILocalizationBridgeViewController()
         case .localizationBoundary:
-            LocalizationBoundaryDemoViewController()
+            LocalizationBoundaryViewController()
         }
     }
 }

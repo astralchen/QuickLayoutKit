@@ -34,7 +34,7 @@ extension AppNavigationTests {
             let controller = try #require(router.makeViewController(for: route))
             let window = try makeVisibleTestWindow(rootViewController: controller, size: CGSize(width: 1024, height: 900))
             defer { window.isHidden = true }
-            (controller as? ViewThatFitsDemoViewController)?.setProposedSize(CGSize(width: 320, height: 160))
+            (controller as? ViewThatFitsViewController)?.setProposedSize(CGSize(width: 320, height: 160))
             for width in [1024.0, 768.0, 600.0, 375.0, 320.0, 1366.0, 1024.0] {
                 window.frame.size.width = width
                 controller.view.frame = window.bounds

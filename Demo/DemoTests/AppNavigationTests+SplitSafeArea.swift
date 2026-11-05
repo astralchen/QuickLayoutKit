@@ -70,7 +70,7 @@ extension AppNavigationTests {
         let window = try makeVisibleTestWindow(rootViewController: split, size: CGSize(width: 1133, height: 744))
         defer { window.isHidden = true }
         split.select(.safeAreaPadding)
-        let page = try #require(split.detailNavigationController.viewControllers.first as? SafeAreaPaddingDemoViewController)
+        let page = try #require(split.detailNavigationController.viewControllers.first as? SafeAreaPaddingViewController)
         try #require(await waitForCondition { !split.isCollapsed && page.view.window === window })
         for width in [260.0, 360.0, 280.0] {
             split.preferredPrimaryColumnWidth = width
@@ -78,7 +78,7 @@ extension AppNavigationTests {
             window.layoutIfNeeded()
             // baseline 不消费安全区；zeroAll 消费安全区，但不添加额外间距。
             // 回到 baseline 时也必须恢复完整页面范围，不能残留上个场景的避让。
-            for scenario in [SafeAreaPaddingDemoViewController.Scenario.baseline, .zeroAll, .baseline] {
+            for scenario in [SafeAreaPaddingViewController.Scenario.baseline, .zeroAll, .baseline] {
                 page.selectScenario(at: scenario.rawValue)
                 #expect(await waitForCondition {
                     page.view.layoutIfNeeded()

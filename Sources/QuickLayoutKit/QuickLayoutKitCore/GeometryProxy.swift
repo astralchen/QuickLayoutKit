@@ -34,6 +34,28 @@ public struct GeometryProxy: Sendable, Equatable {
         geometryInsetsEqual(lhs.safeAreaInsets, rhs.safeAreaInsets) && geometryInsetsEqual(lhs.contentInsets, rhs.contentInsets)
     }
 
+    /// 测量时尺寸来自本轮建议；尚未确定的位置使用最近一次已应用的快照。
+    /// 首次测量没有实际坐标时，局部矩形可用，安全区域为零，其他查询遵循缺失空间回退规则。
+    init(measuring size: CGSize, direction: LayoutDirection, previous: GeometryProxy?) {
+        self.size = size
+        self.direction = direction
+        if let previous {
+            let inset = previous.safeAreaInsets
+            safeAreaInsets = previous.direction == direction ? inset : EdgeInsets(
+                top: inset.top, leading: inset.trailing, bottom: inset.bottom, trailing: inset.leading)
+            frames = previous.frames
+            spaceBounds = previous.spaceBounds
+            anchors = previous.anchors
+            contentInsets = previous.contentInsets
+            corners = previous.corners
+            cornerSource = previous.cornerSource
+            regionSnapshots = previous.regionSnapshots
+        } else {
+            safeAreaInsets = .zero
+        }
+        frames[.local] = CGRect(origin: .zero, size: size)
+    }
+
     // MARK: - 坐标空间与锚点
 
     /// 返回元素边界在指定坐标空间中的矩形。

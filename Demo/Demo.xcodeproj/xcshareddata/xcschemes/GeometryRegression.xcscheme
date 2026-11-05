@@ -14,7 +14,7 @@
             <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="7714E98B2EFE2A9300F8BC60" BuildableName="DemoUITests.xctest" BlueprintName="DemoUITests" ReferencedContainer="container:Demo.xcodeproj" />
             <!-- 仅运行 Geometry UI 回归；其他测试源文件仍参与目标编译。 -->
             <SelectedTests>
-               <Test Identifier="GeometryDemoUITests" />
+               <Test Identifier="GeometryUITests" />
             </SelectedTests>
          </TestableReference>
       </Testables>
