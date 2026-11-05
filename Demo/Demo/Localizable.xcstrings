@@ -1,6 +1,167 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+  "demo.directionalGrid.title": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "HGrid & VGrid"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "HGrid 与 VGrid"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "HGrid و VGrid"
+        }
+      }
+    }
+  },
+  "directionalGrid.verticalIntroduction": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "VGrid fills columns row by row. Adjust the available width and horizontal alignment to explore fixed, flexible and adaptive columns."
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "VGrid 按行填充各列。调整可用宽度和水平对齐，体验固定、弹性与自适应列。"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "تملأ VGrid الأعمدة صفًا بعد صف. اضبط العرض المتاح والمحاذاة الأفقية لاستكشاف الأعمدة الثابتة والمرنة والمتكيفة."
+        }
+      }
+    }
+  },
+  "directionalGrid.horizontalIntroduction": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "HGrid fills rows column by column. Adjust the available height and vertical alignment to explore fixed, flexible and adaptive rows."
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "HGrid 按列填充各行。调整可用高度和垂直对齐，体验固定、弹性与自适应行。"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "تملأ HGrid الصفوف عمودًا بعد عمود. اضبط الارتفاع المتاح والمحاذاة الرأسية لاستكشاف الصفوف الثابتة والمرنة والمتكيفة."
+        }
+      }
+    }
+  },
+  "directionalGrid.availableWidth": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Available width"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "可用宽度"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "العرض المتاح"
+        }
+      }
+    }
+  },
+  "directionalGrid.availableHeight": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Available height"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "可用高度"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "الارتفاع المتاح"
+        }
+      }
+    }
+  },
+  "directionalGrid.widthHint": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "The outlined area is the grid layout area. Drag to change its width."
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "紫色边框内是网格布局区域，拖动滑块调整它的宽度。"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "المنطقة المحددة بالإطار هي مساحة تخطيط الشبكة. اسحب لتغيير عرضها."
+        }
+      }
+    }
+  },
+  "directionalGrid.heightHint": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "The outlined area is the grid layout area. Drag to change its height."
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "紫色边框内是网格布局区域，拖动滑块调整它的高度。"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "المنطقة المحددة بالإطار هي مساحة تخطيط الشبكة. اسحب لتغيير ارتفاعها."
+        }
+      }
+    }
+  },
   "geometry.grid": {
     "extractionState": "manual",
     "localizations": {

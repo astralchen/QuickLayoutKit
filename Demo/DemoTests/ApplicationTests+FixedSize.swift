@@ -73,10 +73,8 @@ extension ApplicationTests {
         expectCompleteFixedSizeCards(controller)
         revealFixedSizeCarousel(controller)
         await recordFixedSizeSnapshot(navigation, name: "fixed-size-arabic-large-text")
-        let scroll = controller.contentView.stageView.carouselScrollView
-        let first = controller.contentView.stageView.cards[0].convert(controller.contentView.stageView.cards[0].bounds, to: scroll)
-        #expect(first.maxX <= scroll.bounds.maxX + 1)
-        #expect(first.maxX > scroll.bounds.maxX - 80)
+        // Duo 的实际右侧安全边距可超过 80 pt，按安全视口精确验证首张卡片。
+        expectFixedSizeLeading(controller.contentView.stageView)
         #expect(controller.contentView.pageScrollView.contentSize.height > controller.contentView.pageScrollView.bounds.height)
 
         navigation.view.frame = CGRect(x: 0, y: 0, width: 844, height: 390)
@@ -86,6 +84,7 @@ extension ApplicationTests {
         navigation.view.layoutIfNeeded()
         revealFixedSizeCarousel(controller)
         await recordFixedSizeSnapshot(navigation, name: "fixed-size-landscape-dark")
+        expectFixedSizeLeading(controller.contentView.stageView)
         let titleColor = try #require(
             controller.navigationItem.standardAppearance?.titleTextAttributes[.foregroundColor] as? UIColor
         )
@@ -94,6 +93,69 @@ extension ApplicationTests {
             #expect(card.bounds.width <= 300)
             #expect(card.bounds.width > 0)
         }
+    }
+
+    /// Duo 安全区更新会让视口先收窄再恢复；每轮都以最终几何保持语义起点。
+    @Test func fixedSizeCarouselKeepsLeadingAcrossTransientWidthsLTR() {
+        checkFixedSizeCarouselLeading(rtl: false)
+    }
+
+    @Test func fixedSizeCarouselKeepsLeadingAcrossTransientWidthsRTL() {
+        checkFixedSizeCarouselLeading(rtl: true)
+    }
+
+    private func checkFixedSizeCarouselLeading(rtl: Bool) {
+        let stage = FixedSizeStageView()
+        stage.reloadLocalizedContent()
+        stage.reloadLayoutDirection(rtl ? .rightToLeft : .leftToRight)
+        for width: CGFloat in [320, 236, 320, 844, 280] {
+            stage.frame = CGRect(x: 0, y: 0, width: width, height: 1_200)
+            stage.setNeedsQuickLayout()
+            stage.layoutIfNeeded()
+            expectFixedSizeLeading(stage)
+            // 重复布局以及切换内容高度不应让起点漂移。
+            for scenario in [FixedSizeScenario.natural, .fill, .equal] {
+                stage.selectScenario(scenario)
+                stage.layoutIfNeeded()
+                expectFixedSizeLeading(stage)
+            }
+        }
+    }
+
+    /// 程序化滚动离开起点后，重排、切换场景和调整宽度均不得强制返回首张卡片。
+    @Test func fixedSizeCarouselPreservesAwayOffsetAndResetsOnDirectionChangeLTR() {
+        checkFixedSizeCarouselAwayOffset(rtl: false)
+    }
+
+    @Test func fixedSizeCarouselPreservesAwayOffsetAndResetsOnDirectionChangeRTL() {
+        checkFixedSizeCarouselAwayOffset(rtl: true)
+    }
+
+    private func checkFixedSizeCarouselAwayOffset(rtl: Bool) {
+        let stage = FixedSizeStageView()
+        stage.reloadLocalizedContent()
+        stage.reloadLayoutDirection(rtl ? .rightToLeft : .leftToRight)
+        stage.frame = CGRect(x: 0, y: 0, width: 320, height: 1_200)
+        stage.setNeedsQuickLayout()
+        stage.layoutIfNeeded()
+        let scroll = stage.carouselScrollView
+        let offset: CGFloat = 100
+        scroll.setContentOffset(CGPoint(x: offset, y: scroll.contentOffset.y), animated: false)
+        for width: CGFloat in [320, 280, 360, 320] {
+            stage.frame.size.width = width
+            for scenario in [FixedSizeScenario.natural, .fill, .equal] {
+                stage.selectScenario(scenario)
+                stage.setNeedsQuickLayout()
+                stage.layoutIfNeeded()
+                #expect(abs(scroll.contentOffset.x - offset) < 1)
+            }
+        }
+        stage.reloadLayoutDirection(rtl ? .leftToRight : .rightToLeft)
+        stage.layoutIfNeeded()
+        expectFixedSizeLeading(stage)
+        stage.reloadLayoutDirection(rtl ? .rightToLeft : .leftToRight)
+        stage.layoutIfNeeded()
+        expectFixedSizeLeading(stage)
     }
 
     @Test func fixedSizeRouteIsSearchableAndNavigatesToLab() throws {
@@ -164,4 +226,18 @@ private func expectCompleteFixedSizeCards(_ controller: FixedSizeViewController)
         #expect(detail.bounds.height >= required.height - 1)
         #expect(detail.frame.maxY <= card.bounds.height - 19)
     }
+}
+
+/// 同时验证偏移和首张卡片的位置，不能仅靠 contentOffset 数值判断成功。
+@MainActor
+private func expectFixedSizeLeading(_ stage: FixedSizeStageView, sourceLocation: SourceLocation = #_sourceLocation) {
+    let scroll = stage.carouselScrollView
+    let insets = scroll.adjustedContentInset
+    let rtl = scroll.effectiveUserInterfaceLayoutDirection == .rightToLeft
+    let target = rtl ? max(-insets.left, scroll.contentSize.width - scroll.bounds.width + insets.right) : -insets.left
+    #expect(abs(scroll.contentOffset.x - target) < 1, sourceLocation: sourceLocation)
+    let first = stage.cards[0].convert(stage.cards[0].bounds, to: scroll)
+    let visible = scroll.bounds.inset(by: insets)
+    #expect(abs((rtl ? first.maxX : first.minX) - (rtl ? visible.maxX : visible.minX)) < 1,
+            sourceLocation: sourceLocation)
 }

@@ -239,7 +239,7 @@ final class ContainerRelativeSizeViewController: LocalizedQuickLayoutHostingCont
     }
 }
 
-/// 独立宿主让滑块比例以页面留白后的可用宽度为基准，随窗口尺寸重新测量。
+/// 读取预览台自身的几何尺寸，让滑块比例以页面留白后的宽度为基准。
 private final class ContainerRelativeSizePreviewStage: QuickLayoutView {
     let preview: ContainerRelativeSizePreviewView
     var widthFraction: CGFloat = 1 {
@@ -256,10 +256,13 @@ private final class ContainerRelativeSizePreviewStage: QuickLayoutView {
 
     override var body: Layout {
         let fraction = widthFraction
-        return preview.resizable()
-            .containerRelativeFrame(.horizontal) { width, _ in width * fraction }
-            .frame(height: 240)
-            .frame(maxWidth: .infinity, alignment: .center)
+        let preview = preview
+        return GeometryReader { geometry in
+            preview.resizable()
+                .frame(width: geometry.size.width * fraction, height: 240)
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .frame(height: 240)
     }
 }
 

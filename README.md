@@ -77,13 +77,14 @@ QuickLayoutKit 使用部分与 SwiftUI 相同的 API 名称和重载形式，目
 
 | API 或取值 | 当前契约 |
 | --- | --- |
-| `VStack`、`HStack`、网格和 `Spacer` | 保持 QuickLayout 的测量、间距和弹性语义 |
+| `VStack`、`HStack`、`Grid / GridRow` 和 `Spacer` | 保持 QuickLayout 的测量、间距和弹性语义 |
+| `HGrid`、`VGrid` 和 `GridItem` | 参照 SwiftUI 的网格尺寸与对齐语义，采用非懒加载内容 |
 | 直接对 `StackElement` 调用 `fixedSize(axis:)` | 固定交叉轴时内部启用 `idealLayout`，协调可伸展子元素的理想尺寸；只固定主轴时保留原有行为 |
 | `aspectRatio(nil, contentMode:)` | 从元素的理想尺寸推导宽高比 |
 | 弹性 `frame` 的最小、理想、最大尺寸为 `nil` | 不为对应项目提供约束；理想尺寸只在父级没有有限建议时作为备用值 |
 | `ProposedSize` 的维度为 `nil` | 该轴未指定；转换为 QuickLayout 提案时使用无穷大，不表示数值零 |
-| `safeAreaPadding(..., nil)` | 消耗选中边缘继承的安全区域，但额外间距为 `0`；不采用 SwiftUI 的平台默认间距 |
-| `safeAreaInset(..., spacing: nil)` | 为插入内容和安全区域预留空间，额外间距为 `0` |
+| `safeAreaPadding(..., length: CGFloat = 0)` | 消耗选中边缘继承的安全区域，额外间距为非可选值，默认 `0` |
+| `safeAreaInset(..., spacing: CGFloat = 0)` | 为插入内容和安全区域预留空间，间距为非可选值，默认 `0` |
 | `safeAreaInset` 内容构建结果为 `nil` | 使用空布局；选中边缘继承的安全区域仍会被消费和预留 |
 | `contentMargins(..., nil)` | 不指定所选边缘，不覆盖同一 placement 的既有边距或容器默认值 |
 | `QuickLayoutView` 的显式尺寸弹性为 `nil` | 从 `body` 推导对应轴的弹性 |
@@ -487,8 +488,8 @@ contentLayout
 最终会在继承安全区域之外再增加 `20`。负值与非有限值按 `0` 处理，不会把内容推出原始
 安全区域。
 
-无参数调用或传入 `nil` 会消耗继承的安全区域，但额外间距为零。这是 QuickLayout 的稳定
-契约，不采用 SwiftUI 在当前平台提供的默认间距。安全区域值会在每次测量和布局时重新读取，
+`length` 为非可选 `CGFloat`，默认 `0`。无参数调用或只指定边缘会消耗继承的安全区域，
+额外间距为零，不采用 SwiftUI 的平台默认间距。安全区域值会在每次测量和布局时重新读取，
 因此旋转、系统栏、容器尺寸、键盘和 RTL 变化都使用当前环境。
 
 ### `safeAreaInset` 与 `ignoresSafeArea`
@@ -508,10 +509,125 @@ backgroundView
 
 ## 核心布局能力
 
+### HGrid 与 VGrid
+
+`VGrid(columns:)` 按行填充，`HGrid(rows:)` 按列填充。尺寸与对齐规则参照 SwiftUI
+`LazyVGrid` / `LazyHGrid`，间距参数遵循 QuickLayout 的非可选 `CGFloat = 0` 约定。
+内容在构建时全部创建，每轮布局测量全部子元素。
+使用现有 `ScrollView` 提供滚动，适合数量有限的卡片、工具面板和表单选项。
+
+```swift
+let columns: [GridItem] = [
+    GridItem(.fixed(72), spacing: 12, alignment: .topLeading),
+    GridItem(.flexible(minimum: 80, maximum: 240)),
+]
+
+VGrid(columns: columns, alignment: .leading, spacing: 16) {
+    for card in cards {
+        card.resizable().frame(height: 64)
+    }
+}
+
+// 根据实际可用宽度自动决定列数。
+VGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 12)], spacing: 12) {
+    for card in cards {
+        card.resizable().frame(height: 80)
+    }
+}
+
+HGrid(rows: [GridItem(.fixed(56)), GridItem(.fixed(56))], spacing: 12) {
+    for card in cards {
+        card.resizable().frame(width: 100)
+    }
+}
+```
+
+- `.fixed` 保留指定尺寸；`.flexible` 在上下限内分配剩余空间，默认最小值为 10。
+- `.adaptive` 在分配到的空间内展开多个等宽列或等高行，`maximum` 限制每个单元格的尺寸。
+- `GridItem.spacing` 控制到下一列／行的间距；网格的 `spacing` 控制增长方向的行／列间距。
+  两者均为非可选 `CGFloat`，默认 0；与 QuickLayout `Grid` 一致，负数和非有限值
+  在布局时按 0 处理。末尾没有额外间距。
+- `GridItem.alignment` 可以覆盖网格的默认对齐方式。布局遵循当前 LTR / RTL 方向，
+  末行或末列不足时保留前面轨道的位置和尺寸。
+- 网格接纳交叉轴的可用空间，固定轨道或受 `maximum` 限制的轨道按网格对齐方式放置。
+  无界交叉轴建议使用理想尺寸；自适应轨道的理想尺寸为 10 点，`minimum` 用于计算
+  有限空间内的重复数量。
+- 空内容保留已声明轨道的交叉轴空间，增长轴长度为零；空轨道数组返回零尺寸布局。
+- 与现有 `Grid / GridRow` 并存；这里的接口不包含 Section、固定标题或 `pinnedViews`。
+  同时导入 SwiftUI 时，可用 `QuickLayoutKitCore.GridItem` 区分同名类型。
+
+兼容边界（2026-11-05，iOS 27.2 模拟器与原生 SwiftUI 对照）：
+
+- 这是 QuickLayout 的非懒加载布局函数，使用 `Element` 构建器；不是 SwiftUI `View` 的可直接替换类型。
+  `GridItem.Size` 支持 `Equatable`，但 `GridItem` 尚未实现 SwiftUI 在 iOS 26 新增的
+  `Equatable` 一致性。当前依赖的 QuickLayout `Alignment` 不公开其两个轴，也不支持相等比较，
+  因此不能用可靠的公开 API 合成同等比较。
+- 单元格的 `center` 参考线偏移按原生网格的方向叠加；内部参考线不向网格外层传播。
+  稀疏 adaptive 内容显式返回默认参考线时不会额外居中；网格自身的 `alignmentGuide`
+  仍可用于父栈对齐。自定义水平轨道对齐按 LTR / RTL 镜像。
+  内置对齐、组合参考线、嵌套父栈以及自定义 `AlignmentID` 均有原生矩形对照。
+- 本库为 `Layout` 和 `LeafElement` 提供参考线修饰器重载，每次测量先计算参考线值再传播，
+  避免上游重复执行 `d[guide] + offset` 导致偏移累计；同轴的后续修饰器可读取前一个值。
+  接收者若先擦除为仅有 `Element` 的类型，仍会选择上游通用重载；需要保留 `Layout`
+  或 `LeafElement` 的静态类型才能使用本库实现。
+- 水平参考线闭包读取逻辑坐标，向 RTL 父栈提供物理坐标时进行方向转换。
+  正负偏移、绝对参考线值、连续同轴修饰、跨轴读取，以及 frame / padding 包装后的值
+  均有原生对照；网格内部读取参考线时同步转换，避免 RTL 单元格偏移反向。
+- 本库的 `HStack` / `VStack` 入口在单元素时增加容器适配：消费六个内置参考线，
+  保留自定义参考线，并将参考线超出子元素尺寸的情况计入容器边界。
+  返回类型仍为 `StackElement`，`spacing: CGFloat = 0`、`fixedSize` / `idealLayout` 接口保留。
+  `import QuickLayoutKit` 会选择本库入口；只同时导入 `QuickLayout` 与 `QuickLayoutKitCore` 时，
+  使用 `QuickLayoutKitCore.HStack` / `QuickLayoutKitCore.VStack`，或显式 `import func` 消除同名歧义。
+  QuickLayout 源码和固定版本没有修改；直接调用 `QuickLayout.HStack` / `QuickLayout.VStack`
+  或构造 `StackElement` 仍使用上游行为。
+- RTL 下自定义水平参考线经容器聚合后，后续修饰器仍读取逻辑坐标。
+  显式参考线标记随布局节点保留，并从最终返回的节点树读取：`ViewThatFits` 丢弃的候选项
+  不污染外层参考线，缓存节点的首次与后续读取保持一致，网格消费内部参考线时也消费标记。
+  单元素栈会区分显式参考线与自定义默认值，正确转换 RTL 下非中心默认值的坐标。
+  单元素原生对照统一使用 `AnyView` 包装内容，对应本库的 `Element` 类型擦除；
+  不将结果推广到 SwiftUI 可能消除容器的具体单元素类型优化路径。
+- 混合轨道溢出时分别保留报告尺寸与放置结果：先按交叉轴建议尺寸确定报告范围，再按报告的
+  交叉轴尺寸重新分配轨道。报告分组与放置分组分别使用最终测量的内容尺寸，
+  adaptive 展开数量变化不覆盖报告阶段的行列分组；增长轴报告长度向上取整，
+  放置保留分数尺寸，RTL 定位以报告边界镜像。内容按最终轨道只测量一次，
+  支持随宽度换行或保持宽高比的内容。父容器可直接提交缓存节点，无需依赖再次测量。
+  两阶段轨道分配参考 [objc.io 的原生网格分析](https://www.objc.io/blog/2020/11/23/grid-layout/)。
+- 部分混合轨道的最小尺寸超出建议空间时，原生懒网格的报告尺寸与完整测量结果不同。
+  例如宽度 120、轨道为 `flexible(10...100)`（spacing 9）、`flexible(80...120)`、`fixed(30)`，
+  11 个内容高度依次为 `20 + index * 3`、行间距 11 时，本库报告高度 188，原生报告 182。
+  同一组内容放进横向 / 纵向 ScrollView 后，原生分别报告 187 / 185，但实际内容仍延伸到 188。
+  这是当前系统下观察到的容器相关报告长度差异，不能用固定偏移修正，也不能据此推广到其他系统版本。
+  RTL 的水平网格仍会因这部分报告宽度差异产生定位偏差，尚未宣称完全对齐。
+- 本库多元素 `VStack` 的自定义水平对齐使用私有放置参考线，分别处理显式值与默认值，
+  不把默认值发布为用户的显式参考线。对齐原点计入容器边界，支持正负值与越界值，
+  并保留子元素的弹性、优先级、spacing 和 `fixedSize` 测量流程。
+  LTR / RTL、默认值与显式值混合，以及缓存后嵌套父栈均有原生矩形对照。
+  直接构造上游 `StackElement` 或调用 `QuickLayout.VStack` 仍不经过本库适配。
+- 上述估算相关差异仅在增长轴报告尺寸及受其影响的 RTL x 坐标断言中使用 `withKnownIssue`；
+  交叉轴尺寸、其他坐标和单元格尺寸仍必须通过普通断言，测试运行成功不代表已知案例已对齐。
+  原生对照会扩大可见区域并检查子元素已创建；全部创建仍不能保证 LazyGrid 的报告长度没有估算。
+  混合轨道的缓存提交测试覆盖两个方向、LTR / RTL、三种对齐、adaptive 轨道数量变化及父栈兄弟元素。
+
+Demo 的“布局 → HGrid 与 VGrid”页面提供方向、尺寸规则、对齐方式、LTR / RTL
+和可用空间控制。网格原生对照位于 `Demo/DemoTests/DirectionalGridTests.swift`；
+`AlignmentGuidePropagationTests` 覆盖候选项选择与缓存传播，`SingleChildStackGuideTests`、
+`MultiChildStackGuideTests` 和 `ViewThatFitsGuideTests` 提供对应的原生 SwiftUI 矩形对照。
+运行网格单元测试、原生对照和页面 UI 回归：
+
+```sh
+sh Scripts/verify-grids.sh
+```
+
+脚本通过 `Demo` scheme 的命令行筛选执行 Swift Testing 套件，再通过 `GridRegression`
+scheme 执行页面 UI 测试。可用 `GRID_TEST_DESTINATION` 指定其他已安装的模拟器。
+
 ### 容器相对尺寸
 
-`containerRelativeFrame` 根据最近的 QuickLayoutKit 容器确定尺寸。普通宿主使用扣除
-安全区域后的建议尺寸；滚动视图使用扣除调整后内容边距的可见视口。
+`containerRelativeFrame` 根据最近的 QuickLayoutKit 容器确定尺寸。控制器根视图和最外层
+宿主使用扣除安全区域后的尺寸；滚动视图使用扣除有效边距后的可见视口。普通嵌套
+`QuickLayoutView`、栈、`frame` 和 `padding` 继承最近容器，不会替换参考尺寸。
+嵌套滚动使用内层视口，宿主独立重排和移动到另一个容器后也会重新读取所属容器。
+`count/span` 重载的 `spacing` 遵循 QuickLayout 规则，默认为 `0`。
 
 ```swift
 heroView.containerRelativeFrame(.horizontal)
@@ -529,6 +645,12 @@ panelView.containerRelativeFrame(.horizontal) { length, _ in
 ```
 
 没有 QuickLayoutKit 宿主时，该修饰符使用直接父元素提出的尺寸作为备用值。
+需要按局部预览台或中间 `frame` 的宽度计算比例时，应使用 `GeometryReader` 读取该区域，
+而不是将普通嵌套宿主当作新的 `containerRelativeFrame` 容器。
+
+`Demo/DemoTests/ContainerRelativeFrameParityTests.swift` 用原生 SwiftUI 对照最近容器、
+双向嵌套滚动、内容边距、安全区域及修饰符顺序，并在 LTR／RTL 下改变尺寸和物理安全边距。
+嵌套滚动夹具明确约束非滚动轴，避免双轴相对内容参与自然视口尺寸的循环求解。
 
 ### 容器相对尺寸上限
 
@@ -591,7 +713,7 @@ ContainerRelativeSize([.horizontal, .vertical], maxSize: { container in
 ```
 
 修饰符优先参照最近有效的显式容器，其次使用最近 QuickLayoutKit 宿主的容器尺寸，
-最后回退到直接父布局建议尺寸。宿主尺寸与 `containerRelativeFrame` 共用来源，遵循
+最后回退到直接父布局建议尺寸。该上限 API 保留最近宿主的局部尺寸语义，并遵循
 安全区域规则；滚动宿主使用有效可见视口，不使用滚动内容长度。
 
 基础修饰符使用显式容器提供的上限；没有显式声明时，以参照容器长度作为上限。

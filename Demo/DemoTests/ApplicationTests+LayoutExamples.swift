@@ -90,7 +90,7 @@ extension ApplicationTests {
         expectPageInsets(safeArea)
 
         viewController.selectScenario(
-            at: SafeAreaPaddingViewController.Scenario.nilAll.rawValue
+            at: SafeAreaPaddingViewController.Scenario.defaultAll.rawValue
         )
         layout(viewController, in: navigationController)
         expectPageInsets(safeArea)
@@ -152,7 +152,7 @@ extension ApplicationTests {
 
         viewController.selectScenario(
             at: SafeAreaPaddingViewController.Scenario
-                .leadingThenNil.rawValue
+                .leadingThenDefault.rawValue
         )
         layout(viewController, in: navigationController)
         expectPageInsets(

@@ -390,12 +390,7 @@ private func positioned(
         offset: CGPoint(x: horizontalOffset, y: origin.y)
     )
         // 避免外层固定框架解析顶部前缘对齐时，子元素的对齐参考线改变此处的物理位置。
-        .alignmentGuide(HorizontalAlignment.leading) { dimensions in
-            dimensions[HorizontalAlignment.leading]
-        }
-        .alignmentGuide(VerticalAlignment.top) { dimensions in
-            dimensions[VerticalAlignment.top]
-        }
+        .defaultPlacementGuides()
 
     let positionedChild = FixedFrameElement(
         child: offsetChild,
@@ -405,12 +400,7 @@ private func positioned(
     )
     return positionedChild
         // 按父元素的布局方向解析包装层参考线，避免局部布局方向覆盖向外泄漏物理补偿。
-        .alignmentGuide(HorizontalAlignment.leading) { dimensions in
-            dimensions[HorizontalAlignment.leading]
-        }
-        .alignmentGuide(VerticalAlignment.top) { dimensions in
-            dimensions[VerticalAlignment.top]
-        }
+        .defaultPlacementGuides()
 }
 
 /// 将非有限数值归零。

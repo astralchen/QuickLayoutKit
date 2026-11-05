@@ -62,9 +62,9 @@ final class SafeAreaPaddingUITests: XCTestCase {
     }
 
     @MainActor private func verifyScenarios(in app: XCUIApplication, rtl: Bool) throws {
-        let titles = ["No modifier", ".all · 0", ".all · nil", ".all · 16",
+        let titles = ["No modifier", ".all · 0", ".all · default (0)", ".all · 16",
                       ".horizontal · 16", "EdgeInsets", "horizontal + bottom",
-                      "leading 8 + leading 12", "leading 8 + nil", "negative leading"]
+                      "leading 8 + leading 12", "leading 8 + default (0)", "negative leading"]
         let page = app.scrollViews["safeAreaPadding.page"]
         let selector = app.buttons["safeAreaPadding.scenario"]
         let baseline = try metrics(in: app)

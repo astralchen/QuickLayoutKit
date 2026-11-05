@@ -1,5 +1,7 @@
 import QuickLayout
 import QuickLayoutKitCore
+import func QuickLayoutKitCore.HStack
+import func QuickLayoutKitCore.VStack
 import Testing
 import UIKit
 

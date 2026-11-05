@@ -44,12 +44,10 @@ package struct GeometryReaderLayout: @MainActor Layout {
             for node in nodes {
                 // 不让内容的 alignment guide 改变 Reader 的顶部前缘放置规则。
                 let child = ReaderFixedNode(node)
-                    .alignmentGuide(HorizontalAlignment.leading) { $0[HorizontalAlignment.leading] }
-                    .alignmentGuide(VerticalAlignment.top) { $0[VerticalAlignment.top] }
+                    .defaultPlacementGuides()
                 let layer = FixedFrameElement(child: child, width: size.width, height: size.height,
                                               alignment: .topLeading)
-                    .alignmentGuide(HorizontalAlignment.leading) { $0[HorizontalAlignment.leading] }
-                    .alignmentGuide(VerticalAlignment.top) { $0[VerticalAlignment.top] }
+                    .defaultPlacementGuides()
                 layers.append(layer)
             }
             return ZStackElement(children: layers, alignment: .topLeading).quick_layoutThatFits(size)

@@ -56,6 +56,10 @@ package struct QuickLayoutSafeAreaValues: Sendable {
     /// 按物理左右方向保存的键盘占用区域。
     private var physicalKeyboardInsets: QuickLayoutPhysicalInsets
 
+    // 已由外层 padding 消费的区域仍保留几何意义，供后代 ignoresSafeArea 扩展。
+    private var consumedContainerInsets = QuickLayoutPhysicalInsets(UIEdgeInsets.zero)
+    private var consumedKeyboardInsets = QuickLayoutPhysicalInsets(UIEdgeInsets.zero)
+
     /// 按当前布局方向读写的容器安全区域边距。
     package var containerInsets: EdgeInsets {
         get {
@@ -149,23 +153,33 @@ package struct QuickLayoutSafeAreaValues: Sendable {
     ) -> QuickLayoutSafeAreaValues {
         var values = self
         if regions.contains(.container) {
-            values.physicalContainerInsets.clear(
-                edges,
-                layoutDirection: LayoutContext.layoutDirection
-            )
+            values.physicalContainerInsets.clear(edges, layoutDirection: LayoutContext.layoutDirection)
+            values.consumedContainerInsets.clear(edges, layoutDirection: LayoutContext.layoutDirection)
         }
         if regions.contains(.keyboard) {
-            values.physicalKeyboardInsets.clear(
-                edges,
-                layoutDirection: LayoutContext.layoutDirection
-            )
+            values.physicalKeyboardInsets.clear(edges, layoutDirection: LayoutContext.layoutDirection)
+            values.consumedKeyboardInsets.clear(edges, layoutDirection: LayoutContext.layoutDirection)
         }
         return values
     }
 
+    /// 忽略区域时只恢复已消费且不再受其他区域遮挡的边距。
+    fileprivate func expansion(ignoring regions: SafeAreaRegions, edges: EdgeSet) -> EdgeInsets {
+        let before = consumedContainerInsets.combined(with: consumedKeyboardInsets)
+            .directional(for: LayoutContext.layoutDirection)
+        let remaining = ignoring(regions, edges: edges)
+        let after = remaining.consumedContainerInsets.combined(with: remaining.consumedKeyboardInsets)
+            .directional(for: LayoutContext.layoutDirection)
+        return EdgeInsets(top: before.top - after.top, leading: before.leading - after.leading,
+                          bottom: before.bottom - after.bottom, trailing: before.trailing - after.trailing)
+    }
+
     /// 同时消费指定边缘上的容器与键盘安全区域，避免后代重复避让。
-    fileprivate func consuming(_ edges: EdgeSet) -> QuickLayoutSafeAreaValues {
+    fileprivate func consuming(_ edges: EdgeSet, additionalInsets: EdgeInsets = .zero) -> QuickLayoutSafeAreaValues {
         var values = self
+        values.consumedContainerInsets.add(containerInsets, on: edges)
+        values.consumedContainerInsets.add(additionalInsets, on: edges)
+        values.consumedKeyboardInsets.add(keyboardInsets, on: edges)
         values.physicalContainerInsets.clear(
             edges,
             layoutDirection: LayoutContext.layoutDirection
@@ -249,6 +263,19 @@ private struct QuickLayoutPhysicalInsets: Sendable {
         }
     }
 
+    /// 将已消费的方向性边距累加到物理边，保持局部 RTL 切换时的方向。
+    mutating func add(_ insets: EdgeInsets, on edges: EdgeSet) {
+        let selected = EdgeInsets(top: edges.contains(.top) ? insets.top : 0,
+                                  leading: edges.contains(.leading) ? insets.leading : 0,
+                                  bottom: edges.contains(.bottom) ? insets.bottom : 0,
+                                  trailing: edges.contains(.trailing) ? insets.trailing : 0)
+        let physical = Self(selected, layoutDirection: LayoutContext.layoutDirection)
+        top += physical.top
+        left += physical.left
+        bottom += physical.bottom
+        right += physical.right
+    }
+
     /// 将指定方向性边缘映射为物理边并清零。
     mutating func clear(
         _ edges: EdgeSet,
@@ -302,19 +329,18 @@ public extension Element {
 
     /// 向选定的安全区域边缘添加固定内边距。
     ///
-    /// 传入 `nil` 不会添加额外间距，但仍会消费选中边缘继承的安全区域。这是
-    /// QuickLayout 的稳定契约，不采用 SwiftUI 的平台默认间距。负值与非有限值按 `0`
-    /// 处理。
+    /// 额外间距默认为零，但仍会消费选中边缘继承的安全区域。
+    /// 不采用 SwiftUI 的平台默认间距。负值与非有限值按 `0` 处理。
     ///
     /// - Parameters:
     ///   - edges: 需要添加内边距的安全区域边缘。
-    ///   - length: 额外间距；传入 `nil` 表示零。
+    ///   - length: 额外间距，默认为 0。
     /// - Returns: 应用安全区域内边距后的元素。
     func safeAreaPadding(
         _ edges: EdgeSet = .all,
-        _ length: CGFloat? = nil
+        _ length: CGFloat = 0
     ) -> Element & Layout {
-        let value = sanitizedSafeAreaPaddingValue(length ?? 0)
+        let value = sanitizedSafeAreaPaddingValue(length)
         return SafeAreaPaddingElement(
             child: self,
             edges: edges,
@@ -339,19 +365,19 @@ public extension Element {
 
     /// 在安全区域的垂直边缘放置内容并为其预留空间。
     ///
-    /// `spacing` 为 `nil` 时按零处理。内容构建结果为 `nil` 时使用空布局，但仍消费并
-    /// 预留选中边缘继承的安全区域。
+    /// 间距默认为零。内容构建结果为 `nil` 时使用空布局，但仍消费并预留选中边缘
+    /// 继承的安全区域。
     ///
     /// - Parameters:
     ///   - edge: 放置内容的垂直边缘。
     ///   - alignment: 内容在垂直边缘上的水平对齐方式。
-    ///   - spacing: 插入内容与主体内容之间的间距。
+    ///   - spacing: 插入内容与主体内容之间的间距，默认为 0；允许有限负值，非有限值按 0 处理。
     ///   - content: 生成插入内容的构建器。
     /// - Returns: 在指定边缘插入内容后的元素。
     func safeAreaInset(
         edge: VerticalEdge,
         alignment: HorizontalAlignment = .center,
-        spacing: CGFloat? = nil,
+        spacing: CGFloat = 0,
         @LayoutBuilder content: () -> Element?
     ) -> Element & Layout {
         SafeAreaInsetElement(
@@ -359,25 +385,25 @@ public extension Element {
             inset: content() ?? EmptyLayout(),
             edge: edge.edge,
             alignment: Alignment(horizontal: alignment, vertical: edge.verticalAlignment),
-            spacing: sanitized(spacing ?? 0)
+            spacing: sanitized(spacing)
         )
     }
 
     /// 在安全区域的水平边缘放置内容并为其预留空间。
     ///
-    /// `spacing` 为 `nil` 时按零处理。内容构建结果为 `nil` 时使用空布局，但仍消费并
-    /// 预留选中边缘继承的安全区域。
+    /// 间距默认为零。内容构建结果为 `nil` 时使用空布局，但仍消费并预留选中边缘
+    /// 继承的安全区域。
     ///
     /// - Parameters:
     ///   - edge: 放置内容的水平边缘。
     ///   - alignment: 内容在水平边缘上的垂直对齐方式。
-    ///   - spacing: 插入内容与主体内容之间的间距。
+    ///   - spacing: 插入内容与主体内容之间的间距，默认为 0；允许有限负值，非有限值按 0 处理。
     ///   - content: 生成插入内容的构建器。
     /// - Returns: 在指定边缘插入内容后的元素。
     func safeAreaInset(
         edge: HorizontalEdge,
         alignment: VerticalAlignment = .center,
-        spacing: CGFloat? = nil,
+        spacing: CGFloat = 0,
         @LayoutBuilder content: () -> Element?
     ) -> Element & Layout {
         SafeAreaInsetElement(
@@ -385,7 +411,7 @@ public extension Element {
             inset: content() ?? EmptyLayout(),
             edge: edge.edge,
             alignment: Alignment(horizontal: edge.horizontalAlignment, vertical: alignment),
-            spacing: sanitized(spacing ?? 0)
+            spacing: sanitized(spacing)
         )
     }
 
@@ -435,7 +461,7 @@ private struct SafeAreaPaddingElement: Layout {
 
         let scopedChild = SafeAreaScopedElement(
             child: child,
-            values: QuickLayoutSafeAreaContext.current?.consuming(edges)
+            values: QuickLayoutSafeAreaContext.current?.consuming(edges, additionalInsets: additionalInsets)
         )
         return scopedChild
             .padding(padding)
@@ -483,7 +509,12 @@ private struct SafeAreaInsetElement: Layout {
         let inheritedLength = inheritedInsets.value(for: edge)
         let reservedLength = inheritedLength + insetLength + spacing
 
-        let target = SafeAreaScopedElement(child: child, values: childValues)
+        let additional = EdgeInsets(top: edge == .top ? insetLength + spacing : 0,
+                                    leading: edge == .leading ? insetLength + spacing : 0,
+                                    bottom: edge == .bottom ? insetLength + spacing : 0,
+                                    trailing: edge == .trailing ? insetLength + spacing : 0)
+        let targetValues = QuickLayoutSafeAreaContext.current?.consuming(consumedEdges, additionalInsets: additional)
+        let target = SafeAreaScopedElement(child: child, values: targetValues)
             .padding(edge.edgeSet, reservedLength)
         let insetLayer = scopedInset
             .frame(
@@ -516,7 +547,7 @@ private struct SafeAreaInsetElement: Layout {
     }
 }
 
-/// 仅修改后代安全区域上下文的忽略区域包装器。
+/// 清除指定区域，并在放置阶段恢复已消费的边距。
 private struct IgnoresSafeAreaElement: Layout {
 
     /// 被当前修饰元素包装的布局内容。
@@ -536,15 +567,27 @@ private struct IgnoresSafeAreaElement: Layout {
         child.quick_layoutPriority()
     }
 
-    /// 有上下文时清除选定区域后测量；没有上下文时直接透传。
+    /// 报告原建议下的尺寸，使用扩展建议放置子元素；前缘偏移随 RTL 镜像。
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode {
         guard let values = QuickLayoutSafeAreaContext.current else {
             return child.quick_layoutThatFits(proposedSize)
         }
-        return QuickLayoutSafeAreaContext.withValues(
-            values.ignoring(regions, edges: edges)
-        ) {
-            child.quick_layoutThatFits(proposedSize)
+        let expansion = values.expansion(ignoring: regions, edges: edges)
+        return QuickLayoutSafeAreaContext.withValues(values.ignoring(regions, edges: edges)) {
+            let measured = child.quick_layoutThatFits(proposedSize)
+            guard expansion.top != 0 || expansion.leading != 0
+                    || expansion.bottom != 0 || expansion.trailing != 0 else {
+                return measured
+            }
+            let expanded = CGSize(
+                width: proposedSize.width + expansion.leading + expansion.trailing,
+                height: proposedSize.height + expansion.top + expansion.bottom
+            )
+            let placed = child.quick_layoutThatFits(expanded)
+            return SafeAreaMeasuredElement(node: placed)
+                .frame(width: measured.size.width, height: measured.size.height, alignment: .topLeading)
+                .offset(x: -expansion.leading, y: -expansion.top)
+                .quick_layoutThatFits(proposedSize)
         }
     }
 
@@ -552,6 +595,15 @@ private struct IgnoresSafeAreaElement: Layout {
     func quick_extractViewsIntoArray(_ views: inout [UIView]) {
         child.quick_extractViewsIntoArray(&views)
     }
+}
+
+/// 保留扩展建议测得的节点，同时由外层框架报告未扩展尺寸。
+private struct SafeAreaMeasuredElement: Layout {
+    let node: LayoutNode
+    func quick_flexibility(for axis: Axis) -> Flexibility { .fixedSize }
+    func quick_layoutPriority() -> CGFloat { 0 }
+    func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode { node }
+    func quick_extractViewsIntoArray(_ views: inout [UIView]) {}
 }
 
 /// 在子元素测量时重新发布安全区域，并同步本层容器尺寸。

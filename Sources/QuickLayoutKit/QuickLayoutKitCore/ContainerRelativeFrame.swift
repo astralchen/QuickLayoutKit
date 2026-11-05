@@ -24,9 +24,10 @@ public extension Element {
 
     /// 将元素放置在相对于最近 QuickLayoutKit 容器确定尺寸的框架中。
     ///
-    /// QuickLayoutKit 会为 ``QuickLayoutView``、``QuickLayoutHostingController``、列表单元格
-    /// 和 ``QuickLayoutScrollView`` 建立容器尺寸作用域。滚动视图使用扣除调整后内容边距的
-    /// 可见视口；其他宿主使用扣除安全区域边距后的建议尺寸。
+    /// ``QuickLayoutHostingController`` 的根视图、最外层宿主和 ``QuickLayoutScrollView``
+    /// 建立容器尺寸作用域；普通嵌套 ``QuickLayoutView`` 继承最近容器，不被中间 frame、
+    /// padding 或栈的建议尺寸替换。滚动视图使用扣除有效边距后的可见视口，
+    /// 根宿主使用扣除安全区域后的尺寸。
     ///
     /// 在没有 QuickLayoutKit 宿主的情况下布局元素时，该方法使用直接父元素建议的尺寸。
     ///
@@ -62,14 +63,14 @@ public extension Element {
     ///   - axes: 对容器进行等分的轴。
     ///   - count: 容器在相应轴上的等分数量。
     ///   - span: 元素占据的等分数量。
-    ///   - spacing: 相邻等分之间的间距。
+    ///   - spacing: 相邻等分之间的间距，遵循 QuickLayout 规则默认为 0。
     ///   - alignment: 元素在结果框架中的对齐方式。
     /// - Returns: 具有容器相对尺寸的元素。
     func containerRelativeFrame(
         _ axes: AxisSet,
         count: Int,
         span: Int = 1,
-        spacing: CGFloat,
+        spacing: CGFloat = 0,
         alignment: Alignment = .center
     ) -> Element & Layout {
         let resolvedCount = max(1, count)
@@ -134,10 +135,10 @@ private struct ContainerRelativeFrameElement: Layout {
         child.quick_layoutPriority()
     }
 
-    /// 优先读取安全区域上下文，计算各轴长度后测量固定框架。
+    /// 优先读取最近容器的独立作用域；局部安全区域变化不覆盖容器参照尺寸。
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode {
-        let scopedContainerSize = QuickLayoutSafeAreaContext.current?.resolvedContainerSize
-            ?? QuickLayoutContainerRelativeFrameContext.containerSize
+        let scopedContainerSize = QuickLayoutContainerRelativeFrameContext.containerSize
+            ?? QuickLayoutSafeAreaContext.current?.resolvedContainerSize
         let width = resolvedLength(
             for: .horizontal,
             scopedContainerSize: scopedContainerSize,

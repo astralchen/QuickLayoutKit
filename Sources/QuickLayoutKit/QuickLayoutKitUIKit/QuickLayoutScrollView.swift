@@ -8,6 +8,8 @@
 import QuartzCore
 import QuickLayout
 import QuickLayoutKitCore
+import func QuickLayoutKitCore.HStack
+import func QuickLayoutKitCore.VStack
 import UIKit
 
 /// 沿单一滚动轴排列 QuickLayout 元素的滚动视图。
@@ -363,13 +365,20 @@ open class QuickLayoutScrollView:
                 measuredContentSize
             )
 
+            // 短横向内容在 RTL 下贴视口右侧。根 applyFrame 的前缘参考线未镜像，
+            // 因此在适配层提供物理起点；保留原测量建议、contentSize 和滚动范围。
+            let placementOrigin = CGPoint(
+                x: axis == .horizontal && layoutDirection == .rightToLeft
+                    ? max(0, contentMarginViewportSize.width - contentLayoutSize.width) : 0,
+                y: 0
+            )
             withQuickLayoutContainerSize(
                 bounds.size,
                 insets: safeAreaRegionInsets.container,
                 keyboardInsets: safeAreaRegionInsets.keyboard
             ) {
                 body.applyFrame(
-                    CGRect(origin: .zero, size: contentLayoutSize),
+                    CGRect(origin: placementOrigin, size: contentLayoutSize),
                     alignment: contentAlignment,
                     layoutDirection: layoutDirection
                 )

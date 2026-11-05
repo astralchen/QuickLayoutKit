@@ -68,6 +68,8 @@ final class MainRouter: MainRouting {
             ContainerRelativeSizeViewController()
         case .geometry:
             GeometryViewController()
+        case .directionalGrid:
+            DirectionalGridViewController()
         case .profile:
             ProfileViewController()
         case .counter:

@@ -27,21 +27,44 @@ final class FixedSizeStageView: QuickLayoutView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     override func layoutSubviews() {
+        // 父布局会先改变视口并触发 UIKit 对偏移的调整，必须在此前判断是否位于起点。
+        let previous = carouselGeometry
+        let wasAtLeading = abs(carouselScrollView.contentOffset.x - previous.leadingOffset) < 1
         super.layoutSubviews()
         carouselScrollView.layoutIfNeeded()
-        if needsLeadingPosition, carouselScrollView.bounds.width > 0 {
+        let current = carouselGeometry
+        if current.width > 0, current.contentWidth > 0,
+           !carouselScrollView.isTracking, !carouselScrollView.isDecelerating,
+           needsLeadingPosition || (wasAtLeading && previous != current) {
             needsLeadingPosition = false
-            let insets = carouselScrollView.adjustedContentInset
-            let left = -insets.left
-            let right = max(left, carouselScrollView.contentSize.width
-                - carouselScrollView.bounds.width + insets.right)
-            carouselScrollView.setContentOffset(
-                CGPoint(x: carouselScrollView.effectiveUserInterfaceLayoutDirection
-                    == .rightToLeft ? right : left, y: -insets.top),
-                animated: false
-            )
+            carouselScrollView.scrollTo(.leading, animated: false)
         }
         updateMeasurements()
+    }
+
+    /// 只记录影响水平起点的几何值，垂直滚动和内容高度变化不会重置横向位置。
+    private var carouselGeometry: CarouselGeometry {
+        let scroll = carouselScrollView
+        return CarouselGeometry(
+            width: scroll.bounds.width,
+            contentWidth: scroll.contentSize.width,
+            leftInset: scroll.adjustedContentInset.left,
+            rightInset: scroll.adjustedContentInset.right,
+            isRTL: scroll.effectiveUserInterfaceLayoutDirection == .rightToLeft
+        )
+    }
+
+    /// 本轮布局前后的水平滚动范围，不保留历史视图或测量缓存。
+    private struct CarouselGeometry: Equatable {
+        let width: CGFloat
+        let contentWidth: CGFloat
+        let leftInset: CGFloat
+        let rightInset: CGFloat
+        let isRTL: Bool
+
+        var leadingOffset: CGFloat {
+            isRTL ? max(-leftInset, contentWidth - width + rightInset) : -leftInset
+        }
     }
 
     override var body: Layout {

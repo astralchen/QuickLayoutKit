@@ -10,19 +10,19 @@ import QuickLayout
 import QuickLayoutKit
 import UIKit
 
-/// 交互验证 `safeAreaPadding` 边缘选择、组合顺序和 QuickLayout `nil` 契约的页面。
+/// 交互验证 `safeAreaPadding` 边缘选择、组合顺序和默认零间距规则的页面。
 final class SafeAreaPaddingViewController: LocalizedQuickLayoutHostingController {
 
     enum Scenario: Int, CaseIterable, Sendable {
         case baseline
         case zeroAll
-        case nilAll
+        case defaultAll
         case allSixteen
         case horizontalSixteen
         case perEdgeInsets
         case separateEdges
         case repeatedLeading
-        case leadingThenNil
+        case leadingThenDefault
         case negativeLeading
 
         var title: String {
@@ -31,8 +31,8 @@ final class SafeAreaPaddingViewController: LocalizedQuickLayoutHostingController
                 "No modifier"
             case .zeroAll:
                 ".all · 0"
-            case .nilAll:
-                ".all · nil"
+            case .defaultAll:
+                ".all · default (0)"
             case .allSixteen:
                 ".all · 16"
             case .horizontalSixteen:
@@ -43,8 +43,8 @@ final class SafeAreaPaddingViewController: LocalizedQuickLayoutHostingController
                 "horizontal + bottom"
             case .repeatedLeading:
                 "leading 8 + leading 12"
-            case .leadingThenNil:
-                "leading 8 + nil"
+            case .leadingThenDefault:
+                "leading 8 + default (0)"
             case .negativeLeading:
                 "negative leading"
             }
@@ -56,7 +56,7 @@ final class SafeAreaPaddingViewController: LocalizedQuickLayoutHostingController
                 "// No safeAreaPadding"
             case .zeroAll:
                 ".safeAreaPadding(.all, 0)"
-            case .nilAll:
+            case .defaultAll:
                 ".safeAreaPadding()"
             case .allSixteen:
                 ".safeAreaPadding(16)"
@@ -79,10 +79,10 @@ final class SafeAreaPaddingViewController: LocalizedQuickLayoutHostingController
                 .safeAreaPadding(.leading, 8)
                 .safeAreaPadding(.leading, 12)
                 """
-            case .leadingThenNil:
+            case .leadingThenDefault:
                 """
                 .safeAreaPadding(.leading, 8)
-                .safeAreaPadding(.leading, nil)
+                .safeAreaPadding(.leading)
                 """
             case .negativeLeading:
                 ".safeAreaPadding(.leading, -8)"
@@ -95,8 +95,8 @@ final class SafeAreaPaddingViewController: LocalizedQuickLayoutHostingController
                 "Does not consume safe area; UIKit still adjusts scroll content"
             case .zeroAll:
                 "Consumes every safe-area edge; additional spacing is 0"
-            case .nilAll:
-                "QuickLayout nil: consumes all edges; additional spacing is 0"
+            case .defaultAll:
+                "Default length is 0; consumes all safe-area edges"
             case .allSixteen:
                 "Adds 16 beyond every inherited safe-area edge"
             case .horizontalSixteen:
@@ -107,8 +107,8 @@ final class SafeAreaPaddingViewController: LocalizedQuickLayoutHostingController
                 "Consecutive calls on different edges combine independently"
             case .repeatedLeading:
                 "Repeated leading calls accumulate to 20"
-            case .leadingThenNil:
-                "nil adds 0; the earlier leading 8 remains effective"
+            case .leadingThenDefault:
+                "Default length adds 0; the earlier leading 8 remains effective"
             case .negativeLeading:
                 "Negative spacing clamps to 0 and stays inside the original safe area"
             }
@@ -248,7 +248,7 @@ final class SafeAreaPaddingViewController: LocalizedQuickLayoutHostingController
             return page
         case .zeroAll:
             return page.safeAreaPadding(.all, 0)
-        case .nilAll:
+        case .defaultAll:
             return page.safeAreaPadding()
         case .allSixteen:
             return page.safeAreaPadding(16)
@@ -271,10 +271,10 @@ final class SafeAreaPaddingViewController: LocalizedQuickLayoutHostingController
             return page
                 .safeAreaPadding(.leading, 8)
                 .safeAreaPadding(.leading, 12)
-        case .leadingThenNil:
+        case .leadingThenDefault:
             return page
                 .safeAreaPadding(.leading, 8)
-                .safeAreaPadding(.leading, nil)
+                .safeAreaPadding(.leading)
         case .negativeLeading:
             return page.safeAreaPadding(.leading, -8)
         }

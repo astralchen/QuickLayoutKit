@@ -2,6 +2,8 @@ import Testing
 import QuickLayout
 import UIKit
 @testable import QuickLayoutKitCore
+import func QuickLayoutKitCore.HStack
+import func QuickLayoutKitCore.VStack
 @_spi(Testing) @testable import QuickLayoutKitUIKit
 
 @MainActor
@@ -2565,18 +2567,18 @@ struct QuickLayoutKitTests {
         #expect(view.quickLayoutLayoutMargins.trailing == 13)
     }
 
-    @Test func safeAreaPaddingNilUsesQuickLayoutZeroSpacing() {
+    @Test func safeAreaPaddingDefaultUsesQuickLayoutZeroSpacing() {
         let intrinsicSize = CGSize(width: 20, height: 30)
         let proposal = CGSize(width: 200, height: 100)
-        let implicitNil = IntrinsicTestElement(size: intrinsicSize)
+        let implicitDefault = IntrinsicTestElement(size: intrinsicSize)
             .safeAreaPadding()
-        let explicitNil = IntrinsicTestElement(size: intrinsicSize)
-            .safeAreaPadding(.all, nil)
+        let explicitEdgesDefault = IntrinsicTestElement(size: intrinsicSize)
+            .safeAreaPadding(.all)
         let explicitZero = IntrinsicTestElement(size: intrinsicSize)
             .safeAreaPadding(.all, 0)
 
-        #expect(implicitNil.sizeThatFits(proposal) == intrinsicSize)
-        #expect(explicitNil.sizeThatFits(proposal) == intrinsicSize)
+        #expect(implicitDefault.sizeThatFits(proposal) == intrinsicSize)
+        #expect(explicitEdgesDefault.sizeThatFits(proposal) == intrinsicSize)
         #expect(explicitZero.sizeThatFits(proposal) == intrinsicSize)
 
         let sizesWithSafeArea = withSafeArea(
@@ -2589,8 +2591,8 @@ struct QuickLayoutKitTests {
             )
         ) {
             (
-                implicitNil.sizeThatFits(proposal),
-                explicitNil.sizeThatFits(proposal),
+                implicitDefault.sizeThatFits(proposal),
+                explicitEdgesDefault.sizeThatFits(proposal),
                 explicitZero.sizeThatFits(proposal)
             )
         }
@@ -2982,7 +2984,7 @@ struct QuickLayoutKitTests {
         #expect(size == CGSize(width: 46, height: 30))
     }
 
-    @Test func safeAreaInsetNilUsesQuickLayoutZeroSpacingOnBothAxes() {
+    @Test func safeAreaInsetDefaultUsesQuickLayoutZeroSpacingOnBothAxes() {
         let proposal = CGSize(width: 200, height: 100)
         let insets = EdgeInsets(
             top: 0,
@@ -2990,9 +2992,9 @@ struct QuickLayoutKitTests {
             bottom: 10,
             trailing: 0
         )
-        let verticalNil = IntrinsicTestElement(
+        let verticalDefault = IntrinsicTestElement(
             size: CGSize(width: 20, height: 30)
-        ).safeAreaInset(edge: .bottom, spacing: nil) {
+        ).safeAreaInset(edge: .bottom) {
             IntrinsicTestElement(size: CGSize(width: 50, height: 12))
         }
         let verticalZero = IntrinsicTestElement(
@@ -3000,11 +3002,10 @@ struct QuickLayoutKitTests {
         ).safeAreaInset(edge: .bottom, spacing: 0) {
             IntrinsicTestElement(size: CGSize(width: 50, height: 12))
         }
-        let horizontalNil = IntrinsicTestElement(
+        let horizontalDefault = IntrinsicTestElement(
             size: CGSize(width: 20, height: 30)
         ).safeAreaInset(
-            edge: HorizontalEdge.leading,
-            spacing: nil
+            edge: HorizontalEdge.leading
         ) {
             IntrinsicTestElement(size: CGSize(width: 12, height: 50))
         }
@@ -3022,9 +3023,9 @@ struct QuickLayoutKitTests {
             containerInsets: insets
         ) {
             (
-                verticalNil.sizeThatFits(proposal),
+                verticalDefault.sizeThatFits(proposal),
                 verticalZero.sizeThatFits(proposal),
-                horizontalNil.sizeThatFits(proposal),
+                horizontalDefault.sizeThatFits(proposal),
                 horizontalZero.sizeThatFits(proposal)
             )
         }
@@ -3045,14 +3046,13 @@ struct QuickLayoutKitTests {
         )
         let vertical = IntrinsicTestElement(
             size: CGSize(width: 20, height: 30)
-        ).safeAreaInset(edge: .bottom, spacing: nil) {
+        ).safeAreaInset(edge: .bottom) {
             nil as IntrinsicTestElement?
         }
         let horizontal = IntrinsicTestElement(
             size: CGSize(width: 20, height: 30)
         ).safeAreaInset(
-            edge: HorizontalEdge.leading,
-            spacing: nil
+            edge: HorizontalEdge.leading
         ) {
             nil as IntrinsicTestElement?
         }
@@ -3998,12 +3998,12 @@ struct QuickLayoutKitTests {
         let scrollView = QuickLayoutScrollView(.vertical)
 
         _ = content.safeAreaPadding()
-        _ = content.safeAreaPadding(.horizontal, nil)
+        _ = content.safeAreaPadding(.horizontal)
         _ = content.safeAreaPadding(.all, 0)
         _ = content.safeAreaPadding(
             EdgeInsets(top: 1, leading: 2, bottom: 3, trailing: 4)
         )
-        _ = content.safeAreaInset(edge: .bottom, spacing: nil) {
+        _ = content.safeAreaInset(edge: .bottom) {
             UIView()
         }
         _ = ScrollView(scrollView, .vertical) { content }

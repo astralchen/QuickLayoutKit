@@ -602,8 +602,12 @@ private final class FrameLabPreviewStage: QuickLayoutView {
 
     override var body: Layout {
         let fraction = widthFraction
-        return preview.resizable().containerRelativeFrame(.horizontal) { width, _ in width * fraction }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        let preview = preview
+        return GeometryReader { geometry in
+            preview.resizable()
+                .frame(width: geometry.size.width * fraction, height: geometry.size.height)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
     }
 }
 

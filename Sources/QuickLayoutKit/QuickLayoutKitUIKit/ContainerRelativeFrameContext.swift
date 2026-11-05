@@ -42,16 +42,44 @@ extension UIView {
             )
         )
 
+        // 普通布局宿主不是新的参照容器；滚动视口和控制器根视图建立新边界。
+        // 测量期间继承任务作用域，UIKit 独立重排后代时从视图祖先恢复同一容器。
+        let startsContainer = self is UIScrollView || next is UIViewController
+        let inheritedSize = QuickLayoutContainerRelativeFrameContext.containerSize
+            ?? inheritedRelativeContainerSize
+        let relativeSize = startsContainer ? containerSize : (inheritedSize ?? containerSize)
+        objc_setAssociatedObject(
+            self,
+            &QuickLayoutGeometryObservationAssociatedKeys.relativeContainerSize,
+            NSValue(cgSize: relativeSize),
+            .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        )
+
         return try QuickLayoutGeometryObservationContext.withRegistry(
             geometryObservationRegistry
         ) {
             try QuickLayoutSafeAreaContext.withValues(safeAreaValues) {
                 try QuickLayoutContainerRelativeFrameContext.withContainerSize(
-                    containerSize,
+                    relativeSize,
                     operation: operation
                 )
             }
         }
+    }
+
+    /// 跳过普通 UIKit 包装，找到祖先发布的参照尺寸；不保存对子视图或容器的强引用。
+    private var inheritedRelativeContainerSize: CGSize? {
+        var ancestor = superview
+        while let view = ancestor {
+            if let value = objc_getAssociatedObject(
+                view,
+                &QuickLayoutGeometryObservationAssociatedKeys.relativeContainerSize
+            ) as? NSValue {
+                return value.cgSizeValue
+            }
+            ancestor = view.superview
+        }
+        return nil
     }
 
     /// 与宿主视图关联的持久几何注册表，首次访问时创建。
@@ -77,6 +105,8 @@ extension UIView {
 private enum QuickLayoutGeometryObservationAssociatedKeys {
     /// 几何注册表关联对象的唯一键地址。
     nonisolated(unsafe) static var registry: UInt8 = 0
+    /// 独立 UIKit 重排时用于恢复最近容器尺寸的关联键。
+    nonisolated(unsafe) static var relativeContainerSize: UInt8 = 0
 }
 
 /// 从规范化建议长度扣除有限的两端边距；无界建议保持无界。
