@@ -126,16 +126,27 @@ final class ArrangementPreview: QuickLayoutView {
 /// 两种预览使用相同的内容与理想尺寸，分别从自己的排列容器读取环境。
 final class ArrangementExamplePane: UIView {
     private let isPrimary: Bool
+    private let readout = UIView()
     private let label = UILabel()
+    private enum Surface { case split, foreground, backdrop }
+    private var surface: Surface = .split {
+        didSet { if surface != oldValue { setNeedsDisplay() } }
+    }
+    private var accent: UIColor { isPrimary ? .systemIndigo : .systemOrange }
     var nativeContext: (axis: String, zIndex: Int)? { didSet { setNeedsLayout() } }
 
     init(primary: Bool) {
         isPrimary = primary
         super.init(frame: .zero)
         clipsToBounds = true
+        isOpaque = false
+        contentMode = .redraw
+        readout.layer.cornerRadius = 8
+        readout.layer.cornerCurve = .continuous
+        readout.backgroundColor = .systemBackground
+        readout.isAccessibilityElement = false
+        addSubview(readout)
         label.numberOfLines = 0
-        label.font = .preferredFont(forTextStyle: .subheadline)
-        label.adjustsFontForContentSizeCategory = true
         label.accessibilityIdentifier = primary ? "arrangement.primary" : "arrangement.secondary"
         addSubview(label)
     }
@@ -148,6 +159,7 @@ final class ArrangementExamplePane: UIView {
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         setNeedsLayout()
+        setNeedsDisplay()
     }
 
     override func layoutSubviews() {
@@ -155,24 +167,81 @@ final class ArrangementExamplePane: UIView {
         let axis = nativeContext?.axis ?? splitArrangementAxis.map { $0 == .horizontal ? "horizontal" : "vertical" } ?? "nil"
         let z = nativeContext?.zIndex ?? overlayArrangementZIndex
         let title = Localization.text(isPrimary ? "arrangement.primary" : "arrangement.secondary")
-        let summary = "\(title)\n\(Int(bounds.width.rounded())) × \(Int(bounds.height.rounded())) pt\n\(axis) · z = \(z)"
-        let tint: UIColor = isPrimary ? .systemIndigo : .systemTeal
-        backgroundColor = tint.withAlphaComponent(z > 0 ? 0.12 : 0.23)
-        label.textAlignment = .center
-        let inset = bounds.insetBy(dx: 4, dy: 4)
+        let dimensions = "\(Int(bounds.width.rounded())) × \(Int(bounds.height.rounded())) pt"
+        let layerInfo = "\(axis) · z = \(z)"
         let classes = traitCollection.arrangementSizeClasses
-        label.text = summary + "\n" + classes
-        // 固有尺寸示例优先保留尺寸和分割轴，VoiceOver 仍可读取尺寸类别。
-        if label.sizeThatFits(inset.size).height > inset.height {
-            label.text = summary
-            label.accessibilityValue = classes
-        } else {
-            label.accessibilityValue = nil
+        label.accessibilityLabel = [title, dimensions, layerInfo, classes].joined(separator: "\n")
+
+        surface = z > 0 ? .foreground : (!isPrimary && axis == "nil" ? .backdrop : .split)
+        backgroundColor = surface == .foreground ? .clear : accent.withAlphaComponent(0.14)
+        let inset: CGFloat = bounds.height < 100 || bounds.width < 160 ? 4 : 8
+        let width = max(0, bounds.width - 2 * inset)
+        let height = max(0, (axis == "nil" ? bounds.height / 2 : bounds.height) - 2 * inset)
+        let padX = min(8, width / 4), padY = min(4, height / 4)
+        let limit = CGSize(width: max(0, width - 2 * padX), height: max(0, height - 2 * padY))
+
+        let text = NSMutableAttributedString()
+        func append(_ line: String, font: UIFont, color: UIColor) {
+            let prefix = text.length == 0 ? "" : "\n"
+            text.append(NSAttributedString(string: prefix + line, attributes: [.font: font, .foregroundColor: color]))
         }
-        let height = min(max(0, inset.height), label.sizeThatFits(inset.size).height)
-        // 浮层保持透明，在两端标出主、辅内容，便于同时观察两个层级。
-        let y = isPrimary ? inset.minY : inset.maxY - height
-        label.frame = CGRect(x: inset.minX, y: y, width: max(0, inset.width), height: height)
+        append(title, font: .preferredFont(forTextStyle: .headline), color: .label)
+        let digits = UIFont.monospacedDigitSystemFont(ofSize: 19, weight: .semibold)
+        append(dimensions, font: UIFontMetrics(forTextStyle: .headline).scaledFont(for: digits), color: .label)
+        let essentialLength = text.length
+        let caption = UIFont.preferredFont(forTextStyle: .caption1)
+        append(layerInfo, font: caption, color: .secondaryLabel)
+        let detailLength = text.length
+        append(classes, font: caption, color: .secondaryLabel)
+
+        // 先收起尺寸类别，再收起轴和层级。VoiceOver 始终读取完整信息。
+        label.attributedText = text
+        for length in [detailLength, essentialLength] where label.sizeThatFits(limit).height > limit.height {
+            label.attributedText = text.attributedSubstring(from: NSRange(location: 0, length: length))
+        }
+        let measured = label.sizeThatFits(limit)
+        let size = CGSize(width: min(width, ceil(measured.width) + 2 * padX),
+                          height: min(height, ceil(measured.height) + 2 * padY))
+        let rtl = effectiveUserInterfaceLayoutDirection == .rightToLeft
+        let x = isPrimary != rtl ? bounds.minX + inset : bounds.maxX - inset - size.width
+        let y = isPrimary ? bounds.minY + inset : bounds.maxY - inset - size.height
+        readout.frame = CGRect(origin: CGPoint(x: x, y: y), size: size)
+        label.frame = readout.frame.insetBy(dx: padX, dy: padY)
+    }
+
+    override func draw(_ rect: CGRect) {
+        super.draw(rect)
+        guard bounds.width > 8, bounds.height > 8 else { return }
+        let path: UIBezierPath
+        switch surface {
+        case .foreground:
+            // 只缩进示意色块，主视图仍占满实测 bounds。露出的底纹和透过前景的底纹连续。
+            var sheet = bounds.insetBy(dx: 4, dy: 4)
+            let reveal = min(64, sheet.width * 0.22)
+            if effectiveUserInterfaceLayoutDirection == .rightToLeft { sheet.origin.x += reveal }
+            sheet.size.width -= reveal
+            // 底部为辅助层的读数留白，避免前景边线穿过尺寸文字。
+            sheet.size.height -= min(100, sheet.height * 0.5)
+            path = UIBezierPath(roundedRect: sheet, cornerRadius: 8)
+            accent.withAlphaComponent(0.32).setFill()
+            path.fill()
+        case .backdrop:
+            let stripes = UIBezierPath()
+            for x in stride(from: bounds.minX - bounds.height, through: bounds.maxX, by: 20) {
+                stripes.move(to: CGPoint(x: x, y: bounds.maxY))
+                stripes.addLine(to: CGPoint(x: x + bounds.height, y: bounds.minY))
+            }
+            stripes.lineWidth = 4
+            accent.withAlphaComponent(0.48).setStroke()
+            stripes.stroke()
+            path = UIBezierPath(rect: bounds.insetBy(dx: 1, dy: 1))
+        case .split:
+            path = UIBezierPath(rect: bounds.insetBy(dx: 1, dy: 1))
+        }
+        path.lineWidth = 2
+        if !isPrimary { path.setLineDash([6, 4], count: 2, phase: 0) }
+        accent.setStroke()
+        path.stroke()
     }
 }
 

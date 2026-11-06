@@ -15,6 +15,7 @@ final class ArrangementExampleUITests: XCTestCase {
         app.cells["demo.arrangement.title"].tap()
         let picker = app.buttons["arrangement.example"]
         XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        capture(app, "Automatic split")
         picker.tap()
         app.buttons["Custom style"].tap()
         let primary = app.staticTexts["arrangement.primary"]
@@ -23,6 +24,8 @@ final class ArrangementExampleUITests: XCTestCase {
         XCTAssertTrue(secondary.label.contains("z = 0"))
         app.sliders.firstMatch.adjust(toNormalizedSliderPosition: 0)
         XCTAssertTrue(primary.label.contains("180 pt"))
+        XCTAssertFalse(primary.frame.intersects(secondary.frame))
+        capture(app, "Overlapping panes at minimum height")
         let engine = app.segmentedControls["arrangement.engine"]
         if #available(iOS 27.1, *) { engine.buttons["SwiftUI"].tap() }
         XCTAssertTrue(primary.label.contains("z = 1"))
@@ -39,5 +42,12 @@ final class ArrangementExampleUITests: XCTestCase {
         close.tap()
         XCTAssertTrue(picker.waitForExistence(timeout: 5))
         XCTAssertEqual(picker.label, "Custom style")
+    }
+
+    @MainActor private func capture(_ app: XCUIApplication, _ name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 }
