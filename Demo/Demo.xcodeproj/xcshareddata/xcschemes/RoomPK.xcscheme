@@ -40,6 +40,7 @@
                <Test Identifier="ApplicationTests/voiceRoomRechargeBalanceCardPreservesCompleteTextLines()" />
                <Test Identifier="ApplicationTests/voiceRoomRechargePackageGridAdaptsToContainerAndPackageCount()" />
                <Test Identifier="ApplicationTests/voiceRoomSeatLayoutsExpandOnIPadWidth()" />
+               <Test Identifier="ApplicationTests/voiceRoomWidePortraitSeatsLeaveSpaceForChat()" />
                <Test Identifier="ApplicationTests/voiceRoomRearrangesExistingContentWhenContainerWidthChanges()" />
                <Test Identifier="ApplicationTests/voiceRoomPublicChatMessagesFillAvailableWidthOnIPad()" />
                <Test Identifier="ApplicationTests/voiceRoomNineSeatSecondRowKeepsTextAtIdealSize()" />

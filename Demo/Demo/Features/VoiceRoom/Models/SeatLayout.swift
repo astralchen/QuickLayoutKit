@@ -495,14 +495,15 @@ struct SeatLayoutMetrics: Equatable, Sendable {
     /// 根据可用宽度和紧凑高度偏好选择尺寸等级并分配列间距。
     static func resolve(
         availableWidth: CGFloat,
-        prefersCompactHeight: Bool
+        prefersCompactHeight: Bool,
+        allowsExpandedSeats: Bool = true
     ) -> Self {
         let widthRequiresCompactLayout = availableWidth > 0
             && availableWidth < regularMinimumStageWidth
         let baseMetrics: Self
         if prefersCompactHeight || widthRequiresCompactLayout {
             baseMetrics = .compact
-        } else if availableWidth >= expandedMinimumStageWidth {
+        } else if allowsExpandedSeats && availableWidth >= expandedMinimumStageWidth {
             baseMetrics = .expanded
         } else {
             baseMetrics = .regular

@@ -14,7 +14,7 @@ import UIKit
 ///
 /// 舞台使用不可滚动的 CollectionView 统一承载所有房型。业务 Presentation 只决定
 /// Item 与客户端布局家族；具体 Frame 由 `SeatCollectionLayout` 根据容器环境计算。
-final class SeatStageView: TranslucentCardView {
+final class SeatStageView: QuickLayoutView {
 
     /// 记录当前组件诊断信息的日志记录器。
     private static let logger = Logger(
@@ -333,6 +333,8 @@ final class SeatStageView: TranslucentCardView {
 
     /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
+        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+        backgroundColor = .clear
         accessibilityIdentifier = "liveRoom.seat.stage"
         collectionView.backgroundColor = .clear
         collectionView.isScrollEnabled = false
@@ -385,7 +387,8 @@ final class SeatStageView: TranslucentCardView {
         let layoutWidth = bounds.width
         let resolvedMetrics = SeatLayoutMetrics.resolve(
             availableWidth: layoutWidth,
-            prefersCompactHeight: prefersCompactHeight
+            prefersCompactHeight: prefersCompactHeight,
+            allowsExpandedSeats: splitArrangementAxis != .vertical
         )
         let direction = effectiveUserInterfaceLayoutDirection
         let widthChanged = lastLayoutWidth.map {

@@ -69,6 +69,30 @@ extension ApplicationTests {
         #expect(fiveSeatFrames[0].width > fiveSeatFrames[1].width)
     }
 
+    @Test func voiceRoomWidePortraitSeatsLeaveSpaceForChat() throws {
+        let room = VoiceRoomViewController()
+        let navigation = UINavigationController(rootViewController: room)
+        let window = try makeVisibleTestWindow(
+            rootViewController: navigation, size: CGSize(width: 768, height: 1024)
+        )
+        defer { window.isHidden = true }
+        layout(room, in: navigation)
+
+        let stage = room.seatStageView
+        #expect(stage.splitArrangementAxis == .vertical)
+        let seats = try (0..<9).map { index in
+            try #require(stage.allSubviews(of: UIView.self).first {
+                $0.accessibilityIdentifier == "liveRoom.seat.\(index)"
+            })
+        }
+        #expect(seats.allSatisfy { abs($0.bounds.width - 74) < 1 })
+        let frame = stage.convert(stage.bounds, to: room.view)
+        #expect(seats.allSatisfy { frame.insetBy(dx: -1, dy: -1).contains($0.convert($0.bounds, to: room.view)) })
+        let chat = room.messagesView.convert(room.messagesView.bounds, to: room.view)
+        #expect(chat.minY >= frame.maxY - 1 && chat.height > 200)
+        #expect(!stage.seatCollectionView.isScrollEnabled)
+    }
+
     @Test func voiceRoomRearrangesExistingContentWhenContainerWidthChanges() async throws {
         let room = VoiceRoomViewController()
         let navigation = UINavigationController(rootViewController: room)
