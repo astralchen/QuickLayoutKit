@@ -47,9 +47,9 @@ final class ArrangementHost: QuickLayoutView {
         )
         return ZStack {
             if let frame = placement.secondary {
-                secondary.placed(in: frame, axis: placement.axis, zIndex: 0)
+                secondary.placed(in: frame, axis: placement.axis, style: style, zIndex: 0)
             }
-            primary.placed(in: placement.primary, axis: placement.axis, zIndex: placement.overlay ? 1 : 0)
+            primary.placed(in: placement.primary, axis: placement.axis, style: style, zIndex: placement.overlay ? 1 : 0)
         }
     }
 
@@ -66,14 +66,32 @@ final class ArrangementHost: QuickLayoutView {
 
 private final class ArrangementPane: QuickLayoutView, ArrangementContextSource {
     var element: Layout = EmptyLayout() { didSet { setNeedsLayout() } }
+    private var compactAxis: Axis?
     var arrangementAxis: Axis?
     var arrangementZIndex = 0
 
     override var body: Layout { element }
 
-    func placed(in frame: CGRect, axis: Axis?, zIndex: Int) -> Layout {
-        if axis != arrangementAxis || zIndex != arrangementZIndex {
-            arrangementAxis = axis
+    func placed(in frame: CGRect, axis: Axis?, style: ArrangementKind, zIndex: Int) -> Layout {
+        // 分开的浮层也会收紧子区域的尺寸类别，但只有 split 暴露 splitArrangementAxis。
+        if compactAxis != axis {
+            compactAxis = axis
+            if #available(iOS 17.0, *) {
+                if axis == .horizontal {
+                    traitOverrides.horizontalSizeClass = .compact
+                } else {
+                    traitOverrides.remove(UITraitHorizontalSizeClass.self)
+                }
+                if axis == .vertical {
+                    traitOverrides.verticalSizeClass = .compact
+                } else {
+                    traitOverrides.remove(UITraitVerticalSizeClass.self)
+                }
+            }
+        }
+        let splitAxis = style == .split ? axis : nil
+        if splitAxis != arrangementAxis || zIndex != arrangementZIndex {
+            arrangementAxis = splitAxis
             arrangementZIndex = zIndex
             setNeedsLayout()
         }

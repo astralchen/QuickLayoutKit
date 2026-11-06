@@ -23,7 +23,13 @@ struct ArrangementViewTests {
         #expect(split.axis == .horizontal && split.primary.maxX == gap.minX && split.secondary?.minX == gap.maxX)
         #expect(resolve(.overlay, .horizontal).primary == split.secondary)
         #expect(resolve(.overlay, .horizontal, rtl: true).primary == split.primary)
-        #expect(resolve(.split, .vertical).secondary == nil)
+        let restricted = resolve(.split, .vertical)
+        #expect(restricted.axis == .horizontal && restricted.secondary == nil)
+        let fractional = ArrangementPlacement.resolve(
+            panes: panes, style: .split, axes: .horizontal, rect: rect,
+            divisions: [gap.offsetBy(dx: 0.5, dy: 0)], horizontal: .regular, vertical: .regular, rtl: false, scale: 3)
+        #expect(abs(fractional.primary.maxX - 752.0 / 3) < 0.001)
+        #expect(abs((fractional.secondary?.minX ?? 0) - 782.0 / 3) < 0.001)
         #expect(resolve(.overlay, .vertical).primary == rect && resolve(.overlay, .vertical).secondary == rect)
     }
 

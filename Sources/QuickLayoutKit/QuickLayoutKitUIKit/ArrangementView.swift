@@ -150,7 +150,7 @@ protocol ArrangementContextSource: AnyObject {
 }
 
 public extension UIView {
-    /// 读取最近排列宿主中的分栏轴；单区域或浮层状态返回 nil。
+    /// 读取最近分割宿主选中的轴。样式限制该轴时只显示主区，主区仍能读取它。浮层返回 nil。
     var splitArrangementAxis: Axis? {
         if let source = arrangementContextSource { return source.arrangementAxis }
         return ArrangementLayoutContext.splitArrangementAxis

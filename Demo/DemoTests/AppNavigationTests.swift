@@ -73,7 +73,8 @@ struct AppNavigationTests {
         let catalog = MainViewModel().state.sections
         let routes = catalog.flatMap(\.routes).map(\.route)
         #expect(catalog.count == 6)
-        #expect(routes.count == 26)
+        #expect(routes.count == Set(routes).count)
+        #expect(catalog.first { $0.id == "main.section.layout" }?.routes.contains { $0.route == .arrangement } == true)
         #expect(Set(routes) == Set(MainRoute.allCases.filter { AppTab(route: $0) == nil }))
     }
 

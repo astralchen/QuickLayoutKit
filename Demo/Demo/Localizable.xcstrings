@@ -1,6 +1,581 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+  "arrangement.container": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Container · %@"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "容器 · %@"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "الحاوية · %@"
+        }
+      }
+    }
+  },
+  "arrangement.sizeClasses": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Width %1$@ · Height %2$@"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "水平 %1$@ · 垂直 %2$@"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "العرض %1$@ · الارتفاع %2$@"
+        }
+      }
+    }
+  },
+  "arrangement.openWindow": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Open full-window preview"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "在完整窗口中预览"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "فتح المعاينة في كامل النافذة"
+        }
+      }
+    }
+  },
+  "demo.arrangement.title": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "ArrangementView"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "ArrangementView 排列"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "ترتيب ArrangementView"
+        }
+      }
+    }
+  },
+  "arrangement.height": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Preview height"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "预览高度"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "ارتفاع المعاينة"
+        }
+      }
+    }
+  },
+  "arrangement.primary": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Primary"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "主内容"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "المحتوى الأساسي"
+        }
+      }
+    }
+  },
+  "arrangement.secondary": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Secondary"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "辅助内容"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "المحتوى الثانوي"
+        }
+      }
+    }
+  },
+  "arrangement.automatic.title": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Automatic arrangement"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "自动排列"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "الترتيب التلقائي"
+        }
+      }
+    }
+  },
+  "arrangement.automatic.detail": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Resize the preview with the slider. For device poses, open the full-window preview and fold or rotate iPhone Duo. Watch the width and height size classes, split axis and pane sizes change."
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "拖动滑块调整预览高度。要观察设备姿势，请打开全窗口预览，再折叠或旋转 iPhone Duo，比较水平和垂直尺寸类别、分割轴以及两块内容的大小。"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "اضبط ارتفاع المعاينة بشريط التمرير. لمشاهدة أوضاع الجهاز، افتح المعاينة في كامل النافذة ثم اطوِ iPhone Duo أو دوّره ولاحظ فئات الحجم والمحور وأبعاد الجزأين."
+        }
+      }
+    }
+  },
+  "arrangement.horizontal.title": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Horizontal split only"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "仅允许水平分割"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "تقسيم أفقي فقط"
+        }
+      }
+    }
+  },
+  "arrangement.vertical.title": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Vertical split only"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "仅允许垂直分割"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "تقسيم رأسي فقط"
+        }
+      }
+    }
+  },
+  "arrangement.horizontal.detail": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Allow a side-by-side split. If the environment selects a vertical split, only the primary pane is shown."
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "允许左右排列。当环境选择垂直轴时，只显示主内容。"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "يسمح بوضع الجزأين جنبًا إلى جنب. إذا اختارت البيئة المحور الرأسي يظهر المحتوى الأساسي وحده."
+        }
+      }
+    }
+  },
+  "arrangement.vertical.detail": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Allow a top-to-bottom split. If the environment selects a horizontal split, only the primary pane is shown."
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "允许上下排列。当环境选择水平轴时，只显示主内容。"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "يسمح بوضع الجزأين أحدهما فوق الآخر. إذا اختارت البيئة المحور الأفقي يظهر المحتوى الأساسي وحده."
+        }
+      }
+    }
+  },
+  "arrangement.ratio.title": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Preferred ratio"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "首选比例"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "النسبة المفضلة"
+        }
+      }
+    }
+  },
+  "arrangement.ratio.detail": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "The primary pane requests 65% of the available length on either split axis."
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "主内容请求占当前分割轴可用长度的 65%。"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "يطلب المحتوى الأساسي 65٪ من الطول المتاح على محور التقسيم."
+        }
+      }
+    }
+  },
+  "arrangement.range.title": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Ratio by axis"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "分轴比例范围"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "نسب حسب المحور"
+        }
+      }
+    }
+  },
+  "arrangement.range.detail": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Horizontally, the primary pane prefers 60% within a 40–80% range. Vertically, it prefers 35% within a 20–50% range."
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "水平排列时，主内容在 40%～80% 范围内首选 60%。垂直排列时，在 20%～50% 范围内首选 35%。"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "يفضّل المحتوى الأساسي أفقيًا 60٪ ضمن نطاق 40–80٪، ورأسيًا 35٪ ضمن نطاق 20–50٪."
+        }
+      }
+    }
+  },
+  "arrangement.size.title": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Size in points"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "点数尺寸范围"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "الحجم بالنقاط"
+        }
+      }
+    }
+  },
+  "arrangement.size.detail": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "The primary pane requests 160 pt horizontally (100–200 pt), or 100 pt vertically (60–140 pt). Resize the preview to compare this with a ratio."
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "主内容水平首选 160 点（范围 100～200 点），垂直首选 100 点（范围 60～140 点）。改变预览尺寸，可以比较点数和比例的区别。"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "يفضّل المحتوى الأساسي عرض 160 نقطة ضمن 100–200 أو ارتفاع 100 نقطة ضمن 60–140. غيّر الحجم لمقارنة النقاط بالنسب."
+        }
+      }
+    }
+  },
+  "arrangement.fixed.title": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Ideal content size"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "内容理想尺寸"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "حجم المحتوى المثالي"
+        }
+      }
+    }
+  },
+  "arrangement.fixed.detail": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "The primary pane has an ideal size of 144 × 78 pt. The split asks the content for its ideal length along the active axis."
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "主内容的理想尺寸为 144 × 78 点。分割时，容器沿当前轴测量内容，优先使用测得的宽度或高度。"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "الحجم المثالي للمحتوى الأساسي 144 × 78 نقطة. يطلب التقسيم طول المحتوى المثالي على المحور النشط."
+        }
+      }
+    }
+  },
+  "arrangement.overlay.title": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Overlay and edges"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "浮层与分隔边缘"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "التراكب والحواف"
+        }
+      }
+    }
+  },
+  "arrangement.overlay.detail": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "The primary pane floats above the secondary. If an active system division crosses the preview, the primary requests the trailing or bottom side. The edge preference applies when the panes separate."
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "主内容叠在辅助内容上方。当系统活动分隔区贯穿预览时，主内容请求位于尾侧或底部。边缘偏好在两块内容分开后生效。"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "يعلو المحتوى الأساسي المحتوى الثانوي. إذا عبر فاصل نظام نشط المعاينة يطلب المحتوى الأساسي الحافة النهائية أو السفلية. يسري تفضيل الحافة عند انفصال الجزأين."
+        }
+      }
+    }
+  },
+  "arrangement.custom.title": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Custom style"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "自定义样式"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "نمط مخصص"
+        }
+      }
+    }
+  },
+  "arrangement.custom.detail": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "FloatingStyle forwards both panes using ArrangementView(configuration). Its overlay allows no separation axes, so the primary stays above the secondary even across a system division."
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "FloatingStyle 通过 ArrangementView(configuration) 转发两块内容，并将浮层允许的分隔轴设为空。即使系统提供分隔区，主内容仍会叠在辅助内容上方。"
+        }
+      },
+      "ar": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "يمرّر FloatingStyle الجزأين عبر ArrangementView(configuration). تمنع مجموعة المحاور الفارغة الفصل، فيبقى المحتوى الأساسي فوق الثانوي حتى عند وجود فاصل للنظام."
+        }
+      }
+    }
+  },
   "demo.directionalGrid.title": {
     "extractionState": "manual",
     "localizations": {

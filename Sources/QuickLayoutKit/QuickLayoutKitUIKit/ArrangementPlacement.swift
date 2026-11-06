@@ -14,7 +14,9 @@ struct ArrangementPlacement {
                         axes: AxisSet, rect: CGRect, divisions: [CGRect],
                         horizontal: UIUserInterfaceSizeClass, vertical: UIUserInterfaceSizeClass,
                         rtl: Bool, scale: CGFloat = 1) -> Self {
-        let single = Self(primary: rect, secondary: nil, axis: nil, overlay: false)
+        func single(_ axis: Axis?) -> Self {
+            Self(primary: rect, secondary: nil, axis: axis, overlay: false)
+        }
         let floating = Self(primary: rect, secondary: rect, axis: nil, overlay: true)
 
         // 只有贯穿当前容器、在两侧均留下空间的活动分隔区才参与排列。
@@ -26,12 +28,17 @@ struct ArrangementPlacement {
             guard across || down else { continue }
             let axis: Axis = across ? .horizontal : .vertical
             guard axes.contains(across ? .horizontal : .vertical) else {
-                return style == .overlay ? floating : single
+                return style == .overlay ? floating : single(axis)
             }
-            let first = across ? rect.divided(atDistance: cut.minX - rect.minX, from: .minXEdge).slice
-                               : rect.divided(atDistance: cut.minY - rect.minY, from: .minYEdge).slice
-            let last = across ? rect.divided(atDistance: cut.maxX - rect.minX, from: .minXEdge).remainder
-                              : rect.divided(atDistance: cut.maxY - rect.minY, from: .minYEdge).remainder
+            let edge: CGRectEdge = across ? .minXEdge : .minYEdge
+            let origin = across ? rect.minX : rect.minY
+            func pixelBoundary(_ point: CGFloat) -> CGFloat {
+                scale > 0 ? (point * scale).rounded() / scale : point
+            }
+            let near = pixelBoundary(across ? cut.minX : cut.minY)
+            let far = pixelBoundary(across ? cut.maxX : cut.maxY)
+            let first = rect.divided(atDistance: near - origin, from: edge).slice
+            let last = rect.divided(atDistance: far - origin, from: edge).remainder
             var reverse = across && rtl
             if style == .overlay {
                 if across {
@@ -45,22 +52,27 @@ struct ArrangementPlacement {
                 }
             }
             return Self(primary: reverse ? last : first, secondary: reverse ? first : last,
-                        axis: style == .split ? axis : nil, overlay: false)
+                        axis: axis, overlay: false)
         }
 
         guard style == .split else { return floating }
         let canRow = horizontal != .compact
         let canColumn = vertical != .compact
-        guard canRow || canColumn else { return single }
+        guard canRow || canColumn else {
+            return single(rect.width > rect.height ? .horizontal : .vertical)
+        }
         let row = canRow && (!canColumn || rect.width > rect.height)
         let axis: Axis = row ? .horizontal : .vertical
-        guard axes.contains(row ? .horizontal : .vertical) else { return single }
+        guard axes.contains(row ? .horizontal : .vertical) else {
+            // SwiftUI 在此时收起辅助内容，主内容仍可读到环境选中的轴。
+            return single(axis)
+        }
         let available = row ? rect.width : rect.height
         return ArrangementLayoutContext.measure(axis: axis) {
             let p = panes.primary.arrangementRange(axis: axis, available: available, proposal: rect.size)
             let s = panes.secondary.arrangementRange(axis: axis, available: available, proposal: rect.size)
             let lower = p.min ?? 0, upper = available - (s.min ?? 0)
-            guard lower <= upper else { return single }
+            guard lower <= upper else { return single(nil) }
             // 与同窗口 SwiftUI 对照：双方都有理想比例时，以主区为准；
             // 主区未声明偏好，才由辅助区反推边界。
             let ideal = p.ideal ?? s.ideal.map { available - $0 } ?? available / 2

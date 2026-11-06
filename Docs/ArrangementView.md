@@ -1,6 +1,34 @@
 # ArrangementView
 
-`QuickLayoutKit.ArrangementView` 用两个 QuickLayout 内容闭包构建 UIKit 页面。所有支持的系统版本都由 QuickLayout 自行测量、排版并更新 UIKit 内容。SwiftUI 仅用作测试里的参考实现。语音房采用 `.split`，输入栏跟随公屏的实际水平范围。
+`QuickLayoutKit.ArrangementView` 用两个 QuickLayout 内容闭包构建 UIKit 页面。所有支持的系统版本都由 QuickLayout 自行测量、排版并更新 UIKit 内容。示例页和测试使用 SwiftUI 的原生实现作对照。语音房采用 `.split`，输入栏跟随公屏的实际水平范围。
+
+## 在示例应用中体验
+
+打开「示例 → 基础布局 → ArrangementView 排列」。在场景菜单中选择用法，预览下方会给出相应的代码。iOS 27.1 及以上可以切换 QuickLayoutKit 和 SwiftUI，两种实现使用相同的主、辅内容和预览尺寸。较早系统直接显示 QuickLayoutKit 预览。选择「在完整窗口中预览」会打开独立页面，沿用当前场景和实现，将整个窗口内容区交给排列组件。可旋转设备或改变 Duo 姿态，观察窗口、安全区和系统分隔区的作用。
+
+- **自动排列与轴限制**。拖动高度滑块或调整窗口大小，观察每块内容上显示的实际分割轴。选择「仅允许水平分割」或「仅允许垂直分割」，可观察当前环境无法沿指定轴排列时的结果。无活动分隔区时，辅助内容收起，主内容仍显示环境选中的轴。
+- **分割尺寸**。在「首选比例」中让主内容请求 65% 的空间，再换成「分轴比例范围」「点数尺寸范围」或「内容理想尺寸」，观察同一容器中分界线的位置。
+- **浮层与分隔边缘**。主内容半透明，标签显示各自的层级。只有系统活动分隔区贯穿预览时，才能看到 `.overlayArrangementEdge` 指定的尾侧或底部位置。
+- **自定义样式**。`FloatingStyle` 通过 `ArrangementView(configuration)` 转发主、辅内容，使用 `.overlay.axes([])` 保持叠放。
+
+## 在不同设备姿势下观察同一页面
+
+在「自动排列」中打开全窗口预览，保持同一个示例，依次合拢、半展开、展平并旋转设备。页面顶部显示容器的水平、垂直 size class。每个子区域显示自己的实际尺寸、分割轴、层级和可容纳的尺寸类别文字。实验页的滑块控制局部预览高度，窗口变化时按新安全区的可用高度重新计算；全窗口页则始终把实际内容区域交给当前实现。
+
+Duo 外屏通常是紧凑宽度，内屏可提供常规宽度。两者都要结合本地容器的可用高度和安全区来判断排列方向。在半展开的内屏上，若系统活动分隔区贯穿容器，分界线跟随分隔区；把设备展平后，再观察可用区域如何重新分配。窗口缩放、分屏和旋转复用同一套规则。[Apple 的 iPhone Duo 设计指南](https://developer.apple.com/design/human-interface-guidelines/designing-for-iphone-duo)
+
+iOS 27.2 的 Duo 模拟器在同一全窗口「自动排列」页面得到以下结果。表中尺寸是窗口点数，实际排列会扣除安全区。尺寸类别按水平、垂直顺序列出。
+
+| 活动显示屏与姿势 | 窗口 | 容器尺寸类别 | 主、辅内容 |
+| --- | --- | --- | --- |
+| 合拢，外屏纵向 | 466 × 678 | compact / regular | 上下排列 |
+| 合拢或部分张开仍使用外屏，横向 | 678 × 466 | compact / compact | 只显示主内容，报告水平轴 |
+| 展平，内屏纵向 | 669 × 951 | regular / regular | 上下排列 |
+| 展平，内屏横向 | 951 × 669 | regular / regular | 左右排列 |
+| 半展开，内屏有横向分隔带 | 669 × 951 | regular / regular | 两块内容在分隔带上下 |
+| 半展开，内屏有纵向分隔带 | 951 × 669 | regular / regular | 两块内容在分隔带左右 |
+
+在这次实测中，8 次姿态采样均对照了自动排列、水平受限、垂直受限和浮层四种配置。两种实现的主辅区域出现状态相同，位置、宽度和高度差均在 1 点以内，分割轴、浮层层级和子区域尺寸类别一致。最后一次采样返回初始的展平姿势。
 
 ## 公开接口对照
 
@@ -24,6 +52,8 @@ SwiftUI 的类型保留 `Primary`、`Secondary` 泛型参数。QuickLayout 的�
 
 从 iOS 15 开始共用一套排版规则。内置 split 根据容器安全区、水平和垂直 size class 以及可用空间选择轴。在两个方向都宽松时，比较安全区内的宽高；轴受样式限制或空间不足时可以只显示主区。双方同时声明理想比例时优先使用主区偏好，受两侧最小和最大尺寸约束。两区共用一条边界，不额外加入栈间距。应用可以通过 padding 表达内容间距。
 
+从 iOS 17 开始，QuickLayoutKit 用 UIKit 的子视图 trait 覆盖，使分割方向上的子区域获得 `compact`，另一方向继承外层容器；浮层遇到活动分隔区时也遵循这条规则。重新叠放后恢复继承。iOS 15 和 16 的子视图沿用容器的尺寸类别。
+
 在包含新 API 的 SDK 和 iOS 27.1 及以上系统中，组件读取 UIKit 活动的 `.division` 保留区。分隔区贯穿容器时，两个区域分别放在其两侧；overlay 允许按逻辑边缘交换两块内容。没有可用分隔区时，overlay 把主内容放在辅助内容上。软件不推断设备型号或铰链位置。
 
 这是独立实现，并不调用系统排列控制器。原生的全部选轴阈值、尺寸冲突规则和转场未公开；对照测试只说明已测场景的结果。
@@ -31,6 +61,8 @@ SwiftUI 的类型保留 `Primary`、`Secondary` 泛型参数。QuickLayout 的�
 参考 Apple 的 [ArrangementView](https://developer.apple.com/documentation/swiftui/arrangementview)、[SwiftUI 布局基础](https://developer.apple.com/documentation/swiftui/layout-fundamentals) 和 [iPhone Duo 自适应布局讲解](https://developer.apple.com/videos/play/tech-talks/111463/)。
 
 ## 同窗口对照
+
+在 Xcode 选择 `ArrangementRegression` 方案可以运行实验页和全窗口页面的 UI 回归。组件和同窗口对照测试位于 `Demo` 方案。`ArrangementExamplePageTests` 按菜单顺序切换全部九种场景，使用全窗口、320 × 200 和 320 × 400 点的局部容器，检查两种实现的区域、尺寸类别、分割轴和层级。
 
 `DemoTests/ArrangementViewTests` 把组件和直接使用 SwiftUI 的参考视图放在同一个窗口，依次更改两者的容器大小，比较主、辅区域的 x、y、宽、高，容差为 1 点。还覆盖受限轴、浮层、尺寸约束、自定义样式转发，以及模拟活动分隔区与 RTL 边缘映射。
 

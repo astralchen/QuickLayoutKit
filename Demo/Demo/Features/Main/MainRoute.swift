@@ -17,6 +17,7 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
     case fixedSize
     case containerRelativeSize
     case geometry
+    case arrangement
     case directionalGrid
     case profile
     case counter
@@ -64,6 +65,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "demo.containerRelativeSize.title"
         case .geometry:
             "demo.geometry.title"
+        case .arrangement:
+            "demo.arrangement.title"
         case .directionalGrid:
             "demo.directionalGrid.title"
         case .profile:
@@ -129,6 +132,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "arrow.up.left.and.arrow.down.right"
         case .geometry:
             "viewfinder"
+        case .arrangement:
+            "rectangle.split.2x1"
         case .directionalGrid:
             "square.grid.3x3"
         case .profile:
