@@ -29,13 +29,13 @@ public extension Element {
 }
 
 /// 保留已找到值的类型擦除包装，允许区分未找到与可选值为 `nil`。
-struct _AnyLayoutValue {
+package struct _AnyLayoutValue {
     /// 通过布局键恢复具体类型的原始值。
     let value: Any
 }
 
 /// 允许布局值查询穿过修饰元素并继续访问子元素的内部协议。
-protocol _LayoutValueProvidingElement {
+package protocol _LayoutValueProvidingElement {
     /// 继续向内查询自定义布局值时访问的子元素。
     var _layoutValueChild: Element { get }
     /// 查询本层是否提供指定键；返回 `nil` 时继续向子元素查找。
@@ -83,7 +83,7 @@ private struct LayoutValueElement<Key: LayoutValueKey>: Layout, _LayoutValueProv
 extension Element {
 
     /// 沿支持布局值传递的包装器向内查询，未找到时返回键的默认值。
-    func _layoutValue<Key: LayoutValueKey>(for key: Key.Type) -> Key.Value {
+    package func _layoutValue<Key: LayoutValueKey>(for key: Key.Type) -> Key.Value {
         var current: Element = self
 
         while let provider = current as? _LayoutValueProvidingElement {

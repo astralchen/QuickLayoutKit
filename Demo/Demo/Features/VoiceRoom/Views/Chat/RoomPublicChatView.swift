@@ -7,6 +7,7 @@ import UIKit
 /// 单一可滚动公屏；ListKit 管理复用及增量更新，阅读位置独立于业务消息。
 final class RoomPublicChatView: QuickLayoutView, UIScrollViewDelegate {
     let collectionView = UICollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
+    var columnDidLayout: (() -> Void)?
     var scrollView: UIScrollView { collectionView }
     private lazy var adapter = CollectionListAdapter<String>(collectionView: collectionView)
     private let newMessagesButton = CapsuleTextButton(frame: .zero)
@@ -52,6 +53,7 @@ final class RoomPublicChatView: QuickLayoutView, UIScrollViewDelegate {
         super.layoutSubviews()
         isAdjustingPosition = false
         reconcilePosition()
+        columnDidLayout?()
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {

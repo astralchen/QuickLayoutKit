@@ -16,7 +16,7 @@ extension ApplicationTests {
         )
         let window = try makeVisibleTestWindow(
             rootViewController: navigationController,
-            size: CGSize(width: 768, height: 1_024)
+            size: CGSize(width: 1_200, height: 1_024)
         )
         defer { window.isHidden = true }
 
@@ -67,6 +67,60 @@ extension ApplicationTests {
             abs($0.minY - fiveSeatFrames[1].minY) < 1
         })
         #expect(fiveSeatFrames[0].width > fiveSeatFrames[1].width)
+    }
+
+    @Test func voiceRoomRearrangesExistingContentWhenContainerWidthChanges() async throws {
+        let room = VoiceRoomViewController()
+        let navigation = UINavigationController(rootViewController: room)
+        let viewport = FixedViewportTestViewController(
+            childViewController: navigation, viewportSize: CGSize(width: 390, height: 844)
+        )
+        let window = try makeVisibleTestWindow(rootViewController: viewport)
+        defer { window.isHidden = true }
+        layout(room, in: navigation)
+
+        let messageButton = try #require(room.actionBarView.allSubviews(of: IconTitleButton.self).first {
+            $0.accessibilityIdentifier == "liveRoom.message.button"
+        })
+        activate(messageButton)
+        let input = try #require(room.actionBarView.allSubviews(of: UITextField.self).first)
+        input.text = "保留草稿"
+        let chat = room.publicChatScrollView
+
+        for size in [
+            CGSize(width: 390, height: 844),   // iPhone 竖屏
+            CGSize(width: 844, height: 390),    // iPhone 横屏
+            CGSize(width: 669, height: 951),    // Duo 展开
+            CGSize(width: 466, height: 678),   // Duo 合拢
+            CGSize(width: 1024, height: 768),   // iPad 整窗
+            CGSize(width: 507, height: 768),   // iPad 窄窗
+        ] {
+            viewport.viewportSize = size
+            viewport.view.setNeedsLayout()
+            viewport.view.layoutIfNeeded()
+            layout(room, in: navigation)
+            for _ in 0..<3 {
+                try await Task.sleep(nanoseconds: 30_000_000)
+                layout(room, in: navigation)
+            }
+            let stage = room.seatStageView.convert(room.seatStageView.bounds, to: room.view)
+            let messages = room.messagesView.convert(room.messagesView.bounds, to: room.view)
+            let bar = room.actionBarView.frame
+            #expect(stage.width > 0 && stage.height > 0)
+            #expect(messages.width > 0 && messages.height > 0)
+            #expect(stage.maxX <= messages.minX + 1 || stage.maxY <= messages.minY + 1,
+                    "size=\(size), stage=\(stage), chat=\(messages)")
+            print("Voice room: viewport=\(size), stage=\(stage), chat=\(messages), bar=\(bar)")
+            #expect(abs(messages.minX - bar.minX) < 1)
+            #expect(abs(messages.maxX - bar.maxX) < 1)
+            #expect(messages.height >= 24)
+            #expect(chat === room.publicChatScrollView)
+            #expect(room.isShowingMessageComposer && input.text == "保留草稿")
+            let pageScrollViews = room.view.allSubviews(of: UIScrollView.self).filter {
+                $0.isScrollEnabled && !$0.isDescendant(of: input)
+            }
+            #expect(pageScrollViews == [chat])
+        }
     }
 
     @Test func voiceRoomPublicChatMessagesFillAvailableWidthOnIPad() async throws {
@@ -412,7 +466,7 @@ private func voiceRoomAssignments(
 private final class FixedViewportTestViewController: UIViewController {
 
     private let childViewController: UIViewController
-    private let viewportSize: CGSize
+    var viewportSize: CGSize
 
     init(childViewController: UIViewController, viewportSize: CGSize) {
         self.childViewController = childViewController

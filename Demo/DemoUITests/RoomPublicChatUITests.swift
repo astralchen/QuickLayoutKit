@@ -13,7 +13,7 @@ final class RoomPublicChatUITests: XCTestCase {
         let headerFrame = header.frame
         let seatFrame = lastSeat.frame
         XCTAssertTrue(app.frame.contains(seatFrame))
-        XCTAssertLessThanOrEqual(seatFrame.maxY, chat.frame.minY)
+        verifyArrangement(app, stage: stage, chat: chat)
 
         stage.swipeUp()
         XCTAssertEqual(header.frame, headerFrame)
@@ -33,6 +33,33 @@ final class RoomPublicChatUITests: XCTestCase {
         XCTAssertEqual(header.frame, headerFrame)
         XCTAssertEqual(lastSeat.frame, seatFrame)
         capture(app, "固定麦位与公屏")
+    }
+
+    @MainActor
+    func testRoomReflowsWhenRotated() {
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let app = launchRoom()
+        let chat = app.collectionViews["liveRoom.publicChat.scroll"]
+        let stage = app.otherElements["liveRoom.seat.stage"]
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft, .portrait] {
+            XCUIDevice.shared.orientation = orientation
+            XCTAssertTrue(chat.isHittable)
+            verifyArrangement(app, stage: stage, chat: chat)
+            XCTAssertTrue(app.buttons["liveRoom.gift.button"].isHittable)
+            if orientation == .landscapeLeft { capture(app, "语音房横屏排列") }
+        }
+    }
+
+    @MainActor
+    private func verifyArrangement(_ app: XCUIApplication, stage: XCUIElement, chat: XCUIElement) {
+        let header = app.buttons["liveRoom.room.avatar.button"]
+        let bar = app.otherElements["liveRoom.actionBar"]
+        // 排列组件根据当前环境选轴；竖向窗口也可能受 Duo 的姿态影响。
+        XCTAssertTrue(stage.frame.maxY <= chat.frame.minY + 1 || stage.frame.maxX <= chat.frame.minX + 1)
+        XCTAssertTrue(header.isHittable)
+        XCTAssertEqual(bar.frame.minX, chat.frame.minX, accuracy: 1)
+        XCTAssertEqual(bar.frame.width, chat.frame.width, accuracy: 1)
     }
 
     @MainActor
@@ -63,7 +90,7 @@ final class RoomPublicChatUITests: XCTestCase {
         let chat = app.collectionViews["liveRoom.publicChat.scroll"]
         XCTAssertTrue(follow.waitForExistence(timeout: 5))
         XCTAssertTrue(chat.exists)
-        XCTAssertLessThan(follow.frame.maxY, chat.frame.minY)
+        verifyArrangement(app, stage: app.otherElements["liveRoom.seat.stage"], chat: chat)
         follow.tap()
         let followed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "已关注"), object: follow)
         XCTAssertEqual(XCTWaiter.wait(for: [followed], timeout: 5), .completed)

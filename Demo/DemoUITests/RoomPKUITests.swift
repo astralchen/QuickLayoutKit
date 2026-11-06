@@ -70,7 +70,7 @@ final class RoomPKUITests: XCTestCase {
         for side in ["current", "opponent"] {
             let lastSeat = app.buttons["liveRoom.seat.button.\(side).8"]
             XCTAssertTrue(lastSeat.exists)
-            XCTAssertLessThanOrEqual(lastSeat.frame.maxY, input.frame.minY,
+            XCTAssertFalse(lastSeat.frame.intersects(input.frame),
                 "输入条不能遮住 \(side) 最后一排麦位")
         }
         capture(app, "厅PK-键盘展开")
@@ -112,7 +112,9 @@ final class RoomPKUITests: XCTestCase {
             XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 5), .completed)
             let messages = app.otherElements["liveRoom.publicChat.container"]
             XCTAssertTrue(messages.exists)
-            XCTAssertLessThanOrEqual(seats.element(boundBy: count - 1).frame.maxY, messages.frame.minY + 1)
+            let seat = seats.element(boundBy: count - 1).frame
+            XCTAssertTrue(seat.maxY <= messages.frame.minY + 1 || seat.maxX <= messages.frame.minX + 1
+                || messages.frame.maxX <= seat.minX + 1)
             if count == 1 {
                 let firstMessage = app.staticTexts["liveRoom.publicChat.message.0"]
                 XCTAssertTrue(firstMessage.waitForExistence(timeout: 3))
@@ -130,9 +132,8 @@ final class RoomPKUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments += ["-AppleLanguages", "(en)", "-quicklayoutkit.demo.locale.identifier", locale]
         app.launch()
-        XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
         let route = app.buttons.matching(identifier: "app.tab.voiceRoom").firstMatch
-        for _ in 0..<10 where !route.isHittable { app.collectionViews.firstMatch.swipeUp() }
+        XCTAssertTrue(route.waitForExistence(timeout: 10))
         XCTAssertTrue(route.isHittable)
         route.tap()
         let more = app.buttons["liveRoom.more.button"]

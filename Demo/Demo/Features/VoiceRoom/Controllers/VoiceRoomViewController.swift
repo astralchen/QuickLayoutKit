@@ -42,6 +42,8 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
     // 首次测量后会按 Action Bar 的真实高度更新，避免紧凑屏幕出现额外空隙。
     /// 页面为底部操作栏预留的高度，单位为点。
     var actionBarReservedHeight: CGFloat = 65
+    /// 公屏实际占据的水平范围，输入栏独立避让键盘时沿用此范围。
+    private var chatColumnInsets: UIEdgeInsets?
     /// 按实例标识持有的活动礼物飞行动画。
     var giftFlightAnimators: [UUID: GiftFlightAnimator] = [:]
     /// VAP、SVGA 共用的主特效队列，页面不可见时取消全部展示。
@@ -219,6 +221,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
     /// 在布局完成后同步舞台尺寸等级、操作栏预留高度和待处理的公屏滚动。
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        updateChatColumnInsets()
         let didChangeCompactPresentation = seatStageView.setCompactPresentation(
             usesCompactPageLayout
         )
@@ -331,36 +334,33 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
                 .resizable()
                 .ignoresSafeArea(.all, edges: .all)
 
-            VStack(spacing: 10) {
-                stageContainer.resizable(axis: .horizontal).layoutPriority(1)
-                messagesView
-                    .resizable()
-                    .frame(
-                        minHeight: 0,
-                        maxHeight: .infinity
-                    )
+            ArrangementView {
+                stageContainer.resizable()
+                    .padding(.bottom, 10)
+                    .splitArrangementLayoutRatio(idealHorizontal: 0.54)
+                    .splitArrangementLayoutSize(idealHeight: stageContainer.idealHeight.map { $0 + 10 })
+            } secondary: {
+                messagesView.resizable()
+                    .padding(.bottom, actionBarReservedHeight)
+                    .splitArrangementLayoutSize(minHeight: actionBarReservedHeight + 24)
             }
-            .padding(.bottom, actionBarReservedHeight)
-            .frame(maxWidth: maximumContentWidth)
-            .frame(maxHeight: .infinity)
-            .padding(.horizontal, 14)
+            .arrangementViewStyle(.split)
             .padding(.top, 8)
+            .frame(maxWidth: 1200, maxHeight: .infinity)
+            .padding(.horizontal, 14)
             .frame(maxWidth: .infinity)
             .safeAreaPadding(.all, 0)
-            // 主体只响应容器安全区域；键盘不会重新测量麦位或压缩公屏。
             .ignoresSafeArea(.keyboard, edges: .bottom)
 
-            actionBarView
-                .resizable(axis: .horizontal)
-                .fixedSize(axis: .vertical)
-                .frame(maxWidth: maximumContentWidth)
-                .padding(.horizontal, 14)
-                .frame(maxWidth: .infinity)
-                .frame(maxHeight: .infinity, alignment: .bottom)
-                .safeAreaPadding(.all, 0)
-                // Action Bar 的底边只采用键盘区域。隐藏时该区域是否使用
-                // container bottom safe area 由宿主行为统一决定。
-                .ignoresSafeArea(.container, edges: .bottom)
+            if let insets = chatColumnInsets {
+                let rtl = view.effectiveUserInterfaceLayoutDirection == .rightToLeft
+                actionBarView.resizable(axis: .horizontal).fixedSize(axis: .vertical)
+                    .padding(.leading, rtl ? insets.right : insets.left)
+                    .padding(.trailing, rtl ? insets.left : insets.right)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .safeAreaPadding(.vertical, 0)
+                    .ignoresSafeArea(.container, edges: .bottom)
+            }
 
             if let giftSheetHost {
                 // 面板覆盖直播间内容，但仍与直播间处于同一个 QuickLayout 层级。
@@ -376,6 +376,20 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
         }
     }
 
+    private func updateChatColumnInsets() {
+        let frame = messagesView.isDescendant(of: view)
+            ? messagesView.convert(messagesView.bounds, to: view)
+            : .zero
+        let next: UIEdgeInsets? = frame.width > 0 && frame.height > 0
+            ? UIEdgeInsets(top: 0, left: max(0, frame.minX), bottom: 0,
+                           right: max(0, view.bounds.width - frame.maxX))
+            : nil
+        if next != chatColumnInsets {
+            chatColumnInsets = next
+            setNeedsQuickLayout()
+        }
+    }
+
     var usesCompactPageLayout: Bool {
         view.safeAreaLayoutGuide.layoutFrame.height < 780
             || (viewModel.state.stagePresentation.layoutID == .roomPKNine
@@ -384,15 +398,11 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
                 .isAccessibilityCategory
     }
 
-    /// 页面主体允许使用的最大内容宽度，单位为点。
-    var maximumContentWidth: CGFloat {
-        720
-    }
-
     /// 配置子视图的样式、交互和辅助功能属性。
     func configureViews() {
         view.backgroundColor = UIColor(red: 0.08, green: 0.05, blue: 0.24, alpha: 1)
         publicChatScrollView.keyboardDismissMode = .interactive
+        messagesView.columnDidLayout = { [weak self] in self?.updateChatColumnInsets() }
         actionBarView.messageDidSend = { [weak self] message in
             self?.sendPublicMessage(message)
         }
@@ -513,11 +523,9 @@ private final class FittedRoomStageView: UIView {
 
     required init?(coder: NSCoder) { nil }
 
-    override func sizeThatFits(_ size: CGSize) -> CGSize {
-        let ideal = content.sizeThatFits(CGSize(width: size.width, height: .infinity))
-        // 为公屏保留一行消息；极矮窗口按比例分配空间。
-        let chatHeight = min(24, size.height * 0.4)
-        return CGSize(width: ideal.width, height: min(ideal.height, size.height - chatHeight))
+    var idealHeight: CGFloat? {
+        guard bounds.width > 0 else { return nil }
+        return content.sizeThatFits(CGSize(width: bounds.width, height: .infinity)).height
     }
 
     override func layoutSubviews() {
@@ -525,7 +533,7 @@ private final class FittedRoomStageView: UIView {
         let ideal = content.sizeThatFits(CGSize(width: bounds.width, height: .infinity))
         let scale = ideal.height > 0 ? min(1, bounds.height / ideal.height) : 1
         content.bounds.size = CGSize(width: bounds.width, height: ideal.height)
-        content.center = CGPoint(x: bounds.midX, y: bounds.midY)
+        content.center = CGPoint(x: bounds.midX, y: ideal.height * scale / 2)
         content.transform = CGAffineTransform(scaleX: scale, y: scale)
     }
 }

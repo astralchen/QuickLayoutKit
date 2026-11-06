@@ -1060,6 +1060,22 @@ xcodebuild -workspace QuickLayoutKit.xcworkspace -scheme Demo \
 
 ## 二维几何查询与 iPhone Duo
 
+### ArrangementView
+
+`QuickLayoutKit.ArrangementView` 接收主、辅两块内容。容器使用 `.arrangementViewStyle` 选择排列方式，子内容通过修饰符表达尺寸偏好。
+
+```swift
+QuickLayoutKit.ArrangementView {
+    stageView.resizable()
+        .splitArrangementLayoutRatio(idealHorizontal: 0.54)
+} secondary: {
+    chatView.resizable()
+}
+.arrangementViewStyle(.split)
+```
+
+iOS 15 起统一使用 QuickLayout 自行排列主、辅内容；在 iOS 27.1 及以上还可以读取 UIKit 报告的活动分隔区。支持 `.automatic`、`.split`、`.overlay` 及自定义样式。完整签名、环境读法与兼容边界见 [ArrangementView API 对照](Docs/ArrangementView.md)。
+
 ### GeometryReader
 
 `GeometryReader` 根据自身的实际几何构建内容，支持条件、循环和多个直接子元素：
