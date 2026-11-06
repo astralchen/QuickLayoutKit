@@ -42,6 +42,7 @@ final class ArrangementHost: QuickLayoutView {
         #endif
         let placement = ArrangementPlacement.resolve(
             panes: panes, style: style, axes: axes, rect: rect, divisions: divisions,
+            windowBounds: divisions.isEmpty ? nil : window.map { convert($0.bounds, from: $0) },
             horizontal: traitCollection.horizontalSizeClass, vertical: traitCollection.verticalSizeClass,
             rtl: effectiveUserInterfaceLayoutDirection == .rightToLeft, scale: traitCollection.displayScale
         )

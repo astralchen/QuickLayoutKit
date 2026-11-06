@@ -13,7 +13,7 @@ struct ArrangementViewTests {
             primary: UIView().resizable().overlayArrangementEdge(QuickLayoutKit.HorizontalEdge.trailing),
             secondary: UIView().resizable()
         )
-        let rect = CGRect(x: 10, y: 20, width: 600, height: 800)
+        let rect = CGRect(x: 10, y: 20, width: 600, height: 480)
         let gap = CGRect(x: 250, y: 0, width: 10, height: 900)
         func resolve(_ kind: ArrangementKind, _ axes: QuickLayoutKit.AxisSet, rtl: Bool = false) -> ArrangementPlacement {
             ArrangementPlacement.resolve(panes: panes, style: kind, axes: axes, rect: rect, divisions: [gap],
@@ -31,6 +31,54 @@ struct ArrangementViewTests {
         #expect(abs(fractional.primary.maxX - 752.0 / 3) < 0.001)
         #expect(abs((fractional.secondary?.minX ?? 0) - 782.0 / 3) < 0.001)
         #expect(resolve(.overlay, .vertical).primary == rect && resolve(.overlay, .vertical).secondary == rect)
+
+        // 同一条竖向分隔带穿过较高的容器时，split 仍沿垂直轴上下排列。
+        let tall = CGRect(x: 10, y: 20, width: 600, height: 800)
+        let column = ArrangementPlacement.resolve(panes: panes, style: .split, axes: [.horizontal, .vertical],
+            rect: tall, divisions: [gap], horizontal: .regular, vertical: .regular, rtl: false)
+        #expect(column.axis == .vertical && column.primary.width == tall.width)
+        #expect(column.primary.maxY == column.secondary?.minY)
+    }
+
+    @Test func divisionMustSpanThePartOfThePreviewInsideTheWindow() {
+        let panes = QuickLayoutKit.ArrangementViewStyleConfiguration(
+            primary: UIView().resizable(), secondary: UIView().resizable()
+        )
+        let rect = CGRect(x: 0, y: 0, width: 540, height: 490)
+        let window = CGRect(x: -287, y: -215, width: 951, height: 669)
+        let fold = CGRect(x: 169, y: window.minY, width: 40, height: window.height)
+        func placement(_ region: CGRect) -> ArrangementPlacement {
+            ArrangementPlacement.resolve(panes: panes, style: .split, axes: [.horizontal, .vertical],
+                rect: rect, divisions: [region], windowBounds: window,
+                horizontal: .regular, vertical: .regular, rtl: false)
+        }
+        let crossing = placement(fold)
+        #expect(crossing.primary == CGRect(x: 0, y: 0, width: 169, height: 490))
+        #expect(crossing.secondary == CGRect(x: 209, y: 0, width: 331, height: 490))
+        // 短于可见范围的分隔带不能把两个区域推开。
+        #expect(placement(fold.insetBy(dx: 0, dy: 20)).primary.width == 270)
+    }
+
+    @Test func divisionRespectsPaneRangesAndKeepsAxisWhenSecondaryDoesNotFit() {
+        let panes = QuickLayoutKit.ArrangementViewStyleConfiguration(
+            primary: UIView().resizable().splitArrangementLayoutRatio(
+                minHorizontal: 0.4, idealHorizontal: 0.6, maxHorizontal: 0.8),
+            secondary: UIView().resizable()
+        )
+        let rect = CGRect(x: 0, y: 0, width: 540, height: 340)
+        func resolve(at x: CGFloat) -> ArrangementPlacement {
+            ArrangementPlacement.resolve(panes: panes, style: .split, axes: .horizontal, rect: rect,
+                divisions: [CGRect(x: x, y: 0, width: 40, height: 340)],
+                horizontal: .regular, vertical: .regular, rtl: false)
+        }
+        let narrow = resolve(at: 169)
+        #expect(narrow.primary == CGRect(x: 40, y: 0, width: 324, height: 340))
+        #expect(narrow.secondary == CGRect(x: 364, y: 0, width: 7, height: 340))
+        let single = resolve(at: 195)
+        #expect(single.primary == CGRect(x: 40, y: 0, width: 305, height: 340))
+        #expect(single.secondary == nil && single.axis == .horizontal)
+        let wide = resolve(at: 450)
+        #expect(wide.primary.width == 324 && wide.secondary?.width == 126)
     }
 
     @available(iOS 27.1, *)

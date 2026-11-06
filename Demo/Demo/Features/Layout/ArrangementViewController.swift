@@ -18,6 +18,9 @@ final class ArrangementViewController: LocalizedQuickLayoutHostingController {
     private var previewHeight: CGFloat = 0
     private let heightLabel = UILabel()
     private let containerClasses = UILabel()
+    private let poseLabel = UILabel()
+    private var hingeState: ArrangementDevicePose?
+    private var hingeDegrees: CGFloat?
     private let explanation = UILabel()
     private let code = UILabel()
 
@@ -35,12 +38,14 @@ final class ArrangementViewController: LocalizedQuickLayoutHostingController {
         engine.accessibilityIdentifier = "arrangement.engine"
         engine.addTarget(self, action: #selector(updateExample), for: .valueChanged)
         heightControl.addTarget(self, action: #selector(resizePreview), for: .valueChanged)
-        for label in [heightLabel, containerClasses, explanation, code] {
+        for label in [heightLabel, containerClasses, poseLabel, explanation, code] {
             label.numberOfLines = 0
             label.adjustsFontForContentSizeCategory = true
         }
         heightLabel.font = .preferredFont(forTextStyle: .caption1)
         containerClasses.font = .preferredFont(forTextStyle: .caption1)
+        poseLabel.font = .preferredFont(forTextStyle: .subheadline)
+        poseLabel.accessibilityIdentifier = "arrangement.devicePose"
         explanation.font = .preferredFont(forTextStyle: .body)
         code.font = UIFontMetrics(forTextStyle: .footnote).scaledFont(for: .monospacedSystemFont(ofSize: 13, weight: .regular))
         code.textAlignment = .left
@@ -54,6 +59,24 @@ final class ArrangementViewController: LocalizedQuickLayoutHostingController {
             navigationItem.leftBarButtonItem?.accessibilityIdentifier = "arrangement.closeWindow"
             if supportsReference { navigationItem.titleView = engine }
         }
+        #if compiler(>=6.4)
+        if #available(iOS 27.1, *) {
+            view.addInteraction(UIHingeInteraction { [weak self] _, update in
+                guard let self else { return }
+                hingeDegrees = update.hinge.map { $0.angle * 180 / .pi }
+                hingeState = update.hinge.map { hinge in
+                    switch hinge.status {
+                    case .closed: .closed
+                    case .partiallyOpen: .partial
+                    case .fullyOpen: .open
+                    case .unknown: .unknown
+                    @unknown default: .unknown
+                    }
+                }
+                updateContainerClasses()
+            })
+        }
+        #endif
         reloadLocalizedContent()
     }
 
@@ -65,6 +88,7 @@ final class ArrangementViewController: LocalizedQuickLayoutHostingController {
             VStack(alignment: .leading, spacing: 12) {
                 picker
                 if supportsReference { engine.resizable(axis: .horizontal) }
+                if hingeState != nil { poseLabel }
                 containerClasses
                 (reference ?? preview).resizable().frame(height: previewHeight)
                 openWindowButton
@@ -113,10 +137,30 @@ final class ArrangementViewController: LocalizedQuickLayoutHostingController {
 
     private func updateContainerClasses() {
         let text = Localization.text("arrangement.container", traitCollection.arrangementSizeClasses)
+        let pose = hingeState?.resolved(in: view.window)
+        var summary = pose.map { Localization.text("arrangement.devicePose", Localization.text("arrangement.pose." + $0.rawValue)) }
+        if let hingeDegrees, hingeDegrees.isFinite, let title = summary {
+            summary = title + " · " + Localization.text("arrangement.hingeAngle", Double(hingeDegrees))
+        }
         if isWindowPreview {
-            if navigationItem.prompt != text { navigationItem.prompt = text }
-        } else if containerClasses.text != text {
+            let prompt = [summary, text].compactMap { $0 }.joined(separator: " · ")
+            if navigationItem.prompt != prompt { navigationItem.prompt = prompt }
+        } else if containerClasses.text != text || poseLabel.accessibilityLabel != summary {
             containerClasses.text = text
+            if let pose, let summary {
+                let line = NSMutableAttributedString()
+                if let image = UIImage(systemName: pose.symbol, withConfiguration: UIImage.SymbolConfiguration(font: poseLabel.font)) {
+                    let icon = NSTextAttachment()
+                    icon.image = image
+                    line.append(NSAttributedString(attachment: icon))
+                    line.append(NSAttributedString(string: "  "))
+                }
+                line.append(NSAttributedString(string: summary))
+                poseLabel.attributedText = line
+            } else {
+                poseLabel.attributedText = nil
+            }
+            poseLabel.accessibilityLabel = summary
             setNeedsQuickLayout()
         }
     }

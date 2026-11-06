@@ -176,7 +176,9 @@ final class ArrangementExamplePane: UIView {
         backgroundColor = surface == .foreground ? .clear : accent.withAlphaComponent(0.14)
         let inset: CGFloat = bounds.height < 100 || bounds.width < 160 ? 4 : 8
         let width = max(0, bounds.width - 2 * inset)
-        let height = max(0, (axis == "nil" ? bounds.height / 2 : bounds.height) - 2 * inset)
+        // 分居折痕两侧时，主层的 axis 仍为 nil，但 z 已回到 0，可用整块区域显示读数。
+        let readoutHeight = axis == "nil" && (!isPrimary || z > 0) ? bounds.height / 2 : bounds.height
+        let height = max(0, readoutHeight - 2 * inset)
         let padX = min(8, width / 4), padY = min(4, height / 4)
         let limit = CGSize(width: max(0, width - 2 * padX), height: max(0, height - 2 * padY))
 

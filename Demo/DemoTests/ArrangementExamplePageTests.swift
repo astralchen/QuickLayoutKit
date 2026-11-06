@@ -85,6 +85,89 @@ struct ArrangementExamplePageTests {
         }
     }
 
+    /// 预览随内容滚动经过折痕时，在相同位置与原生排列比较两个区域。
+    @available(iOS 27.1, *)
+    @Test func scrollingPreviewMatchesSwiftUI() async throws {
+        let root = UIViewController()
+        let window = try makeVisibleTestWindow(rootViewController: root)
+        defer { window.isHidden = true }
+        let scroll = UIScrollView(frame: root.view.bounds)
+        scroll.contentInsetAdjustmentBehavior = .never
+        root.view.addSubview(scroll)
+        scroll.contentSize = CGSize(width: scroll.bounds.width, height: scroll.bounds.height + 200)
+        let kit = ArrangementPreview()
+        scroll.addSubview(kit)
+        for example in [ArrangementExample.ratio, .overlay] {
+            kit.example = example
+            let native = makeArrangementReference(example, direction: .leftToRight)
+            scroll.addSubview(native)
+            defer { native.removeFromSuperview() }
+            for height: CGFloat in [394, 720] {
+                kit.frame = CGRect(x: 20, y: 215, width: scroll.bounds.width - 40, height: height)
+                native.frame = kit.frame
+                kit.setNeedsLayout()
+                for y: CGFloat in [0, 140, 0] {
+                    scroll.contentOffset.y = y
+                    scroll.layoutIfNeeded()
+                    await expectMatchingPanes(kit, native, context: "\(example), height \(height), offset \(y)")
+                }
+            }
+        }
+    }
+
+    @available(iOS 27.1, *)
+    @Test func sidebarDetailMatchesSwiftUIAsPreviewExtendsPastWindow() async throws {
+        let root = UIViewController()
+        let window = try makeVisibleTestWindow(rootViewController: root)
+        defer { window.isHidden = true }
+        let kit = ArrangementPreview()
+        let native = makeArrangementReference(.automatic, direction: .leftToRight)
+        let scroll = UIScrollView(frame: root.view.bounds)
+        scroll.contentInsetAdjustmentBehavior = .never
+        root.view.addSubview(scroll)
+        scroll.contentSize = CGSize(width: scroll.bounds.width, height: scroll.bounds.height + 100)
+        scroll.addSubview(kit)
+        scroll.addSubview(native)
+        // 模拟侧栏右边的详情列，滚动前预览下端超出窗口，滚动后完全可见。
+        let x = max(0, window.bounds.midX - 189)
+        let width = min(540, window.bounds.width - x)
+        kit.frame = CGRect(x: x, y: window.bounds.maxY - 490 + 36, width: width, height: 490)
+        native.frame = kit.frame
+        for offset: CGFloat in [0, 76, 0] {
+            scroll.contentOffset.y = offset
+            scroll.layoutIfNeeded()
+            await expectMatchingPanes(kit, native, context: "sidebar detail, scroll offset \(offset)")
+        }
+    }
+
+    @available(iOS 27.1, *)
+    @Test func constrainedSplitMatchesSwiftUIAtDifferentFoldPositions() async throws {
+        let root = UIViewController()
+        let window = try makeVisibleTestWindow(rootViewController: root)
+        defer { window.isHidden = true }
+        let width = min(540, window.bounds.width)
+        for direction in [UIUserInterfaceLayoutDirection.leftToRight, .rightToLeft] {
+            root.traitOverrides.layoutDirection = direction == .rightToLeft ? .rightToLeft : .leftToRight
+            for example in [ArrangementExample.range, .size, .fixed] {
+                let kit = ArrangementPreview()
+                kit.example = example
+                kit.semanticContentAttribute = direction == .leftToRight ? .forceLeftToRight : .forceRightToLeft
+                let native = makeArrangementReference(example, direction: direction)
+                root.view.addSubview(kit)
+                root.view.addSubview(native)
+                defer { kit.removeFromSuperview(); native.removeFromSuperview() }
+                for leadingFraction in [0.313, 0.36, 0.46, 0.613, 0.83] {
+                    let x = window.bounds.midX - width * leadingFraction - 20
+                    kit.frame = CGRect(x: max(0, min(window.bounds.width - width, x)),
+                                       y: 175, width: width, height: 340)
+                    native.frame = kit.frame
+                    kit.setNeedsLayout()
+                    await expectMatchingPanes(kit, native, context: "\(example), \(direction), \(kit.frame)")
+                }
+            }
+        }
+    }
+
     private func samples(in host: UIView) -> [String: Sample] {
         host.layoutIfNeeded()
         var result: [String: Sample] = [:]
