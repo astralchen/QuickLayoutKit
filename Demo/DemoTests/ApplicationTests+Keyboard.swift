@@ -9,6 +9,84 @@ import QuickLayoutKit
 
 extension ApplicationTests {
 
+    @Test func keyboardDiagnosticsDisplaysReceivedEventAndVisibilityIndependently() throws {
+        let view = AnimatedKeyboardResponsiveView()
+        #expect(view.diagnosticsLabel.text?.contains(Localization.text("keyboard.diagnostics.waiting")) == true)
+        #expect(view.diagnosticsLabel.text?.contains("willHide") == false)
+
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let screen = try #require(scene).screen
+        let bounds = screen.coordinateSpace.bounds
+        let hidden = CGRect(x: bounds.minX, y: bounds.maxY, width: bounds.width, height: 264)
+        let shown = hidden.offsetBy(dx: 0, dy: -hidden.height)
+
+        func check(_ notification: Notification.Name, _ frame: CGRect, event: String, visible: Bool) {
+            NotificationCenter.default.post(name: notification, object: screen, userInfo: [
+                UIResponder.keyboardFrameEndUserInfoKey: frame,
+                UIResponder.keyboardAnimationDurationUserInfoKey: 0,
+            ])
+            let lines = view.diagnosticsLabel.text?.components(separatedBy: "\n") ?? []
+            #expect(lines.contains(Localization.text("keyboard.diagnostics.event", event)))
+            #expect(lines.contains(Localization.text(
+                "keyboard.diagnostics.visible", Localization.text(visible ? "common.boolean.true" : "common.boolean.false")
+            )))
+        }
+
+        check(UIResponder.keyboardDidChangeFrameNotification, shown, event: "didChangeFrame", visible: true)
+        check(UIResponder.keyboardWillHideNotification, hidden, event: "willHide", visible: false)
+        check(UIResponder.keyboardDidChangeFrameNotification, hidden, event: "didChangeFrame", visible: false)
+    }
+
+    /// 键盘通知同步触发布局时，不能重新读到 @Published 尚未写入的旧上下文。
+    /// 同时检查 Core Animation 的中间位置，避免只验证最终布局而漏掉瞬移。
+    @Test func keyboardSafeAreaAnimatesShowAndHideWithoutRevertingContext() async throws {
+        // 同时触发 Demo 自己的诊断／滚动订阅，覆盖它清除宿主动画的回归。
+        let center = NotificationCenter.default
+        let view = KeyboardLayoutSafeAreaView()
+        view.quickLayoutKeyboardSafeAreaBehavior = .disabled
+        view.configureQuickLayoutKeyboardSafeAreaForTesting(notificationCenter: center) { _, _ in true }
+        view.quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard()
+        let controller = UIViewController()
+        controller.view = view
+        let window = try makeVisibleTestWindow(rootViewController: controller)
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(true)
+        defer {
+            window.isHidden = true
+            UIView.setAnimationsEnabled(animationsWereEnabled)
+        }
+        view.layoutIfNeeded()
+        try await Task.sleep(for: .milliseconds(50))
+
+        for showing in [true, false] {
+            let startY = view.contentScrollView.layer.position.y
+            let height: CGFloat = showing ? 220 : 0
+            let frame = view.convert(
+                CGRect(x: 0, y: view.bounds.height - height, width: view.bounds.width, height: height),
+                to: nil
+            )
+            center.post(
+                name: showing ? UIResponder.keyboardWillShowNotification : UIResponder.keyboardWillHideNotification,
+                object: nil,
+                userInfo: [
+                    UIResponder.keyboardFrameEndUserInfoKey: frame,
+                    UIResponder.keyboardAnimationDurationUserInfoKey: 0.5,
+                    UIResponder.keyboardAnimationCurveUserInfoKey: UIView.AnimationCurve.linear.rawValue,
+                ]
+            )
+            // 不额外手动布局：通知处理本身应当更新目标位置并开始动画。
+            #expect(abs(view.quickLayoutKeyboardSafeAreaInsets.bottom - height) < 1)
+            let endY = view.contentScrollView.layer.position.y
+            #expect(abs(endY - startY) > 100)
+            try await Task.sleep(for: .milliseconds(100))
+            let intermediateY = try #require(view.contentScrollView.layer.presentation()).position.y
+            #expect(intermediateY > min(startY, endY) + 1)
+            #expect(intermediateY < max(startY, endY) - 1)
+            try await Task.sleep(for: .milliseconds(500))
+            #expect(abs(view.contentScrollView.layer.position.y - endY) < 1)
+        }
+    }
+
     @Test func keyboardAvoiderRecalculatesInsetsWhenContainerResizesWithoutNotification() {
         for scroll in [QuickLayoutScrollView(), UIScrollView()] as [UIScrollView] {
             scroll.frame = CGRect(x: 0, y: 0, width: 320, height: 480)
@@ -158,30 +236,51 @@ extension ApplicationTests {
         #expect(context.isVisible)
     }
 
-    @Test func keyboardContextMapsChangeAndHideEvents() throws {
-        let didChange = Notification(
-            name: UIResponder.keyboardDidChangeFrameNotification,
-            object: nil,
-            userInfo: [
-                UIResponder.keyboardFrameEndUserInfoKey: CGRect(x: 0, y: 600, width: 390, height: 244),
-            ]
-        )
-        let willHide = Notification(
-            name: UIResponder.keyboardWillHideNotification,
-            object: nil,
-            userInfo: [
-                UIResponder.keyboardFrameEndUserInfoKey: CGRect(x: 0, y: 844, width: 390, height: 0),
-            ]
-        )
+    @Test(arguments: [true, false])
+    func keyboardObserverStaysHiddenAfterFinalFrameChange(includesSourceScreen: Bool) throws {
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let screen = try #require(scene).screen
+        let bounds = screen.coordinateSpace.bounds
+        let center = NotificationCenter()
+        let observer = QuickLayoutKeyboardObserver(notificationCenter: center)
+        let hidden = CGRect(x: bounds.minX, y: bounds.maxY, width: bounds.width, height: 264)
+        let shown = hidden.offsetBy(dx: 0, dy: -hidden.height)
 
-        let didChangeContext = try #require(QuickLayoutKeyboardContext(notification: didChange))
-        let willHideContext = try #require(QuickLayoutKeyboardContext(notification: willHide))
+        func post(_ name: Notification.Name, _ frame: CGRect) {
+            center.post(name: name, object: includesSourceScreen ? screen : nil, userInfo: [
+                UIResponder.keyboardFrameEndUserInfoKey: frame,
+            ])
+        }
 
-        #expect(didChangeContext.event == .didChangeFrame)
-        #expect(didChangeContext.isVisible)
-        #expect(willHideContext.event == .willHide)
-        #expect(!willHideContext.isVisible)
-        #expect(willHideContext.height == 0)
+        post(UIResponder.keyboardWillShowNotification, shown)
+        #expect(observer.isKeyboardVisible)
+        post(UIResponder.keyboardDidChangeFrameNotification, hidden.offsetBy(dx: 0, dy: -1))
+        #expect(observer.isKeyboardVisible)
+
+        post(UIResponder.keyboardWillHideNotification, shown)
+        #expect(observer.context.event == .willHide)
+        #expect(!observer.isKeyboardVisible)
+        post(UIResponder.keyboardWillChangeFrameNotification, hidden)
+        #expect(!observer.isKeyboardVisible)
+        post(UIResponder.keyboardDidChangeFrameNotification, hidden)
+        #expect(observer.context.event == .didChangeFrame)
+        #expect(observer.context.endFrame.height == 264)
+        #expect(!observer.context.isVisible)
+        #expect(!observer.isKeyboardVisible)
+        #expect(observer.keyboardHeight == 0)
+
+        post(UIResponder.keyboardDidChangeFrameNotification, shown)
+        #expect(observer.isKeyboardVisible)
+        #expect(observer.keyboardHeight == 264)
+    }
+
+    @Test func keyboardWillShowWithZeroHeightIsHiddenAndPreservesHardwareKeyboardHint() throws {
+        let context = try #require(QuickLayoutKeyboardContext(notification: Notification(
+            name: UIResponder.keyboardWillShowNotification,
+            userInfo: [UIResponder.keyboardFrameEndUserInfoKey: CGRect.zero]
+        )))
+        #expect(!context.isVisible)
+        #expect(context.resolved(in: UIView()).isHardwareKeyboardLikely)
     }
 
     @Test func keyboardContextResolvesVisibleIntersectionInTargetView() throws {

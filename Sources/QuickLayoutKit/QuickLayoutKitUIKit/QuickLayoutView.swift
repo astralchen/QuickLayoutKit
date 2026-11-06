@@ -31,9 +31,12 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
     /// 启用键盘安全区域时持有的协调器，禁用时显式停止并释放。
     private var keyboardSafeAreaCoordinator:
         QuickLayoutKeyboardSafeAreaCoordinator?
-    // 将 actor-isolated 测试闭包封装在具体引用类型内，避免它进入 open UIView
-    // 的跨文件子类元数据；生产实例始终使用默认依赖。
-    /// 创建协调器时使用的依赖，测试可在启用观察前替换。
+    /// 在真正写入子视图 frame 的布局轮次消费过渡，即使边距最先由测量阶段读到。
+    private var keyboardLayoutPending = false
+    private var pendingKeyboardTransition: QuickLayoutKeyboardTransition?
+    private var keyboardAnimator: UIViewPropertyAnimator?
+
+    /// 用引用类型封装测试判定闭包，避免其进入 open UIView 的跨文件子类元数据。
     private var keyboardSafeAreaDependencies =
         QuickLayoutKeyboardSafeAreaDependencies()
 
@@ -209,6 +212,33 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         keyboardSafeAreaCoordinator?.refresh()
         quickLayoutEnvironmentState.update(self)
         QuickLayoutDiagnostics.recordLayoutPass(for: String(describing: Self.self), measuredSize: bounds.size)
+        let transition = pendingKeyboardTransition
+        let previous = keyboardLayoutPending ? keyboardAnimator : nil
+        pendingKeyboardTransition = nil
+        keyboardLayoutPending = false
+
+        let interrupted = previous?.state == .active
+        if interrupted {
+            // 从当前呈现位置接续；移除旧轨迹后再写入新目标，避免两段位移相加。
+            keyboardAnimator = nil
+            previous?.stopAnimation(false)
+            previous?.finishAnimation(at: .current)
+        }
+        let now = CACurrentMediaTime()
+        if let transition, transition.end > now, window != nil, UIView.areAnimationsEnabled {
+            let animator = UIViewPropertyAnimator(duration: transition.end - now,
+                                                  curve: interrupted ? .easeOut : transition.curve) { [weak self] in
+                self?.layoutQuickLayoutBody()
+            }
+            animator.isUserInteractionEnabled = true
+            keyboardAnimator = animator
+            animator.startAnimation()
+        } else {
+            layoutQuickLayoutBody()
+        }
+    }
+
+    private func layoutQuickLayoutBody() {
         withQuickLayoutManagedViewState {
             withQuickLayoutContainerSize(
                 bounds.size,
@@ -293,22 +323,17 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
     /// 仅在键盘边距变化时更新宿主；有有效动画上下文且已挂载窗口时同步动画。
     func applyQuickLayoutKeyboardSafeAreaInsets(
         _ insets: UIEdgeInsets,
-        context: QuickLayoutKeyboardContext?
+        transition: QuickLayoutKeyboardTransition?
     ) {
-        guard quickLayoutKeyboardSafeAreaInsets != insets else { return }
-        quickLayoutKeyboardSafeAreaInsets = insets
-
-        guard let context, context.animationDuration > 0, window != nil else {
+        if quickLayoutKeyboardSafeAreaInsets != insets {
+            quickLayoutKeyboardSafeAreaInsets = insets
+            keyboardLayoutPending = true
+            pendingKeyboardTransition = transition
             setNeedsQuickLayout()
-            return
+        } else if keyboardLayoutPending, let transition {
+            // 同一目标可能先由零时长的 didChangeFrame 发布，再收到 will 通知。
+            pendingKeyboardTransition = transition
         }
-        performLayoutUpdate(
-            duration: context.animationDuration,
-            options: context.animationOptions.union([
-                .beginFromCurrentState,
-                .allowUserInteraction,
-            ])
-        )
     }
 
     /// 根据启用策略创建或刷新协调器，禁用时恢复布局指南配置并清空发布边距。
@@ -317,7 +342,7 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         case .disabled:
             keyboardSafeAreaCoordinator?.stop()
             keyboardSafeAreaCoordinator = nil
-            applyQuickLayoutKeyboardSafeAreaInsets(.zero, context: nil)
+            applyQuickLayoutKeyboardSafeAreaInsets(.zero, transition: nil)
         case .followsDockedKeyboard:
             if keyboardSafeAreaCoordinator == nil {
                 keyboardSafeAreaCoordinator =
@@ -328,9 +353,8 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
                         dockingResolver:
                             keyboardSafeAreaDependencies.dockingResolver
                     )
-            } else {
-                keyboardSafeAreaCoordinator?.refresh()
             }
+            keyboardSafeAreaCoordinator?.refresh()
         }
     }
 

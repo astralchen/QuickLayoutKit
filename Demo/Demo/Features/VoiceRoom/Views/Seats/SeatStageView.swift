@@ -116,6 +116,10 @@ final class SeatStageView: TranslucentCardView {
         // QuickLayout 在 super 中同步父容器方向；再检查一次，避免沿用上一帧的方向。
         updateLayoutEnvironmentIfNeeded()
         collectionView.layoutIfNeeded()
+        // 首次快照可能先于舞台定高完成，此时在真实 Cell 布局后补齐辅助功能顺序。
+        if !isApplyingUpdate, accessibilityElements?.count != currentItems.count {
+            updateAccessibilityElements()
+        }
     }
 
     /// 描述此组件当前内容和布局关系的 QuickLayout 布局。

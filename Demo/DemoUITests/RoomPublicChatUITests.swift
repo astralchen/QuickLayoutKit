@@ -2,6 +2,40 @@ import XCTest
 
 final class RoomPublicChatUITests: XCTestCase {
     @MainActor
+    func testStageStaysFixedWhileSwipingSeatsAndChat() {
+        let app = launchRoom()
+        let header = app.buttons["liveRoom.follow.button"]
+        let stage = app.otherElements["liveRoom.seat.stage"]
+        let lastSeat = app.buttons["liveRoom.seat.button.8"]
+        let chat = app.collectionViews["liveRoom.publicChat.scroll"]
+        XCTAssertTrue(lastSeat.waitForExistence(timeout: 5))
+        XCTAssertTrue(chat.waitForExistence(timeout: 5))
+        let headerFrame = header.frame
+        let seatFrame = lastSeat.frame
+        XCTAssertTrue(app.frame.contains(seatFrame))
+        XCTAssertLessThanOrEqual(seatFrame.maxY, chat.frame.minY)
+
+        stage.swipeUp()
+        XCTAssertEqual(header.frame, headerFrame)
+        XCTAssertEqual(lastSeat.frame, seatFrame)
+
+        chat.swipeDown()
+        let firstMessage = app.staticTexts["liveRoom.publicChat.message.0"]
+        XCTAssertTrue(firstMessage.isHittable)
+        let firstY = firstMessage.frame.minY
+        let latest = app.staticTexts["liveRoom.publicChat.latest"]
+        let overflows = !latest.isHittable || latest.frame.maxY > chat.frame.maxY
+        chat.swipeUp()
+        if overflows {
+            XCTAssertTrue(!firstMessage.isHittable || firstMessage.frame.minY < firstY)
+        }
+        XCTAssertTrue(latest.isHittable)
+        XCTAssertEqual(header.frame, headerFrame)
+        XCTAssertEqual(lastSeat.frame, seatFrame)
+        capture(app, "固定麦位与公屏")
+    }
+
+    @MainActor
     func testFollowButtonTransitions() {
         let app = launchRoom()
         let follow = app.buttons["liveRoom.follow.button"]
@@ -84,9 +118,8 @@ final class RoomPublicChatUITests: XCTestCase {
         app.launchArguments = ["-AppleLanguages", "(en)", "-quicklayoutkit.demo.locale.identifier", locale]
         if largeText { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
         app.launch()
-        XCTAssertTrue(app.collectionViews.firstMatch.waitForExistence(timeout: 10))
         let route = app.buttons.matching(identifier: "app.tab.voiceRoom").firstMatch
-        for _ in 0..<10 where !route.isHittable { app.collectionViews.firstMatch.swipeUp() }
+        XCTAssertTrue(route.waitForExistence(timeout: 10))
         XCTAssertTrue(route.isHittable)
         route.tap()
         XCTAssertTrue(app.buttons["liveRoom.more.button"].waitForExistence(timeout: 10))

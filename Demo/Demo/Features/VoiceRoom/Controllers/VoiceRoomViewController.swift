@@ -25,6 +25,8 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
     let roomHeaderView = RoomHeaderView()
     /// 根据已确认舞台状态展示麦位的容器。
     let seatStageView = SeatStageView()
+    /// 在矮窗口内为公屏留出阅读空间。
+    private lazy var stageContainer = FittedRoomStageView(header: roomHeaderView, stage: seatStageView)
     /// 房间公屏视图。
     let messagesView = RoomPublicChatView()
     /// 房间底部的消息输入与操作按钮区域。
@@ -330,7 +332,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
                 .ignoresSafeArea(.all, edges: .all)
 
             VStack(spacing: 10) {
-                ContentFittingScroll(stageScrollView, maximumHeightFraction: 0.62) { stageContent }
+                stageContainer.resizable(axis: .horizontal).layoutPriority(1)
                 messagesView
                     .resizable()
                     .frame(
@@ -374,16 +376,6 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
         }
     }
 
-    /// 矮窗口允许舞台独立滚动，不挤出公屏与底部操作栏。
-    private let stageScrollView = QuickLayoutScrollView()
-
-    private var stageContent: Layout {
-        VStack(spacing: 10) {
-            roomHeaderView.resizable(axis: .horizontal).fixedSize(axis: .vertical)
-            seatStageView.resizable(axis: .horizontal).fixedSize(axis: .vertical)
-        }
-    }
-
     var usesCompactPageLayout: Bool {
         view.safeAreaLayoutGuide.layoutFrame.height < 780
             || (viewModel.state.stagePresentation.layoutID == .roomPKNine
@@ -423,6 +415,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
         giftEffectOverlayView.accessibilityIdentifier =
             "liveRoom.gift.effect.container"
         seatStageView.layoutMetricsDidChange = { [weak self] in
+            self?.stageContainer.setNeedsLayout()
             self?.setNeedsQuickLayout()
         }
         seatStageView.seatDidSelect = { [weak self] seat in
@@ -500,6 +493,40 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
                 "liveRoom.info.avatar.hint"
             )
         )
+    }
+}
+
+/// 正常高度下原尺寸展示麦位。空间不足时整体等比缩小，保留全部麦位及点击区域。
+private final class FittedRoomStageView: UIView {
+    private let content: QuickLayoutView
+
+    init(header: RoomHeaderView, stage: SeatStageView) {
+        content = QuickLayoutView {
+            VStack(spacing: 10) {
+                header.resizable(axis: .horizontal).fixedSize(axis: .vertical)
+                stage.resizable(axis: .horizontal).fixedSize(axis: .vertical)
+            }
+        }
+        super.init(frame: .zero)
+        addSubview(content)
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    override func sizeThatFits(_ size: CGSize) -> CGSize {
+        let ideal = content.sizeThatFits(CGSize(width: size.width, height: .infinity))
+        // 为公屏保留一行消息；极矮窗口按比例分配空间。
+        let chatHeight = min(24, size.height * 0.4)
+        return CGSize(width: ideal.width, height: min(ideal.height, size.height - chatHeight))
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let ideal = content.sizeThatFits(CGSize(width: bounds.width, height: .infinity))
+        let scale = ideal.height > 0 ? min(1, bounds.height / ideal.height) : 1
+        content.bounds.size = CGSize(width: bounds.width, height: ideal.height)
+        content.center = CGPoint(x: bounds.midX, y: bounds.midY)
+        content.transform = CGAffineTransform(scaleX: scale, y: scale)
     }
 }
 

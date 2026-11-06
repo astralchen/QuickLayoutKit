@@ -121,6 +121,8 @@ extension ApplicationTests {
             "keyboard.diagnostics.height",
             "keyboard.diagnostics.intersection",
             "keyboard.diagnostics.rawFrame",
+            "keyboard.diagnostics.visible",
+            "keyboard.diagnostics.waiting",
             "navigation.edge.left",
             "navigation.edge.right",
             "navigation.edge.summary",

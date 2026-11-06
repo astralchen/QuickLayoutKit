@@ -163,7 +163,7 @@ struct GeometryProxyTests {
         let anchor = QuickLayoutKitCore.Anchor<CGRect>(.bounds)
         var result: CGRect?
         let host = QuickLayoutView {
-            HStack {
+            QuickLayoutKitCore.HStack {
                 Spacer().frame(width: 30, height: 40).geometryAnchor(anchor)
             }.onGeometryChange(for: CGRect?.self) { $0.resolve(anchor) } action: { result = $0 }
         }

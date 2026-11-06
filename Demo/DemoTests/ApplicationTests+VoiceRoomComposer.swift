@@ -254,10 +254,7 @@ extension ApplicationTests {
                 + scrollView.contentInset.bottom
         )
         #expect(abs(scrollView.contentOffset.y - bottomOffset) < 1)
-        #expect(
-            viewController.view.allSubviews(of: UIScrollView.self)
-                .filter(\.isScrollEnabled).count == 1
-        )
+        checkVoiceRoomScrollOwners(viewController)
     }
 
     @Test func voiceRoomActionBarUsesSafeAreaOrViewBottomWithoutExtraSpacing() throws {
@@ -307,10 +304,7 @@ extension ApplicationTests {
             ) < 1
         )
         #expect(abs(actionBarFrame.minY - chatFrame.maxY - 10) < 1)
-        #expect(
-            viewController.view.allSubviews(of: UIScrollView.self)
-                .filter(\.isScrollEnabled).count == 1
-        )
+        checkVoiceRoomScrollOwners(viewController)
     }
 
     @Test func voiceRoomKeyboardDismissPaddingTracksActionBarLayoutChanges() throws {
@@ -350,6 +344,7 @@ extension ApplicationTests {
         navigationController.view.frame = window.bounds
         layout(viewController, in: navigationController)
         expectActionBarDismissPadding()
+        #expect(viewController.publicChatScrollView.bounds.height >= 24, "page=\(viewController.view.bounds), safe=\(viewController.view.safeAreaInsets), header=\(viewController.roomHeaderView.frame), stage=\(viewController.seatStageView.frame), action=\(viewController.actionBarView.frame), chat=\(viewController.messagesView.frame)")
         #expect(
             viewController.publicChatScrollView.keyboardDismissMode
                 == .interactive
@@ -402,4 +397,11 @@ extension ApplicationTests {
         )
         #expect(actionBarView.transform == .identity)
     }
+}
+
+/// 键盘显隐后，页面仍只有公屏可以滚动。
+@MainActor
+private func checkVoiceRoomScrollOwners(_ controller: VoiceRoomViewController) {
+    let enabled = controller.view.allSubviews(of: UIScrollView.self).filter(\.isScrollEnabled)
+    #expect(enabled == [controller.publicChatScrollView])
 }

@@ -135,7 +135,8 @@ public struct QuickLayoutKeyboardContext: Equatable, @unchecked Sendable {
     /// 与键盘变化匹配的 UIKit 动画选项。
     public let animationOptions: UIView.AnimationOptions
 
-    /// 指示键盘是否可见的布尔值。
+    /// 从 UIKit 通知创建时，表示键盘结束框架在来源屏幕上有可见面积。
+    /// 特定视图受到的遮挡请读取 `resolved(in:).height`。
     public let isVisible: Bool
 
     // iOS 16.1 起键盘通知会在 object 中携带来源屏幕。保留引用可以避免把外接屏幕
@@ -193,7 +194,10 @@ public struct QuickLayoutKeyboardContext: Equatable, @unchecked Sendable {
         let curveValue = notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt
         let options = curveValue.map { UIView.AnimationOptions(rawValue: $0 << 16) } ?? .curveEaseInOut
         let event = QuickLayoutKeyboardEvent(notificationName: notification.name)
-        let visible = event != .willHide
+        let screen = notification.object as? UIScreen
+        // iOS 16.1 之前的键盘通知没有来源屏幕，使用主屏幕的坐标空间。
+        let screenBounds = (screen ?? UIScreen.main).coordinateSpace.bounds
+        let visible = event != .willHide && !screenBounds.intersection(endFrame).isEmpty
 
         self.init(
             beginFrame: beginFrame,
@@ -203,7 +207,7 @@ public struct QuickLayoutKeyboardContext: Equatable, @unchecked Sendable {
             isVisible: visible,
             event: event
         )
-        sourceScreen = notification.object as? UIScreen
+        sourceScreen = screen
     }
 
     /// 针对目标视图解析键盘几何信息。
@@ -227,7 +231,7 @@ public struct QuickLayoutKeyboardContext: Equatable, @unchecked Sendable {
             || keyboardFrameInView.maxX < visibleBounds.maxX - 0.5
         let floatsAboveBottom = keyboardFrameInView.maxY < visibleBounds.maxY - 0.5
         let floatingOrSplit = isVisible && hasIntersection && (horizontalGap || floatsAboveBottom)
-        let hardwareKeyboard = isVisible && endFrame.height <= 0
+        let hardwareKeyboard = (isVisible || event == .willShow) && endFrame.height <= 0
 
         return QuickLayoutResolvedKeyboardContext(
             keyboardFrameInView: keyboardFrameInView,
@@ -283,7 +287,11 @@ public struct QuickLayoutKeyboardContext: Equatable, @unchecked Sendable {
         }
 
         guard let window = view.window else {
-            return view.convert(endFrame, from: nil)
+            // 未挂载时 UIKit 把 nil 解释为根视图的内容坐标。键盘矩形相对视口，
+            // 因此先补上根视图滚动产生的 bounds.origin。
+            var root = view
+            while let parent = root.superview { root = parent }
+            return view.convert(endFrame.offsetBy(dx: root.bounds.minX, dy: root.bounds.minY), from: nil)
         }
 
         let frameInWindow = window.convert(endFrame, from: nil)
@@ -373,6 +381,9 @@ final class QuickLayoutKeyboardSafeAreaCoordinator {
     private let dockingResolver: DockingResolver?
     /// 键盘上下文订阅，显式停止时释放。
     private var cancellable: AnyCancellable?
+    /// @Published 在写入属性前发送新值；同步布局必须读取本次收到的上下文。
+    private var latestContext: QuickLayoutKeyboardContext?
+    private var transition: QuickLayoutKeyboardTransition?
     /// 启用前布局指南的非停靠键盘跟随配置，停止时恢复。
     private let previousFollowsUndockedKeyboard: Bool
     /// 启用前布局指南的底部安全区域配置；不支持该属性的系统为 `nil`。
@@ -403,11 +414,20 @@ final class QuickLayoutKeyboardSafeAreaCoordinator {
             notificationCenter: notificationCenter
         )
         cancellable = observer.$context
+            .dropFirst()
             .sink { [weak self] context in
-                self?.apply(context, animated: true)
+                guard let self else { return }
+                latestContext = context
+                // 快速反向时 UIKit 可能先发送上一段的 didChangeFrame，再发送下一段 will。
+                // 两次通知之间仍按进行中的过渡处理几何修正。
+                if context.event != .didChangeFrame {
+                    transition = QuickLayoutKeyboardTransition(context)
+                }
+                refresh()
+                if self.hostView?.window != nil { self.hostView?.layoutIfNeeded() }
                 // 键盘通知可能早于 UIKeyboardLayoutGuide 的最终 frame 更新。
                 // 保证 guide 变化后的下一次布局会重新解析最后一个 context。
-                self?.hostView?.setNeedsLayout()
+                self.hostView?.setNeedsLayout()
             }
     }
 
@@ -428,33 +448,26 @@ final class QuickLayoutKeyboardSafeAreaCoordinator {
         }
     }
 
-    /// 使用最近通知重新解析宿主几何；默认不附加键盘动画。
-    func refresh(animated: Bool = false) {
-        guard !isStopped else { return }
-        apply(observer.context, animated: animated)
-    }
-
-    /// 读取停靠状态并计算宿主边距，按调用方要求传递或省略动画上下文。
-    private func apply(
-        _ context: QuickLayoutKeyboardContext,
-        animated: Bool
-    ) {
+    /// 同一过渡内，布局指南即使比通知晚更新，也使用剩余动画时间。
+    func refresh() {
         guard !isStopped, let hostView else { return }
-        let isDocked = dockingResolver?(context, hostView)
-            ?? Self.systemReportsDockedKeyboard(
-                for: context,
-                in: hostView
+        let insets: UIEdgeInsets
+        if let latestContext {
+            let docked = dockingResolver?(latestContext, hostView)
+                ?? (Self.dockedGuideHeight(in: hostView) != nil)
+            insets = Self.insets(
+                for: latestContext, behavior: hostView.quickLayoutKeyboardSafeAreaBehavior,
+                in: hostView, isDocked: docked
             )
-        let insets = Self.insets(
-            for: context,
-            behavior: hostView.quickLayoutKeyboardSafeAreaBehavior,
-            in: hostView,
-            isDocked: isDocked
-        )
-        hostView.applyQuickLayoutKeyboardSafeAreaInsets(
-            insets,
-            context: animated ? context : nil
-        )
+        } else {
+            // 初次挂载或重新启用时，键盘可能已经停靠，UIKit 不必重发通知。
+            var initial = Self.insets(
+                for: .hidden, behavior: hostView.quickLayoutKeyboardSafeAreaBehavior, in: hostView
+            )
+            if let height = Self.dockedGuideHeight(in: hostView) { initial.bottom = height }
+            insets = initial
+        }
+        hostView.applyQuickLayoutKeyboardSafeAreaInsets(insets, transition: transition)
     }
 
     /// 结合几何相交与可选停靠判定解析底部避让；隐藏时按策略保留底部安全区域。
@@ -496,34 +509,26 @@ final class QuickLayoutKeyboardSafeAreaCoordinator {
         )
     }
 
-    /// 同时检查通知几何和系统键盘布局指南，拒绝浮动、跨窗口及硬件键盘状态。
-    private static func systemReportsDockedKeyboard(
-        for context: QuickLayoutKeyboardContext,
-        in view: UIView
-    ) -> Bool {
-        guard view.window != nil else { return false }
-        let resolved = context.resolved(in: view)
-        guard
-            resolved.height > 0,
-            !resolved.isFloatingOrSplitKeyboard,
-            !resolved.isHardwareKeyboardLikely
-        else {
-            return false
-        }
+    /// 非停靠键盘不会使本宿主配置的 guide 向上扩展。
+    private static func dockedGuideHeight(in view: UIView) -> CGFloat? {
+        guard view.window != nil else { return nil }
+        let frame = view.keyboardLayoutGuide.layoutFrame
+        guard !frame.isEmpty, abs(frame.maxY - view.bounds.maxY) <= 0.5,
+              frame.minY < view.bounds.maxY - view.safeAreaInsets.bottom - 0.5 else { return nil }
+        return view.bounds.intersection(frame).height
+    }
+}
 
-        // followsUndockedKeyboard=false 时，隐藏、浮动、分离以及未覆盖当前窗口的键盘
-        // 都会把 guide 顶边放回 safe-area 底边；只有当前窗口的停靠键盘会继续向上扩展。
-        let layoutFrame = view.keyboardLayoutGuide.layoutFrame
-        guard
-            !layoutFrame.isNull,
-            !layoutFrame.isEmpty,
-            abs(layoutFrame.maxY - view.bounds.maxY) <= 0.5
-        else {
-            return false
-        }
-        let hiddenTop = view.bounds.maxY
-            - sanitizedKeyboardSafeAreaValue(view.safeAreaInsets.bottom)
-        return layoutFrame.minY < hiddenTop - 0.5
+/// 记录通知的截止时间，避免下一轮布局重新开始一段完整动画。
+struct QuickLayoutKeyboardTransition {
+    let end: CFTimeInterval
+    let curve: UIView.AnimationCurve
+
+    init?(_ context: QuickLayoutKeyboardContext) {
+        guard context.animationDuration > 0, context.event != .didChangeFrame else { return nil }
+        end = CACurrentMediaTime() + context.animationDuration
+        let rawCurve = Int((context.animationOptions.rawValue >> 16) & 7)
+        curve = UIView.AnimationCurve(rawValue: rawCurve) ?? .easeInOut
     }
 }
 
@@ -544,23 +549,18 @@ public final class QuickLayoutKeyboardAvoider {
     /// 需要调整边距的滚动视图弱引用。
     private weak var scrollView: UIScrollView?
     /// 提供最近键盘通知上下文的观察对象。
-    private let observer: QuickLayoutKeyboardObserver
+    private var observer: QuickLayoutKeyboardObserver?
     /// 持有通知订阅，随所属对象释放而取消。
     private var cancellables: Set<AnyCancellable> = []
     /// 当前需要保持可见的输入视图弱引用。
     private weak var activeView: UIView?
-    /// 最近一次应用的键盘底部增量，用于计算输入视图的可见范围。
-    private var keyboardInsetDelta: CGFloat = 0
-    /// 容器变化时重新转换最近的键盘框架，不依赖系统再次发送键盘通知。
+    private let insets: KeyboardScrollInsets
     private var latestContext = QuickLayoutKeyboardContext.hidden
-    private var lastAppliedViewportSize: CGSize?
+    private var lastViewportSize: CGSize?
+    private var lastObstruction: CGRect = .null
     private var isApplyingContext = false
-    /// 添加框架内容边距和键盘增量前的内容边距基线。
-    private var baseContentInset: UIEdgeInsets
-    /// 叠加框架边距和键盘增量前的垂直指示器基线。
-    private var baseVerticalScrollIndicatorInsets: UIEdgeInsets
-    /// 叠加框架边距和键盘增量前的水平指示器基线。
-    private var baseHorizontalScrollIndicatorInsets: UIEdgeInsets
+    private var needsGeometryRefresh = false
+    private var pendingContext: QuickLayoutKeyboardContext?
 
     /// 仅在键盘与滚动视图相交时应用的额外底部间距。
     public var extraBottomPadding: CGFloat = 0
@@ -597,16 +597,16 @@ public final class QuickLayoutKeyboardAvoider {
         observer: QuickLayoutKeyboardObserver,
         notificationCenter: NotificationCenter = .default
     ) {
+        // 一次只允许一个避让器拥有该视图的增量，普通 UIScrollView 也一样。
+        if let previous = scrollView.keyboardScrollInsets {
+            if let owner = previous.owner { owner.stop() }
+            else { previous.restore(on: scrollView) }
+        }
         self.scrollView = scrollView
         self.observer = observer
-        self.baseContentInset = scrollView.contentInset
-            .subtracting(scrollView.quickLayoutAppliedContentMarginInsets)
-        self.baseVerticalScrollIndicatorInsets = scrollView.verticalScrollIndicatorInsets
-            .subtracting(scrollView.quickLayoutAppliedVerticalIndicatorMarginInsets)
-        self.baseHorizontalScrollIndicatorInsets = scrollView.horizontalScrollIndicatorInsets
-            .subtracting(scrollView.quickLayoutAppliedHorizontalIndicatorMarginInsets)
-
-        (scrollView as? QuickLayoutScrollView)?.quickLayoutKeyboardAvoider = self
+        insets = KeyboardScrollInsets(scrollView)
+        insets.owner = self
+        scrollView.keyboardScrollInsets = insets
 
         observer.$context
             .sink { [weak self] context in
@@ -620,8 +620,11 @@ public final class QuickLayoutKeyboardAvoider {
             notificationCenter.publisher(for: .quickLayoutKeyboardActiveInputDidBeginEditing),
         ])
             .sink { [weak self] notification in
-                self?.activeView = QuickLayoutKeyboardAvoider.activeView(from: notification)
-                self?.scrollActiveViewIntoVisibleArea(animated: true)
+                guard let self, let scrollView = self.scrollView,
+                      let view = Self.activeView(from: notification),
+                      view.isDescendant(of: scrollView) else { return }
+                activeView = view
+                scrollActiveViewIntoVisibleArea(animated: true)
             }
             .store(in: &cancellables)
 
@@ -633,22 +636,30 @@ public final class QuickLayoutKeyboardAvoider {
             .sink { [weak self] notification in
                 guard let self else { return }
                 let endedView = QuickLayoutKeyboardAvoider.activeView(from: notification)
-                if endedView == nil || endedView === activeView {
+                if endedView === activeView {
                     activeView = nil
                 }
             }
             .store(in: &cancellables)
     }
 
-    /// 将滚动视图当前边距保存为添加键盘高度时使用的基准值。
+    isolated deinit { stop() }
+
+    /// 停止跟踪并移除本实例添加的键盘边距。可以重复调用。
+    public func stop() {
+        let view = scrollView
+        scrollView = nil
+        cancellables.removeAll()
+        observer = nil
+        activeView = nil
+        if let view, view.keyboardScrollInsets === insets { insets.restore(on: view) }
+    }
+
+    /// 重新采集业务边距，保留已写入但未被调用方替换的键盘增量。
     public func captureCurrentInsetsAsBase() {
         guard let scrollView else { return }
-        baseContentInset = scrollView.contentInset
-            .subtracting(scrollView.quickLayoutAppliedContentMarginInsets)
-        baseVerticalScrollIndicatorInsets = scrollView.verticalScrollIndicatorInsets
-            .subtracting(scrollView.quickLayoutAppliedVerticalIndicatorMarginInsets)
-        baseHorizontalScrollIndicatorInsets = scrollView.horizontalScrollIndicatorInsets
-            .subtracting(scrollView.quickLayoutAppliedHorizontalIndicatorMarginInsets)
+        insets.capture(from: scrollView)
+        if insets.delta > 0 { insets.write(insets.delta, to: scrollView) }
     }
 
     /// 立即应用指定的键盘上下文。
@@ -664,91 +675,105 @@ public final class QuickLayoutKeyboardAvoider {
     /// `viewDidLayoutSubviews` / `layoutSubviews` 中调用；不需要伪造键盘通知。
     /// 单纯滚动不会触发重新避让，避免把用户的阅读位置拉回输入框。
     public func refreshGeometry() {
-        guard !isApplyingContext, let scrollView else { return }
-        let delta = insetDelta(for: latestContext.resolved(in: scrollView), in: scrollView)
-        guard lastAppliedViewportSize != scrollView.bounds.size
-                || abs(delta - keyboardInsetDelta) > 0.5 else { return }
+        guard let scrollView else { return }
+        if isApplyingContext {
+            needsGeometryRefresh = true
+            return
+        }
+        let resolved = latestContext.resolved(in: scrollView)
+        let obstruction = resolved.intersection.offsetBy(dx: -scrollView.bounds.minX, dy: -scrollView.bounds.minY)
+        guard lastViewportSize != scrollView.bounds.size || lastObstruction != obstruction
+                || abs(insetDelta(for: resolved, in: scrollView) - insets.delta) > 0.5 else { return }
         apply(latestContext, animated: false)
     }
 
     private func apply(_ context: QuickLayoutKeyboardContext, animated: Bool) {
-        guard !isApplyingContext else { return }
         guard let scrollView else { return }
+        if isApplyingContext {
+            pendingContext = context
+            return
+        }
         isApplyingContext = true
-        defer { isApplyingContext = false }
+        defer {
+            isApplyingContext = false
+            if let next = pendingContext {
+                pendingContext = nil
+                apply(next, animated: true)
+            } else if needsGeometryRefresh {
+                // 父宿主可能在这次边距更新内缩短视口，按新的交集再核算一次。
+                needsGeometryRefresh = false
+                refreshGeometry()
+            }
+        }
         latestContext = context
-        lastAppliedViewportSize = scrollView.bounds.size
-
         let resolved = context.resolved(in: scrollView)
-        let insetDelta = insetDelta(for: resolved, in: scrollView)
-        keyboardInsetDelta = insetDelta
-        scrollView.quickLayoutKeyboardInsetDelta = insetDelta
-
-        var contentInset = baseContentInset
-            .adding(scrollView.quickLayoutAppliedContentMarginInsets)
-        var verticalIndicatorInsets = baseVerticalScrollIndicatorInsets
-            .adding(scrollView.quickLayoutAppliedVerticalIndicatorMarginInsets)
-        var horizontalIndicatorInsets = baseHorizontalScrollIndicatorInsets
-            .adding(scrollView.quickLayoutAppliedHorizontalIndicatorMarginInsets)
-
-        contentInset.bottom += insetDelta
-        verticalIndicatorInsets.bottom += insetDelta
-        horizontalIndicatorInsets.bottom += insetDelta
-
+        let obstruction = resolved.intersection.offsetBy(dx: -scrollView.bounds.minX, dy: -scrollView.bounds.minY)
+        let delta = insetDelta(for: resolved, in: scrollView)
+        let changed = lastObstruction != obstruction || lastViewportSize != scrollView.bounds.size || delta != insets.delta
+        lastObstruction = obstruction
+        lastViewportSize = scrollView.bounds.size
         UIView.animate(
             withDuration: animated ? context.animationDuration : 0,
             delay: 0,
-            options: context.animationOptions,
+            options: context.animationOptions.union([.beginFromCurrentState, .allowUserInteraction]),
             animations: {
-                scrollView.contentInset = contentInset
-                scrollView.verticalScrollIndicatorInsets = verticalIndicatorInsets
-                scrollView.horizontalScrollIndicatorInsets = horizontalIndicatorInsets
+                self.insets.write(delta, to: scrollView)
                 scrollView.superview?.layoutIfNeeded()
-            },
-            completion: { [weak self] _ in
-                self?.scrollActiveViewIntoVisibleArea(animated: animated && resolved.height > 0)
+                // 在本次更新内定位。动画完成后，用户可能已经滚动或切换了焦点。
+                if changed && resolved.height > 0 { self.scrollActiveViewIntoVisibleArea(animated: false) }
             }
         )
     }
 
-    /// 设置需要保持在键盘上方可见的视图。
-    ///
-    /// - Parameter view: 当前输入视图或焦点视图；传入 `nil` 表示清除当前目标。
+    /// 设置需要保持可见的输入视图；传入 nil 清除当前目标。
     public func setActiveView(_ view: UIView?) {
+        if let view, let scrollView, !view.isDescendant(of: scrollView) { return }
         activeView = view
     }
 
-    /// 将当前输入视图滚动到可见区域。
-    ///
-    /// - Parameter animated: 传入 `true` 以动画方式执行滚动。
+    /// 将输入视图移至视口内实际未被键盘覆盖的区域。
     public func scrollActiveViewIntoVisibleArea(animated: Bool) {
-        guard
-            let scrollView,
-            let activeView,
-            activeView.window != nil || activeView.superview != nil
-        else {
+        guard let scrollView, let activeView else { return }
+        guard activeView.isDescendant(of: scrollView) else {
+            self.activeView = nil
             return
         }
-
-        let targetRect = activeView.convert(activeView.bounds, to: scrollView).insetBy(dx: 0, dy: -12)
-        var visibleBounds = scrollView.bounds
-        visibleBounds.size.height = max(0, visibleBounds.height - keyboardInsetDelta)
-
-        var targetOffset = scrollView.contentOffset
-        if targetRect.maxY > visibleBounds.maxY {
-            targetOffset.y += targetRect.maxY - visibleBounds.maxY
+        guard !scrollView.isTracking, !scrollView.isDragging, !scrollView.isDecelerating else { return }
+        let target = activeView.convert(activeView.bounds, to: scrollView).insetBy(dx: 0, dy: -12)
+        let bounds = scrollView.bounds
+        let adjusted = scrollView.adjustedContentInset
+        let top = bounds.minY + max(0, adjusted.top)
+        let bottom = max(top, bounds.maxY - max(0, adjusted.bottom - insets.delta))
+        let obstacle = latestContext.resolved(in: scrollView).intersection
+        var bands = [top...bottom]
+        if !obstacle.isEmpty, target.minX < obstacle.maxX, target.maxX > obstacle.minX {
+            bands = []
+            let above = min(bottom, obstacle.minY - extraBottomPadding)
+            let below = max(top, obstacle.maxY + extraBottomPadding)
+            if above > top { bands.append(top...above) }
+            if below < bottom { bands.append(below...bottom) }
         }
-        if targetRect.minY < visibleBounds.minY {
-            targetOffset.y -= visibleBounds.minY - targetRect.minY
+        let current = scrollView.contentOffset
+        let minY = -adjusted.top
+        let maxY = max(minY, scrollView.contentSize.height - bounds.height + adjusted.bottom)
+        var bestOffset = current.y
+        var bestVisible: CGFloat = -1
+        for band in bands {
+            // 先最大化可见高度，再选移动最少且确实可达的一侧。
+            let a = target.maxY - band.upperBound
+            let b = target.minY - band.lowerBound
+            let shift = min(max(0, min(a, b)), max(a, b))
+            let offset = min(max(current.y + shift, minY), maxY)
+            let moved = target.offsetBy(dx: 0, dy: current.y - offset)
+            let visible = max(0, min(moved.maxY, band.upperBound) - max(moved.minY, band.lowerBound))
+            if visible > bestVisible || (visible == bestVisible && abs(offset - current.y) < abs(bestOffset - current.y)) {
+                bestOffset = offset
+                bestVisible = visible
+            }
         }
-
-        let minY = -scrollView.adjustedContentInset.top
-        let maxY = max(
-            minY,
-            scrollView.contentSize.height - scrollView.bounds.height + scrollView.adjustedContentInset.bottom
-        )
-        targetOffset.y = min(max(targetOffset.y, minY), maxY)
-        scrollView.setContentOffset(targetOffset, animated: animated)
+        if bestOffset != current.y {
+            scrollView.setContentOffset(CGPoint(x: current.x, y: bestOffset), animated: animated)
+        }
     }
 
     /// 有键盘相交时按安全区域策略计算高度并添加额外间距，无相交时返回零。
@@ -781,29 +806,52 @@ public final class QuickLayoutKeyboardAvoider {
     }
 }
 
-/// 记录滚动视图键盘增量所用的关联键。
+/// 同时记录业务基线和本实例施加的增量；替换或延迟释放时依身份归还边距。
+@MainActor
+private final class KeyboardScrollInsets {
+    weak var owner: QuickLayoutKeyboardAvoider?
+    private(set) var delta: CGFloat = 0
+    private var content = UIEdgeInsets.zero
+    private var vertical = UIEdgeInsets.zero
+    private var horizontal = UIEdgeInsets.zero
+
+    init(_ view: UIScrollView) { capture(from: view) }
+
+    func capture(from view: UIScrollView) {
+        func base(_ actual: UIEdgeInsets, margin: UIEdgeInsets, previous: UIEdgeInsets) -> UIEdgeInsets {
+            var value = actual.subtracting(margin)
+            if abs(value.bottom - (previous.bottom + delta)) < 0.0001 { value.bottom = previous.bottom }
+            return value
+        }
+        content = base(view.contentInset, margin: view.quickLayoutAppliedContentMarginInsets, previous: content)
+        vertical = base(view.verticalScrollIndicatorInsets, margin: view.quickLayoutAppliedVerticalIndicatorMarginInsets, previous: vertical)
+        horizontal = base(view.horizontalScrollIndicatorInsets, margin: view.quickLayoutAppliedHorizontalIndicatorMarginInsets, previous: horizontal)
+    }
+
+    func write(_ delta: CGFloat, to view: UIScrollView) {
+        self.delta = delta
+        let extra = UIEdgeInsets(top: 0, left: 0, bottom: delta, right: 0)
+        view.contentInset = content.adding(view.quickLayoutAppliedContentMarginInsets).adding(extra)
+        view.verticalScrollIndicatorInsets = vertical.adding(view.quickLayoutAppliedVerticalIndicatorMarginInsets).adding(extra)
+        view.horizontalScrollIndicatorInsets = horizontal.adding(view.quickLayoutAppliedHorizontalIndicatorMarginInsets).adding(extra)
+    }
+
+    func restore(on view: UIScrollView) {
+        capture(from: view)
+        write(0, to: view)
+        view.keyboardScrollInsets = nil
+    }
+}
+
 private enum QuickLayoutKeyboardAssociatedKeys {
-    /// 键盘增量关联值的唯一键地址。
-    nonisolated(unsafe) static var insetDelta: UInt8 = 0
+    nonisolated(unsafe) static var insets: UInt8 = 0
 }
 
 extension UIScrollView {
-
-    /// 与滚动视图关联的键盘增量，供安全区域拆分读取；未设置时为零。
-    var quickLayoutKeyboardInsetDelta: CGFloat {
-        get {
-            (objc_getAssociatedObject(
-                self,
-                &QuickLayoutKeyboardAssociatedKeys.insetDelta
-            ) as? NSNumber)?.doubleValue ?? 0
-        }
-        set {
-            objc_setAssociatedObject(
-                self,
-                &QuickLayoutKeyboardAssociatedKeys.insetDelta,
-                NSNumber(value: newValue),
-                .OBJC_ASSOCIATION_RETAIN_NONATOMIC
-            )
-        }
+    fileprivate var keyboardScrollInsets: KeyboardScrollInsets? {
+        get { objc_getAssociatedObject(self, &QuickLayoutKeyboardAssociatedKeys.insets) as? KeyboardScrollInsets }
+        set { objc_setAssociatedObject(self, &QuickLayoutKeyboardAssociatedKeys.insets, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
     }
+    var quickLayoutKeyboardInsetDelta: CGFloat { keyboardScrollInsets?.delta ?? 0 }
+    var quickLayoutKeyboardAvoider: QuickLayoutKeyboardAvoider? { keyboardScrollInsets?.owner }
 }

@@ -24,13 +24,13 @@ class AnimatedKeyboardResponsiveView: QuickLayoutView {
     let diagnosticsLabel = UILabel()
     let contentScrollView = QuickLayoutScrollView()
 
-    let keyboardObserver = QuickLayoutKeyboardObserver()
+    private lazy var keyboardObserver = QuickLayoutKeyboardObserver()
 
-    private var keyboardContext = QuickLayoutKeyboardContext.hidden {
+    private var keyboardContext: QuickLayoutKeyboardContext? {
         didSet {
             updateKeyboardDiagnostics()
-            if oldValue != keyboardContext { // 避免首次出现动画
-                animateLayoutChange()
+            if let keyboardContext, oldValue != keyboardContext {
+                animateLayoutChange(keyboardContext)
             }
         }
     }
@@ -110,6 +110,8 @@ class AnimatedKeyboardResponsiveView: QuickLayoutView {
 
     private func setupKeyboardObservers() {
         keyboardObserver.$context
+            // @Published 的首值是观察器的初始状态，并非收到的 UIKit 通知。
+            .dropFirst()
             .sink { [weak self] context in
                 self?.keyboardContext = context
             }
@@ -117,28 +119,51 @@ class AnimatedKeyboardResponsiveView: QuickLayoutView {
     }
 
 
-    private func animateLayoutChange() {
+    private func animateLayoutChange(_ keyboardContext: QuickLayoutKeyboardContext) {
         UIView.animate(
             withDuration: keyboardContext.animationDuration,
             delay: 0,
-            options: keyboardContext.animationOptions,
+            options: keyboardContext.animationOptions.union([
+                .beginFromCurrentState,
+                .allowUserInteraction,
+            ]),
             animations: {
                 self.setNeedsLayout()
                 self.layoutIfNeeded()
-                if self.keyboardContext.isVisible {
-                    self.contentScrollView.scrollTo(.bottom, animated: false)
+                if keyboardContext.isVisible {
+                    // scrollTo(animated: false) 会清除滚动容器的 position 动画，
+                    // 连带取消输入框和提交按钮随键盘移动的动画。这里让偏移量
+                    // 参与当前键盘动画，不另外启动滚动动画或移除容器动画。
+                    let scrollView = self.contentScrollView
+                    scrollView.contentOffset.y = max(
+                        -scrollView.adjustedContentInset.top,
+                        scrollView.contentSize.height - scrollView.bounds.height
+                            + scrollView.adjustedContentInset.bottom
+                    )
                 }
             }
         )
     }
 
     private func updateKeyboardDiagnostics() {
+        let title = Localization.text("keyboard.diagnostics.title")
+        guard let keyboardContext else {
+            diagnosticsLabel.text = [
+                title,
+                Localization.text("keyboard.diagnostics.waiting"),
+            ].joined(separator: "\n")
+            return
+        }
         let resolved = keyboardContext.resolved(in: self)
         diagnosticsLabel.text = [
-            Localization.text("keyboard.diagnostics.title"),
+            title,
             Localization.text(
                 "keyboard.diagnostics.event",
                 keyboardContext.event.displayDescription
+            ),
+            Localization.text(
+                "keyboard.diagnostics.visible",
+                Localization.text(keyboardContext.isVisible ? "common.boolean.true" : "common.boolean.false")
             ),
             Localization.text(
                 "keyboard.diagnostics.rawFrame",

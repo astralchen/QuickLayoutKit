@@ -239,14 +239,11 @@ class ScrollViewWithKeyboardViewController: LocalizedQuickLayoutHostingControlle
         didSet {
             if oldValue != keyboardContext {
                 animateKeyboardChange()
-                if keyboardContext.isVisible {
-                    scrollToCurrentActiveField()
-                }
             }
         }
     }
 
-    private var currentActiveField: UIView?
+    private weak var currentActiveField: UIView?
     private var cancellables: Set<AnyCancellable> = []
 
     convenience init() {
@@ -390,15 +387,13 @@ class ScrollViewWithKeyboardViewController: LocalizedQuickLayoutHostingControlle
             }
             .store(in: &cancellables)
 
-        // 监听输入框开始编辑
+        // 只记录本表单的编辑状态。滚动定位由避让器统一负责。
         NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)
             .merge(with: NotificationCenter.default.publisher(for: UITextView.textDidBeginEditingNotification))
             .sink { [weak self] notification in
-                if let field = notification.object as? UIView {
-                    self?.currentActiveField = field
-                    self?.keyboardAvoider.setActiveView(field)
-                    self?.scrollToActiveField(field)
-                }
+                guard let self, let field = notification.object as? UIView,
+                      field.isDescendant(of: scrollView) else { return }
+                currentActiveField = field
             }
             .store(in: &cancellables)
     }
@@ -449,16 +444,6 @@ class ScrollViewWithKeyboardViewController: LocalizedQuickLayoutHostingControlle
         )
     }
 
-    private func scrollToCurrentActiveField() {
-        guard let field = currentActiveField else { return }
-        scrollToActiveField(field)
-    }
-
-    private func scrollToActiveField(_ field: UIView?) {
-        keyboardAvoider.setActiveView(field)
-        keyboardAvoider.scrollActiveViewIntoVisibleArea(animated: keyboardContext.isVisible)
-    }
-
     @objc private func dismissKeyboard() {
         view.endEditing(true)
         if currentActiveField === customInputButton {
@@ -476,7 +461,6 @@ class ScrollViewWithKeyboardViewController: LocalizedQuickLayoutHostingControlle
             object: customInputButton,
             userInfo: ["activeView": customInputButton]
         )
-        scrollToActiveField(customInputButton)
     }
 
     @objc private func textFieldDidChange(_ textField: UITextField) {

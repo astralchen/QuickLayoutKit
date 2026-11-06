@@ -44,10 +44,15 @@ extension ApplicationTests {
         )
 
         let keyboardView = AnimatedKeyboardResponsiveView()
+        #expect(keyboardView.diagnosticsLabel.text?.contains("لم يصل أي إشعار للوحة المفاتيح بعد") == true)
+        NotificationCenter.default.post(name: UIResponder.keyboardWillHideNotification, object: nil, userInfo: [
+            UIResponder.keyboardFrameEndUserInfoKey: CGRect.zero,
+        ])
         let keyboardDiagnostics = try #require(
             keyboardView.diagnosticsLabel.text
-        )
-        #expect(keyboardDiagnostics.contains("الحدث:"))
+        ).removingBidiIsolationMarks
+        #expect(keyboardDiagnostics.contains("آخر حدث: willHide"))
+        #expect(keyboardDiagnostics.contains("مرئية على الشاشة: لا"))
         #expect(keyboardDiagnostics.contains("الإطار الأصلي:"))
         #expect(keyboardDiagnostics.contains("منطقة التقاطع:"))
         #expect(keyboardDiagnostics.contains("الارتفاع:"))

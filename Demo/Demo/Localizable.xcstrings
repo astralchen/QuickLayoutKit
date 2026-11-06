@@ -10031,19 +10031,19 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "الحدث: %@"
+            "value" : "آخر حدث: %@"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Event: %@"
+            "value" : "Last event: %@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "事件：%@"
+            "value" : "最近事件：%@"
           }
         }
       }
@@ -10136,6 +10136,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "键盘诊断"
+          }
+        }
+      }
+    },
+    "keyboard.diagnostics.visible" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مرئية على الشاشة: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visible on screen: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "屏幕可见：%@"
+          }
+        }
+      }
+    },
+    "keyboard.diagnostics.waiting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لم يصل أي إشعار للوحة المفاتيح بعد"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No keyboard notification received yet"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未收到键盘通知"
           }
         }
       }

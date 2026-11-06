@@ -326,10 +326,8 @@ extension ApplicationTests {
                 $0.accessibilityIdentifier == "liveRoom.actionBar"
             }
         )
-        // 矮容器中的舞台可滚动；公屏衔接的是舞台视口，而非视口内的完整内容底边。
-        let stageViewport = try #require(scrollViews.first { stageView.isDescendant(of: $0) })
-        let stageFrame = stageViewport.convert(stageViewport.bounds, to: viewController.view)
-        #expect(stageViewport.contentSize.height >= stageViewport.bounds.height)
+        #expect(scrollViews.filter(\.isScrollEnabled) == [viewController.publicChatScrollView])
+        let stageFrame = stageView.convert(stageView.bounds, to: viewController.view)
         let chatFrame = chatView.convert(chatView.bounds, to: viewController.view)
         let actionBarFrame = actionBarView.convert(
             actionBarView.bounds,

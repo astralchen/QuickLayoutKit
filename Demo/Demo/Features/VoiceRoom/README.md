@@ -42,7 +42,7 @@
 
 ## 麦位 Collection 架构
 
-- `SeatStageView` 持有不可滚动的 `UICollectionView`，舞台高度由外层 QuickLayout 管理，麦位内部不形成第二个滚动区域。
+- `SeatStageView` 持有不可滚动的 `UICollectionView`，房间信息和麦位固定在公屏上方。矮窗口按可用高度等比缩小舞台，所有麦位直接可见，公屏独立滚动。
 - Diffable Item 身份固定为“有用户用 `userID`、空麦用 `slotID`”；`seatID` 只标识音频实体，不参与视图移动身份。
 - `SeatCollectionGeometry` 根据已校验的 Presentation、客户端布局家族、Metrics 与 RTL 方向生成绝对 Frame，自定义 Layout 不读取 ViewModel。
 - 房型切换、上下麦和换麦由 `SeatCollectionLayout` 的 UIKit 更新回调动画真实 Cell 的位置、尺寸与透明度；新增／删除使用 0.96 倍缩放淡入淡出。Cell 始终只保留一个真实 `SeatView`，内容直接更新。

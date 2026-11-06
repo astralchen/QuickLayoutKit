@@ -120,8 +120,6 @@ open class QuickLayoutScrollView:
 
     /// 记录上一次环境快照，并向宿主合并发布实际环境变化。
     private let quickLayoutEnvironmentState = _QuickLayoutEnvironmentState()
-    /// 避让器由调用方持有；宿主仅在几何更新后通知它，避免循环引用。
-    weak var quickLayoutKeyboardAvoider: QuickLayoutKeyboardAvoider?
     /// 等待有效视口与内容尺寸后执行的最近一次滚动请求。
     private var pendingScroll: (edge: Edge, animated: Bool)?
     /// 边距改变后是否需要在下一次布局恢复内容起点。
@@ -512,7 +510,7 @@ open class QuickLayoutScrollView:
         }
 
         var containerInsets = resolvedContainerInsets
-        containerInsets.bottom = max(0, containerInsets.bottom - keyboardDelta)
+        containerInsets.bottom = max(safeAreaInsets.bottom, adjustedContentInset.bottom - keyboardDelta)
         let keyboardInsets = UIEdgeInsets(
             top: 0,
             left: 0,
