@@ -118,6 +118,34 @@ final class RoomPublicChatUITests: XCTestCase {
     }
 
     @MainActor
+    func testPublicChatLanguageRoundTrip() {
+        let app = launchRoom()
+        let latest = app.staticTexts["liveRoom.publicChat.latest"]
+        let roundTrip = [("العربية", "الأغنية التالية"), ("简体中文", "下一首送给大家")]
+        for (step, target) in (roundTrip + roundTrip).enumerated() {
+            let (language, message) = target
+            app.buttons.matching(identifier: "demo.language.menu").firstMatch.tap()
+            let option = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", language)).firstMatch
+            XCTAssertTrue(option.waitForExistence(timeout: 5))
+            option.tap()
+            let localized = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "label CONTAINS %@", message), object: latest
+            )
+            XCTAssertEqual(XCTWaiter.wait(for: [localized], timeout: 5), .completed)
+            let stage = app.otherElements["liveRoom.seat.stage"].frame
+            let chat = app.collectionViews["liveRoom.publicChat.scroll"].frame
+            if stage.maxY > chat.minY + 1 {
+                if language == "العربية" {
+                    XCTAssertLessThanOrEqual(chat.maxX, stage.minX + 1)
+                } else {
+                    XCTAssertLessThanOrEqual(stage.maxX, chat.minX + 1)
+                }
+            }
+            capture(app, "公屏切换-\(step + 1)-" + language)
+        }
+    }
+
+    @MainActor
     func testPublicChatRTL() {
         let app = launchRoom(locale: "ar")
         let chat = app.collectionViews["liveRoom.publicChat.scroll"]

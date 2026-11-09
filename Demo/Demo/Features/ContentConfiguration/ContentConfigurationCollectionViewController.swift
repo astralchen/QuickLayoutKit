@@ -126,7 +126,7 @@ final class ContentConfigurationCollectionViewController: LocalizedViewControlle
                     SectionSupplementary(
                         ContentConfigurationCollectionHeaderFooterView.self,
                         kind: UICollectionView.elementKindSectionHeader,
-                        id: "content-configuration-header"
+                        elementID: "content-configuration-header"
                     ) { header, _ in
                         header.configure(
                             title: title,
@@ -140,7 +140,7 @@ final class ContentConfigurationCollectionViewController: LocalizedViewControlle
                     SectionSupplementary(
                         ContentConfigurationCollectionHeaderFooterView.self,
                         kind: UICollectionView.elementKindSectionFooter,
-                        id: "content-configuration-footer"
+                        elementID: "content-configuration-footer"
                     ) { footer, _ in
                         footer.configure(title: title, detail: nil, role: .footer)
                     }

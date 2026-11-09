@@ -43,6 +43,7 @@
                <Test Identifier="ApplicationTests/voiceRoomWidePortraitSeatsLeaveSpaceForChat()" />
                <Test Identifier="ApplicationTests/voiceRoomRearrangesExistingContentWhenContainerWidthChanges()" />
                <Test Identifier="ApplicationTests/voiceRoomPublicChatMessagesFillAvailableWidthOnIPad()" />
+               <Test Identifier="ApplicationTests/publicChatKeepsGlyphsUprightAcrossLanguageSwitches()" />
                <Test Identifier="ApplicationTests/voiceRoomNineSeatSecondRowKeepsTextAtIdealSize()" />
                <Test Identifier="ApplicationTests/voiceRoomSeatNamesSeparateOccupantsFromVacantSlots()" />
                <Test Identifier="ApplicationTests/voiceRoomFiveSeatLayoutUsesLargeHostAndFitsNarrowScreen()" />

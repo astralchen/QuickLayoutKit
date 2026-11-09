@@ -124,11 +124,12 @@ final class RoomPublicChatView: QuickLayoutView, UIScrollViewDelegate {
         }
     }
 
-    func updateLayoutDirection() {
-        collectionView.semanticContentAttribute = semanticContentAttribute
+    func updateLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
+        // 让本地化适配器检测方向变化并替换组合布局，避免复用旧方向的镜像状态。
         collectionView.applyLocalization(
-            Localization.layoutDirectionUpdate(effectiveUserInterfaceLayoutDirection),
-            preservingVisibleItem: true
+            Localization.layoutDirectionUpdate(direction),
+            preservingVisibleItem: true,
+            rebuildingLayoutWith: makeCollectionViewLayout
         )
         scheduleReconciliation()
     }
@@ -243,8 +244,7 @@ final class RoomPublicChatView: QuickLayoutView, UIScrollViewDelegate {
         collectionView.contentInsetAdjustmentBehavior = .never
         collectionView.keyboardDismissMode = .interactive
         collectionView.accessibilityIdentifier = "liveRoom.publicChat.scroll"
-        collectionView.collectionViewLayout = adapter.makeCompositionalLayout(configuration:
-            ListCompositionalLayoutConfiguration(scrollDirection: .vertical, interSectionSpacing: 0, contentInsetsReference: .none))
+        collectionView.collectionViewLayout = makeCollectionViewLayout()
         adapter.scrollDelegate = self
         newMessagesButton.accessibilityIdentifier = "liveRoom.publicChat.newMessages"
         newMessagesButton.action = { [weak self] in self?.showLatestMessages() }
@@ -252,6 +252,12 @@ final class RoomPublicChatView: QuickLayoutView, UIScrollViewDelegate {
             // UICollectionView 几何变化发生在主线程；延至布局退出后再改 inset/offset。
             MainActor.assumeIsolated { self?.scheduleReconciliation() }
         }
+    }
+
+    private func makeCollectionViewLayout() -> UICollectionViewCompositionalLayout {
+        adapter.makeCompositionalLayout(configuration: ListCompositionalLayoutConfiguration(
+            scrollDirection: .vertical, interSectionSpacing: 0, contentInsetsReference: .none
+        ))
     }
 }
 

@@ -485,7 +485,7 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
                 .onSelect { [weak self] routeState, _ in
                     self?.viewModel.select(routeState.route)
                 }
-                .onDisplay { [weak self] cell, _ in
+                .onAppear { [weak self] cell, _ in
                     localizationContext
                         .restoreOnAttachment(cell)
                     // 复用或预取的 cell 可能在另一种分栏状态下完成配置。
@@ -496,7 +496,7 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
             SectionSupplementary(
                 MainMenuSectionHeaderView.self,
                 kind: UICollectionView.elementKindSectionHeader,
-                id: "\(section.id).header"
+                elementID: "\(section.id).header"
             ) { header, _ in
                 localizationContext
                     .prepareForConfiguration(header)
@@ -506,7 +506,7 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
                 )
             }
             .refreshID(section.title)
-            .onDisplay { header, _ in
+            .onAppear { header, _ in
                 localizationContext
                     .restoreOnAttachment(header)
             }

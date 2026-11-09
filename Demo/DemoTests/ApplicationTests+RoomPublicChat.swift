@@ -191,6 +191,35 @@ extension ApplicationTests {
         }
     }
 
+    @Test func publicChatKeepsGlyphsUprightAcrossLanguageSwitches() async throws {
+        Localization.setLocale(identifier: "zh-Hans")
+        defer { Localization.setLocale(identifier: "en-US") }
+        let room = VoiceRoomViewController()
+        let window = try makeVisibleTestWindow(rootViewController: room)
+        Localization.register(window: window)
+        defer {
+            Localization.unregister(window: window)
+            window.isHidden = true
+        }
+        for locale in ["zh-Hans", "ar", "zh-Hans"] {
+            Localization.setLocale(identifier: locale)
+            try await settlePublicChat(room.messagesView)
+            let chat = room.messagesView.collectionView
+            let expectedDirection: UIUserInterfaceLayoutDirection = locale == "ar" ? .rightToLeft : .leftToRight
+            #expect(chat.effectiveUserInterfaceLayoutDirection == expectedDirection)
+            try #require(!chat.visibleCells.isEmpty)
+            for cell in chat.visibleCells {
+                let label = try #require(cell.allSubviews(of: UILabel.self).first)
+                // 测窗口坐标中的字形朝向；只查语义方向或段落对齐检测不到镜像。
+                let left = label.convert(CGPoint.zero, to: window)
+                let right = label.convert(CGPoint(x: 1, y: 0), to: window)
+                #expect(right.x > left.x, "\(locale): \(label.text ?? "")")
+                let paragraph = label.attributedText?.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
+                #expect(paragraph?.alignment == (locale == "ar" ? .right : .left))
+            }
+        }
+    }
+
     @Test(arguments: ["zh-Hans", "ar"])
     func publicChatAdaptsToNarrowLargeTypeAndRTL(locale: String) async throws {
         Localization.setLocale(identifier: locale)

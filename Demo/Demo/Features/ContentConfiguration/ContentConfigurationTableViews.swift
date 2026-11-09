@@ -97,12 +97,11 @@ final class ContentConfigurationTableListView: UIView {
                         item.model.detail,
                         item.model.imageName,
                     ])
-                    .height(.automatic(estimated: 80))
                 }
             } header: {
                 TableHeader(
                     ContentConfigurationTableHeaderFooterView.self,
-                    id: "content-configuration-header"
+                    elementID: "content-configuration-header"
                 ) { header, _ in
                     header.configure(
                         title: headerTitle,
@@ -112,11 +111,10 @@ final class ContentConfigurationTableListView: UIView {
                 }
                 // Header identity 固定，标题和详情负责触发内容与高度刷新。
                 .refreshID([headerTitle, headerDetail])
-                .height(.automatic(estimated: 64))
             } footer: {
                 TableFooter(
                     ContentConfigurationTableHeaderFooterView.self,
-                    id: "content-configuration-footer"
+                    elementID: "content-configuration-footer"
                 ) { footer, _ in
                     footer.configure(
                         title: footerTitle,
@@ -126,9 +124,14 @@ final class ContentConfigurationTableListView: UIView {
                 }
                 // Footer 文案变化同样需要重新配置和 self-sizing。
                 .refreshID([footerTitle])
-                .height(.automatic(estimated: 48))
             }
             .selectionMode(.single)
+            .layout {
+                TableLayout()
+                    .rowHeight(.estimated(80))
+                    .headerHeight(.estimated(64))
+                    .footerHeight(.estimated(48))
+            }
         }
     }
 

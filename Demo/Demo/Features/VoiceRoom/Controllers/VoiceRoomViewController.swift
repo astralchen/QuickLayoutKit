@@ -323,7 +323,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
             $0.semanticContentAttribute = semanticAttribute
             $0.setNeedsLayout()
         }
-        messagesView.updateLayoutDirection()
+        messagesView.updateLayoutDirection(direction)
         setNeedsQuickLayout()
     }
 
