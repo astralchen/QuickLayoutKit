@@ -44,7 +44,7 @@ struct DirectionalGridTests {
         for horizontal in [false, true] {
             let views = (0..<4).map { _ in UIView() }
             let items: [QuickLayoutKitCore.GridItem] = [.init(.fixed(20)), .init(.fixed(20))]
-            var grid: any QuickLayout.Layout = horizontal
+            let grid: any QuickLayout.Layout = horizontal
                 ? HGrid(rows: items) { for view in views { view.resizable().frame(width: 20, height: 20) } }
                 : VGrid(columns: items) { for view in views { view.resizable().frame(width: 20, height: 20) } }
             #expect(grid.sizeThatFits(.zero) == CGSize(width: 40, height: 40))
@@ -65,7 +65,7 @@ struct DirectionalGridTests {
                     .init(.fixed(20), spacing: gap), .init(.fixed(20), spacing: gap)
                 ]
                 let views = (0..<4).map { _ in UIView() }
-                var grid: any QuickLayout.Layout = horizontal
+                let grid: any QuickLayout.Layout = horizontal
                     ? HGrid(rows: items, spacing: gap) { for view in views { view.resizable().frame(width: 20, height: 20) } }
                     : VGrid(columns: items, spacing: gap) { for view in views { view.resizable().frame(width: 20, height: 20) } }
                 let referenceViews = (0..<4).map { _ in UIView() }

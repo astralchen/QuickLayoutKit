@@ -25,25 +25,37 @@ struct SingleChildStackGuideTests {
         let bounds = UIView()
         let view = UIView()
         var native = AnyView(Color.blue.frame(width: 40, height: 20).background(NativeStackProbe(view: reference)))
-        var actual: any QuickLayout.Layout = view.resizable().frame(width: 40, height: 20)
+        let actual: any QuickLayout.Layout
         if horizontal {
             let nativeGuide = SwiftUI.VerticalAlignment(NativeStackGuide.self)
             let actualGuide = NativeStackVertical(NativeStackGuide.self)
             if let explicit {
                 native = AnyView(native.alignmentGuide(nativeGuide) { _ in explicit })
-                actual = actual.alignmentGuide(actualGuide) { _ in explicit }
             }
             native = AnyView(SwiftUI.HStack(alignment: nativeGuide, spacing: 0) { native })
-            actual = QuickLayoutKitCore.HStack(alignment: actualGuide) { actual }
+            actual = QuickLayoutKitCore.HStack(alignment: actualGuide) {
+                if let explicit {
+                    view.resizable().frame(width: 40, height: 20)
+                        .alignmentGuide(actualGuide) { _ in explicit }
+                } else {
+                    view.resizable().frame(width: 40, height: 20)
+                }
+            }
         } else {
             let nativeGuide = SwiftUI.HorizontalAlignment(NativeStackGuide.self)
             let actualGuide = NativeStackHorizontal(NativeStackGuide.self)
             if let explicit {
                 native = AnyView(native.alignmentGuide(nativeGuide) { _ in explicit })
-                actual = actual.alignmentGuide(actualGuide) { _ in explicit }
             }
             native = AnyView(SwiftUI.VStack(alignment: nativeGuide, spacing: 0) { native })
-            actual = QuickLayoutKitCore.VStack(alignment: actualGuide) { actual }
+            actual = QuickLayoutKitCore.VStack(alignment: actualGuide) {
+                if let explicit {
+                    view.resizable().frame(width: 40, height: 20)
+                        .alignmentGuide(actualGuide) { _ in explicit }
+                } else {
+                    view.resizable().frame(width: 40, height: 20)
+                }
+            }
         }
         let host = UIHostingController(rootView: native.background(NativeStackProbe(view: bounds))
             .frame(width: 200, height: 200, alignment: .topLeading)

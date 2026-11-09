@@ -90,8 +90,12 @@ struct ContainerRelativeFrameParityTests {
         case 3, 7:
             // 固定非滚动轴，避免双轴相对尺寸反过来参与自然视口尺寸求解。
             native = AnyView(SwiftUI.ScrollView(.horizontal) { nativeLeaf.frame(height: 180) }.frame(width: 240, height: 180))
-            let child: any QuickLayout.Element = mode == 7 ? QuickLayoutView { actualLeaf } : actualLeaf
-            content = RelativeFrameScroll(.horizontal) { child.frame(height: 180) }.frame(width: 240, height: 180)
+            if mode == 7 {
+                let child = QuickLayoutView { actualLeaf }
+                content = RelativeFrameScroll(.horizontal) { child.frame(height: 180) }.frame(width: 240, height: 180)
+            } else {
+                content = RelativeFrameScroll(.horizontal) { actualLeaf.frame(height: 180) }.frame(width: 240, height: 180)
+            }
         case 4:
             native = AnyView(SwiftUI.ScrollView(.vertical) { nativeLeaf.frame(width: 240) }.frame(width: 240, height: 180))
             content = RelativeFrameScroll(.vertical) { actualLeaf.frame(width: 240) }.frame(width: 240, height: 180)

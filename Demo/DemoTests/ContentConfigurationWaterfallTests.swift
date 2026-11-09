@@ -112,6 +112,7 @@ extension ContentConfigurationCollectionTests {
         await fixture.settle()
         fixture.resize(width: 600)
         await fixture.settle()
+        #expect(controller.collectionView.bounds.inset(by: controller.collectionView.adjustedContentInset).width == 600)
         #expect(controller.laneCount == 3)
         try fixture.verifyVisibleGeometry()
         fixture.resize(width: 320)
@@ -155,6 +156,7 @@ extension ContentConfigurationCollectionTests {
         let countLabel = try #require(controller.view.subviews.compactMap { $0 as? UILabel }.first)
         #expect(control.accessibilityIdentifier == "waterfall.direction")
         #expect(control.titleForSegment(at: 0) == "纵向")
+        #expect(controller.collectionView.bounds.inset(by: controller.collectionView.adjustedContentInset).width == 390)
         #expect(controller.laneCount == 2)
         #expect(countLabel.text == "自动 · 2 列")
         try fixture.verifyVisibleGeometry()
@@ -393,9 +395,9 @@ private final class WaterfallFixture {
     let controller: ContentConfigurationWaterfallViewController
 
     init(localizer: Localizer? = nil) throws {
-        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        window = UIWindow(windowScene: scene)
-        window.frame = CGRect(x: 0, y: 0, width: 390, height: 900)
+        // 固定宽度用例使用独立窗口，避免继承运行场景的 Duo 侧边安全区。
+        // 不对称安全区由各用例通过 additionalSafeAreaInsets 显式设置。
+        window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 900))
         controller = ContentConfigurationWaterfallViewController(localizer: localizer ?? Localizer { key, _ in
             key.contains("sample.detail") ? "Content wraps naturally across multiple lines. A longer sentence verifies the measured height." : "Card title"
         })

@@ -121,6 +121,9 @@ open class QuickLayoutLinearGradientView: UIView {
         self.gradient = gradient
         self.startPoint = startPoint
         self.endPoint = endPoint
+        // 初始化中的赋值不依赖属性观察器触发，显式同步最终配置。
+        updateGradient()
+        updateResolvedPoints()
     }
 
     /// 使用均匀分布的颜色创建视图。

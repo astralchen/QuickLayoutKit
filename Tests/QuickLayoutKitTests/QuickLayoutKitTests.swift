@@ -35,6 +35,10 @@ struct QuickLayoutKitTests {
             startPoint: .leading,
             endPoint: .trailing
         )
+        #expect(view.gradientLayer.colors?.count == 2)
+        #expect(view.gradientLayer.locations?.map(\.doubleValue) == [0.15, 0.85])
+        #expect(view.gradientLayer.startPoint == CGPoint(x: 0, y: 0.5))
+        #expect(view.gradientLayer.endPoint == CGPoint(x: 1, y: 0.5))
         view.frame = CGRect(x: 0, y: 0, width: 240, height: 120)
         view.layoutIfNeeded()
 

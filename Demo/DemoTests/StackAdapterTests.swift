@@ -10,14 +10,16 @@ struct StackAdapterTests {
 
     @Test func singleChildConsumesAllBuiltInGuides() {
         for rtl in [false, true] {
-            let child = UIView().resizable().frame(width: 40, height: 20)
-                .alignmentGuide(HorizontalAlignment.leading) { _ in -7 }
-                .alignmentGuide(HorizontalAlignment.center) { _ in 3 }
-                .alignmentGuide(HorizontalAlignment.trailing) { _ in 61 }
-                .alignmentGuide(VerticalAlignment.top) { _ in -9 }
-                .alignmentGuide(VerticalAlignment.center) { _ in 4 }
-                .alignmentGuide(VerticalAlignment.bottom) { _ in 37 }
-            for stack in [HStack { child }, VStack { child }] {
+            func makeChild() -> any QuickLayout.Layout {
+                UIView().resizable().frame(width: 40, height: 20)
+                    .alignmentGuide(HorizontalAlignment.leading) { _ in -7 }
+                    .alignmentGuide(HorizontalAlignment.center) { _ in 3 }
+                    .alignmentGuide(HorizontalAlignment.trailing) { _ in 61 }
+                    .alignmentGuide(VerticalAlignment.top) { _ in -9 }
+                    .alignmentGuide(VerticalAlignment.center) { _ in 4 }
+                    .alignmentGuide(VerticalAlignment.bottom) { _ in 37 }
+            }
+            for stack in [HStack { makeChild() }, VStack { makeChild() }] {
                 LayoutContext.$layoutDirection.withValue(rtl ? .rightToLeft : .leftToRight) {
                     let node = stack.quick_layoutThatFits(proposal)
                     let defaults = ElementDimensions(node.size)
@@ -64,10 +66,12 @@ struct StackAdapterTests {
         let horizontal = HorizontalAlignment(StackCustomGuide.self)
         let vertical = VerticalAlignment(StackVerticalCustomGuide.self)
         let view = UIView()
-        let child = view.resizable().frame(width: 40, height: 20)
-            .alignmentGuide(horizontal) { _ in 12 }
-            .alignmentGuide(vertical) { _ in 9 }
-        for stack in [VStack(alignment: horizontal) { child }, HStack(alignment: vertical) { child }] {
+        func makeChild() -> any QuickLayout.Layout {
+            view.resizable().frame(width: 40, height: 20)
+                .alignmentGuide(horizontal) { _ in 12 }
+                .alignmentGuide(vertical) { _ in 9 }
+        }
+        for stack in [VStack(alignment: horizontal) { makeChild() }, HStack(alignment: vertical) { makeChild() }] {
             let node = stack.layoutThatFits(proposal, layoutDirection: .leftToRight)
             stack._applyFrame(CGRect(origin: .zero, size: node.size), alignment: .topLeading,
                               layoutDirection: .leftToRight, cachedLayout: node)
@@ -81,11 +85,13 @@ struct StackAdapterTests {
     @Test func customGuideSurvivesStackButDoesNotEscapeGrid() {
         let custom = HorizontalAlignment(StackCustomGuide.self)
         for rtl in [false, true] {
-            let child = UIView().resizable().frame(width: 40, height: 20)
-                .alignmentGuide(custom) { _ in 12 }
-            let stack = VStack(alignment: .leading) { child }
+            func makeChild() -> any QuickLayout.Layout {
+                UIView().resizable().frame(width: 40, height: 20)
+                    .alignmentGuide(custom) { _ in 12 }
+            }
+            let stack = VStack(alignment: .leading) { makeChild() }
                 .alignmentGuide(VerticalAlignment.top) { $0[custom] }
-            let grid = VGrid(columns: [GridItem(.fixed(100))]) { child }
+            let grid = VGrid(columns: [GridItem(.fixed(100))]) { makeChild() }
                 .alignmentGuide(VerticalAlignment.top) { $0[custom] }
             let direction: LayoutDirection = rtl ? .rightToLeft : .leftToRight
             #expect(stack.layoutThatFits(proposal, layoutDirection: direction).dimensions[VerticalAlignment.top] == 12)

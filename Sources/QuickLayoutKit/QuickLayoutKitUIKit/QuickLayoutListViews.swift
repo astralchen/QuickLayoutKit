@@ -126,6 +126,14 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         quickLayoutSizeThatFits(size) ?? super.sizeThatFits(size)
     }
 
+    /// 通过子类可重写的测量入口拟合尺寸，并保留集合布局提供的原始属性。
+    open override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
+        // 不调用 super，避免 UIKit 的拟合路径绕过 sizeThatFits 或重复测量 body。
+        let attributes = layoutAttributes.copy() as! UICollectionViewLayoutAttributes
+        attributes.size = sizeThatFits(layoutAttributes.size)
+        return attributes
+    }
+
     /// UIKit 自适应测量使用与 body 布局相同的尺寸入口。
     open override func systemLayoutSizeFitting(
         _ targetSize: CGSize,

@@ -25,10 +25,7 @@ extension QuickLayoutKitTests {
         let narrowHeights = try fixture.visibleHeights()
         #expect(zip(narrowHeights, longHeights).allSatisfy { $0 > $1 })
 
-        fixture.parent.setOverrideTraitCollection(
-            UITraitCollection(preferredContentSizeCategory: .extraExtraExtraLarge),
-            forChild: fixture.controller
-        )
+        fixture.setPreferredContentSizeCategory(.extraExtraExtraLarge)
         fixture.collection.reloadData()
         fixture.collection.collectionViewLayout.invalidateLayout()
         fixture.layout()
@@ -135,9 +132,7 @@ private final class SizingCollectionFixture {
         window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 1600))
         window.rootViewController = parent
         parent.addChild(controller)
-        parent.setOverrideTraitCollection(
-            UITraitCollection(preferredContentSizeCategory: .large), forChild: controller
-        )
+        setPreferredContentSizeCategory(.large)
         parent.view.addSubview(controller.view)
         controller.didMove(toParent: parent)
         controller.view.addSubview(collection)
@@ -145,6 +140,16 @@ private final class SizingCollectionFixture {
         window.layoutIfNeeded()
         controller.view.frame = CGRect(x: 0, y: 0, width: 320, height: 1600)
         collection.frame = controller.view.bounds
+    }
+
+    func setPreferredContentSizeCategory(_ category: UIContentSizeCategory) {
+        if #available(iOS 17.0, *) {
+            controller.traitOverrides.preferredContentSizeCategory = category
+        } else {
+            parent.setOverrideTraitCollection(
+                UITraitCollection(preferredContentSizeCategory: category), forChild: controller
+            )
+        }
     }
 
     func layout() {

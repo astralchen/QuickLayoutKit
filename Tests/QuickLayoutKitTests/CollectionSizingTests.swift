@@ -11,12 +11,21 @@ extension QuickLayoutKitTests {
             forCellWith: IndexPath(item: 0, section: 0)
         )
         attributes.size = CGSize(width: 180, height: 44)
+        attributes.zIndex = 3
+        attributes.alpha = 0.7
+        let original = attributes.copy() as! UICollectionViewLayoutAttributes
 
         let fitted = cell.preferredLayoutAttributesFitting(attributes)
 
         #expect(fitted.size == CGSize(width: 180, height: 47))
         #expect(cell.measurementCount == 1)
         #expect(cell.measuredView.measurementCount == 1)
+        #expect(fitted !== attributes)
+        #expect(attributes.isEqual(original))
+        #expect(fitted.center == original.center)
+        #expect(fitted.indexPath == original.indexPath)
+        #expect(fitted.zIndex == original.zIndex)
+        #expect(fitted.alpha == original.alpha)
     }
 
     @Test(arguments: [true, false])

@@ -64,8 +64,9 @@ struct RTLAlignmentGuideTests {
                 $0[QLHorizontal.leading] + (LayoutContext.layoutDirection == .rightToLeft ? 10 : 20)
             }
         for rtl in [false, true] {
+            let node = layout.layoutThatFits(CGSize(width: 100, height: 100),
+                                            layoutDirection: rtl ? .rightToLeft : .leftToRight)
             LayoutContext.$layoutDirection.withValue(rtl ? .rightToLeft : .leftToRight) {
-                let node = layout.quick_layoutThatFits(CGSize(width: 100, height: 100))
                 #expect(node.dimensions[QLHorizontal.leading] == (rtl ? 30 : 20))
                 #expect(LayoutContext.layoutDirection == (rtl ? .rightToLeft : .leftToRight))
             }

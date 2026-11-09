@@ -31,10 +31,8 @@ struct ViewThatFitsGuideTests {
         let bounds = UIView()
         var nativeFallback = AnyView(Color.blue.frame(width: 40, height: 20)
             .background(FitProbe(view: references[1])))
-        var actualFallback: any QuickLayout.Layout = views[1].resizable().frame(width: 40, height: 20)
         if let fallbackGuide {
             nativeFallback = AnyView(nativeFallback.alignmentGuide(nativeGuide) { _ in fallbackGuide })
-            actualFallback = actualFallback.alignmentGuide(actualGuide) { _ in fallbackGuide }
         }
         let native = SwiftUI.ViewThatFits(in: .horizontal) {
             Color.blue.frame(width: 200, height: 20)
@@ -45,7 +43,12 @@ struct ViewThatFitsGuideTests {
         let actual = QuickLayoutKitCore.ViewThatFits(in: .horizontal) {
             views[0].resizable().frame(width: 200, height: 20)
                 .alignmentGuide(actualGuide) { _ in 12 }
-            actualFallback
+            if let fallbackGuide {
+                views[1].resizable().frame(width: 40, height: 20)
+                    .alignmentGuide(actualGuide) { _ in fallbackGuide }
+            } else {
+                views[1].resizable().frame(width: 40, height: 20)
+            }
         }.alignmentGuide(FitVertical.top) { $0[actualGuide] }
         let root = SwiftUI.HStack(alignment: .top, spacing: 0) {
             native
