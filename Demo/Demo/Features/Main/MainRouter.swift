@@ -78,6 +78,8 @@ final class MainRouter: MainRouting {
             CounterViewController()
         case .dynamicScroll:
             DynamicScrollViewController()
+        case .dailyRecord:
+            DailyRecordViewController()
         case .dashboard:
             DashboardViewController()
         case .voiceRoom:

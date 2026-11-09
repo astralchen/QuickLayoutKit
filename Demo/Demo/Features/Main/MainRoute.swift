@@ -23,6 +23,7 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
     case counter
     case dynamicScroll
     case dashboard
+    case dailyRecord
     case voiceRoom
     case chat
     case collectionContentConfiguration
@@ -75,6 +76,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "demo.counter.title"
         case .dynamicScroll:
             "demo.dynamicScroll.title"
+        case .dailyRecord:
+            "demo.dailyRecord.title"
         case .dashboard:
             "demo.dashboard.title"
         case .voiceRoom:
@@ -142,6 +145,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "plus.forwardslash.minus"
         case .dynamicScroll:
             "scroll"
+        case .dailyRecord:
+            "calendar.badge.clock"
         case .dashboard:
             "rectangle.3.group"
         case .voiceRoom:

@@ -45,7 +45,7 @@ final class MainViewModel {
         .init(titleKey: "main.section.lists", routes: [
             .collectionContentConfiguration, .waterfallContentConfiguration, .tableContentConfiguration,
         ]),
-        .init(titleKey: "main.section.screens", routes: [.profile, .dashboard, .counter]),
+        .init(titleKey: "main.section.screens", routes: [.profile, .dashboard, .counter, .dailyRecord]),
         .init(titleKey: "main.section.hosting", routes: [.representable]),
         .init(titleKey: "main.section.localization", routes: [
             .semanticContent, .localizationOverview, .uikitLocalization,

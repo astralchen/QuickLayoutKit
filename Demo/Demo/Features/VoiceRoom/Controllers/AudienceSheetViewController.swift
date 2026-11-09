@@ -41,7 +41,6 @@ final class AudienceSheetViewController:
         self.viewModel = viewModel
         super.init(nibName: nil, bundle: nil)
         modalPresentationStyle = .pageSheet
-        preferredContentSize = CGSize(width: 540, height: 620)
     }
 
     /// 不支持从归档创建此组件，始终返回 `nil`。
@@ -119,8 +118,13 @@ final class AudienceSheetViewController:
         sheetPresentationController.prefersScrollingExpandsWhenScrolledToEdge =
             true
         sheetPresentationController.prefersEdgeAttachedInCompactHeight = true
-        sheetPresentationController.widthFollowsPreferredContentSizeWhenEdgeAttached =
-            true
+        // 使用系统可读宽度，随容器和设备姿态调整面板尺寸。
+        if #available(iOS 17.0, *) {
+            sheetPresentationController.prefersPageSizing = true
+        }
+        if #available(iOS 27.0, *) {
+            sheetPresentationController.preferredPlacement = .automatic
+        }
         sheetPresentationController.preferredCornerRadius = 28
     }
 
