@@ -11,9 +11,17 @@
    <TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.DebuggerFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="YES">
       <Testables>
          <TestableReference skipped="NO" parallelizable="NO">
+            <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="7714E9812EFE2A9300F8BC60" BuildableName="DemoTests.xctest" BlueprintName="DemoTests" ReferencedContainer="container:Demo.xcodeproj" />
+            <SelectedTests>
+               <Test Identifier="SafeAreaInsetTests" />
+               <Test Identifier="SafeAreaInsetSpacingTests" />
+            </SelectedTests>
+         </TestableReference>
+         <TestableReference skipped="NO" parallelizable="NO">
             <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="7714E98B2EFE2A9300F8BC60" BuildableName="DemoUITests.xctest" BlueprintName="DemoUITests" ReferencedContainer="container:Demo.xcodeproj" />
             <SelectedTests>
                <Test Identifier="SafeAreaPaddingUITests" />
+               <Test Identifier="SafeAreaInsetUITests" />
             </SelectedTests>
          </TestableReference>
       </Testables>

@@ -24,7 +24,9 @@ extension UIView {
         _ operation: () throws -> Result
     ) rethrows -> Result {
         try QuickLayoutContentMarginTransaction.withUpdates {
-            try quickLayoutManagedViewStateStore.withRenderPass(operation)
+            try withQuickLayoutSafeAreaInsetPass {
+                try quickLayoutManagedViewStateStore.withRenderPass(operation)
+            }
         }
     }
 

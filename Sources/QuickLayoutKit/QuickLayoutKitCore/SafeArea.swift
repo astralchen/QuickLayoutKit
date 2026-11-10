@@ -310,6 +310,26 @@ package enum QuickLayoutSafeAreaContext {
     }
 }
 
+/// 显式支持完整滚动视口的元素适配边界。普通布局仍使用几何预留。
+package protocol QuickLayoutSafeAreaInsetTarget: Element {
+    var quickLayoutAcceptsSafeAreaInset: Bool { get }
+    func quick_layoutWithSafeAreaInset(
+        _ proposedSize: CGSize,
+        reservation: QuickLayoutSafeAreaInsetReservation
+    ) -> LayoutNode
+}
+
+/// 相对于当前元素完整边界的最小遮挡量；物理存储避免局部 RTL 重复镜像。
+package struct QuickLayoutSafeAreaInsetReservation: Sendable, Equatable {
+    package var insets: UIEdgeInsets
+    package var selected: UIEdgeInsets
+
+    package init(insets: UIEdgeInsets = .zero, selected: UIEdgeInsets = .zero) {
+        self.insets = insets
+        self.selected = selected
+    }
+}
+
 public extension Element {
 
     /// 向元素可见的安全区域添加固定边距。
@@ -365,8 +385,10 @@ public extension Element {
 
     /// 在安全区域的垂直边缘放置内容并为其预留空间。
     ///
-    /// 间距默认为零。内容构建结果为 `nil` 时使用空布局，但仍消费并预留选中边缘
-    /// 继承的安全区域。
+    /// 间距默认为零。构建器将可选内容的 `nil` 和未命中的条件分支转换为空布局，
+    /// 此时仍消费并预留选中边缘继承的安全区域，显式间距也仍参与布局。
+    /// 直接修饰声明式 `ScrollView`（可包含连续的 `contentMargins` / `safeAreaInset`）时，
+    /// 保留完整滚动视口并调整内容及指示器边距；其他元素按几何尺寸预留空间。
     ///
     /// - Parameters:
     ///   - edge: 放置内容的垂直边缘。
@@ -378,11 +400,11 @@ public extension Element {
         edge: VerticalEdge,
         alignment: HorizontalAlignment = .center,
         spacing: CGFloat = 0,
-        @LayoutBuilder content: () -> Element?
+        @LayoutBuilder content: () -> Layout
     ) -> Element & Layout {
         SafeAreaInsetElement(
             child: self,
-            inset: content() ?? EmptyLayout(),
+            inset: content(),
             edge: edge.edge,
             alignment: Alignment(horizontal: alignment, vertical: edge.verticalAlignment),
             spacing: sanitized(spacing)
@@ -391,8 +413,9 @@ public extension Element {
 
     /// 在安全区域的水平边缘放置内容并为其预留空间。
     ///
-    /// 间距默认为零。内容构建结果为 `nil` 时使用空布局，但仍消费并预留选中边缘
-    /// 继承的安全区域。
+    /// 间距默认为零。构建器将可选内容的 `nil` 和未命中的条件分支转换为空布局，
+    /// 此时仍消费并预留选中边缘继承的安全区域，显式间距也仍参与布局。
+    /// 声明式滚动适配的包装顺序和行为与垂直重载相同。
     ///
     /// - Parameters:
     ///   - edge: 放置内容的水平边缘。
@@ -404,11 +427,11 @@ public extension Element {
         edge: HorizontalEdge,
         alignment: VerticalAlignment = .center,
         spacing: CGFloat = 0,
-        @LayoutBuilder content: () -> Element?
+        @LayoutBuilder content: () -> Layout
     ) -> Element & Layout {
         SafeAreaInsetElement(
             child: self,
-            inset: content() ?? EmptyLayout(),
+            inset: content(),
             edge: edge.edge,
             alignment: Alignment(horizontal: edge.horizontalAlignment, vertical: alignment),
             spacing: sanitized(spacing)
@@ -475,7 +498,7 @@ private struct SafeAreaPaddingElement: Layout {
 }
 
 /// 先测量边缘插入内容，再为主体预留安全区域和插入长度的包装器。
-private struct SafeAreaInsetElement: Layout {
+private struct SafeAreaInsetElement: Layout, QuickLayoutSafeAreaInsetTarget {
 
     /// 被当前修饰元素包装的布局内容。
     let child: Element
@@ -500,6 +523,13 @@ private struct SafeAreaInsetElement: Layout {
 
     /// 消费目标边缘，测量插入内容，并叠放预留空间后的主体与边缘内容。
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode {
+        if quickLayoutAcceptsSafeAreaInset {
+            let inherited = QuickLayoutSafeAreaContext.current?.effectiveInsets ?? .zero
+            let physical = QuickLayoutPhysicalInsets(inherited, layoutDirection: LayoutContext.layoutDirection)
+            return quick_layoutWithSafeAreaInset(proposedSize, reservation: .init(
+                insets: UIEdgeInsets(top: physical.top, left: physical.left, bottom: physical.bottom, right: physical.right)
+            ))
+        }
         let inheritedInsets = QuickLayoutSafeAreaContext.current?.effectiveInsets ?? .zero
         let consumedEdges = edge.edgeSet
         let childValues = QuickLayoutSafeAreaContext.current?.consuming(consumedEdges)
@@ -526,6 +556,54 @@ private struct SafeAreaInsetElement: Layout {
         return target
             .overlay(alignment: alignment) {
                 insetLayer
+            }
+            .quick_layoutThatFits(proposedSize)
+    }
+
+    var quickLayoutAcceptsSafeAreaInset: Bool {
+        (child as? any QuickLayoutSafeAreaInsetTarget)?.quickLayoutAcceptsSafeAreaInset == true
+    }
+
+    /// 保留滚动视口外框，逐层扩展其可见内容边界；外层插入内容先占用区域。
+    func quick_layoutWithSafeAreaInset(
+        _ proposedSize: CGSize,
+        reservation: QuickLayoutSafeAreaInsetReservation
+    ) -> LayoutNode {
+        guard let target = child as? any QuickLayoutSafeAreaInsetTarget else {
+            return quick_layoutThatFits(proposedSize)
+        }
+        let values = QuickLayoutSafeAreaValues(containerSize: proposedSize, physicalContainerInsets: reservation.insets)
+        let effective = values.effectiveInsets
+        let inherited = effective.value(for: edge)
+        let crossEdges: EdgeSet = edge.axis == .vertical ? .horizontal : .vertical
+        let crossPadding = EdgeInsets(
+            top: edge.axis == .horizontal ? effective.top : 0,
+            leading: edge.axis == .vertical ? effective.leading : 0,
+            bottom: edge.axis == .horizontal ? effective.bottom : 0,
+            trailing: edge.axis == .vertical ? effective.trailing : 0
+        )
+        let scopedInset = SafeAreaScopedElement(child: inset, values: values.consuming(edge.edgeSet.union(crossEdges)))
+        let available = CGSize(width: max(0, proposedSize.width - crossPadding.leading - crossPadding.trailing),
+                               height: max(0, proposedSize.height - crossPadding.top - crossPadding.bottom))
+        let length = scopedInset.sizeThatFits(insetProposal(for: available)).length(for: edge.axis)
+        var next = reservation
+        let isRTL = LayoutContext.layoutDirection == .rightToLeft
+        switch edge {
+        case .top: next.insets.top = inherited + length + spacing; next.selected.top = 1
+        case .bottom: next.insets.bottom = inherited + length + spacing; next.selected.bottom = 1
+        case .leading where !isRTL, .trailing where isRTL:
+            next.insets.left = inherited + length + spacing; next.selected.left = 1
+        case .leading, .trailing:
+            next.insets.right = inherited + length + spacing; next.selected.right = 1
+        }
+        let node = target.quick_layoutWithSafeAreaInset(proposedSize, reservation: next)
+        return SafeAreaMeasuredElement(node: node)
+            .overlay(alignment: alignment) {
+                scopedInset
+                    .frame(width: edge.axis == .horizontal ? length : nil,
+                           height: edge.axis == .vertical ? length : nil)
+                    .padding(crossPadding)
+                    .padding(edge.edgeSet, inherited)
             }
             .quick_layoutThatFits(proposedSize)
     }

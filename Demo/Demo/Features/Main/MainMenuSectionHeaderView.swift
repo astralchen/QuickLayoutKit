@@ -110,7 +110,7 @@ extension MainRoute {
     var menuIconColor: UIColor {
         switch self {
         // frame 实验室归入基础布局示例，沿用该组的蓝色图标。
-        case .horizontalScroll, .safeAreaPadding, .contentMargins,
+        case .horizontalScroll, .safeAreaPadding, .safeAreaInset, .contentMargins,
              .positionAndZIndex, .viewThatFits, .dynamicScroll, .containerRelativeSize, .frame, .geometry, .arrangement, .directionalGrid:
             .systemBlue
         case .profile, .dashboard, .fixedSize, .dailyRecord:

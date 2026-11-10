@@ -9,6 +9,7 @@
 enum MainRoute: CaseIterable, Hashable, Sendable {
     case horizontalScroll
     case safeAreaPadding
+    case safeAreaInset
     case contentMargins
     case positionAndZIndex
     case viewThatFits
@@ -50,6 +51,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
         switch self {
         case .horizontalScroll:
             "demo.horizontalScroll.title"
+        case .safeAreaInset:
+            "demo.safeAreaInset.title"
         case .safeAreaPadding:
             "demo.safeAreaPadding.title"
         case .contentMargins:
@@ -119,6 +122,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
         switch self {
         case .horizontalScroll:
             "arrow.left.and.right"
+        case .safeAreaInset:
+            "rectangle.bottomthird.inset.filled"
         case .safeAreaPadding:
             "inset.filled.rectangle"
         case .contentMargins:

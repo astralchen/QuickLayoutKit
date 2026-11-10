@@ -51,6 +51,8 @@ final class MainRouter: MainRouting {
         switch route {
         case .horizontalScroll:
             HorizontalScrollViewViewController()
+        case .safeAreaInset:
+            SafeAreaInsetViewController()
         case .safeAreaPadding:
             SafeAreaPaddingViewController()
         case .contentMargins:

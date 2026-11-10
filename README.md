@@ -499,6 +499,14 @@ contentLayout.safeAreaInset(edge: .bottom, spacing: 8) {
     actionBar
 }
 
+ScrollView(scrollView, .vertical) {
+    rowsLayout
+}
+.contentMargins(.horizontal, 20, for: .scrollContent)
+.safeAreaInset(edge: .bottom, spacing: 8) {
+    actionBar
+}
+
 backgroundView
     .resizable()
     .ignoresSafeArea(.container, edges: .all)
@@ -506,6 +514,35 @@ backgroundView
 
 `.container` 表示宿主或滚动视口提供的安全区域；`.keyboard` 表示由
 `QuickLayoutKeyboardAvoider` 发布的键盘区域。
+
+`safeAreaInset` 按插入内容的测量尺寸预留空间。上下边缘接受水平 alignment，前后边缘
+接受垂直 alignment；leading/trailing 随布局方向映射。`spacing` 默认 `0`，有限负值允许
+内容重叠；非有限值按 `0` 处理。空内容仍保留选中边缘原有的安全区域。
+
+普通元素使用几何预留，固定尺寸内容可能增加组合后的自然尺寸。直接修饰声明式
+`ScrollView(...)` 时，滚动视口保持完整尺寸，预留量交由内容与滚动指示器边距管理。
+该路径支持连续的 `safeAreaInset` 和 `contentMargins` 包装；需要固定视口尺寸时，把
+`frame` 放在这些修饰器**之后**。其他包装、直接使用 `QuickLayoutScrollView` 实例，或
+嵌入任意 UIKit 控制器，继续使用普通几何预留，不隐式修改控制器的 `additionalSafeAreaInsets`。
+
+同边连续调用中，最后写下的修饰器位于最外层、靠近外部安全区域；更早的插入内容依次
+向主体方向排列。不同边缘的组合也按嵌套顺序执行。插入内容尺寸变化后应使所属宿主布局
+失效。滚动宿主保存最近测量得到的物理预留量，独立重排不会丢失；移除声明或重新挂载时
+只撤销所属预留量，保留业务边距。自动安全区域和键盘中已覆盖的部分不重复加入。
+
+插入内容增大、缩小或移除时，若列表原本静止在尾部，会在新布局完成后继续保持尾部可见；
+浏览中间内容时保留滚动位置，不主动跳到底部。横向滚动的尾部按 leading/trailing 语义
+适配 RTL；拖动或惯性滚动期间不强制贴尾。此行为不改变普通 `contentMargins` 的滚动策略。
+
+键盘随动可在包含列表与插入内容的 `QuickLayoutView` 上启用
+`quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard()`。浮动键盘仍由
+`QuickLayoutKeyboardAvoider` 按输入框实际遮挡处理。插入栏的背景默认跟随其内容边界，
+不会自动延伸到 Home Indicator 区域。本 API 不承诺 SwiftUI 的平台默认间距或所有包装组合的等价性。
+
+Demo 的「安全区域插入内容」页面提供四边、同边叠加、上下组合、动态尺寸、负间距、
+键盘输入与无插入场景，支持中文、英文和阿拉伯语。
+示例把栏背景与内容分开绘制：最外层底栏的背景向下覆盖容器底部安全区，标题、输入框
+仍保持在安全区内；键盘抬起时背景停在键盘上沿。这是示例的装饰行为，不增加列表预留量。
 
 ## 核心布局能力
 

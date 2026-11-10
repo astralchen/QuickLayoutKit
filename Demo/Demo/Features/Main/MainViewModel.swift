@@ -36,7 +36,7 @@ final class MainViewModel {
 
     private static let sectionDefinitions: [SectionDefinition] = [
         .init(titleKey: "main.section.layout", routes: [
-            .safeAreaPadding, .contentMargins, .positionAndZIndex, .viewThatFits,
+            .safeAreaPadding, .safeAreaInset, .contentMargins, .positionAndZIndex, .viewThatFits,
             .frame, .fixedSize, .containerRelativeSize, .geometry, .arrangement, .directionalGrid,
         ]),
         .init(titleKey: "main.section.input", routes: [

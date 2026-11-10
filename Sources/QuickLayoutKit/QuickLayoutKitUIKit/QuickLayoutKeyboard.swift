@@ -830,6 +830,10 @@ private final class KeyboardScrollInsets {
 
     func write(_ delta: CGFloat, to view: UIScrollView) {
         self.delta = delta
+        // 键盘与 safeAreaInset 的遮挡取并集，再由同一边距状态写入剩余贡献。
+        (view as? QuickLayoutScrollView)?.quickLayoutContentMarginState.updateSafeArea(
+            on: view, keepsContentAtStart: false
+        )
         let extra = UIEdgeInsets(top: 0, left: 0, bottom: delta, right: 0)
         view.contentInset = content.adding(view.quickLayoutAppliedContentMarginInsets).adding(extra)
         view.verticalScrollIndicatorInsets = vertical.adding(view.quickLayoutAppliedVerticalIndicatorMarginInsets).adding(extra)

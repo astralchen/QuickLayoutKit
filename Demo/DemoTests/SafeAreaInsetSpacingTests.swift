@@ -39,6 +39,24 @@ struct SafeAreaInsetSpacingTests {
         #expect(horizontal.sizeThatFits(proposal) == CGSize(width: 20, height: 30))
     }
 
+    @Test func conditionalAndOptionalLayoutsKeepEmptyContentSpacing() {
+        for visible in [false, true] {
+            let optional: Layout? = visible ? inset() : nil
+            let conditionalVertical = content().safeAreaInset(edge: .bottom, spacing: 8) {
+                if visible { inset() }
+            }
+            let optionalVertical = content().safeAreaInset(edge: .bottom, spacing: 8) { optional }
+            let conditionalHorizontal = content().safeAreaInset(edge: HorizontalEdge.trailing, spacing: 8) {
+                if visible { inset() }
+            }
+            let optionalHorizontal = content().safeAreaInset(edge: HorizontalEdge.trailing, spacing: 8) { optional }
+            #expect(conditionalVertical.sizeThatFits(proposal) == CGSize(width: 20, height: visible ? 50 : 38))
+            #expect(conditionalHorizontal.sizeThatFits(proposal) == CGSize(width: visible ? 40 : 28, height: 30))
+            #expect(optionalVertical.sizeThatFits(proposal) == conditionalVertical.sizeThatFits(proposal))
+            #expect(optionalHorizontal.sizeThatFits(proposal) == conditionalHorizontal.sizeThatFits(proposal))
+        }
+    }
+
     private func content() -> Layout { UIView().frame(width: 20, height: 30) }
     private func inset() -> Layout { UIView().frame(width: 12, height: 12) }
 }

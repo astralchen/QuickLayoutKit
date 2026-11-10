@@ -7,6 +7,7 @@
 
 import UIKit
 import QuickLayout
+import QuickLayoutKitCore
 
 // MARK: - 滚动视图容器
 
@@ -46,7 +47,7 @@ import QuickLayout
 
 /// 将稳定的滚动视图实例适配为 QuickLayout 叶子节点。
 @MainActor
-private struct ScrollElement: @MainActor Layout, @MainActor LeafElement {
+private struct ScrollElement: @MainActor Layout, @MainActor LeafElement, @MainActor QuickLayoutSafeAreaInsetTarget {
 
     /// 由调用方持有并复用的滚动宿主。
     private let child: QuickLayoutScrollView
@@ -58,7 +59,18 @@ private struct ScrollElement: @MainActor Layout, @MainActor LeafElement {
 
     /// 由 QuickLayout 的 UIScrollView 桥接调用宿主的 sizeThatFits。
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode {
-        child.quick_layoutThatFits(proposedSize)
+        child.quickLayoutSetSafeAreaInsetReservation(.init())
+        return child.quick_layoutThatFits(proposedSize)
+    }
+
+    var quickLayoutAcceptsSafeAreaInset: Bool { true }
+
+    func quick_layoutWithSafeAreaInset(
+        _ proposedSize: CGSize,
+        reservation: QuickLayoutSafeAreaInsetReservation
+    ) -> LayoutNode {
+        child.quickLayoutSetSafeAreaInsetReservation(reservation)
+        return child.quick_layoutThatFits(proposedSize)
     }
 
     /// 构建器与直接使用宿主视图时采用相同的轴弹性。

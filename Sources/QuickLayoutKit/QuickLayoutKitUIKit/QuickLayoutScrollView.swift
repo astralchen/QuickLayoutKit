@@ -124,6 +124,7 @@ open class QuickLayoutScrollView:
     private var pendingScroll: (edge: Edge, animated: Bool)?
     /// 边距改变后是否需要在下一次布局恢复内容起点。
     private var needsContentMarginStartPosition = false
+    private var needsSafeAreaInsetEndPosition = false
     /// 上次布局结束的调整后边距，用于判断安全区域变化前是否停留在起点。
     private var lastResolvedAdjustedContentInset: UIEdgeInsets?
     /// 内容和指示器边距的覆盖值及最近应用量。
@@ -403,7 +404,7 @@ open class QuickLayoutScrollView:
             if alignedBounds != bounds {
                 bounds = alignedBounds
             }
-            applyContentMarginStartPositionIfPossible()
+            applyContentMarginBoundaryPositionIfPossible()
             // 延迟滚动在对齐之后发起，其目标也使用本轮正确的交叉轴位置。
             applyPendingScrollIfPossible()
             lastResolvedAdjustedContentInset = adjustedContentInset
@@ -593,6 +594,19 @@ open class QuickLayoutScrollView:
         }
     }
 
+    /// 按当前滚动轴和语义方向判断尾部，供动态插入内容保持边界位置。
+    func quickLayoutIsAtContentEnd() -> Bool {
+        let target = targetOffset(for: axis == .vertical ? .bottom : .trailing)
+        return axis == .vertical
+            ? abs(contentOffset.y - target.y) < 0.5
+            : abs(contentOffset.x - target.x) < 0.5
+    }
+
+    func quickLayoutKeepContentAtEndAfterInsetChange() {
+        needsSafeAreaInsetEndPosition = true
+        setNeedsQuickLayout()
+    }
+
     /// 登记恢复内容起点的请求，等待新的边距和布局尺寸可用。
     func quickLayoutKeepContentAtStartAfterMarginChange() {
         needsContentMarginStartPosition = true
@@ -621,14 +635,17 @@ open class QuickLayoutScrollView:
         showsHorizontalScrollIndicator = showsIndicators && axis == .horizontal
     }
 
-    /// 尺寸有效时无动画恢复内容起点，并消费本轮恢复请求。
-    private func applyContentMarginStartPositionIfPossible() {
-        guard needsContentMarginStartPosition else { return }
+    /// 新尺寸可用后恢复边界位置；短内容同时位于两端时优先保持起点。
+    private func applyContentMarginBoundaryPositionIfPossible() {
+        guard needsContentMarginStartPosition || needsSafeAreaInsetEndPosition else { return }
 
-        let edge: Edge = axis == .vertical ? .top : .leading
+        let edge: Edge = needsContentMarginStartPosition
+            ? (axis == .vertical ? .top : .leading)
+            : (axis == .vertical ? .bottom : .trailing)
         guard canResolveScrollOffset(for: edge) else { return }
 
         needsContentMarginStartPosition = false
+        needsSafeAreaInsetEndPosition = false
         setContentOffset(
             targetOffset(for: edge),
             requestedAnimated: false

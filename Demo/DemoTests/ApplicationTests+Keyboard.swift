@@ -239,7 +239,9 @@ extension ApplicationTests {
     @Test(arguments: [true, false])
     func keyboardObserverStaysHiddenAfterFinalFrameChange(includesSourceScreen: Bool) throws {
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
-        let screen = try #require(scene).screen
+        let sceneScreen = try #require(scene).screen
+        // 无来源屏幕的通知模拟旧系统的主屏幕坐标；Duo 的场景屏幕可能不同。
+        let screen = includesSourceScreen ? sceneScreen : UIScreen.main
         let bounds = screen.coordinateSpace.bounds
         let center = NotificationCenter()
         let observer = QuickLayoutKeyboardObserver(notificationCenter: center)
