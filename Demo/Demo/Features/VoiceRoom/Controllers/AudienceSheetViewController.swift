@@ -122,9 +122,11 @@ final class AudienceSheetViewController:
         if #available(iOS 17.0, *) {
             sheetPresentationController.prefersPageSizing = true
         }
+        #if compiler(>=6.4)
         if #available(iOS 27.0, *) {
             sheetPresentationController.preferredPlacement = .automatic
         }
+        #endif
         sheetPresentationController.preferredCornerRadius = 28
     }
 
