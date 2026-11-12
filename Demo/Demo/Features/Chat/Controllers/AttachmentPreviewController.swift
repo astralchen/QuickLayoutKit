@@ -45,8 +45,8 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     /// 黑色画布、分页和玻璃控制层共享全屏布局。
     override var body: Layout {
         ZStack {
-            backdrop.resizable()
-            collectionView.resizable()
+            backdrop.resizable().ignoresSafeArea(.container)
+            collectionView.resizable().ignoresSafeArea(.container)
             chrome.resizable()
         }
     }

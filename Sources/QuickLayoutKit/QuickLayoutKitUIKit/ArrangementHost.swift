@@ -33,16 +33,22 @@ final class ArrangementHost: QuickLayoutView {
 
     override var body: Layout {
         guard let panes else { return EmptyLayout() }
-        let rect = bounds.inset(by: safeAreaInsets)
+        // 默认宿主负责安全区偏移；分区坐标相对于剩余内容区域，不能再次内缩。
+        let insets = QuickLayoutSafeAreaContext.current?.effectiveInsets ?? .zero
+        let rtl = effectiveUserInterfaceLayoutDirection == .rightToLeft
+        let origin = CGPoint(x: rtl ? insets.trailing : insets.leading, y: insets.top)
+        let rect = CGRect(x: 0, y: 0,
+                          width: max(0, bounds.width - insets.leading - insets.trailing),
+                          height: max(0, bounds.height - insets.top - insets.bottom))
         var divisions: [CGRect] = []
         #if compiler(>=6.4)
         if #available(iOS 27.1, *) {
-            divisions = reservedRegions(kind: .division).map(\.frame)
+            divisions = reservedRegions(kind: .division).map { $0.frame.offsetBy(dx: -origin.x, dy: -origin.y) }
         }
         #endif
         let placement = ArrangementPlacement.resolve(
             panes: panes, style: style, axes: axes, rect: rect, divisions: divisions,
-            windowBounds: divisions.isEmpty ? nil : window.map { convert($0.bounds, from: $0) },
+            windowBounds: divisions.isEmpty ? nil : window.map { convert($0.bounds, from: $0).offsetBy(dx: -origin.x, dy: -origin.y) },
             horizontal: traitCollection.horizontalSizeClass, vertical: traitCollection.verticalSizeClass,
             rtl: effectiveUserInterfaceLayoutDirection == .rightToLeft, scale: traitCollection.displayScale
         )

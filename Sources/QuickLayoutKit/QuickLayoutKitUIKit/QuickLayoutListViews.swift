@@ -66,7 +66,7 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
     /// 在窗口归属变化前通知 QuickLayout 桥接层更新宿主。
     open override func willMove(toWindow newWindow: UIWindow?) {
         super.willMove(toWindow: newWindow)
-        _QuickLayoutViewImplementation.willMove(self, toWindow: newWindow)
+        QuickLayoutSafeAreaBodyBridge.willMove(self, toWindow: newWindow)
     }
 
     /// 加入或离开窗口后，重新同步外层列表方向并刷新环境快照。
@@ -116,7 +116,7 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         QuickLayoutDiagnostics.recordLayoutPass(for: String(describing: Self.self), measuredSize: bounds.size)
         withQuickLayoutManagedViewState {
             withQuickLayoutContainerSize(bounds.size) {
-                _QuickLayoutViewImplementation.layoutSubviews(self)
+                QuickLayoutSafeAreaBodyBridge.layoutSubviews(self)
             }
         }
     }
@@ -204,7 +204,7 @@ open class QuickLayoutCollectionViewCell: UICollectionViewCell, HasBody, QuickLa
         let proposedSize = quickLayoutSizeLimit(proposed: size)
         return withQuickLayoutManagedViewState {
             withQuickLayoutContainerSize(proposedSize) {
-                _QuickLayoutViewImplementation.sizeThatFits(
+                QuickLayoutSafeAreaBodyBridge.sizeThatFits(
                     self,
                     size: proposedSize
                 )
@@ -281,7 +281,7 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
     /// 在窗口归属变化前通知 QuickLayout 桥接层更新宿主。
     open override func willMove(toWindow newWindow: UIWindow?) {
         super.willMove(toWindow: newWindow)
-        _QuickLayoutViewImplementation.willMove(self, toWindow: newWindow)
+        QuickLayoutSafeAreaBodyBridge.willMove(self, toWindow: newWindow)
     }
 
     /// 加入或离开窗口后，重新同步外层列表方向并刷新环境快照。
@@ -320,7 +320,7 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         QuickLayoutDiagnostics.recordLayoutPass(for: String(describing: Self.self), measuredSize: bounds.size)
         withQuickLayoutManagedViewState {
             withQuickLayoutContainerSize(bounds.size) {
-                _QuickLayoutViewImplementation.layoutSubviews(self)
+                QuickLayoutSafeAreaBodyBridge.layoutSubviews(self)
             }
         }
     }
@@ -385,7 +385,7 @@ open class QuickLayoutTableViewCell: UITableViewCell, HasBody, QuickLayoutUpdati
         quickLayoutEnvironmentState.update(self)
         return withQuickLayoutManagedViewState {
             withQuickLayoutContainerSize(size) {
-                _QuickLayoutViewImplementation.sizeThatFits(
+                QuickLayoutSafeAreaBodyBridge.sizeThatFits(
                     self,
                     size: size
                 )
@@ -485,7 +485,7 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
     /// 在窗口归属变化前通知 QuickLayout 桥接层更新宿主。
     open override func willMove(toWindow newWindow: UIWindow?) {
         super.willMove(toWindow: newWindow)
-        _QuickLayoutViewImplementation.willMove(self, toWindow: newWindow)
+        QuickLayoutSafeAreaBodyBridge.willMove(self, toWindow: newWindow)
     }
 
     /// 加入或离开窗口后，重新同步外层列表方向并刷新环境快照。
@@ -528,20 +528,8 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         )
         withQuickLayoutManagedViewState {
             withQuickLayoutContainerSize(containerBounds.size) {
-                _QuickLayoutViewImplementation.layoutSubviews(self)
-                guard containerBounds != bounds else { return }
-                // QuickLayout 将 body 挂载到 contentView，但通用桥接当前使用复用根视图的
-                // bounds 应用框架。这里按实际容器边界重新应用同一布局，同时让 body 继续
-                // 完全控制自身尺寸和对齐方式。
-                let layoutDirection: LayoutDirection =
-                    effectiveUserInterfaceLayoutDirection == .rightToLeft
-                    ? .rightToLeft
-                    : .leftToRight
-                body.applyFrame(
-                    containerBounds,
-                    alignment: .center,
-                    layoutDirection: layoutDirection
-                )
+                QuickLayoutSafeAreaBodyBridge.layoutSubviews(self)
+
             }
         }
     }
@@ -606,7 +594,7 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         quickLayoutEnvironmentState.update(self)
         return withQuickLayoutManagedViewState {
             withQuickLayoutContainerSize(size) {
-                _QuickLayoutViewImplementation.sizeThatFits(
+                QuickLayoutSafeAreaBodyBridge.sizeThatFits(
                     self,
                     size: size
                 )
@@ -707,7 +695,7 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
     /// 在窗口归属变化前通知 QuickLayout 桥接层更新宿主。
     open override func willMove(toWindow newWindow: UIWindow?) {
         super.willMove(toWindow: newWindow)
-        _QuickLayoutViewImplementation.willMove(self, toWindow: newWindow)
+        QuickLayoutSafeAreaBodyBridge.willMove(self, toWindow: newWindow)
     }
 
     /// 加入或离开窗口后，重新同步外层列表方向并刷新环境快照。
@@ -756,7 +744,7 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         QuickLayoutDiagnostics.recordLayoutPass(for: String(describing: Self.self), measuredSize: bounds.size)
         withQuickLayoutManagedViewState {
             withQuickLayoutContainerSize(bounds.size) {
-                _QuickLayoutViewImplementation.layoutSubviews(self)
+                QuickLayoutSafeAreaBodyBridge.layoutSubviews(self)
             }
         }
     }
@@ -831,7 +819,7 @@ open class QuickLayoutCollectionReusableView: UICollectionReusableView, HasBody,
         let proposedSize = quickLayoutSizeLimit(proposed: size)
         return withQuickLayoutManagedViewState {
             withQuickLayoutContainerSize(proposedSize) {
-                _QuickLayoutViewImplementation.sizeThatFits(self, size: proposedSize)
+                QuickLayoutSafeAreaBodyBridge.sizeThatFits(self, size: proposedSize)
             }
         }
     }

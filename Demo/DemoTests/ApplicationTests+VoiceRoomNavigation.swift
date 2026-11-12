@@ -9,6 +9,36 @@ import QuickLayoutKit
 
 extension ApplicationTests {
 
+    @Test func voiceRoomChatColumnInsetsDoNotRepeatSafeArea() async throws {
+        guard #available(iOS 17.0, *) else { return }
+        let controller = VoiceRoomViewController()
+        let navigation = UINavigationController(rootViewController: controller)
+        let window = try makeVisibleTestWindow(rootViewController: navigation, size: CGSize(width: 402, height: 874))
+        defer { window.isHidden = true }
+        for size in [CGSize(width: 874, height: 402), CGSize(width: 402, height: 874), CGSize(width: 874, height: 402)] {
+            // 使用支持 split 的尺寸类别，同时显式提供侧边安全区，隔离重复扣减问题。
+            controller.traitOverrides.horizontalSizeClass = size.width > size.height ? .regular : .compact
+            controller.traitOverrides.verticalSizeClass = size.width > size.height ? .compact : .regular
+            controller.additionalSafeAreaInsets = UIEdgeInsets(top: 0, left: 62, bottom: 0, right: 62)
+            window.frame.size = size
+            navigation.view.frame = window.bounds
+            // 尺寸类别变化会重挂载原有公屏；等待 UIKit 提交特征与层级更新。
+            for _ in 0..<5 {
+                controller.setNeedsQuickLayout()
+                layout(controller, in: navigation)
+                try await Task.sleep(nanoseconds: 30_000_000)
+            }
+            let chat = controller.publicChatScrollView
+            #expect(chat.isDescendant(of: controller.view))
+            #expect(chat.bounds.height >= 24)
+            #expect(chat.bounds.width > 0)
+            let frame = chat.convert(chat.bounds, to: controller.view)
+            #expect(controller.view.bounds.insetBy(dx: -1, dy: -1).contains(frame))
+            #expect(abs(controller.actionBarView.frame.minX - frame.minX) < 1)
+            #expect(abs(controller.actionBarView.frame.maxX - frame.maxX) < 1)
+        }
+    }
+
     @Test func voiceRoomOccupiedSeatPresentsUserCardAndEmptySeatDoesNot() throws {
         Localization.setLocale(identifier: "zh-Hans")
         defer { Localization.setLocale(identifier: "en-US") }
@@ -483,8 +513,11 @@ extension ApplicationTests {
         )
         let safeAreaFrame = profileViewController.view.safeAreaLayoutGuide
             .layoutFrame
-        #expect(scrollFrame.minY >= safeAreaFrame.minY - 0.5)
-        #expect(scrollFrame.maxY <= safeAreaFrame.maxY + 0.5)
+        // 声明式滚动保留完整视口，安全区由内容 inset 承担。
+        #expect(abs(scrollFrame.minY) < 0.5)
+        #expect(abs(scrollFrame.maxY - profileViewController.view.bounds.maxY) < 0.5)
+        #expect(profileViewController.profileScrollView.adjustedContentInset.top >= safeAreaFrame.minY - 0.5)
+        #expect(profileViewController.profileScrollView.adjustedContentInset.bottom >= profileViewController.view.bounds.maxY - safeAreaFrame.maxY - 0.5)
 
         let memberIDLabel = try #require(
             profileViewController.view.allSubviews(of: UILabel.self).first {
@@ -585,8 +618,11 @@ extension ApplicationTests {
             )
         let safeAreaFrame = informationViewController.view
             .safeAreaLayoutGuide.layoutFrame
-        #expect(scrollFrame.minY >= safeAreaFrame.minY - 0.5)
-        #expect(scrollFrame.maxY <= safeAreaFrame.maxY + 0.5)
+        // 声明式滚动保留完整视口，安全区由内容 inset 承担。
+        #expect(abs(scrollFrame.minY) < 0.5)
+        #expect(abs(scrollFrame.maxY - informationViewController.view.bounds.maxY) < 0.5)
+        #expect(informationViewController.informationScrollView.adjustedContentInset.top >= safeAreaFrame.minY - 0.5)
+        #expect(informationViewController.informationScrollView.adjustedContentInset.bottom >= informationViewController.view.bounds.maxY - safeAreaFrame.maxY - 0.5)
 
         let roomIDLabel = try #require(
             informationViewController.view.allSubviews(of: UILabel.self).first {

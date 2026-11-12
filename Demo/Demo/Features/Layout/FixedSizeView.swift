@@ -62,6 +62,7 @@ final class FixedSizeView: QuickLayoutView {
                     .safeAreaPadding(.horizontal, 20)
                 stageView
                 explanationView
+                    .resizable(axis: .horizontal)
                     .safeAreaPadding(.horizontal, 20)
             }
             .padding(.vertical, 24)

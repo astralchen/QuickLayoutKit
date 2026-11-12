@@ -66,11 +66,11 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
     private var latestState: MainViewModel.State?
     private struct VisibleAnchor {
         let sectionID: String
-        let routeID: String
-        let offsetFromViewportTop: CGFloat
+        let row: CatalogRowPosition<String>
         let offsetFromViewportLeading: CGFloat
     }
     private var pendingVisibleAnchor: VisibleAnchor?
+    private var limitedAnchor: (requested: VisibleAnchor, visible: VisibleAnchor)?
     private weak var anchorCollectionView: UICollectionView?
     private var isApplyingLocalization = false
     private var isRestoringVisibleAnchor = false
@@ -119,9 +119,8 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
     }
 
     override var body: Layout {
-        collectionView
-            .resizable()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // 原生列表采用滚动容器语义：完整视口与安全内容边距分别处理。
+        List(collectionView)
     }
 
     override func viewDidLoad() {
@@ -418,18 +417,30 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
     }
 
     private func captureVisibleAnchorIfNeeded() {
-        guard pendingVisibleAnchor == nil,
-              let state = latestState,
+        guard pendingVisibleAnchor == nil, let current = currentVisibleAnchor() else { return }
+        // 短行或内容末端可能限制上次恢复。用户仍在该处时，保留最初请求的位置。
+        if let limitedAnchor, current.sectionID == limitedAnchor.visible.sectionID,
+           current.row.isSameReadingPosition(as: limitedAnchor.visible.row) {
+            pendingVisibleAnchor = limitedAnchor.requested
+        } else {
+            pendingVisibleAnchor = current
+        }
+        anchorCollectionView = collectionView
+    }
+
+    private func currentVisibleAnchor() -> VisibleAnchor? {
+        guard let state = latestState,
               let anchor = collectionView.captureLocalizationAnchor(),
+              let height = collectionView.layoutAttributesForItem(at: anchor.indexPath)?.size.height,
               state.sections.indices.contains(anchor.indexPath.section),
               state.sections[anchor.indexPath.section].routes.indices.contains(anchor.indexPath.item)
-        else { return }
+        else { return nil }
         let section = state.sections[anchor.indexPath.section]
-        anchorCollectionView = collectionView
-        pendingVisibleAnchor = VisibleAnchor(
+        let rowID = section.routes[anchor.indexPath.item].id
+        let current = CatalogRowPosition(id: rowID, offset: anchor.offsetFromViewportTop, height: height)
+        return VisibleAnchor(
             sectionID: section.id,
-            routeID: section.routes[anchor.indexPath.item].id,
-            offsetFromViewportTop: anchor.offsetFromViewportTop,
+            row: current,
             offsetFromViewportLeading: anchor.offsetFromViewportLeading
         )
     }
@@ -441,25 +452,31 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
               let anchor = pendingVisibleAnchor,
               let state = latestState else { return }
         guard let section = state.sections.firstIndex(where: { $0.id == anchor.sectionID }),
-              let item = state.sections[section].routes.firstIndex(where: { $0.id == anchor.routeID }) else {
+              let item = state.sections[section].routes.firstIndex(where: { $0.id == anchor.row.id }) else {
             // 搜索结果中已不存在原条目时，放弃旧位置，避免恢复到其他条目。
             pendingVisibleAnchor = nil
             return
         }
-        let resolvedAnchor = UICollectionViewLocalizationAnchor(
-            indexPath: IndexPath(item: item, section: section),
-            offsetFromViewportTop: anchor.offsetFromViewportTop,
-            offsetFromViewportLeading: anchor.offsetFromViewportLeading
-        )
+        let path = IndexPath(item: item, section: section)
+        func resolvedAnchor(offset: CGFloat) -> UICollectionViewLocalizationAnchor {
+            .init(indexPath: path, offsetFromViewportTop: offset,
+                  offsetFromViewportLeading: anchor.offsetFromViewportLeading)
+        }
         isRestoringVisibleAnchor = true
         defer { isRestoringVisibleAnchor = false }
         UIView.performWithoutAnimation {
-            guard collectionView.restoreLocalizationAnchor(resolvedAnchor) else { return }
+            guard collectionView.restoreLocalizationAnchor(resolvedAnchor(offset: anchor.row.offset)) else { return }
             // 恢复滚动会触发大标题折叠，进而再次改变导航栏和列表的内容边距。
             // 完成容器联动后再对齐一次；防止中间布局回调重复恢复同一锚点。
             navigationController?.view.setNeedsLayout()
             navigationController?.view.layoutIfNeeded()
-            if collectionView.restoreLocalizationAnchor(resolvedAnchor) {
+            guard let height = collectionView.layoutAttributesForItem(at: path)?.size.height else { return }
+            let offset = anchor.row.offset(for: height)
+            if collectionView.restoreLocalizationAnchor(resolvedAnchor(offset: offset)) {
+                limitedAnchor = nil
+                if let visible = currentVisibleAnchor(), !visible.row.isSameReadingPosition(as: anchor.row) {
+                    limitedAnchor = (anchor, visible)
+                }
                 pendingVisibleAnchor = nil
             }
         }

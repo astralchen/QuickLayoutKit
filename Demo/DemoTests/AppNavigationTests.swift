@@ -207,10 +207,13 @@ struct AppNavigationTests {
         #expect(composer.currentInputHeight == expanded)
     }
 
-    @Test func detachedSheetDoesNotCountAsBottomObstruction() {
+    @Test func narrowSheetObstructsComposerOnlyAtItsBottomEdge() {
         let safe = CGRect(x: 0, y: 24, width: 1024, height: 720)
-        #expect(!BottomObstructionCoordinator.isBottomAttached(
-            CGRect(x: 240, y: 180, width: 540, height: 500), to: safe))
+        let narrow = CGRect(x: 240, y: 440, width: 540, height: 300)
+        #expect(BottomObstructionCoordinator.overlapsComposerBottom(narrow, in: safe))
+        #expect(!BottomObstructionCoordinator.isBottomAttached(narrow, to: safe))
+        #expect(!BottomObstructionCoordinator.overlapsComposerBottom(narrow.offsetBy(dx: 0, dy: -100), in: safe))
+        #expect(!BottomObstructionCoordinator.overlapsComposerBottom(narrow.offsetBy(dx: safe.width, dy: 0), in: safe))
         #expect(BottomObstructionCoordinator.isBottomAttached(
             CGRect(x: 16, y: 440, width: 992, height: 320), to: safe))
         #expect(!BottomObstructionCoordinator.isBottomAttached(

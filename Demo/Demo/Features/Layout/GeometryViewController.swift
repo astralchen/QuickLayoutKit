@@ -83,17 +83,15 @@ final class GeometryViewController: LocalizedQuickLayoutHostingController {
                     radiusLabel
                     radius.resizable(axis: .horizontal).frame(height: 32)
                 }
-                // 滚动容器的参照宽度已扣除分栏安全区及内容边距，不能使用根视图宽度。
-                canvas.resizable()
-                    .containerRelativeFrame(.horizontal, alignment: .leading) { length, _ in
-                        max(0, length) * widthFraction
-                    }
-                    .frame(height: selection == 5 ? 360 : 260)
+                // 画布位于页面内边距以内。按这块局部空间缩放，横向预览只在画布内滚动。
+                GeometryReader { [canvas] available in
+                    canvas.resizable().frame(width: available.size.width * widthFraction)
+                }
+                .frame(height: selection == 5 ? 360 : 260)
                 metrics.resizable(axis: .horizontal)
                 code
-            }.padding(.vertical, 16)
+            }.padding(16)
         }
-        .contentMargins(.horizontal, 16, for: .scrollContent)
     }
 
     override func reloadLocalizedContent() {
@@ -223,7 +221,13 @@ private final class GeometryCanvas: QuickLayoutView {
     var radius: CGFloat = 48
     var rtl = false {
         didSet {
-            adaptiveGrid.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
+            let direction: UISemanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
+            // 页面内的方向按钮也适用于独立的 UIKit 横向滚动宿主。
+            if horizontal.semanticContentAttribute != direction {
+                horizontal.semanticContentAttribute = direction
+                if rtl != oldValue { horizontal.scrollTo(.leading, animated: false) }
+            }
+            adaptiveGrid.semanticContentAttribute = direction
             adaptiveGrid.setNeedsQuickLayout()
         }
     }
@@ -236,6 +240,8 @@ private final class GeometryCanvas: QuickLayoutView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .secondarySystemGroupedBackground
+        horizontal.accessibilityIdentifier = "geometry.horizontal"
+        sample.accessibilityIdentifier = "geometry.sample"
         sample.backgroundColor = .systemTeal.withAlphaComponent(0.25)
         // Reader 使用独立视图，避免与保留自身内容层级的滚动场景交叉复用。
         readerSample.backgroundColor = .systemTeal.withAlphaComponent(0.25)

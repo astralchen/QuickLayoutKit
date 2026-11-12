@@ -9,13 +9,12 @@ import QuickLayoutKit
 
 extension ApplicationTests {
     func layout(
-        _ viewController: LocalizedQuickLayoutHostingController,
+        _ viewController: UIViewController,
         in navigationController: UINavigationController
     ) {
         navigationController.view.setNeedsLayout()
         navigationController.view.layoutIfNeeded()
-        viewController.setNeedsQuickLayout()
-        viewController.quickLayoutIfNeeded()
+        viewController.view.setNeedsLayout()
         viewController.view.layoutIfNeeded()
     }
 }

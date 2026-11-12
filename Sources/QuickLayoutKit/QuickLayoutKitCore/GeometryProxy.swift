@@ -198,10 +198,10 @@ public struct GeometryProxy: Sendable, Equatable {
 
     /// 冻结视图树、命名空间、锚点与容器信息；完成后查询不再访问 UIKit。
     @MainActor
-    init(observing view: UIView, layoutDirection: LayoutDirection, scopes: [GeometryScope]) {
+    init(observing view: UIView, layoutDirection: LayoutDirection, scopes: [GeometryScope], safeArea: UIEdgeInsets? = nil) {
         size = view.bounds.size
         direction = layoutDirection
-        let insets = view.safeAreaInsets
+        let insets = safeArea ?? view.safeAreaInsets
         safeAreaInsets = geometryInsets(top: insets.top, left: insets.left, bottom: insets.bottom,
                                         right: insets.right, direction: direction)
         let normalization = CGAffineTransform(translationX: -view.bounds.minX, y: -view.bounds.minY)

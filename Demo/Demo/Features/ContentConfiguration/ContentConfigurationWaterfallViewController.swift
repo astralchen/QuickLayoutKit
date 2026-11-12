@@ -79,9 +79,7 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
 
     override var body: Layout {
         ZStack(alignment: .top) {
-            collectionView
-                .resizable()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            List(collectionView)
             VStack(spacing: 6) {
                 directionControl
                     .resizable()
@@ -94,7 +92,7 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
             .frame(maxWidth: .infinity)
             // 按安全区域的可用宽度居中，避让横屏或侧边系统栏。
             .safeAreaPadding([.top, .horizontal], 0)
-            .background { controlsBackground.resizable() }
+            .background { controlsBackground.resizable().ignoresSafeArea(.container, edges: .horizontal) }
             .zIndex(1)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -210,7 +208,11 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
         section.itemLengthDimension = itemLengthDimension
         let horizontal = waterfallLayout.configuration.scrollDirection == .horizontal
         let minimum = UIFontMetrics(forTextStyle: .body).scaledValue(for: horizontal ? 200 : 160, compatibleWith: environment.traitCollection)
-        section.lanes = [.adaptive(minimum: minimum)]
+        // 横向滚动以高度分行；原生环境已经扣除工具区和安全区，这里只再扣分区边距。
+        // 紧凑横屏不能强撑到 200 点，正文交给 ViewThatFits 增加宽度，保留完整内容。
+        let availableHeight = max(1, environment.container.effectiveContentSize.height
+                                  - section.contentInsets.top - section.contentInsets.bottom)
+        section.lanes = [.adaptive(minimum: horizontal ? min(minimum, availableHeight) : minimum)]
         let font = UIFont.preferredFont(forTextStyle: .headline, compatibleWith: environment.traitCollection)
         // 横向标题在固定宽度内换行，避免大字号挤占首屏内容。
         let headerLength: CGFloat = horizontal ? 100 : max(44, font.lineHeight + 24)

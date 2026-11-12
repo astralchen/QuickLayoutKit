@@ -83,17 +83,19 @@ final class SafeAreaPaddingUITests: XCTestCase {
             let leading = rtl ? right : left
             let insets: [CGFloat]
             switch index {
-            case 0: insets = [0, 0, 0, 0]
+            case 0: insets = [top, left, bottom, right]
             case 1, 2: insets = [top, left, bottom, right]
             case 3: insets = [top + 16, left + 16, bottom + 16, right + 16]
-            case 4: insets = [0, left + 16, 0, right + 16]
+            case 4: insets = [top, left + 16, bottom, right + 16]
             case 5: insets = [top + 8, left + (rtl ? 24 : 12), bottom + 20, right + (rtl ? 12 : 24)]
-            case 6: insets = [0, left + 16, bottom + 24, right + 16]
+            case 6: insets = [top, left + 16, bottom + 24, right + 16]
             default:
                 let extra: CGFloat = index == 7 ? 20 : index == 8 ? 8 : 0
-                insets = [0, rtl ? 0 : leading + extra, 0, rtl ? leading + extra : 0]
+                insets = [top, rtl ? left : leading + extra, bottom, rtl ? leading + extra : right]
             }
-            let expected = root.inset(by: UIEdgeInsets(top: insets[0], left: insets[1], bottom: insets[2], right: insets[3]))
+            let expected = root
+            // 内容边距负责避让，不能通过缩小整个滚动视图来满足安全区断言。
+            for edge in 0..<4 { XCTAssertEqual(m[8 + edge], insets[edge], accuracy: 1, title) }
             let actual = CGRect(x: m[4], y: m[5], width: m[6], height: m[7])
             XCTAssertEqual(actual.minX, expected.minX, accuracy: 1, title)
             XCTAssertEqual(actual.minY, expected.minY, accuracy: 1, title)
@@ -122,13 +124,14 @@ final class SafeAreaPaddingUITests: XCTestCase {
             guard let range = Range(match.range, in: text), let value = Double(text[range]) else { return nil }
             return CGFloat(value)
         }
-        XCTAssertEqual(values.count, 8, text)
-        guard values.count == 8 else { throw NSError(domain: "SafeAreaMetrics", code: 1) }
+        XCTAssertEqual(values.count, 12, text)
+        guard values.count == 12 else { throw NSError(domain: "SafeAreaMetrics", code: 1) }
         return values
     }
 
     @MainActor private func capture(_ app: XCUIApplication, _ name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
+        // 使用整屏截图保留旋转后的完整画面，避免应用区域截图再次套用方向变换。
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)

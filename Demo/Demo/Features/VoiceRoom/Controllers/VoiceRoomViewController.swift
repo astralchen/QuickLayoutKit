@@ -366,7 +366,6 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
                 // 面板覆盖直播间内容，但仍与直播间处于同一个 QuickLayout 层级。
                 giftSheetHost
                     .resizable()
-                    .ignoresSafeArea(.all, edges: .all)
             }
 
             // 放在 ZStack 最后一层，保证飞行动画和豪华横幅显示在面板上方。
@@ -380,9 +379,12 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
         let frame = messagesView.isDescendant(of: view)
             ? messagesView.convert(messagesView.bounds, to: view)
             : .zero
+        // 操作栏已处在默认安全内容区域中，列位置也必须相对于该区域计算，
+        // 不能再把根视图左右的安全区叠加为 padding。
+        let safeFrame = view.safeAreaLayoutGuide.layoutFrame
         let next: UIEdgeInsets? = frame.width > 0 && frame.height > 0
-            ? UIEdgeInsets(top: 0, left: max(0, frame.minX), bottom: 0,
-                           right: max(0, view.bounds.width - frame.maxX))
+            ? UIEdgeInsets(top: 0, left: max(0, frame.minX - safeFrame.minX), bottom: 0,
+                           right: max(0, safeFrame.maxX - frame.maxX))
             : nil
         if next != chatColumnInsets {
             chatColumnInsets = next

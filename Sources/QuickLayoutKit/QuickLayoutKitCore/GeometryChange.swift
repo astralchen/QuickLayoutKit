@@ -380,7 +380,7 @@ where Value: Equatable & Sendable {
 // MARK: - UIKit 几何采样
 
 /// 以实际 UIKit 几何为采样来源的透明观察视图。
-class GeometryObserverView: UIView {
+class GeometryObserverView: UIView, QuickLayoutSafeAreaGeometryObserver {
 
     /// 冻结快照发生变化后执行的内部回调。
     var geometryDidChange: ((GeometryProxy) -> Void)?
@@ -394,6 +394,8 @@ class GeometryObserverView: UIView {
     var pendingLayoutDirection: LayoutDirection = .leftToRight
     /// 测量阶段暂存、等待应用的作用域链。
     var pendingScopes: [GeometryScope] = []
+    /// Reader 保存默认布局已让出的区域，快照仍可报告与 SwiftUI 相同的安全边界。
+    var quickLayoutSafeAreaGeometry: (@MainActor () -> UIEdgeInsets?)?
     /// 是否至少应用过一次真实布局；纯测量不会启用交付。
     private(set) var hasAppliedGeometry = false
     /// 当前窗口监测器的弱引用，跨窗口时重新登记。
@@ -434,7 +436,7 @@ class GeometryObserverView: UIView {
 
     /// 冻结当前已应用布局及作用域中的几何信息。
     func snapshot() -> GeometryProxy {
-        GeometryProxy(observing: self, layoutDirection: observedLayoutDirection, scopes: scopes)
+        GeometryProxy(observing: self, layoutDirection: observedLayoutDirection, scopes: scopes, safeArea: quickLayoutSafeAreaGeometry?())
     }
 
     /// 清除快照去重基线，使后续采样重新经过业务值比较。

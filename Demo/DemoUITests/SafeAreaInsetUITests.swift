@@ -31,6 +31,8 @@ final class SafeAreaInsetUITests: XCTestCase {
     }
 
     @MainActor func testKeyboardAndDynamicHeight() throws {
+        // 不依赖上一项用例的设备方向；横屏失败退出可能不会执行测试方法里的 defer。
+        XCUIDevice.shared.orientation = .portrait
         let app = openPage(locale: "en")
         let scroll = app.scrollViews["safeAreaInset.scroll"]
         let bar = app.otherElements["safeAreaInset.primary"]
@@ -88,7 +90,9 @@ final class SafeAreaInsetUITests: XCTestCase {
         for (index, title) in titles.enumerated() {
             select(title, in: app)
             XCTAssertEqual(scroll.frame.minY, stage.frame.minY, accuracy: 1)
-            XCTAssertEqual(scroll.frame.height, stage.frame.height, accuracy: 1)
+            // stage 表示默认安全区内的内容区域，滚动外框恢复至窗口底部；不能再要求二者等高。
+            XCTAssertEqual(scroll.frame.maxY, app.windows.firstMatch.frame.maxY, accuracy: 1)
+            XCTAssertGreaterThanOrEqual(scroll.frame.maxY, stage.frame.maxY)
             let last = app.staticTexts["safeAreaInset.row.24"]
             for _ in 0..<14 {
                 if last.isHittable && last.frame.maxY <= visibleBottom(in: app, index: index, scroll: scroll) + 1 { break }
@@ -100,7 +104,7 @@ final class SafeAreaInsetUITests: XCTestCase {
         }
     }
     @MainActor private func visibleBottom(in app: XCUIApplication, index: Int, scroll: XCUIElement) -> CGFloat {
-        [0, 4, 5, 6].contains(index) ? app.otherElements["safeAreaInset.primary"].frame.minY : scroll.frame.maxY
+        [0, 4, 5, 6].contains(index) ? app.otherElements["safeAreaInset.primary"].frame.minY : app.otherElements["safeAreaInset.stage"].frame.maxY
     }
     @MainActor private func select(_ title: String, in app: XCUIApplication) {
         app.buttons["safeAreaInset.scenario"].tap()

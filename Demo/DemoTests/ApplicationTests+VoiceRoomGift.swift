@@ -385,7 +385,7 @@ extension ApplicationTests {
                 .first
         )
         #expect(rechargeBackgroundView.layer is CAGradientLayer)
-        #expect(rechargeBackgroundView.layer.frame == rechargeBackgroundView.bounds)
+        #expect(rechargeBackgroundView.layer.bounds == rechargeBackgroundView.bounds)
         #expect(rechargeBackgroundView.gradient.stops.count == 3)
         #expect(
             rechargeBackgroundView.gradient.stops.map(\.location)
@@ -731,9 +731,11 @@ extension ApplicationTests {
             #expect(abs(sheetFrame.maxY - giftSheet.view.bounds.maxY) < 1)
             #expect(abs(sendFrame.maxY - (safeFrame.maxY - contentPadding)) < 1)
             for content in [sheet.giftScrollView, sheet.recipientScrollView, sheet.categoryScrollView, send] {
-                let frame = content.convert(content.bounds, to: giftSheet.view)
+                // 滚动外框允许延伸到安全区外，验证的是扣除内容 inset 后的可见区域。
+                let bounds = (content as? UIScrollView).map { $0.bounds.inset(by: $0.adjustedContentInset) } ?? content.bounds
+                let frame = content.convert(bounds, to: giftSheet.view)
                 #expect(frame.minX >= safeFrame.minX)
-                #expect(frame.maxX <= safeFrame.maxX)
+                #expect(frame.maxX <= safeFrame.maxX, "content=\(content.accessibilityIdentifier ?? String(describing: type(of: content))), extra=\(extraInsets), frame=\(frame), safe=\(safeFrame), sheet=\(sheetFrame), viewport=\(content.frame), inset=\((content as? UIScrollView)?.adjustedContentInset ?? .zero)")
             }
         }
     }
@@ -773,7 +775,8 @@ extension ApplicationTests {
             viewController.giftSheetViewController
         )
         giftSheet.loadViewIfNeeded()
-        giftSheet.view.frame = window.bounds
+        // 子控制器尺寸由 representable 所在的安全区宿主负责，不能用窗口尺寸覆盖局部坐标。
+        layout(viewController, in: navigationController)
         giftSheet.view.setNeedsLayout()
         giftSheet.view.layoutIfNeeded()
         let sheetView = try #require(

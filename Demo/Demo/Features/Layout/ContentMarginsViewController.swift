@@ -211,7 +211,8 @@ final class ContentMarginsViewController: LocalizedQuickLayoutHostingController 
 
                 configuredPreview
             }
-            .safeAreaPadding(.horizontal, 16)
+            // 页面留白使用普通 padding，预览内的 contentMargins 独立演示额外滚动边距。
+            .padding(.horizontal, 16)
             .padding(.vertical, 16)
         }
     }

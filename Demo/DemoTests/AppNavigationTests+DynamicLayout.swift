@@ -6,24 +6,26 @@ import UIKit
 
 extension AppNavigationTests {
     @Test func nestedSafeAreaChangeInvalidatesNaturalScrollViewport() {
-        let child = MutableSafeAreaLayoutView {
+        let child = QuickLayoutView {
             UILabel().frame(height: 40).safeAreaPadding(.bottom, 0)
         }
         let scroll = QuickLayoutScrollView()
-        let host = QuickLayoutView {
+        let host = MutableSafeAreaLayoutView {
             ContentFittingScroll(scroll) {
                 child.resizable(axis: .horizontal).fixedSize(axis: .vertical)
             }
+            .frame(maxHeight: .infinity, alignment: .bottom)
         }
         host.frame = CGRect(x: 0, y: 0, width: 320, height: 800)
         host.layoutIfNeeded()
         for bottom in [34.0, 58.0, 0.0, 34.0] {
-            child.testInsets.bottom = bottom
-            child.safeAreaInsetsDidChange()
+            // 安全区由外层统一发布；贴底视口恢复外框，嵌套内容不再增加同一段高度。
+            host.testInsets.bottom = bottom
+            host.safeAreaInsetsDidChange()
             // 只消费已发布的失效，不手动将外层标记为需要布局。
             for _ in 0..<4 { host.layoutIfNeeded() }
-            #expect(abs(scroll.bounds.height - (40 + bottom)) < 1)
-            #expect(abs(child.bounds.height - scroll.bounds.height) < 1)
+            #expect(abs(scroll.bounds.height - (40 + bottom)) < 1, "bottom=\(bottom), scroll=\(scroll.frame), inset=\(scroll.adjustedContentInset), child=\(child.frame)")
+            #expect(abs(child.bounds.height - 40) < 1)
         }
     }
 
@@ -125,9 +127,12 @@ extension AppNavigationTests {
             #expect(button.maxY <= height)
             #expect(button.height == 50)
             #expect(view.textField.bounds.height == 44)
-            #expect(view.contentScrollView.bounds.height <= height - 40)
+            // 外框可扩展到额外安全间距，实际可见内容仍需保留上下留白。
+            let visibleHeight = view.contentScrollView.bounds.height
+                - view.contentScrollView.adjustedContentInset.top - view.contentScrollView.adjustedContentInset.bottom
+            #expect(visibleHeight <= height - 40)
             if height == 180 {
-                #expect(view.contentScrollView.contentSize.height > view.contentScrollView.bounds.height)
+                #expect(view.contentScrollView.contentSize.height > visibleHeight)
             }
         }
     }

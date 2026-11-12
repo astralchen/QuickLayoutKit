@@ -161,6 +161,34 @@ struct WaterfallLayoutEngineTests {
         #expect(notifications == 1)
     }
 
+    /// 模拟 bounds 已提交后才到达的安全区变化；尺寸查询必须安排 UIKit 重新准备布局。
+    @Test func lateSafeAreaChangeRecoversSizingWithoutAnotherBoundsChange() async throws {
+        let layout = CustomWaterfallLayout(section: Layout.Section())
+        let source = EngineSource(counts: [4])
+        let collection = LateSafeAreaCollectionView(
+            frame: CGRect(x: 0, y: 0, width: 390, height: 500), collectionViewLayout: layout)
+        collection.contentInsetAdjustmentBehavior = .never
+        collection.dataSource = source
+        collection.reloadData()
+        collection.layoutIfNeeded()
+        let path = IndexPath(item: 0, section: 0)
+        let initial = layout.sizingForItem(at: path)
+        #expect(initial.constraint.width > 0)
+        // 先排空首次布局的异步通知，避免它替代本次环境变化应安排的失效。
+        try await Task.sleep(nanoseconds: 30_000_000)
+        let prepared = layout.preparationCount
+        collection.reportedSafeArea = UIEdgeInsets(top: 44, left: 0, bottom: 21, right: 0)
+        #expect(layout.sizingForItem(at: path).constraint == .zero)
+        for _ in 0..<20 {
+            try await Task.sleep(nanoseconds: 10_000_000)
+            collection.layoutIfNeeded()
+            if layout.sizingForItem(at: path).constraint != .zero { break }
+        }
+        #expect(layout.preparationCount > prepared)
+        #expect(layout.sizingForItem(at: path) == initial)
+        withExtendedLifetime(source) {}
+    }
+
     @Test func deletionFallbackIsLinearAndSparseLaneQueryIsBounded() throws {
         let fixture = EngineFixture(counts: [10_000])
         try fixture.fit(IndexPath(item: 0, section: 0), length: 2_000_000)
@@ -467,4 +495,10 @@ private final class CustomWaterfallLayout: UICollectionViewWaterfallLayout {
         attributes?.zIndex = 42
         return attributes
     }
+}
+
+@MainActor
+private final class LateSafeAreaCollectionView: UICollectionView {
+    var reportedSafeArea: UIEdgeInsets = .zero
+    override var safeAreaInsets: UIEdgeInsets { reportedSafeArea }
 }

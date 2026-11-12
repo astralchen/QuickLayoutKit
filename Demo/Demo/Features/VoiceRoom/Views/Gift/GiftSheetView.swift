@@ -305,7 +305,7 @@ final class GiftSheetView:
         .padding(.bottom, usesCompactMetrics ? 10 : 14)
         // 内容避让侧边系统控件和底部安全区域，背景继续覆盖面板全部范围。
         .safeAreaPadding([.horizontal, .bottom], 0)
-        .background { backgroundGradientView }
+        .background { backgroundGradientView.resizable().ignoresSafeArea(.container, edges: .bottom) }
     }
 
     /// 根据当前语言刷新显示文案和辅助功能描述。

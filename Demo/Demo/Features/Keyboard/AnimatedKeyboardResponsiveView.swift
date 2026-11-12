@@ -25,21 +25,16 @@ class AnimatedKeyboardResponsiveView: QuickLayoutView {
     let contentScrollView = QuickLayoutScrollView()
 
     private lazy var keyboardObserver = QuickLayoutKeyboardObserver()
+    private var pendingScrollContext: QuickLayoutKeyboardContext?
 
     private var keyboardContext: QuickLayoutKeyboardContext? {
         didSet {
             updateKeyboardDiagnostics()
             if let keyboardContext, oldValue != keyboardContext {
-                animateLayoutChange(keyboardContext)
+                pendingScrollContext = keyboardContext.isVisible ? keyboardContext : nil
+                setNeedsLayout()
             }
         }
-    }
-
-    private var keyboardHeight: CGFloat {
-        // 原始相交高度也包含悬浮／分离键盘。让 Kit 结合当前容器和
-        // UIKeyboardLayoutGuide 判定停靠，只为真正覆盖底边的键盘抬升内容。
-        let bottom = quickLayoutKeyboardSafeAreaInsets.bottom
-        return bottom > safeAreaInsets.bottom ? bottom : 0
     }
 
     private var cancellables : Set<AnyCancellable> = []
@@ -55,7 +50,6 @@ class AnimatedKeyboardResponsiveView: QuickLayoutView {
     }
 
     private func setupViews() {
-        quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard()
         textField.borderStyle = .roundedRect
         textField.accessibilityIdentifier = "keyboard.input"
         submitButton.accessibilityIdentifier = "keyboard.submit"
@@ -119,7 +113,17 @@ class AnimatedKeyboardResponsiveView: QuickLayoutView {
     }
 
 
-    private func animateLayoutChange(_ keyboardContext: QuickLayoutKeyboardContext) {
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // 宿主负责键盘位移动画；等新布局完成后只滚动内容，不再次启动宿主布局动画。
+        guard let context = pendingScrollContext,
+              quickLayoutKeyboardSafeAreaInsets.bottom > safeAreaInsets.bottom else { return }
+        pendingScrollContext = nil
+        contentScrollView.layoutIfNeeded()
+        animateScrollChange(context)
+    }
+
+    private func animateScrollChange(_ keyboardContext: QuickLayoutKeyboardContext) {
         UIView.animate(
             withDuration: keyboardContext.animationDuration,
             delay: 0,
@@ -128,8 +132,6 @@ class AnimatedKeyboardResponsiveView: QuickLayoutView {
                 .allowUserInteraction,
             ]),
             animations: {
-                self.setNeedsLayout()
-                self.layoutIfNeeded()
                 if keyboardContext.isVisible {
                     // scrollTo(animated: false) 会清除滚动容器的 position 动画，
                     // 连带取消输入框和提交按钮随键盘移动的动画。这里让偏移量
@@ -203,7 +205,7 @@ class AnimatedKeyboardResponsiveView: QuickLayoutView {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         // 分栏的安全区可能只在一侧；逐边消费，避免将侧栏宽度重复扣到另一侧。
         .safeAreaPadding([.top, .horizontal], 20)
-        .padding(.bottom, max(keyboardHeight + 20, safeAreaInsets.bottom))
+        .safeAreaPadding(.bottom, 20)
     }
 }
 

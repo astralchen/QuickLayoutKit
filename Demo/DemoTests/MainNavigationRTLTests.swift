@@ -289,18 +289,79 @@ struct MainNavigationRTLTests {
         // 等待导航栏完成滚动联动，再记录用户实际看到的条目与偏移。
         try await Task.sleep(nanoseconds: 100_000_000)
         let before = try #require(main.collectionView.captureLocalizationAnchor())
+        let originalHeight = try #require(main.collectionView.layoutAttributesForItem(at: before.indexPath)?.size.height)
         for language in [initialLanguage == "ar" ? "zh-Hans" : "ar", initialLanguage] {
             Localization.setLocale(identifier: language)
             let restored = await waitForCondition {
                 navigation.view.layoutIfNeeded()
                 guard main.title == Localization.text("main.title"),
-                      let after = main.collectionView.captureLocalizationAnchor() else { return false }
-                return main.collectionView.effectiveUserInterfaceLayoutDirection == Localization.currentUIKitDirection
+                      let after = main.collectionView.captureLocalizationAnchor(),
+                      let height = main.collectionView.layoutAttributesForItem(at: before.indexPath)?.size.height else { return false }
+                // 译文变短且原位置无法显示时保留行尾；原语言必须精确回到起始位置。
+                let preferred = language != initialLanguage && before.offsetFromViewportTop <= -height
+                    ? min(height, max(1, originalHeight + before.offsetFromViewportTop)) - height
+                    : before.offsetFromViewportTop
+                // 新语言的总内容高度也可能较短；只允许布局的物理滚动边界约束这一次偏移。
+                let list = main.collectionView
+                guard let frame = list.layoutAttributesForItem(at: before.indexPath)?.frame else { return false }
+                let expected: CGFloat
+                if language == initialLanguage {
+                    expected = before.offsetFromViewportTop
+                } else {
+                    let maxViewportTop = max(0, list.contentSize.height - list.bounds.height
+                                                + list.adjustedContentInset.bottom + list.adjustedContentInset.top)
+                    expected = frame.minY - min(max(0, frame.minY - preferred), maxViewportTop)
+                }
+                return list.effectiveUserInterfaceLayoutDirection == Localization.currentUIKitDirection
                     && after.indexPath == before.indexPath
-                    && abs(after.offsetFromViewportTop - before.offsetFromViewportTop) < 2
+                    && abs(after.offsetFromViewportTop - expected) < 2
             }
             let after = main.collectionView.captureLocalizationAnchor()
             #expect(restored, "语言：\(language)，原位置：\(before)，实际位置：\(String(describing: after))")
+        }
+    }
+
+    @Test func shorterTranslationPreservesVisibleTailAndRecognizesNewReadingPosition() {
+        let row = CatalogRowPosition(id: "geometry", offset: -66, height: 70)
+        #expect(row.offset(for: 68) == -66)
+        #expect(row.offset(for: 58) == -54)
+        #expect(row.isSameReadingPosition(as: row))
+        #expect(!row.isSameReadingPosition(as: .init(id: "geometry", offset: -40, height: 58)))
+        #expect(!row.isSameReadingPosition(as: .init(id: "another", offset: -66, height: 70)))
+        #expect(row.offset(for: 70) == -66)
+    }
+
+    /// 系统 List 按方向重建后，恢复条目内部的部分可见位置，并允许继续浏览。
+    @Test func referenceListRestoresPartialRowAfterDirectionChanges() async throws {
+        Localization.setLocale(identifier: "en-US")
+        let controller = CatalogScrollReference.makeController()
+        let navigation = UINavigationController(rootViewController: controller)
+        let window = try makeVisibleTestWindow(rootViewController: navigation, size: CGSize(width: 270, height: 669))
+        Localization.register(window: window)
+        defer {
+            Localization.unregister(window: window)
+            window.isHidden = true
+            Localization.setLocale(identifier: "en-US")
+        }
+        func list(in view: UIView) -> UICollectionView? {
+            if let collection = view as? UICollectionView { return collection }
+            return view.subviews.lazy.compactMap { list(in: $0) }.first
+        }
+        let original = try #require(list(in: controller.view))
+        original.contentOffset.y = 510
+        try await Task.sleep(for: .milliseconds(100))
+        for language in ["ar", "en-US"] {
+            let old = try #require(list(in: controller.view))
+            let before = try #require(old.captureLocalizationAnchor())
+            Localization.setLocale(identifier: language)
+            let restored = await waitForCondition {
+                guard let new = list(in: controller.view), new !== old,
+                      let after = new.captureLocalizationAnchor() else { return false }
+                return after.indexPath == before.indexPath && abs(after.offsetFromViewportTop - before.offsetFromViewportTop) <= 1
+            }
+            let new = try #require(list(in: controller.view))
+            #expect(restored, "切换到 \(language)：\(before) → \(String(describing: new.captureLocalizationAnchor()))")
+            new.contentOffset.y += 65
         }
     }
 

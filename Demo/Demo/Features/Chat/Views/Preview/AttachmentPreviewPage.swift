@@ -36,6 +36,8 @@ final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDe
             messageLabel.resizable().padding(.horizontal, 28).padding(.vertical, 120)
             loading.resizable().frame(width: 44, height: 44)
         }
+        // 媒体画布全屏；文档继续按顶部工具栏与底部控件的实际遮挡预留空间。
+        .ignoresSafeArea(.container)
     }
     private var documentTop: CGFloat { max(documentTopInset, max(88, safeAreaInsets.top + 72)) }
     private var documentBottom: CGFloat { max(24, safeAreaInsets.bottom + 12) }

@@ -193,7 +193,7 @@ struct ContainerRelativeFrameParityTests {
             .environment(\.layoutDirection, rtl ? .rightToLeft : .leftToRight))
         host.safeAreaRegions = (20...23).contains(mode) ? [.container] : []
         if (20...23).contains(mode) { host.additionalSafeAreaInsets = UIEdgeInsets(top: 9, left: 21, bottom: 17, right: 33) }
-        let actualRoot: any QuickLayout.Layout = (20...23).contains(mode) ? content.safeAreaPadding(0) : content
+        let actualRoot: any QuickLayout.Layout = content
         let actualHost = RelativeFrameHost {
             actualRoot.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }

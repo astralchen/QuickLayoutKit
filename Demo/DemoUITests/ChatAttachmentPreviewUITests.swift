@@ -9,9 +9,10 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         guard #available(iOS 26.0, *) else { throw XCTSkip("Attachment preview requires iOS 26") }
         continueAfterFailure = false
     }
-    @MainActor private func chat(fixture: String, locale: String = "zh-Hans", extra: [String] = []) -> XCUIApplication {
+    @MainActor private func chat(fixture: String? = nil, locale: String = "zh-Hans", extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments += ["-imessage-save-fixture", fixture, "-quicklayoutkit.demo.locale.identifier", locale] + extra
+        if let fixture { app.launchArguments += ["-imessage-save-fixture", fixture] }
+        app.launchArguments += ["-quicklayoutkit.demo.locale.identifier", locale] + extra
         app.launch()
         let route = app.buttons.matching(identifier: "app.tab.chat").firstMatch
         if extra.contains("-UIPreferredContentSizeCategoryName") {
@@ -1175,6 +1176,91 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         XCTAssertTrue(remove.firstMatch.waitForNonExistence(timeout: 5))
         XCTAssertEqual(grabber.frame.midY, panelY, accuracy: 1)
         capture(app, "草稿-清空后保留照片面板")
+    }
+
+    @MainActor func testLandscapeComposerFollowsBottomPhotoPicker() throws {
+        let device = XCUIDevice.shared
+        let originalOrientation = device.orientation
+        defer { device.orientation = originalOrientation }
+        let app = chat(extra: ["-AppleLanguages", "(zh-Hans)", "-chat-draft-session", UUID().uuidString])
+        let window = app.windows.firstMatch
+        if window.frame.width <= window.frame.height { device.orientation = .landscapeLeft }
+        let attachment = app.buttons["imessage.composer.attachment"]
+        let landscape = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            window.frame.width > window.frame.height && attachment.isHittable
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [landscape], timeout: 8), .completed, "window=\(window.frame)")
+        let restingBottom = attachment.frame.maxY
+        attachment.tap()
+        app.buttons["照片"].tap()
+        let grabber = app.buttons["表单控制柄"]
+        XCTAssertTrue(grabber.waitForExistence(timeout: 10))
+        let done = app.buttons["imessage.picker.done"]
+        guard done.exists else { throw XCTSkip("当前窗口未使用横屏窄面板") }
+        let thumbnail = app.images.matching(identifier: "PXGGridLayout-Info").firstMatch
+        XCTAssertTrue(thumbnail.waitForExistence(timeout: 20))
+        let panel = app.otherElements["imessage.picker.panel"]
+        XCTAssertTrue(panel.exists)
+        let aligned = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let bottom = attachment.frame.maxY
+            let gap = panel.frame.minY - bottom
+            return bottom < restingBottom && abs(gap - 8) <= 1
+        }, object: app)
+        let result = XCTWaiter.wait(for: [aligned], timeout: 5)
+        capture(app, "横屏照片面板与输入栏", screenshot: window.screenshot())
+        XCTAssertEqual(result, .completed, "rest=\(restingBottom), panel=\(panel.frame), composerButton=\(attachment.frame)")
+        done.tap()
+        XCTAssertTrue(grabber.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(attachment.frame.maxY, restingBottom, accuracy: 1)
+    }
+
+    /// 通过真实附件菜单打开照片面板，覆盖菜单对键盘高度通知的影响。
+    @MainActor func testPhotoPickerSpacingFromAttachmentMenu() {
+        for fromKeyboard in [false, true] {
+            let app = chat(fixture: "empty", extra: ["-AppleLanguages", "(zh-Hans)", "-chat-draft-session", UUID().uuidString])
+            if fromKeyboard {
+                app.textViews["imessage.composer.text"].tap()
+                XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+            }
+            let attachment = app.buttons["imessage.composer.attachment"]
+            let keyboardInputBottom = attachment.frame.maxY
+            attachment.tap()
+            app.buttons["照片"].tap()
+            let grabber = app.buttons["表单控制柄"]
+            XCTAssertTrue(grabber.waitForExistence(timeout: 10))
+            let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                let gap = grabber.frame.midY - attachment.frame.maxY
+                return gap >= 0 && gap < 24
+            }, object: nil)
+            let result = XCTWaiter.wait(for: [settled], timeout: 5)
+            capture(app, "照片面板-间距-\(fromKeyboard)", screenshot: XCUIScreen.main.screenshot())
+            XCTAssertEqual(result, .completed,
+                "keyboard=\(fromKeyboard), grabber=\(grabber.frame), attachment=\(attachment.frame)")
+            if fromKeyboard {
+                // 点击露在面板上方的输入框，验证照片到键盘的交接没有残留间距。
+                app.textViews["imessage.composer.text"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+                XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+                XCTAssertTrue(grabber.waitForNonExistence(timeout: 5))
+                let keyboardMeetsInput = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                    // 键盘 AX frame 不包含候选栏，改为严格比较交接前后的输入框边界。
+                    abs(attachment.frame.maxY - keyboardInputBottom) <= 1
+                }, object: nil)
+                let keyboardResult = XCTWaiter.wait(for: [keyboardMeetsInput], timeout: 5)
+                capture(app, "照片面板-切回键盘", screenshot: XCUIScreen.main.screenshot())
+                XCTAssertEqual(keyboardResult, .completed, "keyboard=\(app.keyboards.firstMatch.frame), attachment=\(attachment.frame)")
+            } else {
+                grabber.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
+                XCTAssertTrue(grabber.waitForNonExistence(timeout: 5))
+                let returnsToBottom = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                    let tabs = app.tabBars.firstMatch
+                    if tabs.exists { return abs(tabs.frame.minY - attachment.frame.maxY) < 24 }
+                    return app.windows.firstMatch.frame.maxY - attachment.frame.maxY < 55
+                }, object: nil)
+                XCTAssertEqual(XCTWaiter.wait(for: [returnsToBottom], timeout: 5), .completed, "window=\(app.windows.firstMatch.frame), attachment=\(attachment.frame), tabs=\(app.tabBars.firstMatch.frame)")
+                capture(app, "照片面板-拖动关闭", screenshot: XCUIScreen.main.screenshot())
+            }
+            app.terminate()
+        }
     }
 
     @MainActor func testDeselectingLastPhotoInPickerCollapsesDraft() {

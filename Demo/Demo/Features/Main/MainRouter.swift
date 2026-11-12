@@ -48,7 +48,18 @@ final class MainRouter: MainRouting {
     }
 
     func makeViewController(for route: MainRoute) -> UIViewController? {
-        switch route {
+        #if DEBUG
+        // 让交互测试在相同的导航栏与标签栏中打开系统对照页。
+        if #available(iOS 17.0, *), route == .dynamicScroll,
+           ProcessInfo.processInfo.arguments.contains("-dynamic-scroll-swiftui-reference") {
+            return DynamicScrollReference.makeController()
+        }
+        if route == .geometry,
+           ProcessInfo.processInfo.arguments.contains("-geometry-scroll-swiftui-reference") {
+            return GeometryScrollReference.makeController()
+        }
+        #endif
+        return switch route {
         case .horizontalScroll:
             HorizontalScrollViewViewController()
         case .safeAreaInset:

@@ -1,4 +1,5 @@
 import QuickLayout
+import ObjectiveC
 import QuickLayoutKitCore
 import UIKit
 
@@ -40,7 +41,7 @@ public extension Element {
 
     /// 为支持的容器配置方向性内容边距。
     ///
-    /// `QuickLayoutScrollView` 支持所有位置。自动位置会同时将边距应用到内容和滚动指示器。
+    /// `ScrollView` 与 `List` 入口支持所有位置。自动位置会同时应用到内容和滚动指示器。
     ///
     /// - Parameters:
     ///   - edges: 需要配置内容边距的边缘。
@@ -122,7 +123,7 @@ private struct ContentMarginsElement: @MainActor Layout, @MainActor QuickLayoutS
     /// 被当前修饰元素包装的布局内容。
     let child: Element
     /// 构建时从子元素直接提取的滚动宿主，不递归搜索 UIKit 后代。
-    let scrollViews: [QuickLayoutScrollView]
+    let scrollViews: [UIScrollView]
     /// 本层显式覆盖的边缘，空集合表示没有新增覆盖。
     let edges: EdgeSet
     /// 已将非有限分量归零的方向性边距。
@@ -153,7 +154,7 @@ private struct ContentMarginsElement: @MainActor Layout, @MainActor QuickLayoutS
 
         var views: [UIView] = []
         child.quick_extractViewsIntoArray(&views)
-        scrollViews = views.compactMap { $0 as? QuickLayoutScrollView }
+        scrollViews = views.compactMap { $0 as? UIScrollView }.filter { $0 is QuickLayoutScrollView || $0.quickLayoutNativeMarginState != nil }
         applyMargins()
     }
 
@@ -276,6 +277,8 @@ final class QuickLayoutContentMarginState {
 
     /// safeAreaInset 与内容边距共用写入端；保存测量结果供独立 UIKit 重排使用。
     private var safeAreaReservation = QuickLayoutSafeAreaInsetReservation()
+    var ignoredContainerEdges: UIEdgeInsets { safeAreaReservation.ignoredContainerEdges }
+    var declaredSafeArea: QuickLayoutSafeAreaInsetReservation { safeAreaReservation }
     private var appliedSafeAreaReservation = QuickLayoutSafeAreaInsetReservation()
 
     @MainActor
@@ -340,6 +343,8 @@ final class QuickLayoutContentMarginState {
     /// 滚动指示器位置的显式覆盖值。
     private var scrollIndicators = Overrides()
 
+    /// 仅记录已提交的显式内容边距，供嵌套视口区分排版留白和可恢复的安全区。
+    private(set) var appliedExplicitContentMargins: UIEdgeInsets = .zero
     /// 上次写入内容边距的框架增量，重算前从 UIKit 当前值中扣除。
     private(set) var appliedContentInsets: UIEdgeInsets = .zero
     /// 上次写入垂直指示器边距的框架增量。
@@ -348,10 +353,14 @@ final class QuickLayoutContentMarginState {
     private(set) var appliedHorizontalIndicatorInsets: UIEdgeInsets = .zero
     /// 上次应用边距时的有效布局方向。
     private var appliedLayoutDirection: UIUserInterfaceLayoutDirection?
-    /// 上次参与补偿的物理安全区域。
+    /// 上次写入 UIKit 边距时，列表局部横轴是否相对于父视图镜像。
+    private var appliedHorizontalMirroring = false
+    /// 上次参与补偿的滚动视图局部安全区域。
     private var appliedSafeAreaInsets: UIEdgeInsets?
     /// 上次记录的 UIKit 自动内容边距调整量。
     private var appliedAutomaticAdjustmentInsets: UIEdgeInsets?
+    /// 指示器的自动安全区调整独立于内容，不能复用 adjustedContentInset 的差值。
+    private var appliedAutomaticIndicatorAdjustmentInsets: UIEdgeInsets?
 
     /// 清空上一轮声明的边距覆盖，并安排更新 UIKit 边距。
     ///
@@ -416,9 +425,12 @@ final class QuickLayoutContentMarginState {
             .quickLayoutAutomaticContentInsetAdjustment
         guard appliedLayoutDirection
                 != scrollView.effectiveUserInterfaceLayoutDirection
+                || appliedHorizontalMirroring != scrollView.quickLayoutMirrorsInsetCoordinates
                 || appliedSafeAreaInsets != scrollView.safeAreaInsets
                 || appliedAutomaticAdjustmentInsets
-                    != automaticAdjustmentInsets else {
+                    != automaticAdjustmentInsets
+                || appliedAutomaticIndicatorAdjustmentInsets
+                    != scrollView.quickLayoutAutomaticIndicatorInsetAdjustment else {
             return
         }
 
@@ -465,6 +477,10 @@ final class QuickLayoutContentMarginState {
         let baseHorizontalIndicatorInsets = scrollView.horizontalScrollIndicatorInsets
             .subtracting(appliedHorizontalIndicatorInsets)
         let layoutDirection = scrollView.effectiveUserInterfaceLayoutDirection
+        let mirrored = scrollView.quickLayoutMirrorsInsetCoordinates
+        let insetDirection: UIUserInterfaceLayoutDirection = mirrored
+            ? (layoutDirection == .rightToLeft ? .leftToRight : .rightToLeft)
+            : layoutDirection
 
         // 与 SwiftUI.ContentMarginPlacement 对齐：显式 placement 按位置覆盖
         // `.automatic`，而不是逐边回退。比如先为 `.scrollContent` 设置水平
@@ -478,39 +494,52 @@ final class QuickLayoutContentMarginState {
             : scrollIndicators
         let automaticAdjustmentInsets = scrollView
             .quickLayoutAutomaticContentInsetAdjustment
-        let contentMargins = contentOverrides.resolved
-            .uiInsets(for: layoutDirection)
-            .adding(
-                scrollView.quickLayoutMissingSafeAreaInsets(
-                    specified: contentOverrides.specified
-                        .uiInsets(for: layoutDirection),
-                    automaticAdjustment: automaticAdjustmentInsets
-                )
+        let automaticIndicatorInsets = scrollView.quickLayoutAutomaticIndicatorInsetAdjustment
+        let explicitContentMargins = contentOverrides.resolved.uiInsets(for: insetDirection)
+        let contentMargins = explicitContentMargins.adding(
+            scrollView.quickLayoutMissingSafeAreaInsets(
+                specified: contentOverrides.specified.uiInsets(for: insetDirection),
+                automaticAdjustment: automaticAdjustmentInsets
             )
+        )
         let indicatorMargins = indicatorOverrides.resolved
-            .uiInsets(for: layoutDirection)
+            .uiInsets(for: insetDirection)
             .adding(
                 scrollView.quickLayoutMissingSafeAreaInsets(
                     specified: indicatorOverrides.specified
-                        .uiInsets(for: layoutDirection),
-                    automaticAdjustment: automaticAdjustmentInsets
+                        .uiInsets(for: insetDirection),
+                    automaticAdjustment: automaticIndicatorInsets
                 )
             )
+        // 组合布局在交叉轴内部处理安全区，不一定反映在 adjustedContentInset 中。
+        // 将这部分计入已消费区域，避免在全宽 contentSize 之外再次添加可滚动边距。
+        let layoutManaged = scrollView.quickLayoutLayoutManagedSafeAreaInsets
+        let consumed = UIEdgeInsets(
+            top: max(automaticAdjustmentInsets.top, layoutManaged.top),
+            left: max(automaticAdjustmentInsets.left, layoutManaged.left),
+            bottom: max(automaticAdjustmentInsets.bottom, layoutManaged.bottom),
+            right: max(automaticAdjustmentInsets.right, layoutManaged.right)
+        )
         // UIKit 自动安全区和键盘增量已占用的区域不再添加。业务基线与显式 margins 保留。
-        let required = safeAreaReservation.insets
-        let selected = safeAreaReservation.selected
+        let required = safeAreaReservation.insets.inScrollCoordinates(mirrored: mirrored)
+        let selected = safeAreaReservation.selected.inScrollCoordinates(mirrored: mirrored)
         let keyboard = scrollView.quickLayoutKeyboardInsetDelta
-        func supplement(_ margins: UIEdgeInsets, explicit: UIEdgeInsets) -> UIEdgeInsets {
+        let ignored = safeAreaReservation.ignoredContainerEdges.inScrollCoordinates(mirrored: mirrored)
+        func supplement(_ margins: UIEdgeInsets, explicit: UIEdgeInsets,
+                        automatic: UIEdgeInsets, consumed: UIEdgeInsets) -> UIEdgeInsets {
             let missing = margins.subtracting(explicit)
             return explicit.adding(UIEdgeInsets(
-                top: selected.top == 0 ? missing.top : max(missing.top, required.top - automaticAdjustmentInsets.top),
-                left: selected.left == 0 ? missing.left : max(missing.left, required.left - automaticAdjustmentInsets.left),
-                bottom: selected.bottom == 0 ? missing.bottom : max(0, max(missing.bottom, required.bottom - automaticAdjustmentInsets.bottom) - keyboard),
-                right: selected.right == 0 ? missing.right : max(missing.right, required.right - automaticAdjustmentInsets.right)
+                top: ignored.top > 0 ? required.top - automatic.top : selected.top == 0 ? missing.top : max(0, required.top - consumed.top),
+                left: ignored.left > 0 ? required.left - automatic.left : selected.left == 0 ? missing.left : max(0, required.left - consumed.left),
+                bottom: ignored.bottom > 0 ? required.bottom - automatic.bottom : selected.bottom == 0 ? missing.bottom : max(0, required.bottom - consumed.bottom - keyboard),
+                right: ignored.right > 0 ? required.right - automatic.right : selected.right == 0 ? missing.right : max(0, required.right - consumed.right)
             ))
         }
-        let resolvedContentMargins = supplement(contentMargins, explicit: contentOverrides.resolved.uiInsets(for: layoutDirection))
-        let resolvedIndicatorMargins = supplement(indicatorMargins, explicit: indicatorOverrides.resolved.uiInsets(for: layoutDirection))
+        let resolvedContentMargins = supplement(contentMargins, explicit: explicitContentMargins,
+                                                automatic: automaticAdjustmentInsets, consumed: consumed)
+        // 组合布局只消费内容的安全区，指示器仍由 UIKit 自己的自动调整开关决定。
+        let resolvedIndicatorMargins = supplement(indicatorMargins, explicit: indicatorOverrides.resolved.uiInsets(for: insetDirection),
+                                                  automatic: automaticIndicatorInsets, consumed: automaticIndicatorInsets)
         let verticalIndicatorMargins: UIEdgeInsets
         let horizontalIndicatorMargins: UIEdgeInsets
         if let quickLayoutScrollView = scrollView as? QuickLayoutScrollView {
@@ -539,8 +568,11 @@ final class QuickLayoutContentMarginState {
 
         appliedSafeAreaReservation = safeAreaReservation
         appliedLayoutDirection = layoutDirection
+        appliedHorizontalMirroring = mirrored
         appliedSafeAreaInsets = scrollView.safeAreaInsets
         appliedAutomaticAdjustmentInsets = automaticAdjustmentInsets
+        appliedAutomaticIndicatorAdjustmentInsets = automaticIndicatorInsets
+        appliedExplicitContentMargins = explicitContentMargins
         appliedContentInsets = resolvedContentMargins
         appliedVerticalIndicatorInsets = verticalIndicatorMargins
         appliedHorizontalIndicatorInsets = horizontalIndicatorMargins
@@ -571,24 +603,24 @@ final class QuickLayoutContentMarginState {
     }
 }
 
-extension QuickLayoutScrollView {
+extension UIScrollView {
 
     /// 在新一轮滚动内容配置前清空旧的声明覆盖。
     @MainActor
     func quickLayoutResetContentMargins() {
-        quickLayoutContentMarginState.reset(on: self)
+        quickLayoutScrollMarginState.reset(on: self)
     }
 
     /// 按当前环境按需重新映射方向性边距。
     @MainActor
     func quickLayoutUpdateContentMarginDirectionIfNeeded() {
-        quickLayoutContentMarginState.updateLayoutDirectionIfNeeded(on: self)
+        quickLayoutScrollMarginState.updateLayoutDirectionIfNeeded(on: self)
     }
 
     /// 按新的单一滚动轴重新分配指示器边距。
     @MainActor
     func quickLayoutUpdateContentMarginAxis() {
-        quickLayoutContentMarginState.updateAxis(on: self)
+        quickLayoutScrollMarginState.updateAxis(on: self)
     }
 
     /// 将修饰符声明交给宿主边距状态合并并应用。
@@ -598,7 +630,7 @@ extension QuickLayoutScrollView {
         insets: EdgeInsets,
         placement: ContentMarginPlacement
     ) {
-        quickLayoutContentMarginState.set(
+        quickLayoutScrollMarginState.set(
             edges: edges,
             insets: insets,
             placement: placement,
@@ -611,19 +643,21 @@ extension UIScrollView {
 
     /// 分别读取两个轴已实际应用的增量，避免把另一轴的边距当作基线扣除或重复添加。
     var quickLayoutAppliedVerticalIndicatorMarginInsets: UIEdgeInsets {
-        (self as? QuickLayoutScrollView)?
-            .quickLayoutContentMarginState.appliedVerticalIndicatorInsets ?? .zero
+        quickLayoutExistingMarginState?.appliedVerticalIndicatorInsets ?? .zero
     }
 
     var quickLayoutAppliedHorizontalIndicatorMarginInsets: UIEdgeInsets {
-        (self as? QuickLayoutScrollView)?
-            .quickLayoutContentMarginState.appliedHorizontalIndicatorInsets ?? .zero
+        quickLayoutExistingMarginState?.appliedHorizontalIndicatorInsets ?? .zero
     }
 
-    /// QuickLayout 最近添加的内容边距增量；普通滚动视图为零。
+    /// 去掉显式排版留白，剩余的已应用边距才计入安全区消费。
+    var quickLayoutInsetsAppliedToSafeArea: UIEdgeInsets {
+        adjustedContentInset.subtracting(quickLayoutExistingMarginState?.appliedExplicitContentMargins ?? .zero)
+    }
+
+    /// QuickLayout 最近添加的内容边距增量；未接入适配的原生滚动视图为零。
     var quickLayoutAppliedContentMarginInsets: UIEdgeInsets {
-        (self as? QuickLayoutScrollView)?
-            .quickLayoutContentMarginState.appliedContentInsets ?? .zero
+        quickLayoutExistingMarginState?.appliedContentInsets ?? .zero
     }
 
 }
@@ -672,6 +706,10 @@ private extension EdgeInsets {
 
 extension UIEdgeInsets {
 
+    fileprivate func inScrollCoordinates(mirrored: Bool) -> Self {
+        mirrored ? Self(top: top, left: right, bottom: bottom, right: left) : self
+    }
+
     /// 逐物理边相加，不执行裁剪或归一化。
     func adding(_ other: UIEdgeInsets) -> UIEdgeInsets {
         UIEdgeInsets(
@@ -695,6 +733,33 @@ extension UIEdgeInsets {
 
 private extension UIScrollView {
 
+    /// 部分原生列表会镜像自身坐标系。外层的物理右边在列表局部变成左边，
+    /// 必须先转换再与 UIKit 的安全区、内容和指示器 inset 逐边比较。
+    var quickLayoutMirrorsInsetCoordinates: Bool {
+        guard quickLayoutNativeMarginState != nil, let superview else { return false }
+        let origin = convert(CGPoint.zero, to: superview)
+        return convert(CGPoint(x: 1, y: 0), to: superview).x < origin.x
+    }
+
+    /// UICollectionViewCompositionalLayout 的安全区参考在交叉轴内部收窄项目，
+    /// 不能把 adjustedContentInset 为零解释成该轴尚未避让。
+    var quickLayoutLayoutManagedSafeAreaInsets: UIEdgeInsets {
+        guard quickLayoutNativeMarginState != nil,
+              let collection = self as? UICollectionView,
+              let layout = collection.collectionViewLayout as? UICollectionViewCompositionalLayout else { return .zero }
+        switch layout.configuration.contentInsetsReference {
+        case .automatic, .safeArea, .layoutMargins, .readableContent:
+            if layout.configuration.scrollDirection == .vertical {
+                return UIEdgeInsets(top: 0, left: safeAreaInsets.left, bottom: 0, right: safeAreaInsets.right)
+            }
+            return UIEdgeInsets(top: safeAreaInsets.top, left: 0, bottom: safeAreaInsets.bottom, right: 0)
+        case .none:
+            return .zero
+        @unknown default:
+            return .zero
+        }
+    }
+
     /// UIKit 在显式内容边距之外添加的非负调整量。
     var quickLayoutAutomaticContentInsetAdjustment: UIEdgeInsets {
         UIEdgeInsets(
@@ -703,6 +768,13 @@ private extension UIScrollView {
             bottom: max(0, adjustedContentInset.bottom - contentInset.bottom),
             right: max(0, adjustedContentInset.right - contentInset.right)
         )
+    }
+
+    /// UIKit 自动避让指示器的安全区不随内容是否可滚动或内容 inset 调整策略而关闭。
+    /// 返回的是系统已负责的安全区域，实际轨道位置仍由系统结合屏幕边缘形状决定。
+    /// 保留自动调整，Kit 只补足额外预留和显式 margins。
+    var quickLayoutAutomaticIndicatorInsetAdjustment: UIEdgeInsets {
+        automaticallyAdjustsScrollIndicatorInsets ? safeAreaInsets : .zero
     }
 
     /// 仅对显式指定的边缘补足 UIKit 尚未加入的安全区域差额。
@@ -730,4 +802,31 @@ private extension UIScrollView {
 /// 将非有限边距归零，有限负边距保持原值。
 private func sanitizedContentMargin(_ value: CGFloat) -> CGFloat {
     value.isFinite ? value : 0
+}
+
+/// 原生视图仅在显式声明为滚动容器时建立状态，普通 UIKit 叶子保持自身行为。
+private enum NativeScrollMarginKey {
+    nonisolated(unsafe) static var state: UInt8 = 0
+}
+
+extension UIScrollView {
+    fileprivate var quickLayoutNativeMarginState: QuickLayoutContentMarginState? {
+        objc_getAssociatedObject(self, &NativeScrollMarginKey.state) as? QuickLayoutContentMarginState
+    }
+    var quickLayoutUsesNativeListSafeArea: Bool {
+        guard let state = quickLayoutNativeMarginState else { return false }
+        return state.declaredSafeArea.selected != .zero
+    }
+    var quickLayoutNativeIgnoredContainerEdges: UIEdgeInsets {
+        quickLayoutNativeMarginState?.ignoredContainerEdges ?? .zero
+    }
+    private var quickLayoutExistingMarginState: QuickLayoutContentMarginState? {
+        (self as? QuickLayoutScrollView)?.quickLayoutContentMarginState ?? quickLayoutNativeMarginState
+    }
+    var quickLayoutScrollMarginState: QuickLayoutContentMarginState {
+        if let existing = quickLayoutExistingMarginState { return existing }
+        let state = QuickLayoutContentMarginState()
+        objc_setAssociatedObject(self, &NativeScrollMarginKey.state, state, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        return state
+    }
 }

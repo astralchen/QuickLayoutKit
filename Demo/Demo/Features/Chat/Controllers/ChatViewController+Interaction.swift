@@ -16,6 +16,9 @@ extension ChatViewController {
 
     /// 连接输入栏动作、媒体状态、文档插入和消息交互到页面控制器。
     func configureInteractions() {
+        composerView.attachmentButton.menuVisibilityDidChange = { [weak self] visible in
+            self?.bottomObstructionCoordinator.setAttachmentMenuVisible(visible)
+        }
         composerView.actionRequested = { [weak self] action in
             guard let self, !isRestoringDraft, !hasCleanedUpChat else { return false }
             isHandlingDraftAction = true

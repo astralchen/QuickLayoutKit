@@ -1,9 +1,7 @@
-import QuickLayout
-import QuickLayoutKit
 import UIKit
 
 /// 协调页面导航、本地化与原文跳转；展示状态由页面视图管理。
-final class FixedSizeViewController: LocalizedQuickLayoutHostingController {
+final class FixedSizeViewController: LocalizedViewController {
     override var localizedTitleKey: String? { "demo.fixedSize.title" }
 
     let contentView = FixedSizeView()
@@ -42,8 +40,9 @@ final class FixedSizeViewController: LocalizedQuickLayoutHostingController {
         contentView.reloadLayoutDirection(direction)
     }
 
-    override var body: Layout {
-        contentView.resizable()
+    // 让纵向滚动视口直接继承系统栏的安全区，旋转时由 UIKit 更新指示器轨道。
+    override func loadView() {
+        view = contentView
     }
 
     private func updateNavigationAppearance() {

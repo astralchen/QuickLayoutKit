@@ -53,12 +53,14 @@ extension ApplicationTests {
         }
         #expect(scrollView.insetWrites == 0)
 
-        // 删除修饰符仍应恢复调用方边距，不能通过保留旧声明来规避重复写入。
+        // 删除额外 margins 后只保留默认安全区；.never 由 Kit 承担这部分补偿。
         includesMargins = false
         controller.setNeedsQuickLayout()
         controller.quickLayoutIfNeeded()
         scrollView.layoutIfNeeded()
-        #expect(scrollView.contentInset == .zero)
+        #expect(scrollView.contentInset == controller.view.safeAreaInsets)
+        // 内容关闭自动调整，但指示器仍由 UIKit 自动避让；移除声明后不再手动叠加安全区。
+        #expect(scrollView.automaticallyAdjustsScrollIndicatorInsets)
         #expect(scrollView.verticalScrollIndicatorInsets == .zero)
         #expect(abs(scrollView.contentOffset.y - 120) < 0.5)
     }

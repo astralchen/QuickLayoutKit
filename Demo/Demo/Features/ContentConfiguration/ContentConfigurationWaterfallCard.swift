@@ -60,6 +60,12 @@ final class ContentConfigurationWaterfallCard: QuickLayoutContentView {
                     textLayout.frame(width: 360)
                     textLayout.frame(width: 520)
                     textLayout
+                    // 极矮行配合大字体时，两行文字的最小高度仍可能放不下。
+                    // 最后改为同排文本，让横向滚动承担宽度，避免压缩正文高度。
+                    HStack(spacing: 8) {
+                        titleLabel.fixedSize()
+                        detailLabel.fixedSize()
+                    }
                 }
             }
             .padding(12)

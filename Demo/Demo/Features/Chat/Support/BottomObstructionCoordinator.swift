@@ -2,7 +2,7 @@
 //  BottomObstructionCoordinator.swift
 //  Demo
 //
-//  跟随照片选择器移动，并以最近一次系统键盘高度限制输入栏抬升。
+//  跟随照片选择器移动，并以照片面板小档的遮挡高度限制输入栏抬升。
 //
 
 import QuickLayoutKit
@@ -11,7 +11,7 @@ import UIKit
 /// 统一管理输入栏的遮挡来源：键盘、照片面板，以及两者之间的交接阶段。
 ///
 /// 所有高度均以宿主坐标计算，并扣除页面已承担的底部安全区。
-/// 照片面板接管期间，上限保持为打开时的稳定键盘内容高度；入场期间保持键盘等高，
+/// 照片小档根据打开时的稳定键盘高度计算。面板入场时输入栏至少保持在原键盘顶部，
 /// 切回键盘时先保留起点，再采用通知目标高度，避免跟随两个反向动画而让输入栏下坠。
 @MainActor
 final class BottomObstructionCoordinator {
@@ -37,6 +37,8 @@ final class BottomObstructionCoordinator {
     private var displayLink: CADisplayLink?
     /// 最近一次系统键盘事件的上下文，包括可见性与动画信息。
     private var keyboardContext: QuickLayoutKeyboardContext?
+    /// 菜单展示前的停靠键盘位置，在候选栏临时收起时保持输入栏与照片小档的高度。
+    private var menuKeyboardHeight: CGFloat?
     /// 从可见键盘切入照片时冻结高度，不能跟随面板从屏幕外升起而先下落。
     private var pickerPresentationHeight: CGFloat?
     /// 系统悬浮面板的实际顶部与键盘顶部略有差异；以展示完成的位置校准后续拖动。
@@ -74,7 +76,7 @@ final class BottomObstructionCoordinator {
         // 即使面板正在接管，也保留最新可见状态，供面板关闭时判断是否还有键盘遮挡；
         // 保存通知不代表允许它更新高度上限或立即驱动页面布局。
         keyboardContext = context
-        if context.isVisible {
+        if context.isVisible && menuKeyboardHeight == nil {
             if let hostView {
                 let targetHeight = targetKeyboardContentHeight(
                     for: context,
@@ -113,16 +115,31 @@ final class BottomObstructionCoordinator {
         return true
     }
 
+    /// 只有停靠键盘可见时才冻结；菜单取消后恢复采用系统键盘的最新状态。
+    func setAttachmentMenuVisible(_ visible: Bool) {
+        if visible {
+            guard pickerViewController == nil, let hostView, let keyboardContext,
+                  targetKeyboardContentHeight(for: keyboardContext, in: hostView) > 0 else { return }
+            menuKeyboardHeight = currentHeight
+        } else if menuKeyboardHeight != nil {
+            menuKeyboardHeight = nil
+            if let keyboardContext { updateKeyboard(keyboardContext) }
+        }
+    }
+
     /// 必须在收起键盘和开始展示面板之前调用，先屏蔽转场期间的临时键盘高度。
     /// 此处清除上次交接状态，但保留稳定键盘高度供本次面板限位使用。
     func trackPicker(_ picker: UIViewController) {
-        if let hostView, let keyboardContext,
+        if let menuKeyboardHeight {
+            pickerPresentationHeight = menuKeyboardHeight
+        } else if let hostView, let keyboardContext,
            targetKeyboardContentHeight(for: keyboardContext, in: hostView) > 0 {
             pickerPresentationHeight = storedKeyboardContentHeight
         } else {
             // 直接打开照片或使用外接、浮动键盘时，输入栏仍随面板从底部正常升起。
             pickerPresentationHeight = nil
         }
+        menuKeyboardHeight = nil
         pickerGeometryOffset = 0
         pickerViewController = picker
         keyboardHandoffStartHeight = nil
@@ -139,8 +156,8 @@ final class BottomObstructionCoordinator {
         guard pickerViewController === picker else { return }
         if let height = pickerPresentationHeight,
            let hostView,
-           let pickerHeight = visiblePickerHeight(in: hostView), pickerHeight > 0 {
-            pickerGeometryOffset = max(0, height - pickerHeight)
+           let geometry = pickerGeometry(in: hostView), geometry.height > 0 {
+            pickerGeometryOffset = max(0, height - geometry.height)
         }
         pickerPresentationHeight = nil
         refreshGeometry()
@@ -182,6 +199,7 @@ final class BottomObstructionCoordinator {
     /// 页面真正退出时停止采样并清除交接状态，避免离屏后继续驱动布局。
     func stop() {
         stopDisplayLink()
+        menuKeyboardHeight = nil
         currentHeight = 0
         pickerViewController = nil
         keyboardContext = nil
@@ -210,10 +228,20 @@ final class BottomObstructionCoordinator {
             keyboardHandoffStartHeight = nil
             keyboardHandoffTargetHeight = nil
         }
-        let resolved = Self.resolvedObstruction(
+        let pageBottom = hostView.safeAreaInsets.bottom
+        let compactDetent = PhotoPickerCompactDetent(keyboardHeight: storedKeyboardContentHeight,
+            pageBottom: pageBottom, windowBottom: hostView.window?.safeAreaInsets.bottom ?? pageBottom)
+        let picker = pickerGeometry(in: hostView)
+        var pickerLimit = compactDetent.composerObstruction + (picker?.bottomClearance ?? 0)
+        if #available(iOS 17.0, *),
+           let sheet = pickerViewController as? PhotoPickerController.SheetHostController,
+           let compactObstruction = sheet.calibratedCompactObstruction {
+            pickerLimit = compactObstruction
+        }
+        let resolved = menuKeyboardHeight ?? Self.resolvedObstruction(
             keyboardHeight: keyboardHeight,
-            pickerHeight: visiblePickerHeight(in: hostView),
-            maximumPickerHeight: storedKeyboardContentHeight,
+            pickerHeight: picker?.height,
+            maximumPickerHeight: pickerLimit,
             pickerPresentationHeight: pickerPresentationHeight,
             pickerGeometryOffset: pickerGeometryOffset,
             isAwaitingKeyboard: isAwaitingKeyboard,
@@ -241,13 +269,13 @@ final class BottomObstructionCoordinator {
 
     /// 使用呈现层跟随 Sheet 的展开、拖动和关闭动画，避免模型层提前跳到终点。
     /// 坐标统一到宿主视图，并扣除已由页面布局承担的底部安全区。
-    private func visiblePickerHeight(in view: UIView) -> CGFloat? {
+    private func pickerGeometry(in view: UIView) -> (height: CGFloat, bottomClearance: CGFloat)? {
         guard let pickerViewController else { return nil }
         guard let pickerView = pickerViewController.viewIfLoaded,
               let window = view.window,
               pickerView.window === window else {
             // present 调用前尚未进入窗口，保留现有位置直到首帧几何可用。
-            return currentHeight
+            return (currentHeight, 0)
         }
         let frame: CGRect
         // 两端都使用呈现层，保证坐标转换包含系统面板父容器的缩放和位移动画；
@@ -260,14 +288,21 @@ final class BottomObstructionCoordinator {
         }
         // 暂不截断负值：面板离开屏幕时需要先抵消几何校准量，再由统一解析器归零，
         // 否则输入栏会在关闭动画末尾残留几像素高度，直到 dismiss 完成才突然落底。
-        guard Self.isBottomAttached(frame, to: view.safeAreaLayoutGuide.layoutFrame) else { return nil }
-        return view.bounds.maxY - frame.minY - view.safeAreaInsets.bottom
+        guard Self.overlapsComposerBottom(frame, in: view.safeAreaLayoutGuide.layoutFrame) else { return nil }
+        return (view.bounds.maxY - frame.minY - view.safeAreaInsets.bottom,
+                max(0, view.bounds.maxY - frame.maxY))
     }
 
-    /// 只有横向覆盖内容且贴近底边的面板，才参与整条输入栏的避让。
-    nonisolated static func isBottomAttached(_ frame: CGRect, to safeFrame: CGRect) -> Bool {
-        frame.minX <= safeFrame.minX + 32 && frame.maxX >= safeFrame.maxX - 32
+    /// 横屏 Sheet 可以比输入栏窄；只要横向相交且贴近底边，就需跟随它的顶部。
+    nonisolated static func overlapsComposerBottom(_ frame: CGRect, in safeFrame: CGRect) -> Bool {
+        frame.minX < safeFrame.maxX && frame.maxX > safeFrame.minX
             && frame.maxY >= safeFrame.maxY - 32
+    }
+
+    /// 铺满底边的面板使用紧凑工具栏；窄面板保留独立的「完成」按钮。
+    nonisolated static func isBottomAttached(_ frame: CGRect, to safeFrame: CGRect) -> Bool {
+        overlapsComposerBottom(frame, in: safeFrame)
+            && frame.minX <= safeFrame.minX + 32 && frame.maxX >= safeFrame.maxX - 32
     }
 
     /// 把键盘通知的最终 frame 转成不含底部安全区的稳定内容高度。
@@ -312,7 +347,7 @@ final class BottomObstructionCoordinator {
 
     /// 统一解析输入栏底部抬升量。
     ///
-    /// 照片 Sheet 的实时遮挡以最近一次完整系统键盘内容高度为上限；继续展开到
+    /// 照片 Sheet 的实时遮挡以小档在聊天页内的遮挡高度为上限；继续展开到
     /// 大档时由系统覆盖下层内容。切回键盘期间保留交接起点，直到通知给出目标高度。
     nonisolated static func resolvedObstruction(
         keyboardHeight: CGFloat,
@@ -333,8 +368,8 @@ final class BottomObstructionCoordinator {
         }
         if let pickerHeight {
             if let pickerPresentationHeight {
-                // 从键盘切入时，入场动画不改变输入栏位置；直接打开面板不经过此分支。
-                return max(0, pickerPresentationHeight)
+                // 保住原键盘位置；若小档高于矮键盘，面板越过输入栏时继续随它上移。
+                return max(0, pickerPresentationHeight, min(pickerHeight, maximumPickerHeight))
             }
             // 高于上限时停住，低于上限时双向跟随；不能使用 max，否则无法随面板下移。
             return max(0, min(pickerHeight + pickerGeometryOffset, maximumPickerHeight))

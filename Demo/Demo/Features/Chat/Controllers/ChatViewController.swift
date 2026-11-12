@@ -237,6 +237,8 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
             conversationView
                 .resizable()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // 消息列表的可见边距由页面协调器统一管理，保留完整滚动视口。
+                .ignoresSafeArea(.container)
             composerView
                 .resizable(axis: .horizontal)
                 .fixedSize(axis: .vertical)

@@ -25,7 +25,14 @@ struct SafeAreaInsetTests {
         #expect(scroll.frame == host.bounds)
         #expect(scroll.contentSize.height == 900)
         #expect(abs(scroll.adjustedContentInset.bottom - 96) < 0.01)
+        // 系统负责 20 点安全区，Kit 只增加业务基线 3、插入栏 50 和间距 8。
+        #expect(abs(scroll.verticalScrollIndicatorInsets.bottom - 61) < 0.01)
+        scroll.automaticallyAdjustsScrollIndicatorInsets = false
+        scroll.setNeedsLayout(); scroll.layoutIfNeeded()
         #expect(abs(scroll.verticalScrollIndicatorInsets.bottom - 81) < 0.01)
+        scroll.automaticallyAdjustsScrollIndicatorInsets = true
+        scroll.setNeedsLayout(); scroll.layoutIfNeeded()
+        #expect(abs(scroll.verticalScrollIndicatorInsets.bottom - 61) < 0.01)
         #expect(bar.frame.maxY == host.bounds.maxY - 20)
         scroll.scrollTo(.bottom, animated: false)
         #expect(abs(900 - scroll.contentOffset.y - (bar.frame.minY - 8 - 7 - 11)) < 0.5)

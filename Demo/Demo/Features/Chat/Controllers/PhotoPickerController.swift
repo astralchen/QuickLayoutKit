@@ -10,6 +10,19 @@ import PhotosUI
 import UniformTypeIdentifiers
 import UIKit
 
+/// 同一个小档分别按系统 Sheet 和聊天页已消费的安全区计量。
+struct PhotoPickerCompactDetent {
+    static let minimumHeight: CGFloat = 220
+    let sheetHeight: CGFloat
+    let composerObstruction: CGFloat
+
+    init(keyboardHeight: CGFloat, pageBottom: CGFloat, windowBottom: CGFloat) {
+        let additionalPageInset = max(0, pageBottom - windowBottom)
+        sheetHeight = max(Self.minimumHeight, keyboardHeight + additionalPageInset)
+        composerObstruction = sheetHeight - additionalPageInset
+    }
+}
+
 /// 管理系统照片选择面板、有序媒体草稿及页面文件导入的控制器。
 @available(iOS 17.0, *)
 @MainActor
@@ -62,7 +75,7 @@ final class PhotoPickerController: NSObject,
     }
 
     /// 与键盘内容高度对应的自定义照片面板档位标识符。
-    private static let keyboardDetentIdentifier = UISheetPresentationController.Detent.Identifier(
+    static let keyboardDetentIdentifier = UISheetPresentationController.Detent.Identifier(
         "imessage.photo.keyboard"
     )
 
@@ -207,11 +220,11 @@ final class PhotoPickerController: NSObject,
 
         let picker = PHPickerViewController(configuration: configuration)
         picker.delegate = self
-        let sheetHost = SheetHostController(picker: picker)
+        let sheetHost = SheetHostController(picker: picker, sourceView: presenter.view)
         sheetHost.finishSelection = { [weak self] in self?.dismissPicker(animated: true) }
         sheetHost.modalPresentationStyle = .pageSheet
         if let sheet = sheetHost.sheetPresentationController {
-            configureDetents(of: sheet)
+            sheetHost.configureDetents(of: sheet, keyboardHeight: storedKeyboardHeight)
             sheet.selectedDetentIdentifier = Self.keyboardDetentIdentifier
             sheet.largestUndimmedDetentIdentifier = Self.keyboardDetentIdentifier
             // 拖动条叠加在照片网格上，不单独占用顶部高度。
@@ -258,8 +271,8 @@ final class PhotoPickerController: NSObject,
         guard height > 0 else { return }
         storedKeyboardHeight = height
         guard invalidatingPresentedDetent else { return }
-        guard let sheet = sheetHost?.sheetPresentationController else { return }
-        configureDetents(of: sheet)
+        guard let sheetHost, let sheet = sheetHost.sheetPresentationController else { return }
+        sheetHost.configureDetents(of: sheet, keyboardHeight: storedKeyboardHeight)
         sheet.invalidateDetents()
     }
 
@@ -399,14 +412,5 @@ final class PhotoPickerController: NSObject,
     /// 控制器释放时停止所有请求；回调仍会清理未交付文件。
     isolated deinit {
         entries.forEach { $0.fileRequest?.cancel(); $0.livePhotoRequest?.cancel(); $0.task?.cancel() }
-    }
-
-    /// 设置不低于 220 点的键盘高度档位及系统大档位。
-    private func configureDetents(of sheet: UISheetPresentationController) {
-        let height = max(220, storedKeyboardHeight)
-        let keyboardDetent = UISheetPresentationController.Detent.custom(
-            identifier: Self.keyboardDetentIdentifier
-        ) { context in min(height, context.maximumDetentValue) }
-        sheet.detents = [keyboardDetent, .large()]
     }
 }

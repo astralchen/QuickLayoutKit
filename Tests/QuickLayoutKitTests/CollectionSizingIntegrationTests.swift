@@ -119,7 +119,8 @@ private final class SizingCollectionFixture {
             frame: .zero,
             collectionViewLayout: UICollectionViewCompositionalLayout(section: section)
         )
-        collection.contentInsetAdjustmentBehavior = .never
+        // 原生集合视图承担窗口安全区，本组只验证单元格与补充视图的自然尺寸。
+        collection.contentInsetAdjustmentBehavior = .always
         collection.isPrefetchingEnabled = false
         collection.register(SizingTextCell.self, forCellWithReuseIdentifier: "cell")
         for kind in [UICollectionView.elementKindSectionHeader, UICollectionView.elementKindSectionFooter] {

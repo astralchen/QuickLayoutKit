@@ -28,7 +28,7 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
     /// 草稿阻止录音时显示的短暂说明。
     let recordingUnavailableLabel = UILabel()
     /// 展开照片、录音、文件和链接菜单的按钮。
-    let attachmentButton = UIButton(type: .system)
+    let attachmentButton = ComposerAttachmentButton(type: .system)
     /// 发送当前文字或混合草稿的按钮。
     let sendButton = ComposerHitButton(type: .system)
     /// 开始或停止实时听写的按钮。

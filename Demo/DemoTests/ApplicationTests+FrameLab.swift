@@ -5,6 +5,34 @@ import UIKit
 @testable import Demo
 
 extension ApplicationTests {
+    /// 未选中的参数行退出层级，重新展开时复用控件实例和状态。
+    @Test func frameLabCollapsedSliderRowsDoNotOverflow() throws {
+        let controller = FrameLabViewController()
+        let navigation = UINavigationController(rootViewController: controller)
+        let window = try makeVisibleTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
+        defer { window.isHidden = true }
+        controller.selectPresentation(.guided)
+        layout(controller, in: navigation)
+        let page = controller.contentView
+        #expect(!page.allSubviews(of: UISlider.self).contains { $0.accessibilityIdentifier == "frame.width" })
+        page.toggleMoreParameters()
+        layout(controller, in: navigation)
+        let width = try #require(page.allSubviews(of: UISlider.self).first {
+            $0.accessibilityIdentifier == "frame.width"
+        })
+        let row = try #require(width.superview)
+        #expect(row.superview != nil && !row.isHidden && !row.clipsToBounds)
+        #expect(row.bounds.width > 0 && row.bounds.height >= 44)
+        #expect(width.bounds.width > 0 && width.bounds.height >= 44)
+        page.toggleMoreParameters()
+        layout(controller, in: navigation)
+        #expect(row.superview == nil && !row.isHidden)
+        #expect(!page.allSubviews(of: UISlider.self).contains { $0 === width })
+        page.toggleMoreParameters()
+        layout(controller, in: navigation)
+        #expect(row.superview != nil && width.superview === row)
+    }
+
     /// 验证模式切换保留各页状态和偏移，重置只作用于当前页，窗口变化后偏移仍有效。
     @Test func frameLabPresentationsKeepIndependentExperimentsAndScrollPositions() throws {
         let controller = FrameLabViewController()

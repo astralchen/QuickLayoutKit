@@ -390,7 +390,7 @@ final class GiftSheetViewController:
                     .fixedSize(axis: .vertical)
             }
             .frame(maxWidth: 620)
-            // 面板背景延伸至底边；GiftSheetView 自己为底部操作区消费安全区。
+            // 内容默认位于安全区内，面板背景在 GiftSheetView 中单独延伸至底边。
             .safeAreaPadding([.top, .horizontal], 0)
         }
     }

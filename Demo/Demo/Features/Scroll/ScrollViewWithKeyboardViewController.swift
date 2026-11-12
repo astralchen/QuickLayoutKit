@@ -287,13 +287,12 @@ class ScrollViewWithKeyboardViewController: LocalizedQuickLayoutHostingControlle
             .frame(maxWidth: 720)
             .frame(maxWidth: .infinity)
         }
-        .contentMargins(.horizontal, 20)
-        .contentMargins(.top, 20)
-        .contentMargins(.bottom, 10)
-        .safeAreaPadding(0)
+        .contentMargins(.horizontal, 20, for: .scrollContent)
     }
 
     override func viewDidLoad() {
+        // 此示例演示独立滚动避让器，由它统一管理键盘遮挡和输入框滚动定位。
+        quickLayoutKeyboardSafeAreaBehavior = .disabled
         super.viewDidLoad()
         setupViews()
         bindViewModel()

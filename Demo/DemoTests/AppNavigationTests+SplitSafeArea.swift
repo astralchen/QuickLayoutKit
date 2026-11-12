@@ -76,15 +76,13 @@ extension AppNavigationTests {
             split.preferredPrimaryColumnWidth = width
             window.setNeedsLayout()
             window.layoutIfNeeded()
-            // baseline 不消费安全区；zeroAll 消费安全区，但不添加额外间距。
-            // 回到 baseline 时也必须恢复完整页面范围，不能残留上个场景的避让。
+            // 默认布局与显式零间距具有相同安全边界，滚动外框始终保留完整视口。
+            // 来回切换不能累积内容 inset。
             for scenario in [SafeAreaPaddingViewController.Scenario.baseline, .zeroAll, .baseline] {
                 page.selectScenario(at: scenario.rawValue)
                 #expect(await waitForCondition {
                     page.view.layoutIfNeeded()
-                    let expected = scenario == .baseline
-                        ? page.view.bounds
-                        : page.view.safeAreaLayoutGuide.layoutFrame
+                    let expected = page.view.bounds
                     let actual = page.pageScrollView.convert(page.pageScrollView.bounds, to: page.view)
                     return actual.width > 0
                         && abs(actual.minX - expected.minX) < 1
@@ -92,6 +90,12 @@ extension AppNavigationTests {
                         && abs(actual.maxX - expected.maxX) < 1
                         && abs(actual.maxY - expected.maxY) < 1
                 })
+                let actualInsets = page.pageScrollView.adjustedContentInset
+                let safe = page.view.safeAreaInsets
+                #expect(abs(actualInsets.left - safe.left) < 1)
+                #expect(abs(actualInsets.right - safe.right) < 1)
+                #expect(abs(actualInsets.top - safe.top) < 1)
+                #expect(abs(actualInsets.bottom - safe.bottom) < 1)
                 #expect(page.pageScrollView.contentInsetAdjustmentBehavior == .automatic)
             }
         }
@@ -145,6 +149,8 @@ private final class SplitScrollAnimationProbe: QuickLayoutScrollView, UIScrollVi
     var restoredStaleCrossAxisCount = 0
     private var staleCrossAxisOffset: CGFloat?
 
+    // 本探针只模拟交叉轴 inset，排除窗口顶部安全区改变内容长度的影响。
+    override var safeAreaInsets: UIEdgeInsets { .zero }
     override var adjustedContentInset: UIEdgeInsets { testInsets }
 
     override var contentSize: CGSize {

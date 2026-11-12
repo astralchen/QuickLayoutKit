@@ -13,7 +13,7 @@ extension UIView {
         operation: () throws -> Result
     ) rethrows -> Result {
         let insets = explicitInsets ?? safeAreaInsets
-        let effectiveInsets = UIEdgeInsets(
+        var effectiveInsets = UIEdgeInsets(
             top: max(insets.top, keyboardInsets.top),
             left: max(insets.left, keyboardInsets.left),
             bottom: max(insets.bottom, keyboardInsets.bottom),
@@ -23,12 +23,32 @@ extension UIView {
             width: normalizedContainerDimension(proposedSize.width),
             height: normalizedContainerDimension(proposedSize.height)
         )
-        let safeAreaValues = QuickLayoutSafeAreaValues(
-            containerSize: normalizedSize,
-            physicalContainerInsets: insets,
-            physicalKeyboardInsets: keyboardInsets
-        )
+        // 滚动内容的建议尺寸已扣除 adjustedContentInset，普通宿主由默认包装器消费。
+        var safeAreaValues: QuickLayoutSafeAreaValues
+        if let scroll = self as? UIScrollView {
+            let applied = scroll.adjustedContentInset
+            let viewport = CGSize(width: containerDimension(normalizedSize.width, before: applied.left, after: applied.right),
+                                  height: containerDimension(normalizedSize.height, before: applied.top, after: applied.bottom))
+            // 相对尺寸参照包含内容边距；安全区的消费与恢复只计算系统区域。
+            effectiveInsets = UIEdgeInsets(top: max(effectiveInsets.top, applied.top),
+                                           left: max(effectiveInsets.left, applied.left),
+                                           bottom: max(effectiveInsets.bottom, applied.bottom),
+                                           right: max(effectiveInsets.right, applied.right))
+            safeAreaValues = QuickLayoutSafeAreaValues(containerSize: viewport,
+                physicalContainerInsets: insets, physicalKeyboardInsets: keyboardInsets)
+                .consumingAppliedInsets(scroll.quickLayoutInsetsAppliedToSafeArea)
+            safeAreaValues.scrollContentAxis = (scroll as? QuickLayoutScrollView)?.axis
+        } else {
+            safeAreaValues = QuickLayoutSafeAreaHostContext.values(for: self, size: normalizedSize,
+                container: insets, keyboard: keyboardInsets)
+        }
         let geometryObservationRegistry = quickLayoutGeometryObservationRegistry
+        let inheritedExpansion = safeAreaValues.expansion(ignoring: .all, edges: .all)
+        let rtl = LayoutContext.layoutDirection == .rightToLeft
+        let sourceExpansion = UIEdgeInsets(top: inheritedExpansion.top,
+            left: rtl ? inheritedExpansion.trailing : inheritedExpansion.leading,
+            bottom: inheritedExpansion.bottom,
+            right: rtl ? inheritedExpansion.leading : inheritedExpansion.trailing)
         let containerSize = CGSize(
             width: containerDimension(
                 proposedSize.width,
@@ -61,7 +81,21 @@ extension UIView {
             try QuickLayoutSafeAreaContext.withValues(safeAreaValues) {
                 try QuickLayoutContainerRelativeFrameContext.withContainerSize(
                     relativeSize,
-                    operation: operation
+                    operation: {
+                        try QuickLayoutSafeAreaHostContext.$source.withValue(self) {
+                            try QuickLayoutSafeAreaHostContext.$sourceExpansion.withValue(sourceExpansion) {
+                                try QuickLayoutSafeAreaContext.$touchingEdges.withValue({ [weak self] views, values in
+                                    guard let self else { return [] }
+                                    return QuickLayoutSafeAreaHostContext.touchingEdges(views, source: self, values: values)
+                                }) {
+                                    try QuickLayoutSafeAreaContext.$capture.withValue({ [weak self] views, values in
+                                        guard let self else { return }
+                                        QuickLayoutSafeAreaHostContext.capture(views, from: self, values: values)
+                                    }, operation: operation)
+                                }
+                            }
+                        }
+                    }
                 )
             }
         }

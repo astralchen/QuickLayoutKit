@@ -53,7 +53,7 @@ final class SafeAreaPaddingViewController: LocalizedQuickLayoutHostingController
         var code: String {
             switch self {
             case .baseline:
-                "// No safeAreaPadding"
+                "// 默认避让安全区，无需额外修饰符"
             case .zeroAll:
                 ".safeAreaPadding(.all, 0)"
             case .defaultAll:
@@ -92,15 +92,15 @@ final class SafeAreaPaddingViewController: LocalizedQuickLayoutHostingController
         var expected: String {
             switch self {
             case .baseline:
-                "Does not consume safe area; UIKit still adjusts scroll content"
+                "Content respects safe area by default; the scroll viewport stays full size"
             case .zeroAll:
-                "Consumes every safe-area edge; additional spacing is 0"
+                "Keeps the default safe area; additional spacing is 0"
             case .defaultAll:
-                "Default length is 0; consumes all safe-area edges"
+                "Default length is 0; never consumes the system safe area twice"
             case .allSixteen:
                 "Adds 16 beyond every inherited safe-area edge"
             case .horizontalSixteen:
-                "Consumes horizontal safe area and adds 16 on both sides"
+                "Adds 16 horizontally; all edges still respect the safe area"
             case .perEdgeInsets:
                 "Adds top 8, leading 12, bottom 20, and trailing 24"
             case .separateEdges:
@@ -202,6 +202,7 @@ final class SafeAreaPaddingViewController: LocalizedQuickLayoutHostingController
 
             safeAreaGuideView
                 .resizable()
+                .ignoresSafeArea(.container)
                 .zIndex(10)
         }
     }
@@ -383,6 +384,7 @@ final class SafeAreaPaddingViewController: LocalizedQuickLayoutHostingController
         let text = """
         safeAreaInsets \(format(safeArea))
         pageFrame      \(format(frame))
+        contentInsets  \(format(pageScrollView.adjustedContentInset))
         direction      \(view.effectiveUserInterfaceLayoutDirection == .rightToLeft ? "RTL" : "LTR")
         """
         guard metricsLabel.text != text else { return }

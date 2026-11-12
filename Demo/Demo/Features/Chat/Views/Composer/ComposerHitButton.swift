@@ -19,6 +19,29 @@ final class ComposerActionContainer: QuickLayoutView {
     }
 }
 
+/// 在系统附件菜单改变键盘候选栏之前，通知页面保留输入栏的位置。
+final class ComposerAttachmentButton: UIButton {
+    var menuVisibilityDidChange: ((Bool) -> Void)?
+
+    override func contextMenuInteraction(_ interaction: UIContextMenuInteraction,
+                                         willDisplayMenuFor configuration: UIContextMenuConfiguration,
+                                         animator: (any UIContextMenuInteractionAnimating)?) {
+        menuVisibilityDidChange?(true)
+        super.contextMenuInteraction(interaction, willDisplayMenuFor: configuration, animator: animator)
+    }
+
+    override func contextMenuInteraction(_ interaction: UIContextMenuInteraction,
+                                         willEndFor configuration: UIContextMenuConfiguration,
+                                         animator: (any UIContextMenuInteractionAnimating)?) {
+        super.contextMenuInteraction(interaction, willEndFor: configuration, animator: animator)
+        if let animator {
+            animator.addCompletion { [weak self] in self?.menuVisibilityDidChange?(false) }
+        } else {
+            menuVisibilityDidChange?(false)
+        }
+    }
+}
+
 /// 保持设计尺寸并把实际命中区域扩展到最小触控尺寸的按钮。
 ///
 /// 视觉尺寸可以小于 44 点；命中测试会围绕按钮中心对称扩展，但不会改变

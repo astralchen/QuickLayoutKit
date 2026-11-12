@@ -51,6 +51,7 @@ final class ArrangementViewController: LocalizedQuickLayoutHostingController {
         code.textAlignment = .left
         code.semanticContentAttribute = .forceLeftToRight
         code.lineBreakMode = .byCharWrapping
+        openWindowButton.configuration = .tinted()
         openWindowButton.accessibilityIdentifier = "arrangement.openWindow"
         openWindowButton.addTarget(self, action: #selector(openWindowPreview), for: .touchUpInside)
         if isWindowPreview {

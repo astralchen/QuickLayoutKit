@@ -110,7 +110,7 @@ open class QuickLayoutVisualEffectView:
     /// 在窗口归属变化前通知 QuickLayout 桥接层更新宿主。
     open override func willMove(toWindow newWindow: UIWindow?) {
         super.willMove(toWindow: newWindow)
-        _QuickLayoutViewImplementation.willMove(self, toWindow: newWindow)
+        QuickLayoutSafeAreaBodyBridge.willMove(self, toWindow: newWindow)
     }
 
     /// 进入窗口后同步语义方向，并刷新效果宿主的环境快照。
@@ -158,7 +158,7 @@ open class QuickLayoutVisualEffectView:
         )
         withQuickLayoutManagedViewState {
             withQuickLayoutContainerSize(bounds.size) {
-                _QuickLayoutViewImplementation.layoutSubviews(self)
+                QuickLayoutSafeAreaBodyBridge.layoutSubviews(self)
             }
         }
     }
@@ -169,7 +169,7 @@ open class QuickLayoutVisualEffectView:
         quickLayoutEnvironmentState.update(self)
         return withQuickLayoutManagedViewState {
             withQuickLayoutContainerSize(size) {
-                _QuickLayoutViewImplementation.sizeThatFits(
+                QuickLayoutSafeAreaBodyBridge.sizeThatFits(
                     self,
                     size: size
                 ) ?? super.sizeThatFits(size)

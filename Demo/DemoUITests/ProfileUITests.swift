@@ -2,6 +2,42 @@ import XCTest
 
 /// 验证资料页在真实导航窗口中的滚动方向及内容可达性。
 final class ProfileUITests: XCTestCase {
+    /// 左右横屏后真实滚动，检查垂直指示器仍位于视口边缘，而不是退入卡片内容中。
+    @MainActor func testScrollIndicatorStaysNearViewportEdgeAcrossRotation() {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(en)", "-quicklayoutkit.demo.locale.identifier", "en-US"]
+        app.launch()
+        let route = app.cells["demo.profile.title"]
+        for _ in 0..<8 where !route.isHittable { app.swipeUp() }
+        XCTAssertTrue(route.waitForExistence(timeout: 5))
+        route.tap()
+        let scroll = app.scrollViews.firstMatch
+        XCTAssertTrue(scroll.waitForExistence(timeout: 5))
+        for orientation in [UIDeviceOrientation.landscapeLeft, .landscapeRight, .portrait] {
+            XCUIDevice.shared.orientation = orientation
+            let rotated = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                let frame = app.windows.firstMatch.frame
+                return orientation == .portrait ? frame.height > frame.width : frame.width > frame.height
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [rotated], timeout: 5), .completed)
+            scroll.swipeUp()
+            // 手势结束后立即取图，避免等待可访问元素时系统指示器已经淡出。
+            let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            attachment.name = "profile-indicator-\(orientation.rawValue)"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+            let indicator = scroll.descendants(matching: .any).matching(
+                NSPredicate(format: "label BEGINSWITH %@", "Vertical scroll bar")).firstMatch
+            XCTAssertTrue(indicator.waitForExistence(timeout: 3), app.debugDescription)
+            print("Indicator orientation=\(orientation.rawValue) scroll=\(scroll.frame) indicator=\(indicator.frame)")
+            // 此用例使用 iPhone 18 Pro；横屏侧边安全区小于视口宽度的 10%，重复补偿会越界。
+            XCTAssertGreaterThan(indicator.frame.midX, scroll.frame.maxX - scroll.frame.width * 0.1)
+        }
+    }
+
     /// 中文资料页应保持横向位置，并允许滚动至底部操作区。
     @MainActor func testChineseProfileScrollsOnlyVertically() {
         verifyScrolling(locale: "zh-Hans", name: "张三", portfolio: "作品集")

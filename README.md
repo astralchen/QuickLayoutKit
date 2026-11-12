@@ -184,11 +184,12 @@ override var body: Layout {
     collectionView
         .resizable()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(.container)
 }
 ```
 
-此模式适用于 `contentInsetAdjustmentBehavior = .automatic` 的系统滚动容器。不要再为同一层级
-重复添加 `safeAreaPadding`，否则可能造成双重安全区域间距。
+此模式适用于 `contentInsetAdjustmentBehavior = .automatic`、自行管理内容安全区的系统滚动容器。
+普通 Kit 内容默认避让安全区；这里显式恢复完整外框，再由 UIKit 管理滚动内容边距。
 
 对于需要明确触控高度的 UIKit 控件，应先声明对应轴可伸缩，再设置布局框，例如
 `submitButton.resizable().frame(height: 50)`。仅使用 `.frame(height:)`，或仅声明横向
@@ -311,8 +312,8 @@ QuickLayoutKit 的安全区与容器上下文；即使外层是 `QuickLayoutHost
 例如，把 `@QuickLayout class ContentView: UIView` 改为
 `class ContentView: QuickLayoutView`，并将 `var body: Layout` 改为
 `override var body: Layout`。不要再叠加 `@QuickLayout` 宏。分栏的左右安全区可能不相等，
-应在宿主中按边使用 `safeAreaPadding`；滚动页面则使用 `contentMargins`，由滚动宿主
-负责视口安全区，避免对同一内容重复扣减。
+Kit 宿主默认按各边避让安全区；`safeAreaPadding` 只需声明额外间距。
+滚动页面可使用 `contentMargins` 分别配置内容与指示器，由滚动宿主处理已经应用的安全区。
 
 现有 UIKit 控制器中只有局部区域需要 QuickLayout 时，使用 `QuickLayoutView`：
 
@@ -474,9 +475,17 @@ ScrollView(scrollView) {
 可选长度重载中的 `nil` 表示不指定所选边缘，不会清除同一位置上更早的值。要明确清除边距，
 传入 `0`。有限负值会被保留，非有限值按 `0` 处理。
 
+原生 Table/Collection 可用 `List(collectionView)` 声明滚动语义；不带内容闭包的入口复用现有数据源和布局，视口延伸至系统栏后方，通过内容 inset 避让，无需额外添加 `ignoresSafeArea`。
+
+完整的行为说明与现有页面迁移方式见 [默认安全区域迁移](Docs/DefaultSafeArea.md)。
+
 ### `safeAreaPadding`
 
-`safeAreaPadding` 消耗传递到当前元素的安全区域，并可添加额外间距：
+`QuickLayoutView`、`QuickLayoutHostingController` 及 Kit 的按钮、效果和列表内容宿主默认在安全区内布局。
+普通宿主的测量与放置采用同一规则，嵌套宿主不会再次扣减父级已经处理的安全区域。
+背景或其他需要延伸的元素使用 `.ignoresSafeArea(.container, edges: ...)`。
+
+`safeAreaPadding` 在当前安全边界上增加额外间距，保留对直接测量时剩余安全区域的处理：
 
 ```swift
 contentLayout
@@ -488,8 +497,8 @@ contentLayout
 最终会在继承安全区域之外再增加 `20`。负值与非有限值按 `0` 处理，不会把内容推出原始
 安全区域。
 
-`length` 为非可选 `CGFloat`，默认 `0`。无参数调用或只指定边缘会消耗继承的安全区域，
-额外间距为零，不采用 SwiftUI 的平台默认间距。安全区域值会在每次测量和布局时重新读取，
+`length` 为非可选 `CGFloat`，默认 `0`。无参数调用或只指定边缘不增加额外间距，
+也不会重复扣减系统安全区；不采用 SwiftUI 的平台默认间距。安全区域值会在每次测量和布局时重新读取，
 因此旋转、系统栏、容器尺寸、键盘和 RTL 变化都使用当前环境。
 
 ### `safeAreaInset` 与 `ignoresSafeArea`
@@ -512,8 +521,8 @@ backgroundView
     .ignoresSafeArea(.container, edges: .all)
 ```
 
-`.container` 表示宿主或滚动视口提供的安全区域；`.keyboard` 表示由
-`QuickLayoutKeyboardAvoider` 发布的键盘区域。
+`.container` 表示宿主或滚动视口提供的安全区域；`.keyboard` 表示宿主默认发布的停靠键盘区域，
+也可由显式配置的 `QuickLayoutKeyboardAvoider` 发布。
 
 `safeAreaInset` 按插入内容的测量尺寸预留空间。上下边缘接受水平 alignment，前后边缘
 接受垂直 alignment；leading/trailing 随布局方向映射。`spacing` 默认 `0`，有限负值允许
@@ -534,8 +543,8 @@ backgroundView
 浏览中间内容时保留滚动位置，不主动跳到底部。横向滚动的尾部按 leading/trailing 语义
 适配 RTL；拖动或惯性滚动期间不强制贴尾。此行为不改变普通 `contentMargins` 的滚动策略。
 
-键盘随动可在包含列表与插入内容的 `QuickLayoutView` 上启用
-`quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard()`。浮动键盘仍由
+普通宿主默认跟随停靠键盘，无需额外启用；可用 `.ignoresSafeArea(.keyboard)` 按层取消避让。
+浮动键盘仍由
 `QuickLayoutKeyboardAvoider` 按输入框实际遮挡处理。插入栏的背景默认跟随其内容边界，
 不会自动延伸到 Home Indicator 区域。本 API 不承诺 SwiftUI 的平台默认间距或所有包装组合的等价性。
 
@@ -793,6 +802,13 @@ ViewThatFits(in: .horizontal) {
 
 父元素给出的有限尺寸建议优先于理想尺寸，之后再应用最小值和最大值。`ViewThatFits`
 按声明顺序选择在指定轴上能够容纳的第一个理想布局，最后一个布局作为备用项。
+Kit 宿主先测量并选择候选，再同步 UIKit 层级并应用同一份测量结果。
+未选中分支独占的视图会从层级移除；重新选中时挂回原实例，不改写业务设置的 `isHidden`。
+共享视图按对象身份去重，嵌套候选分别使用最终测量树中的选择；普通宿主、滚动宿主及
+`GeometryReader` 动态内容使用相同的候选解析规则。纯测量不会挂载或移除视图。
+宿主沿用 QuickLayout 的出现／消失协调：存在 UIView 动画时，旧视图可在消失动画结束后移除。
+原始 `views()` 仍返回所有声明候选，直接调用 QuickLayout 的 `applyFrame` 只更新布局；
+自动层级管理需使用 QuickLayoutKit 宿主。移除层级不代表释放视图或停止业务订阅。
 
 ### 几何变化
 
@@ -974,19 +990,20 @@ final class ParentViewController: QuickLayoutHostingController {
 键盘通知中的框架是屏幕坐标；调用 `resolved(in:)` 后才会得到相对于具体视图或滚动视图的
 实际相交高度，从而正确处理浮动键盘、分离键盘、iPad 多窗口和外接键盘切换。
 
-普通 `QuickLayoutView` 和 `QuickLayoutHostingController` 可以选择自动把底部停靠键盘
-发布为 `.keyboard` 安全区域：
+普通 `QuickLayoutView` 和 `QuickLayoutHostingController` 默认把底部停靠键盘
+发布为 `.keyboard` 安全区域并参与布局，默认策略如下：
 
 ```swift
 quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard(
-    usesBottomSafeArea: true
+    usesBottomSafeArea: false
 )
 ```
 
 `usesBottomSafeArea` 为 `true` 时，键盘隐藏、浮动、分离或未与宿主相交时，键盘区域
 使用宿主的底部安全区域；为 `false` 时使用宿主底边。停靠键盘显示时，两种配置都会
-发布键盘与宿主的完整相交高度。该能力不添加额外视觉间距，需要时应在布局中显式使用
-`padding`。
+发布键盘与宿主的完整相交高度。默认使用 `false`，使 Home Indicator 的容器安全区与
+键盘区域保持独立；忽略其中一个不会误取消另一个。该能力不添加额外视觉间距。
+已有自定义键盘协调器的页面可以显式设置 `.disabled`，保留单一避让来源。
 
 宿主仍使用 `QuickLayoutKeyboardContext` 提供键盘高度与动画参数；内部只借助系统
 `UIKeyboardLayoutGuide` 判断键盘是否确实停靠在当前窗口，从而区分贴底的分离键盘，
@@ -1069,7 +1086,7 @@ iOS 26。Demo 单元测试和 UI 测试目标同样支持 iOS 15；聊天相关�
 
 Demo 展示全屏集合视图根布局、背景与垂直滚动页面、外层垂直滚动与内层横向轮播、横屏和
 安全区域、动态字体、等高卡片、列表自适应尺寸、运行时 LTR/RTL 切换、键盘避让和子控制器
-包含关系。`SafeAreaPaddingViewController` 提供 10 种 `safeAreaPadding` 组合，并显示实时
+包含关系。`SafeAreaPaddingViewController` 提供 10 种 `safeAreaPadding` 组合，分别显示滚动外框与内容 inset，并显示实时
 安全区域与页面 frame；`ContentMarginsViewController` 分别验证内容和滚动指示器的
 placement、覆盖顺序及 QuickLayout `nil` 契约。
 

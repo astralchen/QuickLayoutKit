@@ -112,6 +112,8 @@ open class QuickLayoutScrollView:
     }
 
     /// 当前构建器生成的根元素，替换时使滚动布局失效。
+    var hasEmptyContent: Bool { contentElements.isEmpty }
+
     private var contentElements: [Element] = [] {
         didSet {
             setNeedsQuickLayout()
@@ -127,6 +129,23 @@ open class QuickLayoutScrollView:
     private var needsSafeAreaInsetEndPosition = false
     /// 上次布局结束的调整后边距，用于判断安全区域变化前是否停留在起点。
     private var lastResolvedAdjustedContentInset: UIEdgeInsets?
+    /// UIKit 在视口变宽时可能立即收紧偏移范围，因此在它调整 frame 或 bounds 前记录起点。
+    private var wasAtRTLLeadingBeforeResize: Bool?
+
+    open override var frame: CGRect {
+        willSet { rememberRTLLeadingBeforeResize(to: newValue.width) }
+    }
+
+    open override var bounds: CGRect {
+        willSet { rememberRTLLeadingBeforeResize(to: newValue.width) }
+    }
+
+    private func rememberRTLLeadingBeforeResize(to width: CGFloat) {
+        guard axis == .horizontal, width != bounds.width, bounds.width > 0,
+              wasAtRTLLeadingBeforeResize == nil, quickLayoutDirection == .rightToLeft else { return }
+        wasAtRTLLeadingBeforeResize = quickLayoutIsAtContentStart()
+    }
+
     /// 内容和指示器边距的覆盖值及最近应用量。
     let quickLayoutContentMarginState = QuickLayoutContentMarginState()
 
@@ -209,9 +228,10 @@ open class QuickLayoutScrollView:
     /// 并请求父视图重新布局。此方法不直接修改接收者的视口尺寸。
     open override func safeAreaInsetsDidChange() {
         let previousAdjustedContentInset = lastResolvedAdjustedContentInset
-        let wasAtContentStart = previousAdjustedContentInset.map {
+        let currentAdjustedContentInset = adjustedContentInset
+        let wasAtContentStart = (previousAdjustedContentInset.map {
             quickLayoutIsAtContentStart(adjustedContentInset: $0)
-        } ?? false
+        } ?? false) || quickLayoutIsAtContentStart()
 
         super.safeAreaInsetsDidChange()
         quickLayoutContentMarginState.updateSafeArea(
@@ -226,7 +246,7 @@ open class QuickLayoutScrollView:
         superview?.setNeedsLayout()
 
         if wasAtContentStart,
-           previousAdjustedContentInset != adjustedContentInset {
+           previousAdjustedContentInset != adjustedContentInset || currentAdjustedContentInset != adjustedContentInset {
             quickLayoutKeepContentAtStartAfterMarginChange()
         }
     }
@@ -293,7 +313,7 @@ open class QuickLayoutScrollView:
                 insets: safeAreaRegionInsets.container,
                 keyboardInsets: safeAreaRegionInsets.keyboard
             ) {
-                _QuickLayoutViewImplementation.sizeThatFits(
+                QuickLayoutSafeAreaBodyBridge.sizeThatFits(
                     self,
                     size: measurementContentProposal(for: containerSize)
                 ) ?? .zero
@@ -355,7 +375,7 @@ open class QuickLayoutScrollView:
                 insets: safeAreaRegionInsets.container,
                 keyboardInsets: safeAreaRegionInsets.keyboard
             ) {
-                _QuickLayoutViewImplementation.sizeThatFits(
+                QuickLayoutSafeAreaBodyBridge.sizeThatFits(
                     self,
                     size: layoutProposal
                 ) ?? .zero
@@ -376,19 +396,29 @@ open class QuickLayoutScrollView:
                 insets: safeAreaRegionInsets.container,
                 keyboardInsets: safeAreaRegionInsets.keyboard
             ) {
-                body.applyFrame(
-                    CGRect(origin: placementOrigin, size: contentLayoutSize),
-                    alignment: contentAlignment,
-                    layoutDirection: layoutDirection
+                QuickLayoutSafeAreaBodyBridge.apply(
+                    QuickLayoutDefaultSafeAreaElement(child: body), on: self,
+                    frame: CGRect(origin: placementOrigin, size: contentLayoutSize),
+                    alignment: contentAlignment, direction: layoutDirection
                 )
             }
 
+            // 右侧起点会随内容宽度和视口宽度一起移动。先用旧范围判断是否停靠，
+            // 再更新 contentSize；保留用户在中途的位置和正在进行的拖动。
+            let anchorsRTL = axis == .horizontal && layoutDirection == .rightToLeft && bounds.width > 0
+            let keepsLeading = anchorsRTL && (wasAtRTLLeadingBeforeResize ?? quickLayoutIsAtContentStart())
+            wasAtRTLLeadingBeforeResize = nil
             if contentSize != contentLayoutSize {
                 contentSize = contentLayoutSize
                 // 自然尺寸视口的父级可能已经用旧内容高度完成测量。
                 // 子宿主安全区或内容改变后，继续向外传播测量失效。
                 invalidateIntrinsicContentSize()
                 superview?.setNeedsLayout()
+            }
+
+            if keepsLeading, !isTracking, !isDragging, !isDecelerating {
+                let leading = horizontalOffset(for: .leading, inset: adjustedContentInset)
+                if abs(contentOffset.x - leading) >= 0.5 { contentOffset.x = leading }
             }
 
             // 分栏/安全区变化时 UIKit 可能保留旧的交叉轴偏移，即使内容宽高已更新。
@@ -496,14 +526,21 @@ open class QuickLayoutScrollView:
         container: UIEdgeInsets,
         keyboard: UIEdgeInsets
     ) {
-        // 即使全屏滚动视图仍与水平安全区域相交，UIKit 也可能不会将该物理边距计入
-        // adjustedContentInset。保留所有自动栏位和内容调整，同时确保传递给 QuickLayout
-        // 内容的值不小于滚动视图自身的物理安全区域。
+        // 声明式视口以本轮预留为准；自然尺寸测量不能重新读入旧 frame 的物理安全区。
+        let declared = quickLayoutContentMarginState.declaredSafeArea
+        let physical = UIEdgeInsets(
+            top: declared.selected.top > 0 ? declared.insets.top : safeAreaInsets.top,
+            left: declared.selected.left > 0 ? declared.insets.left : safeAreaInsets.left,
+            bottom: declared.selected.bottom > 0 ? declared.insets.bottom : safeAreaInsets.bottom,
+            right: declared.selected.right > 0 ? declared.insets.right : safeAreaInsets.right)
+        // 显式内容边距缩小可用宽度，但不属于子滚动视口可以恢复的系统区域。
+        let applied = quickLayoutInsetsAppliedToSafeArea
+        let ignored = quickLayoutContentMarginState.ignoredContainerEdges
         let resolvedContainerInsets = UIEdgeInsets(
-            top: max(adjustedContentInset.top, safeAreaInsets.top),
-            left: max(adjustedContentInset.left, safeAreaInsets.left),
-            bottom: max(adjustedContentInset.bottom, safeAreaInsets.bottom),
-            right: max(adjustedContentInset.right, safeAreaInsets.right)
+            top: ignored.top > 0 ? max(0, applied.top) : max(applied.top, physical.top),
+            left: ignored.left > 0 ? max(0, applied.left) : max(applied.left, physical.left),
+            bottom: ignored.bottom > 0 ? max(0, applied.bottom) : max(applied.bottom, physical.bottom),
+            right: ignored.right > 0 ? max(0, applied.right) : max(applied.right, physical.right)
         )
         let keyboardDelta = max(0, quickLayoutKeyboardInsetDelta)
         guard keyboardDelta > 0 else {
@@ -511,7 +548,7 @@ open class QuickLayoutScrollView:
         }
 
         var containerInsets = resolvedContainerInsets
-        containerInsets.bottom = max(safeAreaInsets.bottom, adjustedContentInset.bottom - keyboardDelta)
+        containerInsets.bottom = max(physical.bottom, applied.bottom - keyboardDelta)
         let keyboardInsets = UIEdgeInsets(
             top: 0,
             left: 0,
@@ -646,10 +683,9 @@ open class QuickLayoutScrollView:
 
         needsContentMarginStartPosition = false
         needsSafeAreaInsetEndPosition = false
-        setContentOffset(
-            targetOffset(for: edge),
-            requestedAnimated: false
-        )
+        // 安全区变化只是边界补偿，不能清除宿主正在执行的键盘 position 动画。
+        // 显式 scrollTo 的取消动画语义仍由独立的滚动请求入口处理。
+        contentOffset = targetOffset(for: edge)
     }
 
     /// 目标边缘与轴匹配且尺寸有效时消费延迟滚动请求。

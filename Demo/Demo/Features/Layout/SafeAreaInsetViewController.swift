@@ -128,7 +128,6 @@ final class SafeAreaInsetStageView: QuickLayoutView {
         primaryBar.accessibilityIdentifier = "safeAreaInset.primary"
         secondaryBar.accessibilityIdentifier = "safeAreaInset.secondary"
         secondaryBar.insetBackground.backgroundColor = .secondarySystemBackground
-        quickLayoutKeyboardSafeAreaBehavior = .followsDockedKeyboard()
         reloadText()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }

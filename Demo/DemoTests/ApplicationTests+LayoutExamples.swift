@@ -29,27 +29,14 @@ extension ApplicationTests {
             _ expected: UIEdgeInsets,
             sourceLocation: SourceLocation = #_sourceLocation
         ) {
-            let frame = viewController.pageScrollView.convert(
-                viewController.pageScrollView.bounds,
-                to: viewController.view
-            )
-            let bounds = viewController.view.bounds
-            #expect(
-                abs(frame.minX - expected.left) < 1,
-                sourceLocation: sourceLocation
-            )
-            #expect(
-                abs(frame.minY - expected.top) < 1,
-                sourceLocation: sourceLocation
-            )
-            #expect(
-                abs(bounds.maxX - frame.maxX - expected.right) < 1,
-                sourceLocation: sourceLocation
-            )
-            #expect(
-                abs(bounds.maxY - frame.maxY - expected.bottom) < 1,
-                sourceLocation: sourceLocation
-            )
+            let scroll = viewController.pageScrollView
+            let frame = scroll.convert(scroll.bounds, to: viewController.view)
+            #expect(frame.approximatelyEquals(viewController.view.bounds), sourceLocation: sourceLocation)
+            let actual = scroll.adjustedContentInset
+            #expect(abs(actual.top - expected.top) < 1, sourceLocation: sourceLocation)
+            #expect(abs(actual.left - expected.left) < 1, sourceLocation: sourceLocation)
+            #expect(abs(actual.bottom - expected.bottom) < 1, sourceLocation: sourceLocation)
+            #expect(abs(actual.right - expected.right) < 1, sourceLocation: sourceLocation)
             #expect(
                 abs(
                     viewController.pageScrollView.contentOffset.y
@@ -61,7 +48,7 @@ extension ApplicationTests {
         }
 
         #expect(viewController.scenarioCount == 10)
-        expectPageInsets(.zero)
+        expectPageInsets(viewController.view.safeAreaInsets)
 
         let safeArea = viewController.view.safeAreaInsets
         let safeAreaGuideView = try #require(
@@ -129,7 +116,7 @@ extension ApplicationTests {
         layout(viewController, in: navigationController)
         expectPageInsets(
             UIEdgeInsets(
-                top: 0,
+                top: safeArea.top,
                 left: safeArea.left + 16,
                 bottom: safeArea.bottom + 24,
                 right: safeArea.right + 16
@@ -143,10 +130,10 @@ extension ApplicationTests {
         layout(viewController, in: navigationController)
         expectPageInsets(
             UIEdgeInsets(
-                top: 0,
+                top: safeArea.top,
                 left: safeArea.left + 20,
-                bottom: 0,
-                right: 0
+                bottom: safeArea.bottom,
+                right: safeArea.right
             )
         )
 
@@ -157,10 +144,10 @@ extension ApplicationTests {
         layout(viewController, in: navigationController)
         expectPageInsets(
             UIEdgeInsets(
-                top: 0,
+                top: safeArea.top,
                 left: safeArea.left + 8,
-                bottom: 0,
-                right: 0
+                bottom: safeArea.bottom,
+                right: safeArea.right
             )
         )
 
@@ -171,10 +158,10 @@ extension ApplicationTests {
         layout(viewController, in: navigationController)
         expectPageInsets(
             UIEdgeInsets(
-                top: 0,
+                top: safeArea.top,
                 left: safeArea.left,
-                bottom: 0,
-                right: 0
+                bottom: safeArea.bottom,
+                right: safeArea.right
             )
         )
 
@@ -187,9 +174,9 @@ extension ApplicationTests {
         layout(viewController, in: navigationController)
         expectPageInsets(
             UIEdgeInsets(
-                top: 0,
-                left: 0,
-                bottom: 0,
+                top: safeArea.top,
+                left: safeArea.left,
+                bottom: safeArea.bottom,
                 right: safeArea.right + 20
             )
         )
@@ -229,11 +216,49 @@ extension ApplicationTests {
         #expect(viewController.view.bounds.width > viewController.view.bounds.height)
         #expect(safeArea.left >= 62)
         #expect(safeArea.right >= 62)
-        #expect(abs(frame.minX - safeArea.left - 16) < 1)
-        #expect(abs(viewController.view.bounds.maxX - frame.maxX - safeArea.right - 16) < 1)
-        #expect(abs(frame.minY - safeArea.top - 16) < 1)
-        #expect(abs(viewController.view.bounds.maxY - frame.maxY - safeArea.bottom - 16) < 1)
+        #expect(frame.approximatelyEquals(viewController.view.bounds))
+        let adjusted = viewController.pageScrollView.adjustedContentInset
+        #expect(abs(adjusted.left - safeArea.left - 16) < 1)
+        #expect(abs(adjusted.right - safeArea.right - 16) < 1)
+        #expect(abs(adjusted.top - safeArea.top - 16) < 1)
+        #expect(abs(adjusted.bottom - safeArea.bottom - 16) < 1)
         #expect(viewController.pageScrollView.contentSize.height > 0)
+    }
+
+    /// 满宽嵌套横向视口可延伸到系统栏，只保留外层 16 点排版边距。
+    @Test func nestedFullWidthViewportOnlyRestoresSystemInsets() throws {
+        let inner = QuickLayoutScrollView(.horizontal)
+        let outer = QuickLayoutScrollView()
+        let content = UIView()
+        let canvas = QuickLayoutView {
+            ScrollView(inner, .horizontal) { content.frame(width: 1200, height: 80) }
+        }
+        let page = UIViewController()
+        page.view = QuickLayoutView {
+            ScrollView(outer) {
+                VStack {
+                    UIView().resizable(axis: .horizontal).frame(height: 1)
+                    canvas.resizable().containerRelativeFrame(.horizontal).frame(height: 80)
+                }
+            }.contentMargins(.horizontal, 16, for: .scrollContent)
+        }
+        let window = try makeVisibleTestWindow(rootViewController: page)
+        defer { window.isHidden = true }
+        for extra in [UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 84),
+                      UIEdgeInsets(top: 0, left: 84, bottom: 0, right: 0)] {
+            page.additionalSafeAreaInsets = extra
+            window.layoutIfNeeded()
+            page.view.layoutIfNeeded()
+            outer.layoutIfNeeded()
+            canvas.layoutIfNeeded()
+            inner.layoutIfNeeded()
+            let visual = inner.convert(inner.bounds, to: page.view)
+            let pageBounds = page.view.bounds
+            #expect(abs(visual.minX - pageBounds.minX - 16) < 1)
+            #expect(abs(visual.maxX - pageBounds.maxX + 16) < 1)
+            #expect(abs(canvas.bounds.width - (page.view.safeAreaLayoutGuide.layoutFrame.width - 32)) < 1)
+            #expect(inner.contentSize.width == 1200)
+        }
     }
 
     @Test func contentMarginsCoversSwiftUIPlacementCombinations() throws {
@@ -347,6 +372,18 @@ extension ApplicationTests {
         #expect(
             pageScrollView.contentSize.height > pageScrollView.bounds.height
         )
+        // 内嵌预览不能恢复外层滚动主轴的安全区并覆盖说明文字；旋转和滚动后仍保持声明高度。
+        for size in [CGSize(width: 844, height: 390), CGSize(width: 390, height: 844), CGSize(width: 844, height: 390)] {
+            window.frame.size = size
+            navigationController.view.frame = window.bounds
+            layout(viewController, in: navigationController)
+            pageScrollView.setContentOffset(CGPoint(x: -pageScrollView.adjustedContentInset.left, y: 80), animated: false)
+            pageScrollView.layoutIfNeeded()
+            let preview = viewController.previewScrollView.convert(viewController.previewScrollView.bounds, to: pageScrollView)
+            let metrics = viewController.metricsLabel.convert(viewController.metricsLabel.bounds, to: pageScrollView)
+            #expect(abs(preview.height - 360) < 1)
+            #expect(preview.minY >= metrics.maxY + 11)
+        }
     }
 
     @Test func viewThatFitsCoversSwiftUISelectionContract() throws {
@@ -380,6 +417,10 @@ extension ApplicationTests {
                 viewController.selectedCandidateIdentifier
                     == expectedCandidate.identifier
             )
+            // 层级中只存在选中标签，未选中候选不能靠隐藏留在宿主内。
+            let mountedCandidates = viewController.previewView.allSubviews(of: UILabel.self)
+            #expect(mountedCandidates.count == 1)
+            #expect(mountedCandidates.first?.accessibilityLabel == "Candidate \(expectedCandidate.identifier)")
             #expect(
                 viewController.selectedCandidateSize
                     == expectedCandidate.size

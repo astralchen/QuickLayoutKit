@@ -388,6 +388,8 @@ final class QuickLayoutKeyboardSafeAreaCoordinator {
     private let previousFollowsUndockedKeyboard: Bool
     /// 启用前布局指南的底部安全区域配置；不支持该属性的系统为 `nil`。
     private let previousUsesBottomSafeArea: Bool?
+    /// 保存已提交的策略，避免无窗口场景下 UIKit 的延迟读回导致重复写入指南。
+    private var configuredUsesBottomSafeArea: Bool?
     /// 协调器是否已经停止，阻止延迟通知再次写入宿主。
     private var isStopped = false
 
@@ -406,7 +408,11 @@ final class QuickLayoutKeyboardSafeAreaCoordinator {
         if #available(iOS 17.0, *) {
             previousUsesBottomSafeArea =
                 keyboardLayoutGuide.usesBottomSafeArea
-            keyboardLayoutGuide.usesBottomSafeArea = true
+            // 隐藏时不使用底部安全区的宿主，指南本身也不能保留上一轮的 Home 指示器高度。
+            if case let .followsDockedKeyboard(usesBottomSafeArea) = hostView.quickLayoutKeyboardSafeAreaBehavior {
+                keyboardLayoutGuide.usesBottomSafeArea = usesBottomSafeArea
+                configuredUsesBottomSafeArea = usesBottomSafeArea
+            }
         } else {
             previousUsesBottomSafeArea = nil
         }
@@ -451,6 +457,13 @@ final class QuickLayoutKeyboardSafeAreaCoordinator {
     /// 同一过渡内，布局指南即使比通知晚更新，也使用剩余动画时间。
     func refresh() {
         guard !isStopped, let hostView else { return }
+        if #available(iOS 17.0, *),
+           case let .followsDockedKeyboard(usesBottomSafeArea) = hostView.quickLayoutKeyboardSafeAreaBehavior,
+           configuredUsesBottomSafeArea != usesBottomSafeArea {
+            // 运行期间切换策略时同步指南，不能只在协调器初始化时设置。
+            hostView.keyboardLayoutGuide.usesBottomSafeArea = usesBottomSafeArea
+            configuredUsesBottomSafeArea = usesBottomSafeArea
+        }
         let insets: UIEdgeInsets
         if let latestContext {
             let docked = dockingResolver?(latestContext, hostView)

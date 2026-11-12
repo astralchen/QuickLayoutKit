@@ -103,7 +103,9 @@ extension ApplicationTests {
             avoider.apply(context)
             scroll.setNeedsLayout()
             scroll.layoutIfNeeded()
-            #expect(scroll.contentSize.height == 54)
+            // 键盘出现时，滚动 inset 已包含容器安全区；内容不能再增加 34 点。
+            // 隐藏后 .never 没有自动 inset，默认内容布局负责保留容器安全区。
+            #expect(scroll.contentSize.height == (context.isVisible ? 20 : 54))
         }
     }
 

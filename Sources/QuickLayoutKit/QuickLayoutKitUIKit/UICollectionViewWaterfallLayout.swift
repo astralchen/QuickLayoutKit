@@ -502,6 +502,8 @@ open class UICollectionViewWaterfallLayout: UICollectionViewLayout {
     private var lastOffsetObserved: CGPoint?
     /// 是否已排入一次尺寸策略失效通知。
     private var notificationPending = false
+    /// 查询期间发现环境变化时，合并安排一次 UIKit 布局失效。
+    private var environmentUpdatePending = false
     /// 是否正在准备布局，用于抑制同步重入。
     private var preparing = false
     /// 当前解析环境下缓存的分区配置副本。
@@ -615,6 +617,19 @@ open class UICollectionViewWaterfallLayout: UICollectionViewLayout {
         resolutionSize = bounds.size; resolutionInsets = insets; resolutionSafeArea = safeArea
         resolutionMargins = margins; resolutionTraits = traits; resolutionRTL = direction
         geometryNeedsUpdate = true
+        // 旋转的安全区、边距和特征可能晚于 bounds 提交。公开尺寸查询及拟合校验也会
+        // 发现这些变化，不能只标记内部几何过期，否则 UIKit 不再 prepare，尺寸会一直为零。
+        // 延后到查询栈外失效；若正常 prepare 已提交新几何，则不再重复重建或清空测量缓存。
+        guard !preparing, !environmentUpdatePending else { return }
+        environmentUpdatePending = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.environmentUpdatePending = false
+            guard self.geometryNeedsUpdate, self.collectionView != nil else { return }
+            let context = InvalidationContext()
+            context.preservesMeasurements = true
+            self.invalidateLayout(with: context)
+        }
     }
     /// 在当前原生环境中解析、复制和规范分区配置，移除重复背景类型。
     private func resolvedSection(_ index: Int, bounds: CGRect) -> Section {

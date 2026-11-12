@@ -78,10 +78,12 @@ extension ApplicationTests {
             #expect(abs(view.quickLayoutKeyboardSafeAreaInsets.bottom - height) < 1)
             let endY = view.contentScrollView.layer.position.y
             #expect(abs(endY - startY) > 100)
-            try await Task.sleep(for: .milliseconds(100))
-            let intermediateY = try #require(view.contentScrollView.layer.presentation()).position.y
-            #expect(intermediateY > min(startY, endY) + 1)
-            #expect(intermediateY < max(startY, endY) - 1)
+            // Core Animation 提交首帧的时间受同进程其他测试影响；在动画时限内观察真实中间帧，
+            // 仍要求位置严格位于起终点之间，瞬移不能通过此检查。
+            #expect(await waitForCondition(attempts: 40) {
+                guard let intermediate = view.contentScrollView.layer.presentation()?.position.y else { return false }
+                return intermediate > min(startY, endY) + 1 && intermediate < max(startY, endY) - 1
+            })
             try await Task.sleep(for: .milliseconds(500))
             #expect(abs(view.contentScrollView.layer.position.y - endY) < 1)
         }

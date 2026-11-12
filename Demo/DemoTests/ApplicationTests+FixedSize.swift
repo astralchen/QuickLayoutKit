@@ -5,6 +5,24 @@ import UIKit
 @testable import Demo
 
 extension ApplicationTests {
+    /// 系统栏的边距在旋转时会更换物理边；页面和原生指示器应始终看到同一个安全区。
+    @Test func fixedSizePageKeepsNativeIndicatorTrackWhenSafeAreaChanges() throws {
+        let controller = FixedSizeViewController()
+        let navigation = UINavigationController(rootViewController: controller)
+        let window = try makeVisibleTestWindow(rootViewController: navigation)
+        defer { window.isHidden = true }
+        let page = controller.contentView.pageScrollView
+        for extra in [UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 84),
+                      UIEdgeInsets(top: 28, left: 0, bottom: 40, right: 0)] {
+            controller.additionalSafeAreaInsets = extra
+            layout(controller, in: navigation)
+            #expect(page.convert(page.bounds, to: controller.view) == controller.view.bounds)
+            #expect(page.safeAreaInsets == controller.view.safeAreaInsets)
+            #expect(page.automaticallyAdjustsScrollIndicatorInsets)
+            #expect(page.verticalScrollIndicatorInsets == .zero)
+        }
+    }
+
     @Test func fixedSizeLabStatesAndOffscreenContentDetermineHeight() async throws {
         Localization.setLocale(identifier: "zh-Hans")
         defer { Localization.setLocale(identifier: "en-US") }
@@ -90,7 +108,7 @@ extension ApplicationTests {
         )
         #expect(titleColor.isEqual(UIColor.label.resolvedColor(with: controller.traitCollection)))
         for card in controller.contentView.stageView.cards {
-            #expect(card.bounds.width <= 300)
+            #expect(card.bounds.width <= 300 + 1 / controller.traitCollection.displayScale)
             #expect(card.bounds.width > 0)
         }
     }

@@ -64,6 +64,28 @@ open class QuickLayoutContentView: QuickLayoutView, UIContentView {
         )
     }
 
+    /// 默认键盘引导线也含有系统约束；内容配置的尺寸仍由 body 决定，避免无界拟合被引导线撑大。
+    open override func systemLayoutSizeFitting(_ targetSize: CGSize) -> CGSize {
+        sizeThatFits(targetSize)
+    }
+
+    /// 保留 UIKit 要求的有限约束轴，其他轴通过内容的自然尺寸求解。
+    open override func systemLayoutSizeFitting(
+        _ targetSize: CGSize,
+        withHorizontalFittingPriority horizontalFittingPriority: UILayoutPriority,
+        verticalFittingPriority: UILayoutPriority
+    ) -> CGSize {
+        func constrained(_ value: CGFloat, priority: UILayoutPriority) -> Bool {
+            priority == .required && value.isFinite && value < .greatestFiniteMagnitude
+        }
+        let fixedWidth = constrained(targetSize.width, priority: horizontalFittingPriority)
+        let fixedHeight = constrained(targetSize.height, priority: verticalFittingPriority)
+        let measured = sizeThatFits(CGSize(width: fixedWidth ? targetSize.width : .infinity,
+                                          height: fixedHeight ? targetSize.height : .infinity))
+        return CGSize(width: fixedWidth ? targetSize.width : measured.width,
+                      height: fixedHeight ? targetSize.height : measured.height)
+    }
+
     /// 将轴弹性转换为固有尺寸测量建议；完全弹性轴使用无界长度。
     private func intrinsicMeasurementLimit(_ length: CGFloat, flexibility: Flexibility) -> CGFloat {
         switch flexibility {

@@ -1676,6 +1676,19 @@ struct ChatMediaTests {
         }
     }
 
+    /// 页面含标签栏时仍与键盘顶部对齐，窗口 Home 区域只由系统 Sheet 承担一次。
+    @Test func photoSheetDetentConvertsPageSafeAreaToWindowSafeArea() {
+        guard #available(iOS 26.0, *) else { return }
+        for (content, pageBottom, windowBottom, expected): (CGFloat, CGFloat, CGFloat, CGFloat) in [
+            (245, 83, 34, 294), (300, 34, 34, 300), (250, 64, 21, 293),
+            (300, 0, 34, 300), (120, 34, 34, 220),
+        ] {
+            let detent = PhotoPickerCompactDetent(keyboardHeight: content, pageBottom: pageBottom, windowBottom: windowBottom)
+            #expect(detent.sheetHeight == expected)
+            #expect(detent.composerObstruction == expected - max(0, pageBottom - windowBottom))
+        }
+    }
+
     @Test func bottomObstructionExcludesTheContainerSafeArea() {
         guard #available(iOS 26.0, *) else { return }
         #expect(

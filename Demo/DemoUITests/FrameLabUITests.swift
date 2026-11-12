@@ -2,6 +2,63 @@ import XCTest
 
 /// 经首页进入真实实验室验证操作；外观截图沿用测试设备当前的浅色／深色设置。
 final class FrameLabUITests: XCTestCase {
+    /// 实际展开、拖动、收起并旋转，复核未选中控件退出可访问层级且重挂后保留数值。
+    @MainActor func testGuidedTopLeadingWithCollapsedParameters() throws {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let app = try openLab(locale: "zh-Hans")
+        app.segmentedControls["frame.presentation"].buttons["引导实验"].tap()
+        XCTAssertFalse(app.sliders["frame.width"].exists)
+        let leading = app.buttons["frame.alignment.topLeading"]
+        XCTAssertTrue(leading.isSelected)
+        let preview = app.otherElements["frame.preview"]
+        let sample = app.staticTexts["frame.sample"]
+        XCTAssertEqual(sample.frame.minX, preview.frame.minX, accuracy: 1)
+        XCTAssertEqual(sample.frame.minY, preview.frame.minY, accuracy: 1)
+        capture(app, "frame-lab-top-leading-collapsed")
+
+        let more = app.buttons["frame.more"]
+        for _ in 0..<5 where !more.isHittable { app.swipeUp() }
+        more.tap()
+        let width = app.sliders["frame.width"]
+        for _ in 0..<5 where !width.isHittable || width.frame.maxY > app.windows.firstMatch.frame.maxY - 120 {
+            app.swipeUp()
+        }
+        width.adjust(toNormalizedSliderPosition: 0.3)
+        let savedValue = width.value as? String
+        capture(app, "frame-lab-top-leading-expanded")
+        more.tap()
+        XCTAssertFalse(width.exists)
+        for orientation in [UIDeviceOrientation.landscapeLeft, .landscapeRight, .portrait] {
+            XCUIDevice.shared.orientation = orientation
+            let window = app.windows.firstMatch
+            let presentation = app.segmentedControls["frame.presentation"]
+            var previousFrame = CGRect.null
+            var stableSamples = 0
+            // 旋转后等待窗口和固定控件连续稳定，避免把合成器过渡帧当作横屏证据。
+            let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                let frame = window.frame
+                let matchesOrientation = orientation == .portrait ? frame.height > frame.width : frame.width > frame.height
+                if matchesOrientation && frame.contains(presentation.frame) && frame == previousFrame {
+                    stableSamples += 1
+                } else { stableSamples = 0 }
+                previousFrame = frame
+                return stableSamples >= 2
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 6), .completed)
+            XCTAssertFalse(width.exists)
+            capture(app, "frame-lab-detached-rotation-\(orientation.rawValue)")
+        }
+        for _ in 0..<5 where !app.buttons["frame.scenario"].isHittable { app.swipeDown() }
+        capture(app, "frame-lab-top-leading-recollapsed")
+        for _ in 0..<5 where !more.isHittable { app.swipeUp() }
+        more.tap()
+        for _ in 0..<5 where !width.isHittable { app.swipeUp() }
+        XCTAssertTrue(width.isHittable)
+        XCTAssertEqual(width.value as? String, savedValue)
+    }
+
     /// 检查三语名称、模式顺序、默认选中与往返切换，并保留首屏及完整代码区截图。
     @MainActor func testPresentationAppearance() throws {
         continueAfterFailure = false
@@ -216,7 +273,8 @@ final class FrameLabUITests: XCTestCase {
     }
 
     @MainActor private func capture(_ app: XCUIApplication, _ name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
+        // 应用截图在横屏可能按旧方向裁切；使用完整屏幕截图保留实际显示区域。
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)

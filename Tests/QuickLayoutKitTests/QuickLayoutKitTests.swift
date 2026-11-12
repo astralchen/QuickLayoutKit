@@ -1266,6 +1266,33 @@ struct QuickLayoutKitTests {
         #expect(scrollView.contentOffset.x == expectedOffset)
     }
 
+    /// RTL 的初始前缘随内容和视口尺寸移动；用户拖离前缘后沿用实际偏移。
+    @MainActor
+    @Test func horizontalRTLLeadingTracksResizeOnlyWhilePinned() {
+        let scroll = QuickLayoutScrollView(.horizontal)
+        let sample = UIView()
+        scroll.semanticContentAttribute = .forceRightToLeft
+        scroll.contentInsetAdjustmentBehavior = .never
+        func resize(viewport: CGFloat, content: CGFloat) {
+            scroll.frame.size = CGSize(width: viewport, height: 100)
+            _ = ScrollView(scroll, .horizontal) { sample.frame(width: content, height: 100) }
+            scroll.layoutIfNeeded()
+        }
+        resize(viewport: 300, content: 600)
+        #expect(scroll.contentOffset.x == 300)
+        resize(viewport: 300, content: 720)
+        #expect(scroll.contentOffset.x == 420)
+        resize(viewport: 350, content: 760)
+        #expect(scroll.contentOffset.x == 410)
+        // 360 恰好是用新视口和旧内容算出的临时前缘，但用户原先停在中途。
+        scroll.contentOffset.x = 360
+        resize(viewport: 400, content: 820)
+        #expect(scroll.contentOffset.x == 360)
+        scroll.scrollTo(.trailing, animated: false)
+        resize(viewport: 350, content: 760)
+        #expect(scroll.contentOffset.x == 0)
+    }
+
     @MainActor
     @Test func horizontalScrollViewRelayoutsWhenItsDirectionChanges() {
         let first = UIView()
@@ -2665,7 +2692,7 @@ struct QuickLayoutKitTests {
         host.frame = CGRect(x: 0, y: 0, width: 320, height: 480)
 
         #expect(
-            host.quickLayoutKeyboardSafeAreaBehavior == .disabled
+            host.quickLayoutKeyboardSafeAreaBehavior == .followsDockedKeyboard(usesBottomSafeArea: false)
         )
         #expect(host.quickLayoutKeyboardSafeAreaInsets == .zero)
 
@@ -3213,7 +3240,7 @@ struct QuickLayoutKitTests {
     }
 
     @MainActor
-    @Test func viewThatFitsCollapsesUnselectedViewsWhenSelectionChanges() {
+    @Test func viewThatFitsRawApplyOnlyUpdatesSelectedGeometry() {
         let primary = IntrinsicTestView(size: CGSize(width: 180, height: 20))
         let fallback = IntrinsicTestView(size: CGSize(width: 80, height: 30))
         let element = ViewThatFits(in: .horizontal) {
@@ -3232,8 +3259,10 @@ struct QuickLayoutKitTests {
             CGRect(x: 0, y: 0, width: 100, height: 40),
             alignment: .topLeading
         )
-        #expect(primary.bounds.size == .zero)
+        #expect(primary.bounds.size == CGSize(width: 180, height: 20))
         #expect(fallback.bounds.size == CGSize(width: 80, height: 30))
+        // 原始 applyFrame 只写布局；自动挂载和移除由 Kit 宿主提供。
+        #expect(primary.superview == nil && fallback.superview == nil)
     }
 
     @MainActor
@@ -4493,10 +4522,12 @@ private class KeyboardSafeAreaProbeQuickLayoutView: QuickLayoutView {
             fillView.resizable()
             containerSafeAreaView
                 .frame(width: 20, height: 20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 .safeAreaPadding(.bottom, 0)
                 .ignoresSafeArea(.keyboard, edges: .bottom)
             keyboardSafeAreaView
                 .frame(width: 20, height: 20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 .safeAreaPadding(.bottom, 0)
                 .ignoresSafeArea(.container, edges: .bottom)
         }

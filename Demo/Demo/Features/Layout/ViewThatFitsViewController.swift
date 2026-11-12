@@ -479,13 +479,13 @@ final class ViewThatFitsPreviewView: QuickLayoutView {
 
     var selectedCandidateIdentifier: String? {
         zip(candidates, candidateViews).first { _, view in
-            view.bounds.width > 0 && view.bounds.height > 0
+            view.superview === self
         }?.0.identifier
     }
 
     var selectedCandidateSize: CGSize? {
         candidateViews.first { view in
-            view.bounds.width > 0 && view.bounds.height > 0
+            view.superview === self
         }?.bounds.size
     }
 

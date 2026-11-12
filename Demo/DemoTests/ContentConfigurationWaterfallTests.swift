@@ -105,6 +105,31 @@ extension ContentConfigurationCollectionTests {
         #expect(controller.waterfallLayout.acceptedMeasurementCount == count)
     }
 
+    /// 同时改变宽高，检查旋转后顶部首项仍紧随分组标题，而非只检查列数。
+    @Test func waterfallPortraitLandscapeRoundTripKeepsFirstItemVisible() async throws {
+        let fixture = try WaterfallFixture(localizer: .live)
+        defer { fixture.window.isHidden = true }
+        let controller = fixture.controller
+        for size in [CGSize(width: 390, height: 844), CGSize(width: 844, height: 390), CGSize(width: 390, height: 844)] {
+            controller.view.autoresizingMask = []
+            controller.view.frame = CGRect(origin: .zero, size: size)
+            controller.view.setNeedsLayout()
+            await fixture.settle()
+            let collection = try #require(controller.collectionView)
+            if size.width > size.height {
+                for offset: CGFloat in [200, 500, 1000, 500, 0] {
+                    collection.setContentOffset(CGPoint(x: 0, y: offset - collection.adjustedContentInset.top), animated: false)
+                    await fixture.settle()
+                }
+            }
+            let first = try #require(controller.waterfallLayout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0)))
+            let rect = collection.convert(first.frame, to: controller.view)
+            #expect(rect.minY < size.height - 60)
+            #expect(rect.maxY > 0)
+            try fixture.verifyVisibleGeometry()
+        }
+    }
+
     @Test func waterfallRemeasuresColumnsWidthDynamicTypeAndDirection() async throws {
         let fixture = try WaterfallFixture()
         defer { fixture.window.isHidden = true }
@@ -225,6 +250,42 @@ extension ContentConfigurationCollectionTests {
         let settledCount = controller.waterfallLayout.acceptedMeasurementCount
         await fixture.settle()
         #expect(controller.waterfallLayout.acceptedMeasurementCount == settledCount)
+    }
+
+    /// 横向模式在紧凑高度下收窄行高，卡片与正文仍应落在分组背景和安全内容范围内。
+    @Test func waterfallHorizontalCardsStayInsideBackgroundAtCompactHeights() async throws {
+        let fixture = try WaterfallFixture(localizer: .live)
+        defer { fixture.window.isHidden = true }
+        let controller = fixture.controller
+        controller.setScrollDirection(.horizontal)
+        controller.view.autoresizingMask = []
+        controller.additionalSafeAreaInsets = UIEdgeInsets(top: 32, left: 0, bottom: 60, right: 0)
+        for category: UIContentSizeCategory in [.large, .extraExtraExtraLarge] {
+            fixture.setPreferredContentSizeCategory(category)
+            for height: CGFloat in [390, 320, 390] {
+                controller.view.frame = CGRect(x: 0, y: 0, width: 844, height: height)
+                controller.view.setNeedsLayout()
+                await fixture.settle()
+                let collection = try #require(controller.collectionView)
+                let available = collection.bounds.height - collection.adjustedContentInset.top - collection.adjustedContentInset.bottom
+                for path in collection.indexPathsForVisibleItems {
+                    let cell = try #require(collection.cellForItem(at: path))
+                    let card = try #require(WaterfallFixture.card(in: cell))
+                    let background = try #require(controller.waterfallLayout.layoutAttributesForDecorationView(
+                        ofKind: ContentConfigurationWaterfallBackground.elementKind,
+                        at: IndexPath(item: 0, section: path.section)))
+                    #expect(cell.frame.minY >= background.frame.minY - 1)
+                    #expect(cell.frame.maxY <= background.frame.maxY + 1)
+                    #expect(cell.frame.maxY <= available + 1)
+                    let detail = card.detailLabel.convert(card.detailLabel.bounds, to: card)
+                    #expect(detail.minY >= -1 && detail.maxY <= card.bounds.height + 1)
+                    let needed = card.detailLabel.sizeThatFits(CGSize(width: detail.width, height: .infinity)).height
+                    #expect(card.detailLabel.bounds.height + 1 >= needed,
+                            "category=\(category), height=\(height), path=\(path), available=\(available), card=\(card.bounds), detail=\(detail), insets=\(collection.adjustedContentInset)")
+                }
+                #expect(!collection.visibleCells.isEmpty)
+            }
+        }
     }
 
     @Test func waterfallControlsStayCenteredInAsymmetricSafeArea() async throws {

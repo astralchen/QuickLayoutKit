@@ -42,11 +42,28 @@ final class RoomPublicChatUITests: XCTestCase {
         let app = launchRoom()
         let chat = app.collectionViews["liveRoom.publicChat.scroll"]
         let stage = app.otherElements["liveRoom.seat.stage"]
-        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft, .portrait] {
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft, .landscapeRight, .portrait] {
             XCUIDevice.shared.orientation = orientation
+            let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                let frame = app.windows.firstMatch.frame
+                return orientation == .portrait ? frame.height > frame.width && chat.exists && chat.isHittable
+                    : frame.width > frame.height
+            }, object: nil)
+            let result = XCTWaiter.wait(for: [ready], timeout: 5)
+            capture(app, "语音房旋转-\(orientation.rawValue)")
+            XCTAssertEqual(result, .completed, app.debugDescription)
+            // iPhone 双紧凑环境按标准 split 规则收起辅助公屏；返回竖屏必须恢复同一内容。
+            // 公屏仍可见的宽屏环境继续检查滚动和列对齐，不能用此分支跳过竖屏恢复。
+            if orientation != .portrait && !chat.isHittable {
+                XCTAssertTrue(stage.isHittable)
+                continue
+            }
             XCTAssertTrue(chat.isHittable)
             verifyArrangement(app, stage: stage, chat: chat)
             XCTAssertTrue(app.buttons["liveRoom.gift.button"].isHittable)
+            chat.swipeDown()
+            chat.swipeUp()
+            verifyArrangement(app, stage: stage, chat: chat)
             if orientation == .landscapeLeft { capture(app, "语音房横屏排列") }
         }
     }
@@ -183,7 +200,7 @@ final class RoomPublicChatUITests: XCTestCase {
 
     @MainActor
     private func capture(_ app: XCUIApplication, _ name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)

@@ -93,7 +93,7 @@ class DynamicScrollViewController: LocalizedQuickLayoutHostingController {
 
     /// 填满宿主的列表及位于安全区域顶部后缘的添加按钮。
     ///
-    /// 列表顶部内容边距为按钮预留空间，滚动指示器采用相应的顶部和底部边距。
+    /// 水平边距只用于卡片。指示器保留系统的横向位置，上下两端与内容采用相同的预留空间。
     override var body: Layout {
         ScrollView(scrollView) {
             VStack(spacing: 12) {

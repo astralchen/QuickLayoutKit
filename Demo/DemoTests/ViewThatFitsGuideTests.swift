@@ -1,5 +1,6 @@
 import QuickLayout
 import QuickLayoutKitCore
+@testable import QuickLayoutKitUIKit
 import SwiftUI
 import Testing
 import UIKit
@@ -18,6 +19,54 @@ struct ViewThatFitsGuideTests {
                         await compare(rtl: rtl, width: width, fallbackGuide: fallbackGuide)
                     }
                 }
+            }
+        }
+    }
+
+    /// 同一宿主反复改变宽度，对照实际挂载的 UIKit 探针与候选尺寸。
+    @Test func repeatedSelectionsMatchSwiftUIMountedContent() async {
+        guard #available(iOS 16.0, *) else { return }
+        for rtl in [false, true] {
+            let nativeViews = [UIView(), UIView()]
+            let kitViews = [UIView(), UIView()]
+            let nativeHost = UIHostingController(rootView: AnyView(EmptyView()))
+            let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 400, height: 600))
+            window.rootViewController = nativeHost
+            window.isHidden = false
+            defer { window.isHidden = true }
+            let kitHost = QuickLayoutView {
+                QuickLayoutKitCore.ViewThatFits(in: .horizontal) {
+                    kitViews[0].resizable().frame(width: 200, height: 40)
+                    kitViews[1].resizable().frame(width: 50, height: 40)
+                }
+            }
+            kitHost.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
+            for width: CGFloat in [100, 300, 100, 300] {
+                nativeHost.rootView = AnyView(SwiftUI.ViewThatFits(in: .horizontal) {
+                    Color.blue.frame(width: 200, height: 40).background(FitProbe(view: nativeViews[0]))
+                    Color.red.frame(width: 50, height: 40).background(FitProbe(view: nativeViews[1]))
+                }.frame(width: width, height: 80)
+                    .environment(\.layoutDirection, rtl ? .rightToLeft : .leftToRight))
+                kitHost.frame = CGRect(x: 0, y: 0, width: width, height: 80)
+                kitHost.setNeedsLayout()
+                kitHost.layoutIfNeeded()
+                let selected = width == 100 ? 1 : 0
+                // SwiftUI 更新由运行循环提交；有界等待实际挂载与布局，超时仍由下方断言报错。
+                for _ in 0..<50 {
+                    window.layoutIfNeeded()
+                    nativeHost.view.setNeedsLayout()
+                    nativeHost.view.layoutIfNeeded()
+                    if nativeViews[selected].isDescendant(of: nativeHost.view),
+                       !nativeViews[1 - selected].isDescendant(of: nativeHost.view),
+                       nativeViews[selected].bounds.size == kitViews[selected].bounds.size { break }
+                    try? await Task.sleep(for: .milliseconds(20))
+                }
+                let context = "RTL=\(rtl), width=\(width)"
+                for index in 0..<2 {
+                    #expect(nativeViews[index].isDescendant(of: nativeHost.view) == (index == selected), "\(context), native=\(index)")
+                    #expect((kitViews[index].superview === kitHost) == (index == selected), "\(context), kit=\(index)")
+                }
+                #expect(kitViews[selected].bounds.size == nativeViews[selected].bounds.size, "\(context)")
             }
         }
     }
@@ -72,8 +121,12 @@ struct ViewThatFitsGuideTests {
         }
         let direction: QuickLayout.LayoutDirection = rtl ? .rightToLeft : .leftToRight
         let node = stack.layoutThatFits(CGSize(width: width, height: 200), layoutDirection: direction)
-        stack._applyFrame(CGRect(origin: .zero, size: node.size), alignment: .topLeading,
-                          layoutDirection: direction, cachedLayout: node)
+        let kitHost = QuickLayoutView { stack }
+        kitHost.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
+        QuickLayoutSafeAreaBodyBridge.apply(stack, on: kitHost,
+            frame: CGRect(origin: .zero, size: node.size), alignment: .topLeading, direction: direction)
+        #expect((views[0].superview == nil) == (width == 100))
+        #expect((views[1].superview == nil) == (width != 100))
         let context = "RTL=\(rtl), width=\(width), fallback=\(String(describing: fallbackGuide))"
         #expect(abs(node.size.width - bounds.bounds.width) < 0.6 && abs(node.size.height - bounds.bounds.height) < 0.6,
                 "\(context): size \(node.size) vs \(bounds.bounds.size)")

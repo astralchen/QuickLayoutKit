@@ -33,9 +33,15 @@ package struct GeometryReaderLayout: @MainActor Layout {
                 let b = $1.element._layoutValue(for: _ZIndexLayoutValueKey.self)
                 return a == b ? $0.offset < $1.offset : a < b
             }.map(\.element)
-            var views: [UIView] = []
-            children.forEach { $0.quick_extractViewsIntoArray(&views) }
+            if let values = QuickLayoutSafeAreaContext.current {
+                children.forEach { QuickLayoutSafeAreaContext.captureInheritance(of: $0, values: values) }
+            }
             let nodes = children.map { $0.quick_layoutThatFits(size) }
+            // Reader 动态内容也按最终节点解析候选，不能把未选中分支重新挂回层级。
+            var seen = Set<ObjectIdentifier>()
+            let views = zip(children, nodes).flatMap {
+                QuickLayoutCandidateSelection.views(of: $0.0, measured: $0.1)
+            }.filter { seen.insert(ObjectIdentifier($0)).inserted }
             // 捕获本次测量的应用信息。后续 B 测量不会修改缓存 A 的方向、视图集合或尺寸。
             let commit = GeometryReaderCommit(marker: marker, state: state, views: views,
                                               proxy: proxy, direction: direction, scopes: scopes)

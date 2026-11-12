@@ -38,6 +38,11 @@ final class ExampleSplitViewController: UISplitViewController, UISplitViewContro
         // 每列显式持有自己的导航栈；UIKit 负责折叠／展开时的导航呈现。
         // 列式 API 也能自动包装非导航控制器，这里显式创建以便管理导航栈。
         let menuNavigation = UINavigationController(rootViewController: menuController)
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-catalog-scroll-swiftui-reference") {
+            menuNavigation.setViewControllers([CatalogScrollReference.makeController()], animated: false)
+        }
+        #endif
         setViewController(menuNavigation, for: .primary)
         // 未选择示例时，展开的详情列也应有内容；折叠时优先显示目录。
         detailNavigationController.setViewControllers([ExamplePlaceholderController()], animated: false)
