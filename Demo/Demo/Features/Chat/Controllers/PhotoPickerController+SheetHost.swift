@@ -92,10 +92,21 @@ extension PhotoPickerController {
             let small = UISheetPresentationController.Detent.custom(identifier: PhotoPickerController.keyboardDetentIdentifier) {
                 [weak self] context in
                 guard let self else { return nil }
-                let height = max(PhotoPickerCompactDetent.minimumHeight, compactDetent.sheetHeight + compactDetentAdjustment)
+                let height = max(1, compactDetent.sheetHeight + compactDetentAdjustment)
                 return min(height, context.maximumDetentValue)
             }
             sheet.detents = [small, .large()]
+        }
+
+        /// 面板保持打开期间，旋转、折叠或安全区改变时采用新布局的目标高度。
+        func updateKeyboardHeight(_ height: CGFloat) {
+            guard height > 0, abs(height - keyboardHeight) > 0.5,
+                  !isBeingDismissed, let sheet = sheetPresentationController else { return }
+            keyboardHeight = height
+            calibratedSafeFrame = nil
+            calibratedCompactObstruction = nil
+            compactDetentAdjustment = 0
+            sheet.invalidateDetents()
         }
 
         /// 系统会为 Sheet 留出悬浮边缘，也可能缩放整个面板。用模型层的最终位置
@@ -116,9 +127,9 @@ extension PhotoPickerController {
             let visibleObstruction = safeFrame.maxY - frame.minY
             let scale = frame.height / view.bounds.height
             let delta = (compactDetent.composerObstruction - visibleObstruction) / scale
-            // 矮键盘仍遵守照片网格的小档下限；展开大档时，输入栏停在校准后的小档顶部。
+            // 矮键盘也使用其实际高度；展开大档时，输入栏停在校准后的小档顶部。
             let currentDetent = compactDetent.sheetHeight + compactDetentAdjustment
-            let nextDetent = max(PhotoPickerCompactDetent.minimumHeight, currentDetent + delta)
+            let nextDetent = max(1, currentDetent + delta)
             let change = nextDetent - currentDetent
             calibratedCompactObstruction = visibleObstruction + change * scale
             guard abs(change) > 0.5 else { return }

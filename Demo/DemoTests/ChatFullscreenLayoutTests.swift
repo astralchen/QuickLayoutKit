@@ -37,7 +37,7 @@ struct ChatFullscreenLayoutTests {
         try await Task.sleep(for: .milliseconds(300))
     }
 
-    @Test func directPhotoPickerClearsItsMinimumDetentAfterShortKeyboard() async throws {
+    @Test func directPhotoPickerMatchesCachedShortKeyboard() async throws {
         guard #available(iOS 26.0, *) else { return }
         let tabs = AppTabBarController()
         let window = try makeVisibleTestWindow(rootViewController: tabs)
@@ -62,6 +62,7 @@ struct ChatFullscreenLayoutTests {
         let panelTop = sheet.convert(sheet.bounds, to: window).minY
         let input = page.composerView.inputGlassView
         let gap = panelTop - input.convert(input.bounds, to: window).maxY
+        #expect(abs(panelTop - host.convert(host.safeAreaLayoutGuide.layoutFrame, to: window).maxY + 160) <= 1)
         #expect(abs(gap - ComposerView.Metrics.verticalPadding) <= 1,
             "gap=\(gap), panelTop=\(panelTop), obstruction=\(coordinator.currentHeight), host=\(host.bounds), safe=\(host.safeAreaInsets), windowSafe=\(window.safeAreaInsets)")
     }
@@ -156,7 +157,7 @@ struct ChatFullscreenLayoutTests {
             page.setNeedsQuickLayout()
             page.layoutChatContent()
             fixture.expectGeometry()
-            #expect(abs(page.composerView.frame.maxY - (page.view.bounds.maxY
+            #expect(abs(page.composerView.convert(page.composerView.bounds, to: page.view).maxY - (page.view.bounds.maxY
                 - page.view.safeAreaInsets.bottom - obstruction)) < 1)
             #expect(page.conversationView.isNearBottom)
         }
@@ -317,7 +318,7 @@ struct ChatFullscreenLayoutTests {
             #expect(list.verticalScrollIndicatorInsets.top == list.contentInset.top)
             #expect(list.verticalScrollIndicatorInsets.bottom == list.contentInset.bottom)
             #expect(abs(list.contentInset.top - page.view.safeAreaInsets.top) < 1)
-            #expect(abs(list.contentInset.bottom - (page.view.bounds.maxY - page.composerView.frame.minY)) < 1)
+            #expect(abs(list.contentInset.bottom - (page.view.bounds.maxY - page.composerView.convert(page.composerView.bounds, to: page.view).minY)) < 1)
         }
 
         func close() {

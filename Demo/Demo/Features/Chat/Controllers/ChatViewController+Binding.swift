@@ -32,15 +32,7 @@ extension ChatViewController {
             .sink { [weak self] context in
                 guard let self, viewIfLoaded?.window != nil,
                       tabBarController == nil || tabBarController?.selectedViewController === navigationController else { return }
-                _ = bottomObstructionCoordinator.updateKeyboard(
-                    context
-                )
-                // 已展示的面板保留原有档位；尤其不能在切回键盘的关闭动画中重算高度。
-                // 更新下一次使用的缓存后，仍由协调器决定本次通知是否可驱动页面布局。
-                photoController.updateKeyboardHeight(
-                    bottomObstructionCoordinator.storedKeyboardContentHeight,
-                    invalidatingPresentedDetent: !photoController.isPresented
-                )
+                bottomObstructionCoordinator.updateKeyboard(context)
             }
             .store(in: &cancellables)
     }

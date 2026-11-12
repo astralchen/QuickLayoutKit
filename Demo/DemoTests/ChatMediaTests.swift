@@ -1681,7 +1681,7 @@ struct ChatMediaTests {
         guard #available(iOS 26.0, *) else { return }
         for (content, pageBottom, windowBottom, expected): (CGFloat, CGFloat, CGFloat, CGFloat) in [
             (245, 83, 34, 294), (300, 34, 34, 300), (250, 64, 21, 293),
-            (300, 0, 34, 300), (120, 34, 34, 220),
+            (300, 0, 34, 300), (120, 34, 34, 120),
         ] {
             let detent = PhotoPickerCompactDetent(keyboardHeight: content, pageBottom: pageBottom, windowBottom: windowBottom)
             #expect(detent.sheetHeight == expected)
@@ -1746,10 +1746,36 @@ struct ChatMediaTests {
                 y: hostView.bounds.maxY - hostView.safeAreaInsets.bottom - height
             )
             coordinator.refreshGeometry()
-            #expect(abs(coordinator.currentHeight - min(height, 300)) < 0.5)
+            #expect(abs(coordinator.currentHeight - min(height, coordinator.storedKeyboardContentHeight)) < 0.5)
         }
         coordinator.stopTrackingPicker()
         #expect(coordinator.currentHeight == 0)
+    }
+
+    /// 内屏两个方向的 traits 相同；再次进入每种布局时应取回各自最后的测量值。
+    @Test func keyboardHeightsSurviveWindowLayoutRoundTrip() throws {
+        guard #available(iOS 26.0, *) else { return }
+        let window = try makeObstructionTestWindow()
+        let store = KeyboardHeightStore()
+        let states: [(UIUserInterfaceSizeClass, UIUserInterfaceSizeClass, CGSize, CGFloat)] = [
+            (.regular, .regular, CGSize(width: 669, height: 951), 360),
+            (.regular, .regular, CGSize(width: 951, height: 669), 270),
+            (.compact, .regular, CGSize(width: 466, height: 678), 310),
+            (.compact, .compact, CGSize(width: 678, height: 466), 240),
+        ]
+        func layout(_ horizontal: UIUserInterfaceSizeClass, _ vertical: UIUserInterfaceSizeClass,
+                    _ size: CGSize) -> KeyboardHeightStore.Layout {
+            window.bounds.size = size
+            window.traitOverrides.horizontalSizeClass = horizontal
+            window.traitOverrides.verticalSizeClass = vertical
+            return KeyboardHeightStore.Layout(window: window)
+        }
+        for (h, v, size, height) in states {
+            store.record(height, for: layout(h, v, size))
+        }
+        for (h, v, size, height) in states.reversed() {
+            #expect(store.height(for: layout(h, v, size)) == height)
+        }
     }
 
     @Test func latestFullKeyboardFrameUpdatesPhotoCapWithoutCachingDismissal() throws {

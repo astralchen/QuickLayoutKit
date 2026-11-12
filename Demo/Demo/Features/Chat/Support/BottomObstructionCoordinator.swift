@@ -51,8 +51,29 @@ final class BottomObstructionCoordinator {
     private var isAwaitingKeyboard = false
     /// 当前发布的底部内容遮挡高度，已扣除安全区，单位为点。
     private(set) var currentHeight: CGFloat = 0
-    /// 首次未显示过软件键盘时使用 300pt；面板接管后冻结，避免菜单临时通知改小上限。
-    private(set) var storedKeyboardContentHeight: CGFloat = 300
+    private let keyboardHeights = KeyboardHeightStore()
+    private var pickerLayout: KeyboardHeightStore.Layout?
+    private var pickerWindowSize: CGSize?
+
+    /// 将当前窗口布局的键盘高度换算成聊天页仍需避让的区域。
+    var storedKeyboardContentHeight: CGFloat {
+        guard let hostView, let window = hostView.window else { return 0 }
+        return keyboardContentHeight(for: .init(window: window), in: hostView, window: window)
+    }
+
+    private func keyboardContentHeight(for layout: KeyboardHeightStore.Layout, in hostView: UIView, window: UIWindow) -> CGFloat {
+        let height = keyboardHeights.height(for: layout)
+        let windowTop = CGPoint(x: window.bounds.midX, y: window.bounds.maxY - height)
+        let keyboardTop = hostView.convert(windowTop, from: window).y
+        return max(0, hostView.safeAreaLayoutGuide.layoutFrame.maxY - keyboardTop)
+    }
+
+    /// 展示附件菜单时优先保留候选栏收起前的真实位置。
+    var photoPickerContentHeight: CGFloat { menuKeyboardHeight ?? storedKeyboardContentHeight }
+
+    /// 将窗口大小变化和照片小档的最终落点通知页面，由页面交接实际输入栏。
+    var pickerWillResize: (() -> Void)?
+    var pickerDidSettle: (() -> Void)?
 
     /// 有效遮挡高度变化时调用的闭包，附带可选的键盘动画上下文。
     var heightDidChange: ((CGFloat, QuickLayoutKeyboardContext?) -> Void)?
@@ -88,10 +109,14 @@ final class BottomObstructionCoordinator {
                 // 输入法切换、候选栏变化也要更新上限；交互收键盘的局部遮挡
                 // 不代表新的键盘高度，不能把照片 Sheet 的上限逐帧缩小。
                 if shouldApplyKeyboardLayout,
-                   targetHeight > 0,
-                   context.resolved(in: hostView).keyboardFrameInView.maxY
-                    <= hostView.bounds.maxY + 0.5 {
-                    storedKeyboardContentHeight = targetHeight
+                   targetHeight > 0, let window = hostView.window {
+                    let hostFrame = context.resolved(in: hostView).keyboardFrameInView
+                    let frame = hostView.convert(hostFrame, to: window)
+                    if abs(frame.maxY - window.bounds.maxY) <= 0.5,
+                       frame.minX <= window.bounds.minX + 0.5,
+                       frame.maxX >= window.bounds.maxX - 0.5 {
+                        keyboardHeights.record(window.bounds.maxY - frame.minY, for: .init(window: window))
+                    }
                 }
             }
         }
@@ -120,7 +145,12 @@ final class BottomObstructionCoordinator {
         if visible {
             guard pickerViewController == nil, let hostView, let keyboardContext,
                   targetKeyboardContentHeight(for: keyboardContext, in: hostView) > 0 else { return }
-            menuKeyboardHeight = currentHeight
+            let liveHeight = visibleKeyboardHeight(in: hostView)
+            menuKeyboardHeight = liveHeight > 0 ? liveHeight : storedKeyboardContentHeight
+            if liveHeight > 0, let window = hostView.window {
+                let keyboardTop = hostView.convert(hostView.keyboardLayoutGuide.layoutFrame, to: window).minY
+                keyboardHeights.record(window.bounds.maxY - keyboardTop, for: .init(window: window))
+            }
         } else if menuKeyboardHeight != nil {
             menuKeyboardHeight = nil
             if let keyboardContext { updateKeyboard(keyboardContext) }
@@ -142,6 +172,8 @@ final class BottomObstructionCoordinator {
         menuKeyboardHeight = nil
         pickerGeometryOffset = 0
         pickerViewController = picker
+        pickerLayout = hostView?.window.map(KeyboardHeightStore.Layout.init(window:))
+        pickerWindowSize = hostView?.window?.bounds.size
         keyboardHandoffStartHeight = nil
         keyboardHandoffTargetHeight = nil
         isAwaitingKeyboard = false
@@ -196,6 +228,12 @@ final class BottomObstructionCoordinator {
         refreshGeometry(animationContext: nil)
     }
 
+    /// 尺寸转场结束后重新核对最终的窗口尺寸类，包括尺寸未变的情况。
+    func finishPickerResize() {
+        pickerLayout = hostView?.window.map(KeyboardHeightStore.Layout.init(window:))
+        refreshGeometry()
+    }
+
     /// 页面真正退出时停止采样并清除交接状态，避免离屏后继续驱动布局。
     func stop() {
         stopDisplayLink()
@@ -228,8 +266,25 @@ final class BottomObstructionCoordinator {
             keyboardHandoffStartHeight = nil
             keyboardHandoffTargetHeight = nil
         }
+        var compactHeight = storedKeyboardContentHeight
+        if #available(iOS 17.0, *), let window = hostView.window, !isAwaitingKeyboard,
+           let sheet = pickerViewController as? PhotoPickerController.SheetHostController {
+            // Duo 折叠时会先发布外屏尺寸类，再改变窗口大小。避免使用新 traits
+            // 配旧 bounds 解析档位；转场结束时再核对一次最终组合。
+            if window.bounds.size != pickerWindowSize {
+                pickerWindowSize = window.bounds.size
+                pickerLayout = .init(window: window)
+                pickerWillResize?()
+                pickerPresentationHeight = nil
+                pickerGeometryOffset = 0
+            }
+            if let pickerLayout {
+                compactHeight = keyboardContentHeight(for: pickerLayout, in: hostView, window: window)
+            }
+            sheet.updateKeyboardHeight(compactHeight)
+        }
         let pageBottom = hostView.safeAreaInsets.bottom
-        let compactDetent = PhotoPickerCompactDetent(keyboardHeight: storedKeyboardContentHeight,
+        let compactDetent = PhotoPickerCompactDetent(keyboardHeight: compactHeight,
             pageBottom: pageBottom, windowBottom: hostView.window?.safeAreaInsets.bottom ?? pageBottom)
         let picker = pickerGeometry(in: hostView)
         var pickerLimit = compactDetent.composerObstruction + (picker?.bottomClearance ?? 0)
@@ -248,6 +303,14 @@ final class BottomObstructionCoordinator {
             keyboardHandoffStartHeight: keyboardHandoffStartHeight,
             keyboardHandoffTargetHeight: keyboardHandoffTargetHeight
         )
+        // UIKit 可能在尺寸转场完成后的下一次提交中才应用新档位。等呈现层、
+        // 小档目标和页面实际采用的遮挡量一致，再把输入栏交回页面。
+        defer {
+            if let picker, abs(picker.height - compactHeight) <= 0.5,
+               abs(currentHeight - picker.height) <= 0.5 {
+                pickerDidSettle?()
+            }
+        }
         // 过滤坐标转换和像素取整产生的微小变化，避免每一帧都重复布局、滚动列表。
         guard abs(resolved - currentHeight) > 0.5 else { return }
         // 回调会同步触发布局，布局又可能回到 refreshGeometry；先写入高度以阻止重入。

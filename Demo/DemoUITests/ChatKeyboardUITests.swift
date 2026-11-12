@@ -165,13 +165,9 @@ final class ChatKeyboardUITests: XCTestCase {
             "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN",
             "-quicklayoutkit.demo.locale.identifier", "zh-Hans",
         ]
-        let originalOrientation = XCUIDevice.shared.orientation
-        defer { XCUIDevice.shared.orientation = originalOrientation }
-        XCUIDevice.shared.orientation = .portrait
         app.launchArguments += ["-chat-draft-session", UUID().uuidString]
         app.launch()
         let window = app.windows.firstMatch
-        XCTAssertGreaterThan(window.frame.height, window.frame.width)
         let route = app.buttons.matching(identifier: "app.tab.chat").firstMatch
         for _ in 0..<8 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
         XCTAssertTrue(route.waitForExistence(timeout: 10))
@@ -193,14 +189,14 @@ final class ChatKeyboardUITests: XCTestCase {
         let panelTop = panel.frame.minY
         let photoComposerBottom = composer.frame.maxY
         let screenshot = XCTAttachment(screenshot: window.screenshot())
-        screenshot.name = "竖屏键盘切换照片选择器"
+        screenshot.name = "键盘切换照片选择器"
         screenshot.lifetime = .keepAlways
         add(screenshot)
         text.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         XCTAssertTrue(panel.waitForNonExistence(timeout: 10))
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
         let restoredBottom = composer.frame.maxY
-        print("portrait handoff window=\(window.frame) keyboard=\(keyboardComposerBottom) panel=\(panelTop) photoComposer=\(photoComposerBottom) restored=\(restoredBottom)")
+        print("handoff window=\(window.frame) keyboard=\(keyboardComposerBottom) panel=\(panelTop) photoComposer=\(photoComposerBottom) restored=\(restoredBottom)")
         XCTAssertEqual(photoComposerBottom, keyboardComposerBottom, accuracy: 1)
         XCTAssertEqual(panelTop, keyboardComposerBottom, accuracy: 1)
         XCTAssertEqual(restoredBottom, keyboardComposerBottom, accuracy: 1)
