@@ -111,6 +111,41 @@ extension ApplicationTests {
         #expect(cell.bounds.width == 180)
     }
 
+    @Test func tableHeaderFitsWrappedDetailInInsetGroupedContent() async throws {
+        let controller = UIViewController()
+        let list = ContentConfigurationTableListView()
+        controller.view = list
+        let window = try makeVisibleTestWindow(
+            rootViewController: controller,
+            size: CGSize(width: 466, height: 678)
+        )
+        defer { window.isHidden = true }
+        // 模拟窄屏上系统侧栏占用的安全区域。
+        controller.additionalSafeAreaInsets.right = 60
+        await withCheckedContinuation { continuation in
+            list.render(
+                items: [],
+                headerTitle: "自适应内容",
+                headerDetail: "UIKit 单元格通过 UIContentConfiguration 承载 QuickLayout 内容。",
+                footerTitle: "Footer",
+                completion: { continuation.resume() }
+            )
+        }
+        window.layoutIfNeeded()
+        let header = try #require(
+            list.tableView.headerView(forSection: 0)
+                as? ContentConfigurationTableHeaderFooterView
+        )
+        let detail = header.sectionContentView.detailLabel
+        let required = detail.sizeThatFits(
+            CGSize(width: detail.bounds.width, height: .greatestFiniteMagnitude)
+        )
+        let detailFrame = detail.convert(detail.bounds, to: header.contentView)
+        #expect(required.height > detail.font.lineHeight + 1)
+        #expect(detail.bounds.height + 1 >= required.height)
+        #expect(header.contentView.bounds.insetBy(dx: -1, dy: -1).contains(detailFrame))
+    }
+
     @Test func tableContentConfigurationControllerUsesSelfSizingViews() throws {
         let fittingTolerance: CGFloat = 1.01
         let viewController = ContentConfigurationTableViewController()

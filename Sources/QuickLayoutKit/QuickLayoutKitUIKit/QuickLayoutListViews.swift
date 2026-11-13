@@ -604,14 +604,23 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
     private func quickLayoutSizeThatFits(_ size: CGSize) -> CGSize? {
         synchronizeLayoutDirectionFromTableIfNeeded()
         quickLayoutEnvironmentState.update(self)
-        return withQuickLayoutManagedViewState {
-            withQuickLayoutContainerSize(size) {
-                _QuickLayoutViewImplementation.sizeThatFits(
-                    self,
-                    size: size
-                )
-            }
+
+        // UIKit 提供整个 header/footer 的宽度，但 insetGrouped 和安全区域会缩窄
+        // contentView。首次 fitting 时它还可能没有 frame，先让 UIKit 布置容器。
+        if bounds.width > 0, size.width.isFinite {
+            layoutIfNeeded()
         }
+        let horizontalInset = contentView.bounds.width > 0
+            ? max(0, bounds.width - contentView.bounds.width) : 0
+        let contentSize = CGSize(width: max(0, size.width - horizontalInset),
+                                 height: size.height)
+        guard var measured = withQuickLayoutManagedViewState({
+            withQuickLayoutContainerSize(contentSize) {
+                _QuickLayoutViewImplementation.sizeThatFits(self, size: contentSize)
+            }
+        }) else { return nil }
+        measured.width += horizontalInset
+        return measured
     }
 
     /// 仅在 `.required` 轴使用目标长度，其余轴查询理想尺寸；测量后恢复固定轴的目标值。
