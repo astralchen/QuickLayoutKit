@@ -16,6 +16,9 @@ extension ChatViewController {
 
     /// 连接输入栏动作、媒体状态、文档插入和消息交互到页面控制器。
     func configureInteractions() {
+        composerView.attachmentButton.menuVisibilityDidChange = { [weak self] visible in
+            self?.bottomObstructionCoordinator.setAttachmentMenuVisible(visible)
+        }
         composerView.actionRequested = { [weak self] action in
             guard let self, !isRestoringDraft, !hasCleanedUpChat else { return false }
             isHandlingDraftAction = true
@@ -95,6 +98,7 @@ extension ChatViewController {
             self?.bottomObstructionCoordinator.finishPickerPresentation(picker)
         }
         photoController.pickerDidDismiss = { [weak self] in
+            self?.restoreComposerFromSheet()
             self?.bottomObstructionCoordinator.stopTrackingPicker()
         }
         composerView.heightDidChange = { [weak self] change in
@@ -122,6 +126,7 @@ extension ChatViewController {
         composerView.textInputDidBeginEditing = { [weak self] in
             guard let self, photoController.isPresented else { return }
             // 先保存交接起点再关闭面板，否则面板向下退出时输入栏也会先下落再随键盘升起。
+            restoreComposerFromSheet()
             bottomObstructionCoordinator.beginKeyboardHandoff()
             photoController.dismissPicker(animated: true)
         }
@@ -198,8 +203,7 @@ extension ChatViewController {
                 audioController.stopPlayback()
                 photoController.present(
                     from: self,
-                    keyboardHeight: bottomObstructionCoordinator
-                        .storedKeyboardContentHeight
+                    keyboardHeight: bottomObstructionCoordinator.photoPickerContentHeight
                 )
                 return true
             case .file:

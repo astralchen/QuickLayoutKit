@@ -7,6 +7,78 @@ import UIKit
 @MainActor
 @Suite(.serialized, .enabled(if: ChatTestAvailability.isSupported))
 struct ChatFullscreenLayoutTests {
+    /// 使用实际系统照片 Sheet，检查容器边界和输入框内部都没有重复安全区留白。
+    @Test(arguments: [false, true])
+    func photoPickerMeetsComposerAfterPresentation(fromKeyboard: Bool) async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let tabs = AppTabBarController()
+        let window = try makeVisibleTestWindow(rootViewController: tabs)
+        tabs.select(.chat)
+        let navigation = try #require(tabs.featureControllers[.chat] as? UINavigationController)
+        let page = try #require(navigation.viewControllers.first as? ChatViewController)
+        defer { page.bottomObstructionCoordinator.stop(); window.isHidden = true }
+        try await Task.sleep(for: .milliseconds(300))
+        if fromKeyboard {
+            page.composerView.textView.becomeFirstResponder()
+            try await Task.sleep(for: .milliseconds(700))
+        }
+        page.photoController.present(from: page,
+            keyboardHeight: page.bottomObstructionCoordinator.storedKeyboardContentHeight)
+        let sheet = try #require(page.presentedViewController)
+        #expect(await eventually {
+            sheet.viewIfLoaded?.window === window && !sheet.isBeingPresented && sheet.transitionCoordinator == nil
+        })
+        let panel = try #require(sheet.presentationController?.presentedView)
+        let input = page.composerView.inputGlassView
+        // 系统可能在入场后的下一帧应用校准档位，等模型层与呈现层都到达落点。
+        #expect(await eventually {
+            guard let panelLayer = panel.layer.presentation(), let windowLayer = window.layer.presentation() else { return false }
+            let modelTop = panel.convert(panel.bounds, to: window).minY
+            let visibleTop = panelLayer.convert(panelLayer.bounds, to: windowLayer).minY
+            let inputBottom = input.convert(input.bounds, to: window).maxY
+            return abs(modelTop - visibleTop) <= 1
+                && abs(modelTop - inputBottom - ComposerView.Metrics.verticalPadding) <= 1
+        })
+        let panelFrame = panel.convert(panel.bounds, to: window)
+        let composer = page.composerView
+        let composerFrame = composer.convert(composer.bounds, to: window)
+        let inputFrame = composer.inputGlassView.convert(composer.inputGlassView.bounds, to: window)
+        let diagnostic = "keyboard=\(fromKeyboard) panel=\(panelFrame) composer=\(composerFrame) input=\(inputFrame) safe=\(page.view.safeAreaInsets) obstruction=\(page.bottomObstruction) sheetView=\(sheet.view.convert(sheet.view.bounds, to: window))"
+        #expect(abs(panelFrame.minY - inputFrame.maxY - ComposerView.Metrics.verticalPadding) <= 1, "\(diagnostic)")
+        page.photoController.dismissPicker(animated: false)
+        try await Task.sleep(for: .milliseconds(300))
+    }
+
+    @Test func directPhotoPickerMatchesCachedShortKeyboard() async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let tabs = AppTabBarController()
+        let window = try makeVisibleTestWindow(rootViewController: tabs)
+        tabs.select(.chat)
+        let nav = try #require(tabs.featureControllers[.chat] as? UINavigationController)
+        let page = try #require(nav.viewControllers.first as? ChatViewController)
+        defer { page.bottomObstructionCoordinator.stop(); window.isHidden = true }
+        window.layoutIfNeeded()
+        let host = page.view!
+        let height = host.safeAreaInsets.bottom + 160
+        let keyboard = CGRect(x: 0, y: host.bounds.maxY - height, width: host.bounds.width, height: height)
+        let notification = Notification(name: UIResponder.keyboardWillShowNotification, object: window.screen,
+            userInfo: [UIResponder.keyboardFrameEndUserInfoKey: host.convert(keyboard, to: window.screen.coordinateSpace)])
+        let coordinator = page.bottomObstructionCoordinator
+        coordinator.updateKeyboard(try #require(QuickLayoutKeyboardContext(notification: notification)))
+        coordinator.updateKeyboard(.hidden)
+        #expect(abs(coordinator.storedKeyboardContentHeight - 160) < 1)
+        page.photoController.present(from: page, keyboardHeight: coordinator.storedKeyboardContentHeight)
+        defer { page.photoController.dismissPicker(animated: false) }
+        try await Task.sleep(for: .milliseconds(1200))
+        let sheet = try #require(page.presentedViewController?.presentationController?.presentedView)
+        let panelTop = sheet.convert(sheet.bounds, to: window).minY
+        let input = page.composerView.inputGlassView
+        let gap = panelTop - input.convert(input.bounds, to: window).maxY
+        #expect(abs(panelTop - host.convert(host.safeAreaLayoutGuide.layoutFrame, to: window).maxY + 160) <= 1)
+        #expect(abs(gap - ComposerView.Metrics.verticalPadding) <= 1,
+            "gap=\(gap), panelTop=\(panelTop), obstruction=\(coordinator.currentHeight), host=\(host.bounds), safe=\(host.safeAreaInsets), windowSafe=\(window.safeAreaInsets)")
+    }
+
     /// 导航栏展开/收起只改变顶部遮挡，不能把刚离开底部的手势拉回，也不能移动历史消息。
     @Test(arguments: [false, true])
     func topInsetChangesPreserveScrollOffset(readingHistory: Bool) async throws {
@@ -74,9 +146,9 @@ struct ChatFullscreenLayoutTests {
                 for index in list.indexPathsForVisibleItems {
                     let frame = try #require(list.layoutAttributesForItem(at: index)?.frame)
                     #expect(frame.minX >= safeFrame.minX - 1,
-                            "row=\(frame), safe=\(safeFrame), size=\(size), rtl=\(rtl)")
+                            "row=\(frame), safe=\(safeFrame), size=\(size), rtl=\(rtl), list=\(list.convert(list.bounds, to: page.view)), composer=\(page.composerView.convert(page.composerView.bounds, to: page.view)), page=\(page.view.bounds), obstruction=\(page.bottomObstruction)")
                     #expect(frame.maxX <= safeFrame.maxX + 1,
-                            "row=\(frame), safe=\(safeFrame), size=\(size), rtl=\(rtl)")
+                            "row=\(frame), safe=\(safeFrame), size=\(size), rtl=\(rtl), list=\(list.convert(list.bounds, to: page.view)), composer=\(page.composerView.convert(page.composerView.bounds, to: page.view)), page=\(page.view.bounds), obstruction=\(page.bottomObstruction)")
                 }
             }
         }
@@ -97,7 +169,7 @@ struct ChatFullscreenLayoutTests {
             page.setNeedsQuickLayout()
             page.layoutChatContent()
             fixture.expectGeometry()
-            #expect(abs(page.composerView.frame.maxY - (page.view.bounds.maxY
+            #expect(abs(page.composerView.convert(page.composerView.bounds, to: page.view).maxY - (page.view.bounds.maxY
                 - page.view.safeAreaInsets.bottom - obstruction)) < 1)
             #expect(page.conversationView.isNearBottom)
         }
@@ -258,7 +330,7 @@ struct ChatFullscreenLayoutTests {
             #expect(list.verticalScrollIndicatorInsets.top == list.contentInset.top)
             #expect(list.verticalScrollIndicatorInsets.bottom == list.contentInset.bottom)
             #expect(abs(list.contentInset.top - page.view.safeAreaInsets.top) < 1)
-            #expect(abs(list.contentInset.bottom - (page.view.bounds.maxY - page.composerView.frame.minY)) < 1)
+            #expect(abs(list.contentInset.bottom - (page.view.bounds.maxY - page.composerView.convert(page.composerView.bounds, to: page.view).minY)) < 1)
         }
 
         func close() {

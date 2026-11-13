@@ -48,7 +48,12 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
     private var debugLastViewportGeometry: String?
     #endif
     /// 承载文本、听写和附件草稿输入的视图。
-    let composerView = ComposerView()
+    private let composerSlot = ComposerSlot()
+    private var sheetAccessory: UIView?
+    var composerView: ComposerView { composerSlot.composer }
+    /// 窗口变形期间让输入栏与照片小档共用同一呈现坐标系。
+    private weak var resizingSheet: PhotoPickerController.SheetHostController?
+    private var resizeCoordinator: (any UIViewControllerTransitionCoordinator)?
     /// 导航栏中显示联系人头像和副标题的视图。
     let contactTitleView = ContactTitleView(frame: .zero)
     /// 协调页面录音、音频播放和实时听写的控制器。
@@ -237,7 +242,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
             conversationView
                 .resizable()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            composerView
+            composerSlot
                 .resizable(axis: .horizontal)
                 .fixedSize(axis: .vertical)
                 .padding(.bottom, bottomObstruction)
@@ -342,6 +347,14 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
         loadInitialHistory()
         observeKeyboard()
         configureBottomObstruction()
+        bottomObstructionCoordinator.pickerWillResize = { [weak self] in
+            guard let self, let sheet = compactPhotoSheet else { return }
+            attachComposer(to: sheet)
+        }
+        bottomObstructionCoordinator.pickerDidSettle = { [weak self] in
+            guard let self, resizeCoordinator == nil else { return }
+            restoreComposerFromSheet()
+        }
         #if MEDIA_BENCHMARK
         if ProcessInfo.processInfo.arguments.contains("-media-benchmark") {
             mediaBenchmark = MediaConcurrencyBenchmark(chat: self)
@@ -355,13 +368,81 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
         super.viewDidLayoutSubviews()
         bottomObstructionCoordinator.refreshGeometry()
         composerView.updateAvailableViewportHeight(view.safeAreaLayoutGuide.layoutFrame.height - bottomObstruction)
+        layoutComposerAboveSheet()
         updateConversationViewport()
     }
 
     override func viewWillTransition(to size: CGSize, with coordinator: any UIViewControllerTransitionCoordinator) {
         conversationView.debugLogScroll("page.transition", detail: "targetSize=\(size)")
         conversationView.prepareForViewportChange()
+        attachComposerForSheetResize(with: coordinator)
         super.viewWillTransition(to: size, with: coordinator)
+    }
+
+    override func willTransition(to newCollection: UITraitCollection, with coordinator: any UIViewControllerTransitionCoordinator) {
+        if newCollection.horizontalSizeClass != traitCollection.horizontalSizeClass ||
+            newCollection.verticalSizeClass != traitCollection.verticalSizeClass {
+            attachComposerForSheetResize(with: coordinator)
+        }
+        super.willTransition(to: newCollection, with: coordinator)
+    }
+
+    private func attachComposerForSheetResize(with coordinator: any UIViewControllerTransitionCoordinator) {
+        guard resizeCoordinator !== coordinator, let sheet = compactPhotoSheet else { return }
+        resizeCoordinator = coordinator
+        attachComposer(to: sheet)
+        coordinator.animate(alongsideTransition: { [weak self] _ in
+            self?.layoutComposerAboveSheet()
+        }, completion: { [weak self, weak coordinator] _ in
+            guard let self, resizeCoordinator === coordinator else { return }
+            resizeCoordinator = nil
+            bottomObstructionCoordinator.finishPickerResize()
+        })
+    }
+
+    private var compactPhotoSheet: PhotoPickerController.SheetHostController? {
+        guard let sheet = presentedViewController as? PhotoPickerController.SheetHostController,
+              sheet.sheetPresentationController?.selectedDetentIdentifier == PhotoPickerController.keyboardDetentIdentifier,
+              !sheet.isBeingDismissed else { return nil }
+        return sheet
+    }
+
+    private func attachComposer(to sheet: PhotoPickerController.SheetHostController) {
+        guard sheetAccessory == nil, let surface = sheet.presentationController?.presentedView,
+              surface.window != nil, surface.window === view.window, !surface.clipsToBounds else { return }
+        // 旋转时系统在渲染端移动面板。让输入栏临时成为面板的子视图，同一次合成即可移动两者。
+        let accessory = UIView()
+        resizingSheet = sheet
+        sheetAccessory = accessory
+        UIView.performWithoutAnimation {
+            surface.addSubview(accessory)
+            layoutComposerAboveSheet()
+            accessory.addSubview(composerView)
+            composerView.frame = accessory.bounds
+        }
+    }
+
+    private func layoutComposerAboveSheet() {
+        guard let sheet = resizingSheet, let accessory = sheetAccessory,
+              let surface = accessory.superview else { return }
+        let area = view.convert(view.safeAreaLayoutGuide.layoutFrame, to: surface)
+        let height = composerView.sizeThatFits(area.size).height
+        let top = sheet.view.convert(sheet.view.bounds, to: surface).minY
+        accessory.frame = CGRect(x: area.minX, y: top - height, width: area.width, height: height)
+        if composerView.superview === accessory { composerView.frame = accessory.bounds }
+    }
+
+    func restoreComposerFromSheet() {
+        guard let accessory = sheetAccessory else { return }
+        resizingSheet = nil
+        sheetAccessory = nil
+        resizeCoordinator = nil
+        UIView.performWithoutAnimation {
+            layoutChatContent()
+            composerSlot.addSubview(composerView)
+            composerView.frame = composerSlot.bounds
+            accessory.removeFromSuperview()
+        }
     }
 
     override func viewSafeAreaInsetsDidChange() {
@@ -576,3 +657,32 @@ private func makeChatViewControllerPreview() -> UIViewController {
     makeChatViewControllerPreview()
 }
 #endif
+
+
+/// 在页面中保留输入栏的位置，使屏幕切换前后都以相同的局部坐标布局输入栏。
+@available(iOS 26.0, *)
+private final class ComposerSlot: UIView {
+    let composer = ComposerView()
+
+    init() {
+        super.init(frame: .zero)
+        addSubview(composer)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError() }
+
+    override var intrinsicContentSize: CGSize { composer.intrinsicContentSize }
+
+    override func sizeThatFits(_ size: CGSize) -> CGSize { composer.sizeThatFits(size) }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if composer.superview === self { composer.frame = bounds }
+    }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let hit = super.hitTest(point, with: event)
+        return hit === self ? nil : hit
+    }
+}

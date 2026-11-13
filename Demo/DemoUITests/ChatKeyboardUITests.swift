@@ -1,7 +1,4 @@
-import OSLog
 import XCTest
-
-private let logger = Logger(subsystem: "Demo.UITests", category: "ChatKeyboardUITests")
 
 final class ChatKeyboardUITests: XCTestCase {
     override func setUpWithError() throws {
@@ -162,13 +159,19 @@ final class ChatKeyboardUITests: XCTestCase {
     @MainActor
     func testKeyboardToPhotoMenu() throws {
         continueAfterFailure = false
+        let device = XCUIDevice.shared
+        let original = device.orientation
+        defer { device.orientation = original }
+        device.orientation = .portrait
         let app = XCUIApplication()
         app.launchArguments += ["-imessage-basic-history"]
         app.launchArguments += [
             "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN",
             "-quicklayoutkit.demo.locale.identifier", "zh-Hans",
         ]
+        app.launchArguments += ["-chat-draft-session", UUID().uuidString]
         app.launch()
+        let window = app.windows.firstMatch
         let route = app.buttons.matching(identifier: "app.tab.chat").firstMatch
         for _ in 0..<8 where !route.exists { app.collectionViews.firstMatch.swipeUp() }
         XCTAssertTrue(route.waitForExistence(timeout: 10))
@@ -182,20 +185,24 @@ final class ChatKeyboardUITests: XCTestCase {
         // 必须实际经过附件菜单；直接调用照片控制器不会产生菜单关闭时的临时键盘通知。
         let attachment = app.buttons["imessage.composer.attachment"]
         attachment.tap()
+        // 菜单会暂时收起键盘候选栏，此时输入栏也应保持原位。
+        XCTAssertEqual(composer.frame.maxY, keyboardComposerBottom, accuracy: 1)
         app.buttons["照片"].tap()
-        // 通过系统面板的控制柄验证真实边界，覆盖附件菜单关闭时的焦点恢复。
-        let grabber = app.buttons["表单控制柄"]
-        XCTAssertTrue(grabber.waitForExistence(timeout: 10))
-        let aligned = NSPredicate { _, _ in
-            composer.frame.maxY <= grabber.frame.midY + 1
-                && abs(composer.frame.maxY - keyboardComposerBottom) <= 1
-        }
-        expectation(for: aligned, evaluatedWith: composer)
-        waitForExpectations(timeout: 10)
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        let panel = app.otherElements["imessage.picker.panel"]
+        XCTAssertTrue(panel.waitForExistence(timeout: 10))
+        let panelTop = panel.frame.minY
+        let photoComposerBottom = composer.frame.maxY
+        let screenshot = XCTAttachment(screenshot: window.screenshot())
         screenshot.name = "键盘切换照片选择器"
         screenshot.lifetime = .keepAlways
         add(screenshot)
-        logger.notice("照片面板边界: 键盘时底边=\(keyboardComposerBottom, privacy: .public), 照片时底边=\(composer.frame.maxY, privacy: .public), 控制柄中心=\(grabber.frame.midY, privacy: .public)")
+        text.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 10))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
+        let restoredBottom = composer.frame.maxY
+        print("handoff window=\(window.frame) keyboard=\(keyboardComposerBottom) panel=\(panelTop) photoComposer=\(photoComposerBottom) restored=\(restoredBottom)")
+        XCTAssertEqual(photoComposerBottom, keyboardComposerBottom, accuracy: 1)
+        XCTAssertEqual(panelTop, keyboardComposerBottom, accuracy: 1)
+        XCTAssertEqual(restoredBottom, keyboardComposerBottom, accuracy: 1)
     }
 }

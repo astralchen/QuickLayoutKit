@@ -102,15 +102,21 @@ extension ApplicationTests {
         composer.heightDidChange = { change in notifications += 1; callback?(change) }
         composer.insertDocument(draft)
         #expect(notifications == 1)
-        try await Task.sleep(for: .milliseconds(300))
+        try await waitForChatAnimation("附件插入应完成高度展开") {
+            composer.layer.animationKeys()?.isEmpty != false
+        }
         let expanded = composer.bounds.height
         notifications = 0
         composer.removeDocument(draft.id, notify: false)
         #expect(notifications == 1)
-        try await Task.sleep(for: .milliseconds(50))
-        let height = try #require(composer.layer.presentation()).bounds.height
-        #expect(height < expanded && height > composer.bounds.height)
-        try await Task.sleep(for: .milliseconds(300))
+        // 使用与同组动画测试相同的呈现层等待，保留中间帧与完成态的独立检查。
+        try await waitForChatAnimation("附件删除应出现收起中间帧") {
+            guard let height = composer.layer.presentation()?.bounds.height else { return false }
+            return height < expanded && height > composer.bounds.height
+        }
+        try await waitForChatAnimation("附件删除后应恢复输入操作区") {
+            composer.sendButton.superview == nil && composer.dictationButton.superview != nil
+        }
         #expect(composer.textAttachments.isEmpty)
         #expect(composer.sendButton.superview == nil)
         #expect(composer.dictationButton.superview != nil)

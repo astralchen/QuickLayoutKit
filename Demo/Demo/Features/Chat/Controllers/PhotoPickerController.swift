@@ -10,6 +10,18 @@ import PhotosUI
 import UniformTypeIdentifiers
 import UIKit
 
+/// 同一个小档分别按系统 Sheet 和聊天页已消费的安全区计量。
+struct PhotoPickerCompactDetent {
+    let sheetHeight: CGFloat
+    let composerObstruction: CGFloat
+
+    init(keyboardHeight: CGFloat, pageBottom: CGFloat, windowBottom: CGFloat) {
+        let additionalPageInset = max(0, pageBottom - windowBottom)
+        sheetHeight = max(1, keyboardHeight + additionalPageInset)
+        composerObstruction = sheetHeight - additionalPageInset
+    }
+}
+
 /// 管理系统照片选择面板、有序媒体草稿及页面文件导入的控制器。
 @available(iOS 17.0, *)
 @MainActor
@@ -62,7 +74,7 @@ final class PhotoPickerController: NSObject,
     }
 
     /// 与键盘内容高度对应的自定义照片面板档位标识符。
-    private static let keyboardDetentIdentifier = UISheetPresentationController.Detent.Identifier(
+    static let keyboardDetentIdentifier = UISheetPresentationController.Detent.Identifier(
         "imessage.photo.keyboard"
     )
 
@@ -96,8 +108,6 @@ final class PhotoPickerController: NSObject,
     private var sheetHost: SheetHostController?
     /// 当前草稿版本；提交或丢弃后递增以拒绝旧导入结果。
     var generation = 0
-    /// 用于计算照片小档高度的稳定键盘内容高度，默认值为 300 点。
-    private var storedKeyboardHeight: CGFloat = 300
 
     /// 有序媒体草稿变化时调用的闭包；没有项目时传入 `nil`。
     var stateDidChange: ((MediaDraftPresentation?) -> Void)?
@@ -177,9 +187,6 @@ final class PhotoPickerController: NSObject,
         from presenter: UIViewController,
         keyboardHeight: CGFloat
     ) {
-        if keyboardHeight > 0 {
-            storedKeyboardHeight = keyboardHeight
-        }
         if let sheetHost {
             if sheetHost.presentingViewController != nil {
                 sheetHost.sheetPresentationController?.animateChanges {
@@ -207,11 +214,11 @@ final class PhotoPickerController: NSObject,
 
         let picker = PHPickerViewController(configuration: configuration)
         picker.delegate = self
-        let sheetHost = SheetHostController(picker: picker)
+        let sheetHost = SheetHostController(picker: picker, sourceView: presenter.view)
         sheetHost.finishSelection = { [weak self] in self?.dismissPicker(animated: true) }
         sheetHost.modalPresentationStyle = .pageSheet
         if let sheet = sheetHost.sheetPresentationController {
-            configureDetents(of: sheet)
+            sheetHost.configureDetents(of: sheet, keyboardHeight: keyboardHeight)
             sheet.selectedDetentIdentifier = Self.keyboardDetentIdentifier
             sheet.largestUndimmedDetentIdentifier = Self.keyboardDetentIdentifier
             // 拖动条叠加在照片网格上，不单独占用顶部高度。
@@ -245,22 +252,6 @@ final class PhotoPickerController: NSObject,
             self?.finishDismissing(sheetHost)
             completion?()
         }
-    }
-
-    /// 保存下一次照片小档使用的稳定键盘内容高度。
-    ///
-    /// 照片 Sheet 与键盘交接时只更新缓存，不重新计算正在 dismiss 的 Sheet；普通
-    /// 键盘高度变化则允许调用方同步刷新已经展示的 detent。
-    func updateKeyboardHeight(
-        _ height: CGFloat,
-        invalidatingPresentedDetent: Bool = true
-    ) {
-        guard height > 0 else { return }
-        storedKeyboardHeight = height
-        guard invalidatingPresentedDetent else { return }
-        guard let sheet = sheetHost?.sheetPresentationController else { return }
-        configureDetents(of: sheet)
-        sheet.invalidateDetents()
     }
 
     /// 取消并删除指定草稿项目，同步系统选择状态后发布剩余草稿。
@@ -399,14 +390,5 @@ final class PhotoPickerController: NSObject,
     /// 控制器释放时停止所有请求；回调仍会清理未交付文件。
     isolated deinit {
         entries.forEach { $0.fileRequest?.cancel(); $0.livePhotoRequest?.cancel(); $0.task?.cancel() }
-    }
-
-    /// 设置不低于 220 点的键盘高度档位及系统大档位。
-    private func configureDetents(of sheet: UISheetPresentationController) {
-        let height = max(220, storedKeyboardHeight)
-        let keyboardDetent = UISheetPresentationController.Detent.custom(
-            identifier: Self.keyboardDetentIdentifier
-        ) { context in min(height, context.maximumDetentValue) }
-        sheet.detents = [keyboardDetent, .large()]
     }
 }
