@@ -72,6 +72,8 @@ final class MainRouter: MainRouting {
             GeometryViewController()
         case .arrangement:
             ArrangementViewController()
+        case .adaptivePanel:
+            AdaptivePanelExampleViewController()
         case .directionalGrid:
             DirectionalGridViewController()
         case .profile:
