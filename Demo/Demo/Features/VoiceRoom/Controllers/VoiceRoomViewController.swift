@@ -315,6 +315,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
             .appLayoutDirection
             .semanticContentAttribute
         [
+            stageContainer,
             roomHeaderView,
             seatStageView,
             messagesView,
@@ -520,6 +521,7 @@ private final class FittedRoomStageView: UIView {
             }
         }
         super.init(frame: .zero)
+        content.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
         addSubview(content)
     }
 

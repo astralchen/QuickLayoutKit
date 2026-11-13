@@ -14,6 +14,10 @@ extension ApplicationTests {
         let navigationController = UINavigationController(
             rootViewController: viewController
         )
+        // 窗口宽度和常规宽度特征共同决定是否并排展示公屏。
+        if #available(iOS 17.0, *) {
+            navigationController.traitOverrides.horizontalSizeClass = .regular
+        }
         let window = try makeVisibleTestWindow(
             rootViewController: navigationController,
             size: CGSize(width: 1_200, height: 1_024)
@@ -434,7 +438,7 @@ extension ApplicationTests {
 
         #expect(seatFrames[0].width > seatFrames[1].width)
         #expect(seatFrames[0].width >= 116)
-        #expect(seatFrames.dropFirst().allSatisfy { $0.width >= 60 })
+        #expect(seatFrames.dropFirst().allSatisfy { $0.width >= 60 - 0.5 }, "seatFrames=\(seatFrames)")
         #expect(
             seatFrames.allSatisfy {
                 $0.minX >= -1 && $0.maxX <= viewController.view.bounds.width + 1

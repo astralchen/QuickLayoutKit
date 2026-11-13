@@ -216,7 +216,7 @@ struct RoomPKTests {
         #expect(vm.giftBalance == 990)
     }
 
-    @Test(arguments: [CGFloat(268), 300, 350, 390, 728])
+    @Test(arguments: [CGFloat(268), 300, 350, 390, 700, 960])
     func geometryFitsAndPreservesPhysicalSidesInRTL(width: CGFloat) throws {
         let presentation = try SeatLayoutResolver.resolve(snapshot: snapshot()).get()
         let items = presentation.visibleSlots.map(SeatCollectionItem.init)
@@ -234,6 +234,12 @@ struct RoomPKTests {
         }
         for side in SeatRoomSide.allCases {
             let sideFrames = try items.filter { $0.slot.roomSide == side }.map { try #require(lhs.frames[$0.id]) }
+            let outerMargin = side == .current ? sideFrames[1].minX : width - sideFrames[4].maxX
+            if width <= 700 {
+                #expect(abs(outerMargin) < 0.5)
+            } else {
+                #expect(outerMargin > 0)
+            }
             #expect(sideFrames[0].width > sideFrames[1].width)
             #expect(sideFrames[1...4].allSatisfy { $0.minY == sideFrames[1].minY })
             #expect(sideFrames[5...8].allSatisfy { $0.minY == sideFrames[5].minY })

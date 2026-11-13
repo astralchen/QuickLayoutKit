@@ -402,12 +402,12 @@ private struct SeatCollectionGeometry {
             let rowOriginX = centeredRowOriginX(
                 itemCount: itemCountInRow,
                 itemWidth: seatSize.width,
-                spacing: metrics.partyHorizontalSpacing,
+                spacing: metrics.columnSpacing,
                 availableWidth: availableWidth
             )
             frames[slot.identifier] = CGRect(
                 x: rowOriginX + CGFloat(column)
-                    * (seatSize.width + metrics.partyHorizontalSpacing),
+                    * (seatSize.width + metrics.columnSpacing),
                 y: seatSize.height
                     + metrics.partyVerticalSpacing
                     + CGFloat(row)
@@ -450,7 +450,7 @@ private struct SeatCollectionGeometry {
             )
         }
         let guestRowWidth = guestSizes.reduce(0) { $0 + $1.width }
-            + metrics.guestHorizontalSpacing
+            + metrics.columnSpacing
                 * CGFloat(max(0, guestSizes.count - 1))
         let guestRowOriginX = max(
             0,
@@ -465,7 +465,7 @@ private struct SeatCollectionGeometry {
                 width: seatSize.width,
                 height: seatSize.height
             )
-            guestOriginX += seatSize.width + metrics.guestHorizontalSpacing
+            guestOriginX += seatSize.width + metrics.columnSpacing
         }
         return frames
     }

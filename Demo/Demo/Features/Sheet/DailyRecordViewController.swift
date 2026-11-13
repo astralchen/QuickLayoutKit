@@ -109,8 +109,10 @@ final class DailyRecordViewController: LocalizedQuickLayoutHostingController {
             sheet.prefersGrabberVisible = true
             sheet.prefersEdgeAttachedInCompactHeight = true
             if #available(iOS 17.0, *) { sheet.prefersPageSizing = true }
+            #if compiler(>=6.4)
             // 不设置 sourceView，不计算折痕坐标，也不在姿态变化时重新 present。
             if #available(iOS 27.0, *) { sheet.preferredPlacement = .automatic }
+            #endif
         }
         present(navigation, animated: true)
     }

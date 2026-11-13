@@ -93,6 +93,15 @@ struct ContentConfigurationCollectionTests {
             let content = view.sectionContentView
             content.layoutIfNeeded()
             #expect(content.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+            for label in [content.titleLabel, content.detailLabel] where label.text != nil {
+                let requiredHeight = label.sizeThatFits(
+                    CGSize(width: label.bounds.width, height: .greatestFiniteMagnitude)
+                ).height
+                #expect(requiredHeight > label.font.lineHeight + 1)
+                #expect(label.bounds.height + 1 >= requiredHeight)
+                let labelFrame = label.convert(label.bounds, to: view)
+                #expect(view.bounds.insetBy(dx: -1, dy: -1).contains(labelFrame))
+            }
             let label = content.titleLabel
             let frame = label.convert(label.bounds, to: content)
             #expect(abs(frame.maxX - (content.bounds.maxX - 16)) <= 1)

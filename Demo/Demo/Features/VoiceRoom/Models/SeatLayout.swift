@@ -427,16 +427,12 @@ struct SeatLayoutMetrics: Equatable, Sendable {
     let emphasizedHostWidth: CGFloat
     /// 舞台分区之间的间距，单位为点。
     let stageSpacing: CGFloat
-    /// 舞台左右两侧的内边距，单位为点。
-    let stageHorizontalPadding: CGFloat
     /// 舞台上下两侧的内边距，单位为点。
     let stageVerticalPadding: CGFloat
-    /// 派对房麦位列之间的间距，单位为点。
-    let partyHorizontalSpacing: CGFloat
+    /// 四列观众麦之间的间距，单位为点。
+    let columnSpacing: CGFloat
     /// 派对房麦位行之间的间距，单位为点。
     let partyVerticalSpacing: CGFloat
-    /// 个播房观众麦位列之间的间距，单位为点。
-    let guestHorizontalSpacing: CGFloat
     /// 个播房观众麦位行之间的间距，单位为点。
     let guestVerticalSpacing: CGFloat
 
@@ -446,11 +442,9 @@ struct SeatLayoutMetrics: Equatable, Sendable {
         standardSeatWidth: 60,
         emphasizedHostWidth: 116,
         stageSpacing: 6,
-        stageHorizontalPadding: 10,
         stageVerticalPadding: 4,
-        partyHorizontalSpacing: 6,
+        columnSpacing: 6,
         partyVerticalSpacing: 9,
-        guestHorizontalSpacing: 4,
         guestVerticalSpacing: 9
     )
 
@@ -460,11 +454,9 @@ struct SeatLayoutMetrics: Equatable, Sendable {
         standardSeatWidth: 74,
         emphasizedHostWidth: 142,
         stageSpacing: 18,
-        stageHorizontalPadding: 10,
         stageVerticalPadding: 18,
-        partyHorizontalSpacing: 10,
+        columnSpacing: 10,
         partyVerticalSpacing: 14,
-        guestHorizontalSpacing: 7,
         guestVerticalSpacing: 16
     )
 
@@ -474,19 +466,16 @@ struct SeatLayoutMetrics: Equatable, Sendable {
         standardSeatWidth: 104,
         emphasizedHostWidth: 192,
         stageSpacing: 22,
-        stageHorizontalPadding: 20,
         stageVerticalPadding: 22,
-        partyHorizontalSpacing: 18,
+        columnSpacing: 18,
         partyVerticalSpacing: 18,
-        guestHorizontalSpacing: 12,
         guestVerticalSpacing: 18
     )
 
     /// 完整容纳常规派对房网格所需的最小宽度，单位为点。
     static var regularMinimumStageWidth: CGFloat {
-        regular.stageHorizontalPadding * 2
-            + regular.standardSeatWidth * 4
-            + regular.partyHorizontalSpacing * 3
+        regular.standardSeatWidth * 4
+            + regular.columnSpacing * 3
     }
 
     /// 启用放大麦位尺寸的最小舞台宽度；值为 560 点。
@@ -514,36 +503,17 @@ struct SeatLayoutMetrics: Equatable, Sendable {
     /// 返回适配指定容器宽度的尺寸参数，并限制麦位之间的最大间距。
     private func distributingSeats(in availableWidth: CGFloat) -> Self {
         guard availableWidth > 0 else { return self }
-        let availableGridWidth = max(
-            0,
-            availableWidth - stageHorizontalPadding * 2
-        )
-        let distributedSpacing = max(
-            0,
-            (availableGridWidth - standardSeatWidth * 4) / 3
-        )
-        let maximumSpacing: CGFloat
-        switch sizeClass {
-        case .compact: maximumSpacing = 24
-        case .regular: maximumSpacing = 28
-        case .expanded: maximumSpacing = 44
-        }
+        // 页面已留出水平边距。四列平分剩余空间，宽舞台的列距最多为一个麦位宽。
+        let seatWidth = min(standardSeatWidth, availableWidth / 4)
+        let spacing = min(seatWidth, (availableWidth - seatWidth * 4) / 3)
         return Self(
             sizeClass: sizeClass,
-            standardSeatWidth: standardSeatWidth,
+            standardSeatWidth: seatWidth,
             emphasizedHostWidth: emphasizedHostWidth,
             stageSpacing: stageSpacing,
-            stageHorizontalPadding: stageHorizontalPadding,
             stageVerticalPadding: stageVerticalPadding,
-            partyHorizontalSpacing: min(
-                maximumSpacing,
-                max(partyHorizontalSpacing, distributedSpacing)
-            ),
+            columnSpacing: spacing,
             partyVerticalSpacing: partyVerticalSpacing,
-            guestHorizontalSpacing: min(
-                maximumSpacing,
-                max(guestHorizontalSpacing, distributedSpacing)
-            ),
             guestVerticalSpacing: guestVerticalSpacing
         )
     }
