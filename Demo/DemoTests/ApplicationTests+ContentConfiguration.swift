@@ -111,22 +111,23 @@ extension ApplicationTests {
         #expect(cell.bounds.width == 180)
     }
 
-    @Test func tableHeaderFitsWrappedDetailInInsetGroupedContent() async throws {
+    @Test(arguments: [false, true])
+    func tableHeaderFitsWrappedDetailInInsetGroupedContent(sidebarVisible: Bool) async throws {
         let controller = UIViewController()
         let list = ContentConfigurationTableListView()
         controller.view = list
         let window = try makeVisibleTestWindow(
             rootViewController: controller,
-            size: CGSize(width: 466, height: 678)
+            size: CGSize(width: sidebarVisible ? 950 : 466, height: 678)
         )
         defer { window.isHidden = true }
-        // 模拟窄屏上系统侧栏占用的安全区域。
-        controller.additionalSafeAreaInsets.right = 60
+        // 详情栏左侧由目录占用，右侧仍有系统控件。UIKit 会先收窄分组内容。
+        controller.additionalSafeAreaInsets = UIEdgeInsets(top: 0, left: sidebarVisible ? 260 : 0, bottom: 0, right: 60)
         await withCheckedContinuation { continuation in
             list.render(
                 items: [],
                 headerTitle: "自适应内容",
-                headerDetail: "UIKit 单元格通过 UIContentConfiguration 承载 QuickLayout 内容。",
+                headerDetail: String(repeating: "UIKit 单元格通过 UIContentConfiguration 承载 QuickLayout 内容。", count: 3),
                 footerTitle: "Footer",
                 completion: { continuation.resume() }
             )
@@ -141,7 +142,14 @@ extension ApplicationTests {
             CGSize(width: detail.bounds.width, height: .greatestFiniteMagnitude)
         )
         let detailFrame = detail.convert(detail.bounds, to: header.contentView)
-        #expect(required.height > detail.font.lineHeight + 1)
+        let title = header.sectionContentView.titleLabel
+        let titleFrame = title.convert(title.bounds, to: header.contentView)
+        #expect(abs(titleFrame.minX - 16) <= 1)
+        #expect(abs(detailFrame.minX - 16) <= 1)
+        let availableWidth = header.contentView.bounds.width - 32
+        let expectedHeight = detail.sizeThatFits(CGSize(width: availableWidth, height: .greatestFiniteMagnitude)).height
+        #expect(abs(detail.bounds.height - expectedHeight) <= 1)
+        if !sidebarVisible { #expect(required.height > detail.font.lineHeight + 1) }
         #expect(detail.bounds.height + 1 >= required.height)
         #expect(header.contentView.bounds.insetBy(dx: -1, dy: -1).contains(detailFrame))
     }

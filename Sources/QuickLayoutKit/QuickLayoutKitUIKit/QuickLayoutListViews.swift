@@ -527,9 +527,9 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
             measuredSize: containerBounds.size
         )
         withQuickLayoutManagedViewState {
-            withQuickLayoutContainerSize(containerBounds.size) {
+            // UIKit 已将分组边距和侧栏避让反映在 contentView 的位置与宽度中。
+            contentView.withQuickLayoutContainerSize(containerBounds.size) {
                 QuickLayoutSafeAreaBodyBridge.layoutSubviews(self)
-
             }
         }
     }
@@ -603,7 +603,7 @@ open class QuickLayoutTableViewHeaderFooterView: UITableViewHeaderFooterView, Ha
         let contentSize = CGSize(width: max(0, size.width - horizontalInset),
                                  height: size.height)
         guard var measured = withQuickLayoutManagedViewState({
-            withQuickLayoutContainerSize(contentSize) {
+            contentView.withQuickLayoutContainerSize(contentSize) {
                 QuickLayoutSafeAreaBodyBridge.sizeThatFits(self, size: contentSize)
             }
         }) else { return nil }
