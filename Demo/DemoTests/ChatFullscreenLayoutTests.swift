@@ -24,9 +24,21 @@ struct ChatFullscreenLayoutTests {
         }
         page.photoController.present(from: page,
             keyboardHeight: page.bottomObstructionCoordinator.storedKeyboardContentHeight)
-        try await Task.sleep(for: .milliseconds(1200))
         let sheet = try #require(page.presentedViewController)
+        #expect(await eventually {
+            sheet.viewIfLoaded?.window === window && !sheet.isBeingPresented && sheet.transitionCoordinator == nil
+        })
         let panel = try #require(sheet.presentationController?.presentedView)
+        let input = page.composerView.inputGlassView
+        // 系统可能在入场后的下一帧应用校准档位，等模型层与呈现层都到达落点。
+        #expect(await eventually {
+            guard let panelLayer = panel.layer.presentation(), let windowLayer = window.layer.presentation() else { return false }
+            let modelTop = panel.convert(panel.bounds, to: window).minY
+            let visibleTop = panelLayer.convert(panelLayer.bounds, to: windowLayer).minY
+            let inputBottom = input.convert(input.bounds, to: window).maxY
+            return abs(modelTop - visibleTop) <= 1
+                && abs(modelTop - inputBottom - ComposerView.Metrics.verticalPadding) <= 1
+        })
         let panelFrame = panel.convert(panel.bounds, to: window)
         let composer = page.composerView
         let composerFrame = composer.convert(composer.bounds, to: window)

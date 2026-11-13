@@ -159,6 +159,10 @@ final class ChatKeyboardUITests: XCTestCase {
     @MainActor
     func testKeyboardToPhotoMenu() throws {
         continueAfterFailure = false
+        let device = XCUIDevice.shared
+        let original = device.orientation
+        defer { device.orientation = original }
+        device.orientation = .portrait
         let app = XCUIApplication()
         app.launchArguments += ["-imessage-basic-history"]
         app.launchArguments += [

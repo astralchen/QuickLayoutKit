@@ -1193,14 +1193,12 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         let restingBottom = attachment.frame.maxY
         attachment.tap()
         app.buttons["照片"].tap()
-        let grabber = app.buttons["表单控制柄"]
-        XCTAssertTrue(grabber.waitForExistence(timeout: 10))
+        let panel = app.otherElements["imessage.picker.panel"]
+        XCTAssertTrue(panel.waitForExistence(timeout: 10))
         let done = app.buttons["imessage.picker.done"]
         guard done.exists else { throw XCTSkip("当前窗口未使用横屏窄面板") }
         let thumbnail = app.images.matching(identifier: "PXGGridLayout-Info").firstMatch
         XCTAssertTrue(thumbnail.waitForExistence(timeout: 20))
-        let panel = app.otherElements["imessage.picker.panel"]
-        XCTAssertTrue(panel.exists)
         let aligned = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             let bottom = attachment.frame.maxY
             let gap = panel.frame.minY - bottom
@@ -1210,12 +1208,16 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
         capture(app, "横屏照片面板与输入栏", screenshot: window.screenshot())
         XCTAssertEqual(result, .completed, "rest=\(restingBottom), panel=\(panel.frame), composerButton=\(attachment.frame)")
         done.tap()
-        XCTAssertTrue(grabber.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 5))
         XCTAssertEqual(attachment.frame.maxY, restingBottom, accuracy: 1)
     }
 
     /// 通过真实附件菜单打开照片面板，覆盖菜单对键盘高度通知的影响。
     @MainActor func testPhotoPickerSpacingFromAttachmentMenu() {
+        let device = XCUIDevice.shared
+        let original = device.orientation
+        defer { device.orientation = original }
+        device.orientation = .portrait
         for fromKeyboard in [false, true] {
             let app = chat(fixture: "empty", extra: ["-AppleLanguages", "(zh-Hans)", "-chat-draft-session", UUID().uuidString])
             if fromKeyboard {
@@ -1226,21 +1228,20 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
             let keyboardInputBottom = attachment.frame.maxY
             attachment.tap()
             app.buttons["照片"].tap()
-            let grabber = app.buttons["表单控制柄"]
-            XCTAssertTrue(grabber.waitForExistence(timeout: 10))
+            let panel = app.otherElements["imessage.picker.panel"]
+            XCTAssertTrue(panel.waitForExistence(timeout: 10))
             let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-                let gap = grabber.frame.midY - attachment.frame.maxY
-                return gap >= 0 && gap < 24
+                abs(panel.frame.minY - attachment.frame.maxY - 8) <= 1
             }, object: nil)
             let result = XCTWaiter.wait(for: [settled], timeout: 5)
             capture(app, "照片面板-间距-\(fromKeyboard)", screenshot: XCUIScreen.main.screenshot())
             XCTAssertEqual(result, .completed,
-                "keyboard=\(fromKeyboard), grabber=\(grabber.frame), attachment=\(attachment.frame)")
+                "keyboard=\(fromKeyboard), panel=\(panel.frame), attachment=\(attachment.frame)")
             if fromKeyboard {
                 // 点击露在面板上方的输入框，验证照片到键盘的交接没有残留间距。
                 app.textViews["imessage.composer.text"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
                 XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
-                XCTAssertTrue(grabber.waitForNonExistence(timeout: 5))
+                XCTAssertTrue(panel.waitForNonExistence(timeout: 5))
                 let keyboardMeetsInput = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
                     // 键盘 AX frame 不包含候选栏，改为严格比较交接前后的输入框边界。
                     abs(attachment.frame.maxY - keyboardInputBottom) <= 1
@@ -1249,8 +1250,10 @@ final class ChatAttachmentPreviewUITests: XCTestCase {
                 capture(app, "照片面板-切回键盘", screenshot: XCUIScreen.main.screenshot())
                 XCTAssertEqual(keyboardResult, .completed, "keyboard=\(app.keyboards.firstMatch.frame), attachment=\(attachment.frame)")
             } else {
-                grabber.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
-                XCTAssertTrue(grabber.waitForNonExistence(timeout: 5))
+                let handle = panel.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0))
+                    .withOffset(CGVector(dx: 0, dy: 8))
+                handle.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
+                XCTAssertTrue(panel.waitForNonExistence(timeout: 5))
                 let returnsToBottom = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
                     let tabs = app.tabBars.firstMatch
                     if tabs.exists { return abs(tabs.frame.minY - attachment.frame.maxY) < 24 }

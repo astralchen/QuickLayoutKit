@@ -261,7 +261,14 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
         view.accessibilityIdentifier = "imessage.page"
         contactTitleView.sizeToFit()
         navigationItem.titleView = contactTitleView
-        setContentScrollView(conversationView.collectionView, for: .top)
+        let timeline = conversationView.collectionView
+        setContentScrollView(timeline, for: .top)
+        timeline.bottomEdgeEffect.style = .soft
+        // 将边缘交互挂在悬浮输入栏上，让 UIKit 根据输入栏的位置对其后方的消息做淡出处理。
+        let composerEdge = UIScrollEdgeElementContainerInteraction()
+        composerEdge.scrollView = timeline
+        composerEdge.edge = .bottom
+        composerView.addInteraction(composerEdge)
         conversationView.viewportDidLayout = { [weak self] in self?.updateConversationViewport() }
         composerView.geometryDidLayout = { [weak self] in self?.updateConversationViewport() }
         view.backgroundColor = .systemBackground

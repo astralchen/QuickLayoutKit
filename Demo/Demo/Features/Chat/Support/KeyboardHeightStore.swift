@@ -3,7 +3,7 @@ import UIKit
 /// 保存本聊天页面见过的停靠键盘高度，单位是从窗口底边到键盘顶边的点数。
 @MainActor
 final class KeyboardHeightStore {
-    struct Layout: Hashable {
+    @MainActor struct Layout: Hashable {
         let horizontal: UIUserInterfaceSizeClass
         let vertical: UIUserInterfaceSizeClass
         let isWiderThanTall: Bool
