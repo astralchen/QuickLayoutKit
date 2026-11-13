@@ -1,5 +1,5 @@
 {
-  "originHash" : "89426c4bc58f1e6578513fc3b9594d2b6025aafda845cbc95ed3d30bc3449b94",
+  "originHash" : "caafb3fa43150a995a1f04755f3873ebc6aed9414c4f2824a06e0d5d5c24891b",
   "pins" : [
     {
       "identity" : "applocalization",
@@ -24,7 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/facebookincubator/QuickLayout",
       "state" : {
-        "revision" : "62310c0a7f4ec43f3ea6ff89f3824ef6b23b2bb3"
+        "branch" : "main",
+        "revision" : "90703253ee8091257596c20ed1ab350428b67074"
       }
     },
     {
@@ -48,7 +49,7 @@
     {
       "identity" : "swift-syntax",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-syntax.git",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
       "state" : {
         "revision" : "0687f71944021d616d34d922343dcef086855920",
         "version" : "600.0.1"

@@ -1,18 +1,19 @@
 {
-  "originHash" : "f278e1c6e755f8d316b53abf2904234b0036d79eeff5cd591edd0ffbf1d0f638",
+  "originHash" : "3767572ed31dea163f5ab376f8415a37b6563c2c5c03647ffdbeca3e51700997",
   "pins" : [
     {
       "identity" : "quicklayout",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/facebookincubator/QuickLayout",
       "state" : {
-        "revision" : "62310c0a7f4ec43f3ea6ff89f3824ef6b23b2bb3"
+        "branch" : "main",
+        "revision" : "90703253ee8091257596c20ed1ab350428b67074"
       }
     },
     {
       "identity" : "swift-syntax",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-syntax.git",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
       "state" : {
         "revision" : "0687f71944021d616d34d922343dcef086855920",
         "version" : "600.0.1"

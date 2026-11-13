@@ -34,7 +34,7 @@ QuickLayoutKit 是面向 UIKit 的 [QuickLayout](https://github.com/facebookincu
 
 - iOS 15.0 或更高版本
 - Swift 6.2 或更高版本
-- QuickLayout，版本由 `Package.swift` 中的固定 revision 决定
+- QuickLayout 跟踪 `main` 分支，当前解析的提交记录在 `Package.resolved` 中
 
 ## 安装
 
@@ -615,7 +615,7 @@ HGrid(rows: [GridItem(.fixed(56)), GridItem(.fixed(56))], spacing: 12) {
   返回类型仍为 `StackElement`，`spacing: CGFloat = 0`、`fixedSize` / `idealLayout` 接口保留。
   `import QuickLayoutKit` 会选择本库入口；只同时导入 `QuickLayout` 与 `QuickLayoutKitCore` 时，
   使用 `QuickLayoutKitCore.HStack` / `QuickLayoutKitCore.VStack`，或显式 `import func` 消除同名歧义。
-  QuickLayout 源码和固定版本没有修改；直接调用 `QuickLayout.HStack` / `QuickLayout.VStack`
+  直接调用 `QuickLayout.HStack` / `QuickLayout.VStack`
   或构造 `StackElement` 仍使用上游行为。
 - RTL 下自定义水平参考线经容器聚合后，后续修饰器仍读取逻辑坐标。
   显式参考线标记随布局节点保留，并从最终返回的节点树读取：`ViewThatFits` 丢弃的候选项
