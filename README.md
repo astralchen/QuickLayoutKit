@@ -170,9 +170,17 @@ let viewController = QuickLayoutHostingController {
 
 ## 控制器根布局
 
-`QuickLayoutHostingController` 的根视图是内部 `QuickLayoutView`。控制器的 `body` 会在整个
-根视图边界内测量和放置；安全区域通过 QuickLayout 环境向下传递，但不会自动为所有内容
-添加内边距。应根据根内容的所有者选择下列布局方式。
+SwiftUI 默认在系统安全区域内确定普通页面内容的尺寸和位置。需要让背景延伸到屏幕边缘时，
+可以只在背景上使用 `ignoresSafeArea`。[Apple 的 SwiftUI 安全区域示例](https://developer.apple.com/documentation/swiftui/adding-a-background-to-your-view)
+
+QuickLayout 的 `@QuickLayout` 视图以宿主自身的 `bounds` 布局 `body`。宿主铺满父视图时，
+内容可以延伸到系统栏下方。使用纯 QuickLayout 时，可以把宿主的四边约束到父视图的
+`safeAreaLayoutGuide`，使整个宿主位于安全区内。
+
+QuickLayoutKit 的 `QuickLayoutView` 和以它为根视图的 `QuickLayoutHostingController`
+同样以宿主的完整 `bounds` 布局，并在环境中提供当前安全区边距。要让普通内容避开四边安全区，
+在内容上使用 `.safeAreaPadding()` 即可。默认额外间距为零。需要全屏背景时，可以只给前景内容
+加这个修饰符，让背景使用完整宿主边界。
 
 ### 全屏 UIKit 视图
 
