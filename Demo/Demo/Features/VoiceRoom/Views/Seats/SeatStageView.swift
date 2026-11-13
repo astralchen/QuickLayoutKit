@@ -132,7 +132,6 @@ final class SeatStageView: QuickLayoutView {
             }
         }
         .frame(height: collectionHeight)
-        .padding(.horizontal, layoutMetrics.stageHorizontalPadding)
         .padding(.vertical, layoutMetrics.stageVerticalPadding)
     }
 
@@ -376,7 +375,7 @@ final class SeatStageView: QuickLayoutView {
     /// 测量目标高度，供舞台和公屏立即更新外层布局。
     private func measuredHeight(for section: SeatLayoutSection) -> CGFloat {
         seatLayout.sizeThatFits(
-            CGSize(width: max(0, bounds.width - layoutMetrics.stageHorizontalPadding * 2), height: 0),
+            CGSize(width: bounds.width, height: 0),
             for: section,
             layoutDirection: effectiveUserInterfaceLayoutDirection
         ).height

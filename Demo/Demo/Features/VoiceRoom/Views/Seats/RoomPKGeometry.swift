@@ -62,9 +62,10 @@ struct RoomPKGeometry {
     init(width: CGFloat, sizeClass: SeatSizeClass = .regular) {
         centerGap = min(20, max(0, width) * 0.05)
         wingWidth = max(0, (width - centerGap) / 2)
-        columnSpacing = min(6, wingWidth * 0.03)
+        let minimumSpacing = min(6, wingWidth * 0.03)
         let hostWidth = min(142, max(0, wingWidth - 12))
-        let guestWidth = min(64, max(0, (wingWidth - columnSpacing * 3) / 4))
+        let guestWidth = min(64, max(0, (wingWidth - minimumSpacing * 3) / 4))
+        columnSpacing = min(guestWidth / 2, (wingWidth - guestWidth * 4) / 3)
         hostSize = CGSize(width: hostWidth, height: RoomPKSeatMetrics(styleID: .pkHost, width: hostWidth, sizeClass: sizeClass).height)
         guestSize = CGSize(width: guestWidth, height: RoomPKSeatMetrics(styleID: .pkGuest, width: guestWidth, sizeClass: sizeClass).height)
         guestOriginY = Self.headerHeight + hostSize.height + 12

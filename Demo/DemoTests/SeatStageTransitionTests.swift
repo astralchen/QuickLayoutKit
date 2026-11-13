@@ -380,16 +380,14 @@ struct SeatStageTransitionTests {
     }
 
     @Test func seatRowsCenterWithinWideContainers() throws {
-        let containerWidth: CGFloat = 760
+        let availableWidth: CGFloat = 760
         let partyPresentation = try presentation(
             for: VoiceRoomViewModel.makeDefaultStageSnapshot()
         )
         let partyMetrics = SeatLayoutMetrics.resolve(
-            availableWidth: containerWidth,
+            availableWidth: availableWidth,
             prefersCompactHeight: false
         )
-        let availableWidth = containerWidth
-            - partyMetrics.stageHorizontalPadding * 2
         let partyConfiguration = seatLayoutTestGeometry(
             presentation: partyPresentation,
             items: partyPresentation.visibleSlots.map(
@@ -450,7 +448,7 @@ struct SeatStageTransitionTests {
     }
 
     @Test func containerWidthChangesRecomputeFramesWithinSameMetrics() throws {
-        let initialWidth: CGFloat = 700
+        let initialWidth: CGFloat = 740
         let resizedWidth: CGFloat = 760
         #expect(
             SeatLayoutMetrics.resolve(

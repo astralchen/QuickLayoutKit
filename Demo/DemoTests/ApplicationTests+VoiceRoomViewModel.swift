@@ -289,7 +289,7 @@ extension ApplicationTests {
         let regularMinimumWidth = SeatLayoutMetrics
             .regularMinimumStageWidth
 
-        #expect(regularMinimumWidth == 346)
+        #expect(regularMinimumWidth == 326)
         let regularMetrics = SeatLayoutMetrics.resolve(
             availableWidth: regularMinimumWidth,
             prefersCompactHeight: false
@@ -315,13 +315,11 @@ extension ApplicationTests {
         #expect(narrowMetrics.sizeClass == .compact)
         #expect(shortMetrics.sizeClass == .compact)
         #expect(expandedMetrics.sizeClass == .expanded)
-        #expect(distributedPhoneMetrics.partyHorizontalSpacing == 28)
-        #expect(
-            distributedPhoneMetrics.partyHorizontalSpacing
-                > SeatLayoutMetrics.regular
-                    .partyHorizontalSpacing
-        )
-        #expect(expandedMetrics.partyHorizontalSpacing == 44)
+        for (width, metrics) in [(CGFloat(402), distributedPhoneMetrics), (620, expandedMetrics)] {
+            let rowWidth = 4 * metrics.standardSeatWidth + 3 * metrics.columnSpacing
+            #expect(abs(rowWidth - width) < 0.5)
+        }
+        #expect(shortMetrics.columnSpacing == shortMetrics.standardSeatWidth)
     }
 
     @Test func voiceRoomResolverMapsBusinessModeAndZeroBasedPositions() throws {
