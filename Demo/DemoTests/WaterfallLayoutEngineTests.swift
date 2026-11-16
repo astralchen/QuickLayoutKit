@@ -143,6 +143,43 @@ struct WaterfallLayoutEngineTests {
         #expect(fixture.layout.diagnostics.fullRebuilds == 0)
     }
 
+    @Test(arguments: [false, true])
+    func environmentChangeDiscoveredBySizingQuerySchedulesPreparation(horizontal: Bool) async throws {
+        let source = EngineSource(counts: [20])
+        var section = Layout.Section()
+        section.itemLengthDimension = .estimated(240)
+        let layout = Layout(section: section, configuration: .init(scrollDirection: horizontal ? .horizontal : .vertical))
+        let collection = WaterfallEnvironmentCollectionView(
+            frame: CGRect(x: 0, y: 0, width: 600, height: 600), collectionViewLayout: layout)
+        collection.dataSource = source
+        collection.reloadData()
+        collection.layoutIfNeeded()
+        let path = IndexPath(item: 0, section: 0)
+        let original = try #require(layout.layoutAttributesForItem(at: path))
+        let preferred = original.copy() as! UICollectionViewLayoutAttributes
+        if horizontal { preferred.size.width = 333 } else { preferred.size.height = 333 }
+        layout.invalidateLayout(with: layout.invalidationContext(forPreferredLayoutAttributes: preferred, withOriginalAttributes: original))
+        collection.layoutIfNeeded()
+        let measuredSize = try #require(layout.layoutAttributesForItem(at: path)).size
+        let sizing = layout.sizingForItem(at: path)
+        #expect(sizing.constraint.width > 0)
+        await Task.yield()
+        var notifications = 0
+        layout.sizingInvalidationHandler = { notifications += 1 }
+        // 精确复现 inset 已更新、UIKit 尚未开始下一轮 prepare 时的查询顺序。
+        // 注入环境值以避免 UIKit 自身的 inset setter 提前替布局安排 prepare。
+        if horizontal { collection.environmentInsets.left = 44 }
+        else { collection.environmentInsets.top = 44 }
+        #expect(layout.sizingForItem(at: path).constraint == .zero)
+        await Task.yield()
+        collection.layoutIfNeeded()
+        #expect(layout.sizingForItem(at: path) == sizing)
+        #expect(layout.layoutAttributesForItem(at: path)?.size == measuredSize)
+        await Task.yield()
+        #expect(notifications > 0)
+        withExtendedLifetime(source) {}
+    }
+
     @Test func widthVariantsAreBoundedAndNotifyOnce() async throws {
         let fixture = EngineFixture(counts: [10], lanes: [40, 50, 60, 70, 80, 90].map { .fixed(CGFloat($0)) })
         await Task.yield()
@@ -159,6 +196,25 @@ struct WaterfallLayoutEngineTests {
         await Task.yield()
         try await Task.sleep(nanoseconds: 20_000_000)
         #expect(notifications == 1)
+    }
+
+    @Test func fullLayoutInvalidationRetainsMeasurementsUntilExplicitlyInvalidated() throws {
+        let fixture = EngineFixture(counts: [40])
+        for (item, length) in [CGFloat(310), 420, 280, 360].enumerated() {
+            try fixture.fit(IndexPath(item: item, section: 0), length: length)
+        }
+        fixture.layout.prepare()
+        let paths = (0..<40).map { IndexPath(item: $0, section: 0) }
+        let before = paths.compactMap { fixture.layout.layoutAttributesForItem(at: $0)?.frame }
+        // UIKit 在导航栏／安全区变化时也会发出普通全量失效；它不代表内容换了版本。
+        fixture.layout.invalidateLayout()
+        fixture.layout.prepare()
+        #expect(paths.compactMap { fixture.layout.layoutAttributesForItem(at: $0)?.frame } == before)
+        #expect(fixture.layout.cachedMeasurementCount(for: 0) == 1)
+        fixture.layout.invalidateMeasurements(reason: "content-really-changed")
+        fixture.layout.prepare()
+        #expect(fixture.layout.cachedMeasurementCount(for: 0) == 0)
+        #expect(fixture.layout.layoutAttributesForItem(at: paths[0])?.size.height == fixture.source.initial(0))
     }
 
     @Test func deletionFallbackIsLinearAndSparseLaneQueryIsBounded() throws {
@@ -203,6 +259,13 @@ struct WaterfallLayoutEngineTests {
         #expect(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))?.size.width == 100)
         withExtendedLifetime(source) {}
     }
+}
+
+@MainActor
+private final class WaterfallEnvironmentCollectionView: UICollectionView {
+    var environmentInsets: UIEdgeInsets = .zero
+    override var adjustedContentInset: UIEdgeInsets { environmentInsets }
+    override var safeAreaInsets: UIEdgeInsets { environmentInsets }
 }
 
 @MainActor

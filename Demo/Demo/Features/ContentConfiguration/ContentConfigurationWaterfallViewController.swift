@@ -31,6 +31,11 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
     private var itemsByID: [Int: ContentConfigurationWaterfallItem] = [:]
     private var itemIndices: [Int: Int] = [:]
     private var configuredSizing: [Int: UICollectionViewWaterfallLayout.ItemSizing] = [:]
+    #if DEBUG
+    /// 仅 UI 回归显式启用时采集滚动期间的安全区、inset 和偏移，不改变正常界面。
+    private let recordsScrollDiagnostics = ProcessInfo.processInfo.arguments.contains("-waterfall-scroll-diagnostics")
+    private var scrollDiagnostics: [[CGFloat]] = []
+    #endif
 
     private lazy var cellRegistration = UICollectionView.CellRegistration<UICollectionViewListCell, Int> {
         [weak self] cell, indexPath, id in
@@ -124,6 +129,7 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
         controlsBackground.isUserInteractionEnabled = false
         controlsBackground.accessibilityIdentifier = "waterfall.controlsBackground"
         collectionView.backgroundColor = .systemGroupedBackground
+        collectionView.accessibilityIdentifier = "waterfall.collection"
         collectionView.delegate = self
         // 两个滚动方向都保留安全区，避免横向模式下首行或末行进入系统栏区域。
         collectionView.contentInsetAdjustmentBehavior = .always
@@ -187,6 +193,9 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
         }
         reconfigureSizingIfNeeded(reason: "container-size")
         restorePendingScrollAnchor()
+        #if DEBUG
+        recordScrollDiagnostics()
+        #endif
     }
 
     func setScrollDirection(_ direction: UICollectionView.ScrollDirection) {
@@ -286,23 +295,58 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
         toggleItem(id: id)
     }
 
+    func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        guard let cell = cell as? UICollectionViewListCell,
+              let id = dataSource.itemIdentifier(for: indexPath), let item = itemsByID[id] else { return }
+        // 预取 cell 可能在几何失效期间以空配置创建，且错过只刷新可见项的尺寸通知。
+        // 真正进入屏幕时重新读取已提交的尺寸策略，避免把空内容带回复用展示周期。
+        configure(cell, item: item, at: indexPath)
+    }
+
     func scrollViewDidChangeAdjustedContentInset(_ scrollView: UIScrollView) {
         viewIfLoaded?.setNeedsLayout()
         reconfigureSizingIfNeeded(reason: "adjusted-insets")
     }
 
+    #if DEBUG
+    func scrollViewDidScroll(_ scrollView: UIScrollView) { recordScrollDiagnostics() }
+
+    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        if !decelerate { publishScrollDiagnostics() }
+    }
+
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) { publishScrollDiagnostics() }
+
+    private func recordScrollDiagnostics() {
+        guard recordsScrollDiagnostics, scrollDiagnostics.count < 4_000 else { return }
+        scrollDiagnostics.append([view.safeAreaInsets.top, collectionView.contentInset.top,
+                                  collectionView.adjustedContentInset.top, collectionView.contentOffset.y,
+                                  CGFloat(collectionView.visibleCells.filter { $0.contentConfiguration == nil }.count)])
+    }
+
+    private func publishScrollDiagnostics() {
+        guard recordsScrollDiagnostics else { return }
+        let payload: [String: Any] = ["samples": scrollDiagnostics]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        collectionView.accessibilityValue = String(data: data, encoding: .utf8)
+    }
+    #endif
+
     private func configure(_ cell: UICollectionViewListCell, item: ContentConfigurationWaterfallItem, at path: IndexPath) {
-        let sizing = waterfallLayout.sizingForItem(at: path)
+        let latestSizing = waterfallLayout.sizingForItem(at: path)
+        let current = cell.contentConfiguration as? ContentConfigurationWaterfallCard.Configuration
+        // 导航栏动画中几何可能暂未提交。继续用已展示的约束渲染当前模型，
+        // 避免清空内容后被 UIKit 当成新的自适应高度，进而反向补偿滚动位置。
+        let sizing = latestSizing.constraint == .zero
+            ? configuredSizing[item.id] ?? current?.sizing
+            : latestSizing
         cell.backgroundConfiguration = .clear()
-        guard sizing.constraint.width > 0, sizing.constraint.height > 0 else {
-            // Geometry preparation schedules a coalesced sizing notification.
-            cell.contentConfiguration = nil
-            configuredSizing.removeValue(forKey: item.id)
-            return
-        }
+        guard let sizing, sizing.constraint.width > 0, sizing.constraint.height > 0 else { return }
+        configuredSizing[item.id] = sizing
+        if let current, current.item.id == item.id, current.item.revision == item.revision,
+           current.sizing == sizing, current.isHighlighted == cell.isHighlighted { return }
         cell.contentConfiguration = ContentConfigurationWaterfallCard.Configuration(
             item: item, sizing: sizing, isHighlighted: cell.isHighlighted)
-        configuredSizing[item.id] = sizing
     }
 
     private func reconfigureSizingIfNeeded(reason: String) {
@@ -371,6 +415,7 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
         }
     }
 }
+
 
 @available(iOS 17.0, *)
 #Preview {

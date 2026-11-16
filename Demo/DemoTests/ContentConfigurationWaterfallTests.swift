@@ -263,6 +263,70 @@ extension ContentConfigurationCollectionTests {
         }
     }
 
+    @Test func waterfallSafeAreaChangesWhileScrollingKeepCardsConfigured() async throws {
+        let fixture = try WaterfallFixture()
+        defer { fixture.window.isHidden = true }
+        fixture.resize(width: 600)
+        await fixture.settle()
+        let controller = fixture.controller
+        let collection = try #require(controller.collectionView)
+        let snapshots = controller.snapshotApplicationCount
+        // 模拟导航栏收起／展开：视图尺寸不变，安全区和 adjusted inset 连续变化。
+        for top: CGFloat in [44, 30, 16, 0, 16, 30, 44, 0] {
+            collection.contentOffset.y = top == 0 ? 0 : 600
+            controller.additionalSafeAreaInsets.top = top
+            controller.view.setNeedsLayout()
+            await fixture.settle()
+            try fixture.verifyVisibleGeometry()
+        }
+        collection.contentOffset.y = -collection.adjustedContentInset.top
+        await fixture.settle()
+        try fixture.verifyVisibleGeometry()
+        #expect(controller.snapshotApplicationCount == snapshots)
+    }
+
+    @Test func waterfallConfiguresPreparedCellsWhenTheyBecomeVisible() async throws {
+        let fixture = try WaterfallFixture()
+        defer { fixture.window.isHidden = true }
+        await fixture.settle()
+        let collection = try #require(fixture.controller.collectionView)
+        let cell = UICollectionViewListCell(frame: .zero)
+        // 模拟几何失效期间创建、错过可见项刷新通知的预取 cell。
+        #expect(cell.contentConfiguration == nil)
+        collection.delegate?.collectionView?(collection, willDisplay: cell, forItemAt: IndexPath(item: 0, section: 0))
+        #expect(WaterfallFixture.card(in: cell) != nil)
+    }
+
+    @Test func waterfallPendingGeometryKeepsContentAndReusedCellsRenderCurrentItem() async throws {
+        let fixture = try WaterfallFixture()
+        defer { fixture.window.isHidden = true }
+        fixture.resize(width: 600)
+        await fixture.settle()
+        let controller = fixture.controller
+        let collection = try #require(controller.collectionView)
+        let firstPath = IndexPath(item: 0, section: 0)
+        let cell = try #require(collection.cellForItem(at: firstPath) as? UICollectionViewListCell)
+        let card = try #require(WaterfallFixture.card(in: cell))
+        let original = try #require(cell.contentConfiguration as? ContentConfigurationWaterfallCard.Configuration)
+        let snapshots = controller.snapshotApplicationCount
+        controller.waterfallLayout.invalidateSectionConfigurations(reason: "navigation-bar-transition")
+        #expect(controller.waterfallLayout.sizingForItem(at: firstPath).constraint == .zero)
+        controller.collectionView(collection, willDisplay: cell, forItemAt: firstPath)
+        #expect(WaterfallFixture.card(in: cell) === card)
+        #expect((cell.contentConfiguration as? ContentConfigurationWaterfallCard.Configuration)?.sizing == original.sizing)
+
+        // 同一过渡中进入屏幕的复用 cell 必须使用当前条目，不能保留上一条目的正文。
+        let reused = UICollectionViewListCell(frame: cell.frame)
+        reused.contentConfiguration = original
+        controller.collectionView(collection, willDisplay: reused, forItemAt: IndexPath(item: 1, section: 0))
+        let next = try #require(reused.contentConfiguration as? ContentConfigurationWaterfallCard.Configuration)
+        #expect(next.item.id == 1)
+        #expect(WaterfallFixture.card(in: reused) != nil)
+        await fixture.settle()
+        try fixture.verifyVisibleGeometry()
+        #expect(controller.snapshotApplicationCount == snapshots)
+    }
+
     @Test func waterfallNativeCellsFitHorizontallyAndReturnToVertical() async throws {
         let fixture = try WaterfallFixture()
         defer { fixture.window.isHidden = true }

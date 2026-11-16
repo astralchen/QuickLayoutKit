@@ -944,7 +944,8 @@ section 与背景使用 `NSDirectionalEdgeInsets`，leading / trailing 随布局
 `decorationItems` 直接使用 UIKit 描述类型，支持 elementKind、contentInsets 和 zIndex；
 背景覆盖 section 自然范围，不随固定 header/footer 移动，不参与内容测量。
 配置及装饰描述在解析时复制，外部数据变化后调用 `invalidateSectionConfigurations(reason:)` 重新解析，
-仅装饰变化会保留有效测量。整体测量环境可通过 `invalidateMeasurements(reason:)` 强制失效。
+仍匹配身份、内容版本、约束与环境的测量会继续复用；普通 `invalidateLayout()` 也会保留这些测量。
+需要清除全部测量缓存时，调用 `invalidateMeasurements(reason:)` 强制失效。
 `itemMetadataProvider` 提供稳定 ID 和内容版本，与 collection view delegate 解耦。缓存按稳定 ID、内容版本、
 约束、尺寸模式、方向和环境区分；内容配置按条目 ID 比较策略并重新配置受影响项。
 Debug 控制台筛选 `[ContentWaterfall]` 可查看条目 ID、方向、交叉轴长度、估算与拟合长度、
