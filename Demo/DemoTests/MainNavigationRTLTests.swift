@@ -10,16 +10,7 @@ import QuickLayoutKit
 @MainActor
 @Suite(.serialized)
 struct MainNavigationRTLTests {
-    @MainActor
-    private final class InputLocaleState {
-        var locale: AppLocale = .simplifiedChinese { didSet { revision += 1 } }
-        private var revision: UInt64 = 0
-        var snapshot: LocalizationSnapshot {
-            LocalizationSnapshot(locale: locale, followsSystemLocale: false, revision: revision)
-        }
-    }
-
-    @Test func inputBindingsPreserveCaretAndCompositionInARealWindow() async throws {
+    @Test func nativeInputsPreserveSelectionAndCompositionAcrossLanguageChanges() async throws {
         for kind in ["field", "secure", "multiline"] {
             let controller = UIViewController()
             let view: UIView = kind == "multiline" ? UITextView() : UITextField()
@@ -28,58 +19,53 @@ struct MainNavigationRTLTests {
             let window = try makeVisibleTestWindow(rootViewController: controller)
             window.makeKeyAndVisible()
             defer { window.isHidden = true }
-            let state = InputLocaleState()
-            let context = UIKitLocalizationContext {
-                state.snapshot
+            Localization.register(window: window)
+            defer {
+                Localization.unregister(window: window)
+                Localization.setLocale(identifier: "zh-Hans")
             }
-            let binding: UIKitTextInputLocalizationBinding
             if let field = view as? UITextField {
                 field.isSecureTextEntry = kind == "secure"
                 field.autocorrectionType = .no
-                binding = context.makeTextInputBinding(to: field)
-            } else {
-                binding = context.makeTextInputBinding(to: view as! UITextView)
             }
             let input = view as! any UITextInput
             view.becomeFirstResponder()
             try #require(await waitForCondition { view.isFirstResponder })
-            for next in [AppLocale.simplifiedChinese, .arabic, .englishUS, .arabic] {
-                state.locale = next
-                binding.refresh()
+            for next in ["zh-Hans", "ar", "en", "ar"] {
+                Localization.setLocale(identifier: next)
                 for text in ["", "VV77", "uu天", "مرحبا", ""] {
                     input.selectedTextRange = input.textRange(from: input.beginningOfDocument, to: input.endOfDocument)
                     if text.isEmpty { input.deleteBackward() } else { input.insertText(text) }
-                    let rtl = next == .arabic
-                    #expect(await waitForCondition {
-                        view.layoutIfNeeded()
-                        let start = view.convert(input.caretRect(for: input.beginningOfDocument), from: input.textInputView)
-                        let end = view.convert(input.caretRect(for: input.endOfDocument), from: input.textInputView)
-                        let edge = rtl ? max(start.midX, end.midX) : min(start.midX, end.midX)
-                        return rtl ? edge > view.bounds.midX : edge < view.bounds.midX
-                    }, "控件：\(kind)，语言：\(next.identifier)，文本：\(text)")
+                    let range = try #require(input.textRange(from: input.beginningOfDocument, to: input.endOfDocument))
+                    let selected = try #require(input.selectedTextRange)
+                    let selectionOffset = input.offset(from: input.beginningOfDocument, to: selected.start)
+                    Localization.setLocale(identifier: next == "ar" ? "zh-Hans" : "ar")
+                    #expect(input.text(in: range) == text)
+                    #expect(input.offset(from: input.beginningOfDocument, to: try #require(input.selectedTextRange).start) == selectionOffset)
+                    #expect(view.isFirstResponder)
+                    #expect(((view as? UITextField)?.textAlignment ?? (view as? UITextView)?.textAlignment) == .natural)
                 }
             }
             if kind != "secure" {
-                state.locale = .simplifiedChinese
-                binding.refresh()
+                Localization.setLocale(identifier: "zh-Hans")
+                input.selectedTextRange = input.textRange(from: input.beginningOfDocument, to: input.endOfDocument)
+                input.deleteBackward()
                 input.setMarkedText("zhong", selectedRange: NSRange(location: 5, length: 0))
                 try #require(input.markedTextRange != nil)
-                state.locale = .arabic
-                binding.refresh()
+                Localization.setLocale(identifier: "ar")
                 #expect(input.markedTextRange != nil)
                 #expect(view.isFirstResponder)
                 // 通过真实 UITextInput 提交组合文本，不伪造编辑通知。
                 input.insertText("中")
                 #expect(await waitForCondition {
                     input.markedTextRange == nil
-                        && ((view as? UITextField)?.textAlignment ?? (view as? UITextView)?.textAlignment) == .right
+                        && ((view as? UITextField)?.textAlignment ?? (view as? UITextView)?.textAlignment) == .natural
                 })
                 #expect(input.text(in: input.textRange(from: input.beginningOfDocument, to: input.endOfDocument)!) == "中")
             }
             view.resignFirstResponder()
             view.becomeFirstResponder()
             #expect(view.isFirstResponder)
-            withExtendedLifetime(binding) {}
         }
     }
 
@@ -97,18 +83,18 @@ struct MainNavigationRTLTests {
             let fields = controller.view.allSubviews(of: UITextField.self)
             let notes = controller.view.allSubviews(of: UITextView.self).filter(\.isEditable)
             try #require(!fields.isEmpty)
-            for language in ["zh-Hans", "ar", "en-US", "ar"] {
+            for language in ["zh-Hans", "ar", "en", "ar"] {
                 Localization.setLocale(identifier: language)
-                let expected: NSTextAlignment = language == "ar" ? .right : .left
+                let expected = Localization.currentUIKitDirection
                 #expect(await waitForCondition {
-                    fields.allSatisfy { $0.textAlignment == expected }
-                        && notes.allSatisfy { $0.textAlignment == expected }
+                    fields.allSatisfy { $0.effectiveUserInterfaceLayoutDirection == expected }
+                        && notes.allSatisfy { $0.effectiveUserInterfaceLayoutDirection == expected }
                 })
                 for field in fields {
                     field.becomeFirstResponder()
                     field.selectedTextRange = field.textRange(from: field.beginningOfDocument, to: field.endOfDocument)
                     field.insertText("uu天123")
-                    #expect(await waitForCondition { field.textAlignment == expected })
+                    #expect(field.isFirstResponder)
                     #expect(field.text == "uu天123")
                     field.resignFirstResponder()
                 }
@@ -123,25 +109,25 @@ struct MainNavigationRTLTests {
         let window = try makeVisibleTestWindow(rootViewController: controller)
         window.makeKeyAndVisible()
         defer { window.isHidden = true }
-        let state = InputLocaleState()
-        let binding = UIKitLocalizationContext {
-            state.snapshot
-        }.makeTextInputBinding(to: view)
+        Localization.register(window: window)
+        defer {
+            Localization.unregister(window: window)
+            Localization.setLocale(identifier: "zh-Hans")
+        }
         view.becomeFirstResponder()
         try #require(await waitForCondition { view.isFirstResponder })
         let undo = try #require(view.undoManager)
         undo.beginUndoGrouping()
         view.insertText("hello")
         undo.endUndoGrouping()
-        state.locale = .arabic
-        binding.refresh()
+        Localization.setLocale(identifier: "ar")
         #expect(undo.canUndo)
         undo.undo()
         #expect(view.text.isEmpty)
         #expect(view.isFirstResponder)
     }
 
-    @Test func searchCaretAndTextFollowInterfaceAlignment() async throws {
+    @Test func searchKeepsNaturalWritingOrderAcrossLanguageChanges() async throws {
         Localization.setLocale(identifier: "ar")
         let main = MainViewController()
         let navigation = UINavigationController(rootViewController: main)
@@ -154,21 +140,20 @@ struct MainNavigationRTLTests {
             search.isActive = false
             Localization.unregister(window: window)
             window.isHidden = true
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
         }
         search.isActive = true
         #expect(await waitForCondition { field.window != nil })
         field.becomeFirstResponder()
         #expect(await waitForCondition { field.isFirstResponder && field.bounds.width > 100 })
 
-        for language in ["ar", "zh-Hans", "en-US", "ar"] {
+        for language in ["ar", "zh-Hans", "en", "ar"] {
             Localization.setLocale(identifier: language)
             try #require(await waitForCondition {
                 main.title == Localization.text("main.title")
                     && navigation.navigationBar.traitCollection.layoutDirection == (language == "ar" ? .rightToLeft : .leftToRight)
             }, "语言：\(language)，当前：\(Localization.currentLanguageSummary())，标题：\(main.title ?? "nil")")
-            let isRTL = language == "ar"
-            // 空内容、英文数字、中文混排、阿拉伯文都应对齐到界面的同一侧。
+            // 自然对齐按文字书写方向决定，不再把所有草稿强制对齐到应用前缘。
             for text in ["", "VV77", "uu天", "مرحبا", ""] {
                 field.selectedTextRange = field.textRange(from: field.beginningOfDocument, to: field.endOfDocument)
                 if text.isEmpty {
@@ -184,10 +169,9 @@ struct MainNavigationRTLTests {
                     field.layoutIfNeeded()
                     start = field.convert(field.caretRect(for: field.beginningOfDocument), from: field.textInputView)
                     end = field.convert(field.caretRect(for: field.endOfDocument), from: field.textInputView)
-                    let edge = isRTL ? max(start.midX, end.midX) : min(start.midX, end.midX)
                     let followsWritingOrder = text.isEmpty || (text == "مرحبا"
                         ? start.minX > end.minX : start.minX < end.minX)
-                    return followsWritingOrder && (isRTL ? edge > field.bounds.midX : edge < field.bounds.midX)
+                    return followsWritingOrder && field.textAlignment == .natural
                 }
                 #expect(aligned,
                         "语言：\(language)，文本：\(text)，实际文本：\(field.text ?? "")，对齐：\(field.textAlignment.rawValue)，起点：\(start)，终点：\(end)，输入框：\(field.bounds)")
@@ -195,8 +179,8 @@ struct MainNavigationRTLTests {
             field.resignFirstResponder()
             field.becomeFirstResponder()
             navigation.view.layoutIfNeeded()
-            let emptyCaret = field.convert(field.caretRect(for: field.beginningOfDocument), from: field.textInputView)
-            #expect(isRTL ? emptyCaret.midX > field.bounds.midX : emptyCaret.midX < field.bounds.midX)
+            #expect(field.isFirstResponder)
+            #expect(field.textAlignment == .natural)
         }
     }
 
@@ -214,7 +198,7 @@ struct MainNavigationRTLTests {
         defer {
             Localization.unregister(window: window)
             window.isHidden = true
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
         }
 
         for identifier in [initialLanguage, "ar", "zh-Hans", "ar"] {
@@ -237,7 +221,7 @@ struct MainNavigationRTLTests {
         }
     }
 
-    @Test func rapidLanguageChangesPreserveThePendingDirectionChange() async throws {
+    @Test func rapidLanguageChangesCompleteEachDirectionTransaction() async throws {
         Localization.setLocale(identifier: "ar")
         let main = MainViewController()
         let navigation = UINavigationController(rootViewController: main)
@@ -246,12 +230,14 @@ struct MainNavigationRTLTests {
         defer {
             Localization.unregister(window: window)
             window.isHidden = true
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
         }
         #expect(await waitForCondition { navigation.navigationBar.traitCollection.layoutDirection == .rightToLeft })
-        // 中间通知尚未执行时继续选择同方向语言，最终仍必须刷新导航容器。
+        // 语言选择返回时 UIKit 事务已经完成，同方向的后续选择不会丢失方向刷新。
         Localization.setLocale(identifier: "zh-Hans")
-        Localization.setLocale(identifier: "en-US")
+        #expect(navigation.navigationBar.traitCollection.layoutDirection == .leftToRight)
+        #expect(main.title == Localization.text("main.title"))
+        Localization.setLocale(identifier: "en")
         #expect(await waitForCondition {
             main.title == Localization.text("main.title")
                 && navigation.navigationBar.traitCollection.layoutDirection == .leftToRight
@@ -281,32 +267,32 @@ struct MainNavigationRTLTests {
         defer {
             Localization.unregister(window: window)
             window.isHidden = true
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
         }
         #expect(await waitForCondition { main.collectionView.numberOfSections == 6 })
         main.collectionView.scrollToItem(at: IndexPath(item: 0, section: 4), at: .top, animated: false)
         main.collectionView.contentOffset.y += 17
         // 等待导航栏完成滚动联动，再记录用户实际看到的条目与偏移。
         try await Task.sleep(nanoseconds: 100_000_000)
-        let before = try #require(main.collectionView.captureLocalizationAnchor())
+        let before = try #require(main.collectionView.captureReadingAnchor())
         for language in [initialLanguage == "ar" ? "zh-Hans" : "ar", initialLanguage] {
             Localization.setLocale(identifier: language)
             let restored = await waitForCondition {
                 navigation.view.layoutIfNeeded()
                 guard main.title == Localization.text("main.title"),
-                      let after = main.collectionView.captureLocalizationAnchor() else { return false }
+                      let after = main.collectionView.captureReadingAnchor() else { return false }
                 return main.collectionView.effectiveUserInterfaceLayoutDirection == Localization.currentUIKitDirection
                     && after.indexPath == before.indexPath
                     && abs(after.offsetFromViewportTop - before.offsetFromViewportTop) < 2
             }
-            let after = main.collectionView.captureLocalizationAnchor()
+            let after = main.collectionView.captureReadingAnchor()
             #expect(restored, "语言：\(language)，原位置：\(before)，实际位置：\(String(describing: after))")
         }
     }
 
     @Test func directionUpdatesPreserveTheActualLanguageSnapshot() {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let snapshot = Localization.localizationController.currentSnapshot
         let update = Localization.layoutDirectionUpdate(.leftToRight)
         #expect(update.snapshot == snapshot)
@@ -321,10 +307,10 @@ struct MainNavigationRTLTests {
         defer {
             Localization.unregister(window: window)
             window.isHidden = true
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
         }
         let host = try #require(bridge.children.first)
-        for language in ["ar", "en-US"] {
+        for language in ["ar", "en"] {
             Localization.setLocale(identifier: language)
             #expect(await waitForCondition {
                 bridge.title == Localization.text("demo.swiftUIBridge.title")

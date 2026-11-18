@@ -113,8 +113,6 @@ final class SeatStageView: QuickLayoutView {
         updateLayoutEnvironmentIfNeeded()
         pkDecoration.ifLoaded?.sizeClass = layoutMetrics.sizeClass
         super.layoutSubviews()
-        // QuickLayout 在 super 中同步父容器方向；再检查一次，避免沿用上一帧的方向。
-        updateLayoutEnvironmentIfNeeded()
         collectionView.layoutIfNeeded()
         // 首次快照可能先于舞台定高完成，此时在真实 Cell 布局后补齐辅助功能顺序。
         if !isApplyingUpdate, accessibilityElements?.count != currentItems.count {
@@ -332,7 +330,7 @@ final class SeatStageView: QuickLayoutView {
 
     /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         backgroundColor = .clear
         accessibilityIdentifier = "liveRoom.seat.stage"
         collectionView.backgroundColor = .clear
@@ -406,7 +404,6 @@ final class SeatStageView: QuickLayoutView {
         layoutMetrics = resolvedMetrics
         lastLayoutWidth = layoutWidth
         lastLayoutDirection = direction
-        collectionView.semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight
         guard let currentPresentation else { return }
         let section = makeSection(
             presentation: currentPresentation,

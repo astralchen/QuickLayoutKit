@@ -26,7 +26,7 @@ struct GeometryAdaptiveGridMetrics: Equatable, Sendable {
 /// 使用稳定卡片身份，宽度变化只重排 Grid；Reader 内容直接挂在此宿主上。
 final class GeometryAdaptiveGridView: QuickLayoutView {
     private let cards: [UILabel] = (0..<GeometryAdaptiveGridMetrics.itemCount).map { index in
-        let label = UILabel()
+        let label = LocalizedLabel()
         label.text = String(format: "%02d", index + 1)
         label.font = .preferredFont(forTextStyle: .title2)
         label.adjustsFontForContentSizeCategory = true

@@ -11,7 +11,7 @@ extension ApplicationTests {
 
     @Test func mainMenuUsesNativeListContentAndDisclosureAccessories() throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let main = MainViewController()
         main.loadViewIfNeeded()
         main.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
@@ -29,7 +29,7 @@ extension ApplicationTests {
 
         let cell = try mainMenuCell(at: IndexPath(item: 0, section: 0), in: main)
         let configuration = try #require(cell.contentConfiguration as? UIListContentConfiguration)
-        #expect(configuration.text == Localization.text("demo.safeAreaPadding.title"))
+        #expect(configuration.attributedText?.string == Localization.text("demo.safeAreaPadding.title"))
         #expect(configuration.image != nil)
         #expect(configuration.textProperties.numberOfLines == 0)
         #expect(cell.accessories.count == 1)
@@ -40,7 +40,7 @@ extension ApplicationTests {
         }
     }
 
-    @Test func mainMenuReloadsRouteTitlesAfterLanguageChange() throws {
+    @Test func mainMenuReloadsRouteTitlesAfterLanguageChange() async throws {
         Localization.setLocale(identifier: "zh-Hans")
         let main = MainViewController()
         let testWindow = try makeVisibleTestWindow(
@@ -49,22 +49,29 @@ extension ApplicationTests {
         )
         defer {
             testWindow.isHidden = true
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
         }
 
         let chineseTitles = try [1, 2, 5].map { item in
             try mainMenuConfiguration(
                 at: IndexPath(item: item, section: 5),
                 in: main
-            ).text
+            ).attributedText?.string
         }
 
         #expect(chineseTitles == ["语言中心", "UIKit 本地化", "SwiftUI 桥接"])
 
         Localization.setLocale(identifier: "ar")
         main.reloadLocalizedContent()
+        applyTestLayoutDirection(.rightToLeft, to: main)
         main.reloadLayoutDirection(.rightToLeft)
         main.view.layoutIfNeeded()
+
+        let contentUpdated = await waitForCondition {
+            (try? mainMenuConfiguration(at: IndexPath(item: 1, section: 5), in: main).attributedText?.string)
+                == Localizer.live.text("demo.localizationOverview.title")
+        }
+        #expect(contentUpdated)
 
         let arabicConfiguration = try mainMenuConfiguration(
             at: IndexPath(item: 1, section: 5),
@@ -77,21 +84,22 @@ extension ApplicationTests {
         )
 
         #expect(
-            arabicConfiguration.text
+            arabicConfiguration.attributedText?.string
                 == Localizer.live.text("demo.localizationOverview.title")
         )
         #expect(
             arabicCell.effectiveUserInterfaceLayoutDirection == .rightToLeft
         )
+        #expect((arabicConfiguration.attributedText?.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)?.alignment == .right)
     }
 
     @Test func allLoadedUIKitButtonsUseConfigurations() throws {
-        Localization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en")
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
         defer {
             UIView.setAnimationsEnabled(animationsWereEnabled)
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
         }
 
         let source = UIViewController()
@@ -136,7 +144,7 @@ extension ApplicationTests {
 
     @Test func mainMenuSectionHeaderMeasuresMultilineAccessibilityText() async throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let main = MainViewController(
             viewModel: MainViewModel(localizer: Localizer { key, _ in
                 key == "main.section.layout" ? String(repeating: "布局基础示例与窗口适配 ", count: 4) : Localization.text(key)
@@ -171,12 +179,13 @@ extension ApplicationTests {
         #expect(cell.frame.minY >= header.frame.maxY - 1)
     }
 
-    @Test func mainMenuSectionHeadersFollowNativeListDirection() throws {
+    @Test func mainMenuSectionHeadersFollowNativeListDirection() async throws {
         Localization.setLocale(identifier: "ar")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let main = MainViewController()
         main.loadViewIfNeeded()
         main.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        applyTestLayoutDirection(.rightToLeft, to: main)
         main.reloadLayoutDirection(.rightToLeft)
         main.view.setNeedsLayout()
         main.view.layoutIfNeeded()
@@ -191,9 +200,19 @@ extension ApplicationTests {
 
         Localization.setLocale(identifier: "zh-Hans")
         main.reloadLocalizedContent()
+        applyTestLayoutDirection(.leftToRight, to: main)
         main.reloadLayoutDirection(.leftToRight)
         main.view.setNeedsLayout()
         main.view.layoutIfNeeded()
+        let headerUpdated = await waitForCondition {
+            main.collectionView.layoutIfNeeded()
+            let header = main.collectionView.supplementaryView(
+                forElementKind: UICollectionView.elementKindSectionHeader,
+                at: IndexPath(item: 0, section: 0)
+            ) as? MainMenuSectionHeaderView
+            return (header?.listContentView.configuration as? UIListContentConfiguration)?.text == "基础布局"
+        }
+        #expect(headerUpdated)
         let restored = try #require(main.collectionView.supplementaryView(
             forElementKind: UICollectionView.elementKindSectionHeader,
             at: IndexPath(item: 0, section: 0)
@@ -202,13 +221,14 @@ extension ApplicationTests {
         #expect((restored.listContentView.configuration as? UIListContentConfiguration)?.text == "基础布局")
     }
 
-    @Test func mainMenuRebuildsAndMirrorsItsNativeListContentRoundTrip() throws {
+    @Test func mainMenuPreservesItsListAndMirrorsNativeContentRoundTrip() throws {
         let main = MainViewController()
         let testWindow = try makeVisibleTestWindow(
             rootViewController: main,
             size: CGSize(width: 390, height: 844)
         )
         defer { testWindow.isHidden = true }
+        applyTestLayoutDirection(.leftToRight, to: main)
         main.reloadLayoutDirection(.leftToRight)
         main.view.layoutIfNeeded()
         main.collectionView.layoutIfNeeded()
@@ -216,7 +236,7 @@ extension ApplicationTests {
         let indexPath = IndexPath(item: 0, section: 0)
         let leftToRightCollectionView = main.collectionView
         let leftToRightAnchor = try #require(
-            leftToRightCollectionView.captureLocalizationAnchor()
+            leftToRightCollectionView.captureReadingAnchor()
         )
         let ltrCell = try mainMenuCell(at: indexPath, in: main)
         let contentView = try #require(
@@ -227,12 +247,14 @@ extension ApplicationTests {
         let ltrTitleFrame = (try #require(contentView.textLayoutGuide)).layoutFrame
         let ltrImageFrame = (try #require(contentView.imageLayoutGuide)).layoutFrame
 
+        applyTestLayoutDirection(.rightToLeft, to: main)
+
         main.reloadLayoutDirection(.rightToLeft)
         main.view.layoutIfNeeded()
         main.collectionView.layoutIfNeeded()
         let rightToLeftCollectionView = main.collectionView
         let rightToLeftAnchor = try #require(
-            rightToLeftCollectionView.captureLocalizationAnchor()
+            rightToLeftCollectionView.captureReadingAnchor()
         )
         let rtlCell = try mainMenuCell(at: indexPath, in: main)
         let rtlContentView = try #require(
@@ -243,8 +265,8 @@ extension ApplicationTests {
         let rtlTitleFrame = (try #require(rtlContentView.textLayoutGuide)).layoutFrame
         let rtlImageFrame = (try #require(rtlContentView.imageLayoutGuide)).layoutFrame
 
-        #expect(rightToLeftCollectionView !== leftToRightCollectionView)
-        #expect(leftToRightCollectionView.superview == nil)
+        #expect(rightToLeftCollectionView === leftToRightCollectionView)
+        #expect(leftToRightCollectionView.superview != nil)
         #expect(rightToLeftAnchor.indexPath == leftToRightAnchor.indexPath)
         #expect(
             abs(
@@ -254,7 +276,7 @@ extension ApplicationTests {
         )
         #expect(
             rightToLeftCollectionView.semanticContentAttribute
-                == .forceRightToLeft
+                == .unspecified
         )
         #expect(rtlCell.effectiveUserInterfaceLayoutDirection == .rightToLeft)
         #expect(rtlContentView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
@@ -262,12 +284,14 @@ extension ApplicationTests {
         #expect(ltrTitleFrame.midX > ltrImageFrame.midX)
         #expect(rtlImageFrame.minX > ltrImageFrame.minX)
 
+        applyTestLayoutDirection(.leftToRight, to: main)
+
         main.reloadLayoutDirection(.leftToRight)
         main.view.layoutIfNeeded()
         main.collectionView.layoutIfNeeded()
         let returnedCollectionView = main.collectionView
         let returnedAnchor = try #require(
-            returnedCollectionView.captureLocalizationAnchor()
+            returnedCollectionView.captureReadingAnchor()
         )
         let restoredCell = try mainMenuCell(at: indexPath, in: main)
         let restoredContentView = try #require(
@@ -276,8 +300,8 @@ extension ApplicationTests {
                 .first
         )
 
-        #expect(returnedCollectionView !== rightToLeftCollectionView)
-        #expect(rightToLeftCollectionView.superview == nil)
+        #expect(returnedCollectionView === rightToLeftCollectionView)
+        #expect(rightToLeftCollectionView.superview != nil)
         #expect(returnedAnchor.indexPath == leftToRightAnchor.indexPath)
         #expect(
             abs(
@@ -287,7 +311,7 @@ extension ApplicationTests {
         )
         #expect(
             returnedCollectionView.semanticContentAttribute
-                == .forceLeftToRight
+                == .unspecified
         )
         #expect(restoredCell.effectiveUserInterfaceLayoutDirection == .leftToRight)
         #expect(
@@ -301,7 +325,7 @@ extension ApplicationTests {
 
     @Test func mainMenuSearchRoutesTheFilteredItemAndClearsItsEmptyState() async throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let router = RecordingMainRouter()
         let main = MainViewController(viewModel: MainViewModel(), router: router)
         main.loadViewIfNeeded()

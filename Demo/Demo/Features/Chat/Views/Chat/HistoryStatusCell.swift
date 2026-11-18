@@ -5,7 +5,7 @@ import UIKit
 /// 状态始终占据相同的最小高度；重试按钮提供独立的 VoiceOver 操作。
 final class HistoryStatusCell: QuickLayoutCollectionViewCell {
     /// 承载状态文字；仅在失败状态下接受点击并呈现按钮语义。
-    private let button = UIButton(type: .system)
+    private let button = LocalizedButton(type: .system)
     /// 当前页加载期间旋转的系统指示器，停止后自动隐藏。
     private let indicator = UIActivityIndicatorView(style: .medium)
     /// 用户点击失败提示时通知会话视图，由页面路由到模型执行重试。

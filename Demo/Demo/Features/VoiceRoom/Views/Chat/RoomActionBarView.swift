@@ -99,11 +99,10 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
     private let giftButton = SymbolButton(frame: .zero)
     // UIButton 暂时只保留在需要承载 UIMenu 的入口；QuickLayoutButton 不代理菜单 API。
     /// 展示房间业务菜单的按钮。
-    private let moreButton = UIButton(type: .system)
+    private let moreButton = LocalizedButton(type: .system)
     /// 公屏消息编辑区域的输入容器。
     private let messageInputView = RoomMessageInputView()
     /// 维护文本输入本地化及布局方向的绑定。
-    private lazy var inputBinding = Localization.reusableContext.makeTextInputBinding(to: messageTextField)
     /// 提交当前选择或输入内容的按钮。
     private let sendButton = CapsuleTextButton(frame: .zero)
     /// 取消当前消息编辑的按钮。
@@ -212,7 +211,7 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
         send: String,
         cancel: String
     ) {
-        inputBinding.refresh()
+
         messageButton.configure(title: message, symbolName: "message.fill")
         microphoneButton.accessibilityLabel = microphone
         giftButton.accessibilityLabel = gift
@@ -278,7 +277,7 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
         messageTextField.borderStyle = .none
         messageTextField.font = .preferredFont(forTextStyle: .body)
         messageTextField.adjustsFontForContentSizeCategory = true
-        inputBinding.refresh()
+
         messageTextField.keyboardAppearance = .dark
         messageTextField.clearButtonMode = .whileEditing
         messageTextField.returnKeyType = .send
@@ -314,12 +313,6 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
         cancelButton.action = { [weak self] in self?.cancelMessage() }
     }
 
-    /// 视图进入窗口后刷新文本输入的本地化绑定。
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        if window != nil { inputBinding.refresh() }
-    }
-
     /// 显示消息编辑区域并请求文本框成为第一响应者。
     private func showMessageComposer() {
         guard !isShowingMessageComposer else { return }
@@ -327,7 +320,7 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
         updateComposerAppearance()
         setNeedsQuickLayout()
         layoutIfNeeded()
-        inputBinding.refresh()
+
         messageTextField.becomeFirstResponder()
     }
 
@@ -360,7 +353,7 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
     /// 结束文本输入并恢复常规操作按钮布局。
     private func dismissMessageComposer() {
         messageTextField.text = nil
-        inputBinding.refresh()
+
         updateSendButtonState()
         messageTextField.resignFirstResponder()
         isShowingMessageComposer = false

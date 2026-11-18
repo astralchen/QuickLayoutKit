@@ -6,7 +6,7 @@ import UIKit
 
 extension ApplicationTests {
     @Test func containerRelativeSizeMeasuresRealContent() {
-        Localization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en")
         let preview = ContainerRelativeSizePreviewView()
 
         func measure(_ scenario: ContainerRelativeSizeViewController.Scenario, width: CGFloat) {
@@ -48,15 +48,16 @@ extension ApplicationTests {
     }
 
     @Test func containerRelativeSizeResizesAndLocalizes() throws {
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let page = ContainerRelativeSizeViewController()
         let navigation = UINavigationController(rootViewController: page)
-        let window = try makeVisibleTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
+        let window = try makeVisibleLocalizedTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
         defer { window.isHidden = true }
 
-        for locale in ["en-US", "zh-Hans", "ar"] {
+        for locale in ["en", "zh-Hans", "ar"] {
             Localization.setLocale(identifier: locale)
             page.reloadLocalizedContent()
+            applyTestLayoutDirection(Localization.currentUIKitDirection, to: page)
             page.reloadLayoutDirection(Localization.currentUIKitDirection)
             for size in [CGSize(width: 320, height: 740), CGSize(width: 740, height: 390)] {
                 window.frame.size = size
@@ -93,7 +94,7 @@ extension ApplicationTests {
     }
 
     @Test func containerRelativeSizeRouteAndStrings() throws {
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let viewModel = MainViewModel()
         let routes = try #require(viewModel.state.sections.first?.routes.map(\.route))
         let index = try #require(routes.firstIndex(of: .fixedSize))

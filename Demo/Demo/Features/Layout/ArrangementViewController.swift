@@ -7,22 +7,22 @@ final class ArrangementViewController: LocalizedQuickLayoutHostingController {
 
     private var isWindowPreview = false
     private var startsInSwiftUI = false
-    private let openWindowButton = UIButton(type: .system)
+    private let openWindowButton = LocalizedButton(configuration: .plain())
     private var example = ArrangementExample.automatic
     private let scroll = QuickLayoutScrollView()
-    private let picker = UIButton(type: .system)
+    private let picker = LocalizedButton(type: .system)
     private let engine = UISegmentedControl(items: ["QuickLayoutKit", "SwiftUI"])
     private let preview = ArrangementPreview()
     private var reference: UIView?
-    private let heightControl = UISlider()
+    private let heightControl = LocalizedSlider()
     private var previewHeight: CGFloat = 0
-    private let heightLabel = UILabel()
-    private let containerClasses = UILabel()
-    private let poseLabel = UILabel()
+    private let heightLabel = LocalizedLabel()
+    private let containerClasses = LocalizedLabel()
+    private let poseLabel = LocalizedLabel()
     private var hingeState: ArrangementDevicePose?
     private var hingeDegrees: CGFloat?
-    private let explanation = UILabel()
-    private let code = UILabel()
+    private let explanation = LocalizedLabel()
+    private let code = LocalizedLabel()
 
     override func viewDidLoad() {
         engine.selectedSegmentIndex = startsInSwiftUI ? 1 : 0

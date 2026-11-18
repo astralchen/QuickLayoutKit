@@ -29,7 +29,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomRechargeBalanceCardPreservesCompleteTextLines() throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let viewController = RechargeViewController(
             currentBalance: 12_048,

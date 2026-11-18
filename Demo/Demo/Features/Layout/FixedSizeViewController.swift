@@ -81,8 +81,8 @@ private func makeFixedSizePreview(
     controller.loadViewIfNeeded()
     controller.contentView.selectScenario(scenario)
     if let layoutDirection {
-        navigationController.view.semanticContentAttribute = layoutDirection == .rightToLeft
-            ? .forceRightToLeft : .forceLeftToRight
+        navigationController.traitOverrides.layoutDirection = layoutDirection == .rightToLeft
+            ? .rightToLeft : .leftToRight
         controller.reloadLayoutDirection(layoutDirection)
     }
     return navigationController

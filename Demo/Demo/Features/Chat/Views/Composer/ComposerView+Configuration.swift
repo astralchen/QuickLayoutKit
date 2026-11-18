@@ -47,10 +47,13 @@ extension ComposerView {
         audioCancelGlassView.layer.cornerRadius = Metrics.mediaControlHitSize / 2
 
         textView.backgroundColor = .clear
+        textView.layoutDirectionDidChange = { [weak self] in
+            self?.refreshTextAttachments()
+        }
         textView.font = .preferredFont(forTextStyle: .body)
         textView.adjustsFontForContentSizeCategory = true
         textView.textColor = .label
-        inputBinding.refresh()
+
         textView.textContainerInset = UIEdgeInsets(
             top: 8,
             left: 8,

@@ -361,9 +361,6 @@ final class GiftSheetViewController:
         _ direction: UIUserInterfaceLayoutDirection
     ) {
         super.reloadLayoutDirection(direction)
-        sheetView.semanticContentAttribute = direction
-            .appLayoutDirection
-            .semanticContentAttribute
         sheetView.setNeedsQuickLayout()
     }
 

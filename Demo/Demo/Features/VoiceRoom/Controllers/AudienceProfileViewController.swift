@@ -99,9 +99,6 @@ final class AudienceProfileViewController:
         _ direction: UIUserInterfaceLayoutDirection
     ) {
         super.reloadLayoutDirection(direction)
-        profileView.semanticContentAttribute = direction
-            .appLayoutDirection
-            .semanticContentAttribute
         profileView.setNeedsQuickLayout()
     }
 

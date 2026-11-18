@@ -107,9 +107,10 @@ final class TextAttachment: NSTextAttachment {
         }
         sizeDidChange?()
     }
-    /// 将附件的布局方向、草稿内容和动作同步到指定卡片。
+    /// 文本附件可能在加入编辑器前离屏测量，由提供者建立测量方向边界。
     private func configure(_ card: AttachmentCard) {
-        card.semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight
+        card.traitOverrides.layoutDirection = direction == .rightToLeft ? .rightToLeft : .leftToRight
+        card.updateTraitsIfNeeded()
         card.configure(draft)
         configureActions(card)
     }
@@ -176,6 +177,7 @@ private func documentCardPreview(
     pastedMedia: Bool = false, interleaved: Bool = false
 ) -> UIViewController {
     let composer = ComposerView(frame: .zero)
+    composer.traitOverrides.layoutDirection = direction == .rightToLeft ? .rightToLeft : .leftToRight
     composer.configure(strings: ConversationPreviewData.composerStrings)
     composer.applyLayoutDirection(direction)
     if largeText { composer.traitOverrides.preferredContentSizeCategory = .accessibilityExtraExtraExtraLarge }

@@ -712,6 +712,7 @@ struct ChatDocumentTests {
         defer { window.isHidden = true; previous?.makeKey() }
         root.view.backgroundColor = .systemBackground
         let composer = ComposerView(frame: .init(x: 0, y: 120, width: window.bounds.width, height: 60))
+        composer.updateAvailableViewportHeight(window.bounds.height)
         composer.configure(strings: ConversationPreviewData.composerStrings)
         root.view.addSubview(composer)
         for draft in ConversationPreviewData.documentDrafts { composer.insertDocument(draft) }
@@ -723,6 +724,7 @@ struct ChatDocumentTests {
             ("large-rtl", .rightToLeft, .light, true),
         ] {
             window.overrideUserInterfaceStyle = style
+            applyTestLayoutDirection(direction, to: root)
             composer.applyLayoutDirection(direction)
             composer.traitOverrides.preferredContentSizeCategory = large ? .accessibilityExtraExtraExtraLarge : .large
             composer.frame.size.height = composer.intrinsicContentSize.height

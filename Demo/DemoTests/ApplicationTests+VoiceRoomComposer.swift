@@ -11,7 +11,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomMessageButtonSendsScrollsAndRemovesComposer() async throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let viewController = VoiceRoomViewController()
         viewController.configureQuickLayoutKeyboardSafeAreaForTesting(
@@ -259,7 +259,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomActionBarUsesSafeAreaOrViewBottomWithoutExtraSpacing() throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let viewController = VoiceRoomViewController()
         let navigationController = UINavigationController(

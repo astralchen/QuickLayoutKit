@@ -9,8 +9,8 @@ enum ContentConfigurationSectionRole {
 
 final class ContentConfigurationSectionView: QuickLayoutView {
 
-    let titleLabel = UILabel()
-    let detailLabel = UILabel()
+    let titleLabel = LocalizedLabel()
+    let detailLabel = LocalizedLabel()
 
     private var role: ContentConfigurationSectionRole = .header
 

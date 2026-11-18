@@ -75,6 +75,49 @@ final class ControlledFollowRequestHandler:
 }
 
 @MainActor
+func applyTestLayoutDirection(_ direction: UIUserInterfaceLayoutDirection, to controller: UIViewController) {
+    // 独立页面方向用例直接建立原生 trait 边界，不借用旧版本的逐页语义覆盖。
+    if #available(iOS 17.0, *) {
+        controller.traitOverrides.layoutDirection = direction == .rightToLeft ? .rightToLeft : .leftToRight
+        controller.updateTraitsIfNeeded()
+        // 离屏页面测试没有 Scene；在其根视图建立明确的原生 trait 边界。
+        controller.view.traitOverrides.layoutDirection = direction == .rightToLeft ? .rightToLeft : .leftToRight
+        controller.view.updateTraitsIfNeeded()
+    } else {
+        controller.view.semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight
+    }
+}
+
+@MainActor
+func applyTestLayoutDirection(_ direction: UIUserInterfaceLayoutDirection, to view: UIView) {
+    if #available(iOS 17.0, *) {
+        view.traitOverrides.layoutDirection = direction == .rightToLeft ? .rightToLeft : .leftToRight
+        view.updateTraitsIfNeeded()
+    } else {
+        view.semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight
+    }
+    view.setNeedsLayout()
+}
+
+@MainActor
+func makeVisibleLocalizedTestWindow(
+    rootViewController: UIViewController,
+    size: CGSize? = nil,
+    semanticContentAttribute: UISemanticContentAttribute = .unspecified,
+    contentSizeCategory: UIContentSizeCategory? = nil
+) throws -> UIWindow {
+    let window = try makeVisibleTestWindow(
+        rootViewController: rootViewController,
+        size: size,
+        semanticContentAttribute: semanticContentAttribute,
+        contentSizeCategory: contentSizeCategory
+    )
+    // 测试创建并拥有的窗口显式参与内容与方向事务；协调器弱持有窗口。
+    Localization.register(window: window)
+    return window
+}
+
+@MainActor
 func makeVisibleTestWindow(
     rootViewController: UIViewController,
     size: CGSize? = nil,

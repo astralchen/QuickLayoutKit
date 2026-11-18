@@ -120,15 +120,15 @@ final class SafeAreaPaddingViewController: LocalizedQuickLayoutHostingController
     }
 
     let pageScrollView = QuickLayoutScrollView(.vertical)
-    let metricsLabel = UILabel()
+    let metricsLabel = LocalizedLabel()
     private let backdropView = UIView()
     private let safeAreaGuideView = SafeAreaPaddingGuideView()
-    private let introLabel = UILabel()
-    private let previousButton = UIButton(type: .system)
-    private let scenarioButton = UIButton(type: .system)
-    private let nextButton = UIButton(type: .system)
-    private let codeLabel = UILabel()
-    private let expectedLabel = UILabel()
+    private let introLabel = LocalizedLabel()
+    private let previousButton = LocalizedButton(type: .system)
+    private let scenarioButton = LocalizedButton(type: .system)
+    private let nextButton = LocalizedButton(type: .system)
+    private let codeLabel = LocalizedLabel()
+    private let expectedLabel = LocalizedLabel()
     private let sampleViews: [SafeAreaPaddingSampleView]
 
     private(set) var selectedScenario = Scenario.baseline
@@ -178,15 +178,11 @@ final class SafeAreaPaddingViewController: LocalizedQuickLayoutHostingController
         _ direction: UIUserInterfaceLayoutDirection
     ) {
         super.reloadLayoutDirection(direction)
-        let semanticAttribute = direction
-            .appLayoutDirection
-            .semanticContentAttribute
+
         [pageScrollView, safeAreaGuideView].forEach {
-            $0.semanticContentAttribute = semanticAttribute
             $0.setNeedsLayout()
         }
         sampleViews.forEach {
-            $0.semanticContentAttribute = semanticAttribute
             $0.setNeedsQuickLayout()
         }
         setNeedsQuickLayout()
@@ -286,8 +282,7 @@ final class SafeAreaPaddingViewController: LocalizedQuickLayoutHostingController
 
         pageScrollView.backgroundColor = .systemBackground
         pageScrollView.accessibilityIdentifier = "safeAreaPadding.page"
-        pageScrollView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
+
 
         safeAreaGuideView.accessibilityIdentifier = "safeAreaPadding.guide"
         safeAreaGuideView.isUserInteractionEnabled = false
@@ -455,13 +450,12 @@ private final class SafeAreaPaddingGuideView: QuickLayoutShapeView {
 
 private final class SafeAreaPaddingSampleView: QuickLayoutView {
 
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
     private let backgroundView = UIView()
 
     init(index: Int) {
         super.init(frame: .zero)
 
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
         titleLabel.text = "Safe area content \(index)"
         titleLabel.font = .monospacedSystemFont(ofSize: 15, weight: .semibold)
         titleLabel.textColor = .white

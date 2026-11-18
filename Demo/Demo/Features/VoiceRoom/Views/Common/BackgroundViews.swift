@@ -103,7 +103,7 @@ class TranslucentCardView: QuickLayoutView {
     /// - Parameter frame: 视图在父视图坐标系中的初始矩形，单位为点。
     override init(frame: CGRect) {
         super.init(frame: frame)
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         backgroundColor = UIColor.black.withAlphaComponent(0.18)
         layer.cornerRadius = 20
         layer.cornerCurve = .continuous

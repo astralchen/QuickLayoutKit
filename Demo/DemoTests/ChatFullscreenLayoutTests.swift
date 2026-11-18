@@ -97,7 +97,7 @@ struct ChatFullscreenLayoutTests {
         }
         list.layoutIfNeeded()
         let originalOffset = list.contentOffset
-        let anchor = try #require(list.captureLocalizationAnchor())
+        let anchor = try #require(list.captureReadingAnchor())
         let originalFrame = try #require(list.layoutAttributesForItem(at: anchor.indexPath)?.frame)
         let safe = page.view.safeAreaInsets
         let bottom = list.contentInset.bottom
@@ -197,13 +197,13 @@ struct ChatFullscreenLayoutTests {
         let list = page.conversationView.collectionView
         #expect(await eventually { page.conversationView.initialPresentation.isPresented })
         list.scrollToItem(at: IndexPath(item: 25, section: 0), at: .top, animated: false)
-        let anchor = try #require(list.captureLocalizationAnchor())
+        let anchor = try #require(list.captureReadingAnchor())
         for obstruction: CGFloat in [300, 100, 0] {
             page.conversationView.prepareForViewportChange()
             page.bottomObstruction = obstruction
             page.setNeedsQuickLayout()
             page.layoutChatContent()
-            let updated = try #require(list.captureLocalizationAnchor())
+            let updated = try #require(list.captureReadingAnchor())
             #expect(updated.indexPath == anchor.indexPath)
             #expect(abs(updated.offsetFromViewportTop - anchor.offsetFromViewportTop) < 1)
             #expect(!page.conversationView.isNearBottom)
@@ -214,7 +214,7 @@ struct ChatFullscreenLayoutTests {
         page.view.layoutIfNeeded()
         page.layoutChatContent()
         fixture.expectGeometry()
-        let resized = try #require(list.captureLocalizationAnchor())
+        let resized = try #require(list.captureReadingAnchor())
         #expect(resized.indexPath == anchor.indexPath)
         #expect(abs(resized.offsetFromViewportTop - anchor.offsetFromViewportTop) < 1)
         #expect(list.contentInset.left == 0 && list.contentInset.right == 0)
@@ -262,7 +262,7 @@ struct ChatFullscreenLayoutTests {
             if readingHistory {
                 list.scrollToItem(at: IndexPath(item: 25, section: 0), at: .top, animated: false)
             }
-            let anchor = try #require(list.captureLocalizationAnchor())
+            let anchor = try #require(list.captureReadingAnchor())
             for size in [CGSize(width: 740, height: 420), CGSize(width: 420, height: 740)] {
                 conversation.prepareForViewportChange()
                 fixture.window.frame.size = size
@@ -274,7 +274,7 @@ struct ChatFullscreenLayoutTests {
                 #expect(abs(page.view.bounds.width - size.width) < 1)
                 #expect(abs(page.view.bounds.height - size.height) < 1)
                 if readingHistory {
-                    let resized = try #require(list.captureLocalizationAnchor())
+                    let resized = try #require(list.captureReadingAnchor())
                     #expect(resized.indexPath == anchor.indexPath, "size=\(size), old=\(anchor), new=\(resized)")
                     #expect(abs(resized.offsetFromViewportTop - anchor.offsetFromViewportTop) < 1,
                             "size=\(size), old=\(anchor), new=\(resized)")

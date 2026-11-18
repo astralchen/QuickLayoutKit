@@ -108,19 +108,22 @@ struct ChatMediaTests {
         guard #available(iOS 26.0, *) else { return }
         let fixture = try MediaFixture(itemCount: 2, liveIndices: [0, 1])
         defer { fixture.remove() }
-        let window = try makeDraftTestWindow()
-        defer { window.isHidden = true }
+        let host = try MediaDirectionTestHost()
+        defer { host.window.isHidden = true }
         for count in [1, 2] {
             for direction in [MessageDirection.incoming, .outgoing] {
                 for semantic in [UISemanticContentAttribute.forceLeftToRight, .forceRightToLeft] {
                     let group = MediaGroupAttachment(items: Array(fixture.group.items.prefix(count)))
                     let view = makeStackView(group, direction: direction)
-                    view.semanticContentAttribute = semantic
-                    window.rootViewController!.view.addSubview(view)
+                    host.setBoundary(semantic)
+                    host.content.view.addSubview(view)
                     view.setNeedsLayout()
                     view.layoutIfNeeded()
                     for card in view.cards where !card.isHidden {
                         card.layoutIfNeeded()
+                        #expect(view.semanticContentAttribute == .unspecified)
+                        #expect(card.semanticContentAttribute == .unspecified)
+                        #expect(card.effectiveUserInterfaceLayoutDirection == view.effectiveUserInterfaceLayoutDirection)
                         let badge = card.livePhotoBadge
                         #expect(!badge.isHidden)
                         #expect(badge.bounds.size == CGSize(width: 18, height: 18))
@@ -138,6 +141,86 @@ struct ChatMediaTests {
         }
     }
 
+    @Test func mediaDirectionRoundTripPreservesInheritanceAndSemanticExceptions() async throws {
+        guard #available(iOS 26.0, *) else { return }
+        let fixture = try MediaFixture(itemCount: 3, liveIndices: [0, 1, 2])
+        defer { fixture.remove() }
+        let host = try MediaDirectionTestHost()
+        defer { host.window.isHidden = true }
+        let message = makeStackView(fixture.group)
+        let strip = MediaDraftStripView(frame: CGRect(x: 0, y: 380, width: 700, height: 156))
+        host.content.view.addSubview(message)
+        host.content.view.addSubview(strip)
+        let items = fixture.group.items.map {
+            MediaDraftItemPresentation(id: $0.id, assetIdentifier: nil, content: .ready($0))
+        }
+        strip.configure(.init(groupID: fixture.group.id, items: items), strings: mediaStrings, animated: false)
+        try await settleDraft(strip, ids: items.map(\.id))
+        let collection = strip.collectionView
+        let cards = message.cards.map(ObjectIdentifier.init)
+
+        for semantic: UISemanticContentAttribute in [.forceLeftToRight, .forceRightToLeft, .unspecified, .forceRightToLeft, .forceLeftToRight, .unspecified] {
+            host.setBoundary(semantic)
+            // 只驱动 UIKit 布局周期，不手动刷新子树方向或 collection layout 缓存。
+            message.layoutIfNeeded()
+            strip.layoutIfNeeded()
+            collection.layoutIfNeeded()
+            let expected = host.content.view.effectiveUserInterfaceLayoutDirection
+            if semantic == .unspecified {
+                #expect(expected == host.parent.view.effectiveUserInterfaceLayoutDirection)
+                #expect(host.content.view.semanticContentAttribute == .unspecified)
+            } else {
+                #expect(expected == (semantic == .forceRightToLeft ? .rightToLeft : .leftToRight))
+            }
+            let rtl = expected == .rightToLeft
+            #expect(strip.collectionView === collection)
+            #expect(message.cards.map(ObjectIdentifier.init) == cards)
+            for view: UIView in [message, strip, collection] {
+                #expect(view.semanticContentAttribute == .unspecified)
+                #expect(view.effectiveUserInterfaceLayoutDirection == expected)
+            }
+            for card in message.cards where !card.isHidden {
+                card.layoutIfNeeded()
+                #expect(card.semanticContentAttribute == .unspecified)
+                #expect(card.effectiveUserInterfaceLayoutDirection == expected)
+                let badge = card.livePhotoBadge
+                #expect(abs((rtl ? card.bounds.width - badge.frame.maxX : badge.frame.minX) - 12) < 0.5)
+            }
+            let frames = strip.renderedItemFrames
+            #expect(frames.count == items.count)
+            #expect(rtl ? frames[0].minX > frames[1].minX : frames[0].minX < frames[1].minX)
+            #expect(collection.visibleCells.count == items.count)
+            for cell in collection.visibleCells {
+                cell.layoutIfNeeded()
+                #expect(cell.semanticContentAttribute == .unspecified)
+                #expect(cell.contentView.semanticContentAttribute == .unspecified)
+                let badge = try #require(cell.allSubviews(of: UIImageView.self).first {
+                    $0.accessibilityIdentifier == "imessage.composer.media.livePhotoBadge"
+                })
+                let itemView = try #require(badge.superview)
+                itemView.layoutIfNeeded()
+                #expect(itemView.semanticContentAttribute == .unspecified)
+                #expect(itemView.effectiveUserInterfaceLayoutDirection == expected)
+                let frame = badge.convert(badge.bounds, to: itemView)
+                #expect(rtl ? frame.midX > itemView.bounds.midX : frame.midX < itemView.bounds.midX)
+            }
+        }
+
+        host.setBoundary(.forceRightToLeft)
+        let card = try #require(message.frontCard)
+        let nativePeer = UIView()
+        host.content.view.addSubview(nativePeer)
+        for semantic: UISemanticContentAttribute in [.forceLeftToRight, .playback, .spatial, .unspecified] {
+            card.semanticContentAttribute = semantic
+            nativePeer.semanticContentAttribute = semantic
+            card.layoutIfNeeded()
+            #expect(card.semanticContentAttribute == semantic)
+            #expect(card.effectiveUserInterfaceLayoutDirection == nativePeer.effectiveUserInterfaceLayoutDirection)
+            let rtl = nativePeer.effectiveUserInterfaceLayoutDirection == .rightToLeft
+            #expect(abs((rtl ? card.bounds.width - card.livePhotoBadge.frame.maxX : card.livePhotoBadge.frame.minX) - 12) < 0.5)
+        }
+    }
+
     /// 同一草稿身份从实况切换到 GIF、静态图、视频或导入占位时，不得残留实况角标。
     @Test(arguments: [false, true])
     func draftLivePhotoBadgeClearsAcrossContentChanges(rtl: Bool) async throws {
@@ -145,10 +228,12 @@ struct ChatMediaTests {
         let fixture = try MediaFixture(itemCount: 4, videoIndices: [3], animatedIndices: [1], liveIndices: [0])
         defer { fixture.remove() }
         let strip = MediaDraftStripView(frame: CGRect(x: 0, y: 100, width: 240, height: 156))
-        strip.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
-        let window = try makeDraftTestWindow()
-        defer { window.isHidden = true }
-        window.rootViewController!.view.addSubview(strip)
+        let host = try MediaDirectionTestHost()
+        defer { host.window.isHidden = true }
+        host.setBoundary(rtl ? .forceRightToLeft : .forceLeftToRight)
+        host.content.view.addSubview(strip)
+        #expect(strip.semanticContentAttribute == .unspecified)
+        #expect(strip.collectionView.semanticContentAttribute == .unspecified)
         let id = UUID()
         func apply(_ content: MediaDraftItemContent) async throws {
             strip.configure(.init(groupID: fixture.group.id, items: [.init(id: id, assetIdentifier: nil, content: content)]),
@@ -281,10 +366,10 @@ struct ChatMediaTests {
         defer { fixture.remove() }
         let items = fixture.group.items.map { MediaDraftItemPresentation(id: $0.id, assetIdentifier: $0.assetIdentifier, content: .ready($0)) }
         let strip = MediaDraftStripView(frame: CGRect(x: 0, y: 100, width: 240, height: 156))
-        strip.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
-        let window = try makeDraftTestWindow()
-        defer { window.isHidden = true }
-        window.rootViewController!.view.addSubview(strip)
+        let host = try MediaDirectionTestHost()
+        defer { host.window.isHidden = true }
+        host.setBoundary(rtl ? .forceRightToLeft : .forceLeftToRight)
+        host.content.view.addSubview(strip)
         strip.configure(.init(groupID: fixture.group.id, items: Array(items.prefix(5))), strings: mediaStrings, animated: false)
         strip.layoutIfNeeded()
         let startX = rtl ? strip.collectionView.contentSize.width - 238 : -2

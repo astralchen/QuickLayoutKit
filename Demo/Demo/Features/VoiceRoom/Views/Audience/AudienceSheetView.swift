@@ -86,7 +86,7 @@ final class AudienceSheetView: QuickLayoutView {
 
     /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         accessibilityIdentifier = "liveRoom.audience.sheet"
         backgroundColor = .clear
 

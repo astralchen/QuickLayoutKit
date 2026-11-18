@@ -16,8 +16,8 @@ final class DashboardViewController: LocalizedQuickLayoutHostingController {
 
     let scrollView = QuickLayoutScrollView()
     let pageBackgroundView = UIView()
-    let overviewLabel = UILabel()
-    let recentActivityLabel = UILabel()
+    let overviewLabel = LocalizedLabel()
+    let recentActivityLabel = LocalizedLabel()
 
     private let profileSummaryView = DashboardProfileSummaryView()
     private let metricsOverviewView = DashboardMetricsOverviewView()
@@ -92,23 +92,7 @@ final class DashboardViewController: LocalizedQuickLayoutHostingController {
         setNeedsQuickLayout()
     }
 
-    override func reloadLayoutDirection(
-        _ direction: UIUserInterfaceLayoutDirection
-    ) {
-        super.reloadLayoutDirection(direction)
-        let semanticContentAttribute = direction
-            .appLayoutDirection
-            .semanticContentAttribute
-        scrollView.semanticContentAttribute = semanticContentAttribute
-        [
-            profileSummaryView,
-            metricsOverviewView,
-            activityFeedView,
-        ].forEach {
-            $0.semanticContentAttribute = semanticContentAttribute
-        }
-        weeklyGoalView.applyLayoutDirection(direction)
-    }
+
 
     override var body: Layout {
         ZStack {
@@ -164,8 +148,7 @@ final class DashboardViewController: LocalizedQuickLayoutHostingController {
         scrollView.alwaysBounceVertical = true
         scrollView.contentInsetAdjustmentBehavior = .automatic
         scrollView.showsVerticalScrollIndicator = false
-        scrollView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
+
 
         configureSectionLabel(overviewLabel)
         configureSectionLabel(recentActivityLabel)
@@ -185,19 +168,18 @@ private final class DashboardProfileSummaryView: QuickLayoutView {
     fileprivate let cardBackgroundView = UIView()
 
     private let profileImageView = UIImageView()
-    private let nameLabel = UILabel()
-    private let scoreLabel = UILabel()
-    private let achievementLabel = UILabel()
+    private let nameLabel = LocalizedLabel()
+    private let scoreLabel = LocalizedLabel()
+    private let achievementLabel = LocalizedLabel()
     private let avatarBackgroundView = UIView()
     private let achievementBackgroundView = UIView()
     private let scoreTrendImageView = UIImageView()
-    private let scoreTrendLabel = UILabel()
+    private let scoreTrendLabel = LocalizedLabel()
     private let dividerView = UIView()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
 
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
 
         profileImageView.image = UIImage(systemName: "person.crop.circle.fill")
         profileImageView.tintColor = .systemBlue
@@ -342,7 +324,7 @@ private final class DashboardMetricsOverviewView: QuickLayoutView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
     }
 
     required init?(coder: NSCoder) {
@@ -389,14 +371,13 @@ private final class DashboardMetricCardView: QuickLayoutView {
 
     private let iconBackgroundView = UIView()
     private let iconImageView = UIImageView()
-    private let valueLabel = UILabel()
-    private let titleLabel = UILabel()
+    private let valueLabel = LocalizedLabel()
+    private let titleLabel = LocalizedLabel()
     fileprivate let cardBackgroundView = UIView()
 
     init(symbolName: String, tintColor: UIColor) {
         super.init(frame: .zero)
 
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
         iconImageView.image = UIImage(systemName: symbolName)
         iconImageView.tintColor = tintColor
         iconImageView.contentMode = .scaleAspectFit
@@ -458,17 +439,16 @@ private final class DashboardMetricCardView: QuickLayoutView {
 
 private final class DashboardWeeklyGoalCardView: QuickLayoutView {
 
-    fileprivate let progressLabel = UILabel()
+    fileprivate let progressLabel = LocalizedLabel()
     fileprivate let progressView = UIProgressView(progressViewStyle: .default)
     fileprivate let cardBackgroundView = UIView()
 
-    private let titleLabel = UILabel()
-    private let detailLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
+    private let detailLabel = LocalizedLabel()
 
     init(progress: Float) {
         super.init(frame: .zero)
 
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
 
         titleLabel.font = .preferredFont(forTextStyle: .headline)
         titleLabel.adjustsFontForContentSizeCategory = true
@@ -512,20 +492,7 @@ private final class DashboardWeeklyGoalCardView: QuickLayoutView {
         setNeedsQuickLayout()
     }
 
-    func applyLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
-        let attribute = direction
-            .appLayoutDirection
-            .semanticContentAttribute
-        semanticContentAttribute = attribute
-        cardBackgroundView.semanticContentAttribute = attribute
-        // UIProgressView 没有公开的填充起始边 API。先固定其内部渲染方向，
-        // 再根据应用本地化方向对控件进行一次镜像，避免重复翻转。
-        progressView.semanticContentAttribute = .forceLeftToRight
-        progressView.transform = direction == .rightToLeft
-            ? CGAffineTransform(scaleX: -1, y: 1)
-            : .identity
-        setNeedsQuickLayout()
-    }
+
 
     @LayoutBuilder
     override var body: Layout {
@@ -562,7 +529,6 @@ private final class DashboardActivityCardView: QuickLayoutView {
     override init(frame: CGRect) {
         super.init(frame: frame)
 
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
         separatorView.backgroundColor = .separator
         separatorView.isAccessibilityElement = false
         cardBackgroundView.backgroundColor = .secondarySystemGroupedBackground
@@ -605,13 +571,12 @@ private final class DashboardActivityRowView: QuickLayoutView {
 
     private let iconBackgroundView = UIView()
     private let iconImageView = UIImageView()
-    private let titleLabel = UILabel()
-    private let detailLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
+    private let detailLabel = LocalizedLabel()
 
     init(symbolName: String, tintColor: UIColor) {
         super.init(frame: .zero)
 
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
         iconImageView.image = UIImage(systemName: symbolName)
         iconImageView.tintColor = tintColor
         iconImageView.contentMode = .scaleAspectFit

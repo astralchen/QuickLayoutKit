@@ -8,7 +8,7 @@ extension ApplicationTests {
     @Test(arguments: ["zh-Hans", "en", "ar"])
     func followButtonKeepsSizeAcrossStates(locale: String) throws {
         Localization.setLocale(identifier: locale)
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let button = FollowButton(frame: .zero)
         let host = UIViewController()
         host.view.addSubview(button)

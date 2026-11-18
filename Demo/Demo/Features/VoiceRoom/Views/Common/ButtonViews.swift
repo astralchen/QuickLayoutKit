@@ -41,7 +41,7 @@ class MinimumHitTargetButton: QuickLayoutButton {
 final class CapsuleTextButton: MinimumHitTargetButton {
 
     /// 显示组件主标题的标签。
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
     /// 按钮可用时的前景颜色。
     private var enabledForegroundColor: UIColor = .white
     /// 按钮不可用时的前景颜色。
@@ -272,7 +272,7 @@ final class IconTitleButton: QuickLayoutButton {
     /// 显示组件符号图像的视图。
     private let imageView = UIImageView()
     /// 显示组件主标题的标签。
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
 
     /// 使用指定初始矩形创建视图并配置初始外观。
     ///

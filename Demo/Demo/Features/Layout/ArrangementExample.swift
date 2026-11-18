@@ -127,7 +127,7 @@ final class ArrangementPreview: QuickLayoutView {
 final class ArrangementExamplePane: UIView {
     private let isPrimary: Bool
     private let readout = UIView()
-    private let label = UILabel()
+    private let label = LocalizedLabel()
     private enum Surface { case split, foreground, backdrop }
     private var surface: Surface = .split {
         didSet { if surface != oldValue { setNeedsDisplay() } }

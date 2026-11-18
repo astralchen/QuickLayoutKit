@@ -150,7 +150,7 @@ final class GiftMainEffectPlayer: GiftEffectPlaying {
         let image = UIImageView(image: UIImage(systemName: gift.symbolName))
         image.contentMode = .scaleAspectFit
         image.tintColor = VoiceRoomTheme.giftColor(at: gift.themeIndex)
-        let label = UILabel()
+        let label = LocalizedLabel()
         label.text = "\(gift.localizedTitle) ×\(quantity)"
         label.textColor = .white
         label.font = .preferredFont(forTextStyle: .headline)

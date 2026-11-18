@@ -33,7 +33,7 @@ QuickLayoutKit 是面向 UIKit 的 [QuickLayout](https://github.com/facebookincu
 运行要求：
 
 - iOS 15.0 或更高版本
-- Swift 6.2 或更高版本
+- Swift 6.3 或更高版本
 - QuickLayout 跟踪 `main` 分支，当前解析的提交记录在 `Package.resolved` 中
 
 ## 安装
@@ -822,7 +822,9 @@ cardView.onGeometryChange(for: CGFloat.self) { geometry in
 `LayoutSubview` 的位置和尺寸建议。使用 `LayoutValueKey` 和
 `layoutValue(key:value:)` 可以为直接子元素附加元数据。
 
-`position(_:)` 用于设置元素中心位置，`zIndex(_:)` 用于控制重叠顺序。QuickLayoutKit 宿主
+`position(_:)` 用于设置元素中心位置，与 SwiftUI 一样从布局前缘解析水平坐标：
+LTR 中心为 `(x, y)`，RTL 中心在 UIKit 物理坐标中为 `(容器宽度 - x, y)`。
+`zIndex(_:)` 用于控制重叠顺序，不随布局方向改变。QuickLayoutKit 宿主
 会在移除 `zIndex` 或转移宿主时恢复视图原有的 `layer.zPosition`。
 
 ## 环境、动态字体与布局方向
@@ -832,25 +834,31 @@ cardView.onGeometryChange(for: CGFloat.self) { geometry in
 `QuickLayoutEnvironmentUpdating` 的宿主会在环境变化时收到
 `quickLayoutEnvironmentDidChange(_:reason:)`。
 
-独立的 `QuickLayoutView`、`QuickLayoutButton` 和 `QuickLayoutScrollView` 默认使用
-`.preserve`，避免覆盖播放、空间等局部固定语义。普通应用内容可能被移除并重新附加时，
-应显式跟随外层容器：
+所有 QuickLayout 宿主和列表复用视图均读取自身的 `effectiveUserInterfaceLayoutDirection`，
+在 UIKit 特征、附加、测量和布局回调中更新环境，不会把解析出的方向写回语义属性。
+普通内容保持 `.unspecified`；`.playback`、`.spatial` 和显式固定方向保持调用者的选择。
+移除再附加、复用、应用 `UIContentConfiguration` 都不会把继承状态固化成强制方向。
 
-```swift
-hostingView.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
-scrollView.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
-button.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
-```
+App 内切换语言由 App 的本地化协调器提供方向环境：iOS 17+ 在 Scene / controller 边界
+使用 `traitOverrides.layoutDirection`；iOS 15/16 使用容器控制器的
+`setOverrideTraitCollection(_:forChild:)`、presentation traits 和必要的根视图语义边界。
+不要递归覆盖子视图。仅给普通父视图设置 semantic 不能替代整棵控制器树的 trait 环境。
 
-应用在运行时切换语言时，还应在 UIKit 拥有行为的边界设置 `semanticContentAttribute`，例如
-滚动视图、导航栏、集合视图和系统控件。QuickLayout 管理的前缘/后缘布局则使用
-`.layoutDirection(...)`，文本视图通常保持 `.natural` 对齐。
+`.unspecified` 表示继承 UIKit 当前环境；App 自己覆盖了方向时，它继承 App 的方向。
+恢复系统语言要通过本地化控制器的“跟随系统”设置；清除局部 trait 覆盖则使用
+`traitOverrides.remove(UITraitLayoutDirection.self)`。旧系统撤销 App 自有语义边界时
+将该边界设为 `.unspecified`，并撤销相应的控制器 trait override。
+
+移除了旧的 `QuickLayoutSemanticDirectionBehavior`、`quickLayoutSemanticDirectionBehavior`、
+`quickLayoutDirectionViews` 和列表方向同步方法。接入方应删除对应配置和 override；
+离屏测量需要方向时，由测量方提供明确的 trait / 语义环境。QuickLayout 的
+`.layoutDirection(...)` 仍用于局部布局算法，文本视图通常保持 `.natural` 对齐。
 
 ## 列表与内容配置
 
 框架提供 `QuickLayoutCollectionViewCell`、`QuickLayoutTableViewCell`、
 `QuickLayoutTableViewHeaderFooterView` 和 `QuickLayoutCollectionReusableView`。它们支持
-QuickLayout `body`、自适应尺寸、环境更新和从外层列表恢复布局方向。
+QuickLayout `body`、自适应尺寸、环境更新和 UIKit 原生方向继承。
 
 `QuickLayoutCollectionViewCell` 和 `QuickLayoutCollectionReusableView` 使用相同的
 `quickLayoutHorizontalFlexibility`、`quickLayoutVerticalFlexibility` 测量配置，默认均为
@@ -951,8 +959,8 @@ section 与背景使用 `NSDirectionalEdgeInsets`，leading / trailing 随布局
 Debug 控制台筛选 `[ContentWaterfall]` 可查看条目 ID、方向、交叉轴长度、估算与拟合长度、
 失效原因；日志不额外测量。
 
-`quickLayoutDirectionViews` 只应包含需要跟随外层列表的公开视图。不要遍历 UIKit 私有子视图；
-具有固定播放或空间语义的子视图也不应加入该数组。
+不要遍历 UIKit 私有子视图，也不要在 snapshot 完成后批量写入 cell / contentView 的方向。
+组合布局的方向缓存由布局拥有者失效或重建；这一步不需要改写视图的语义属性。
 
 ## 子视图控制器
 
@@ -1071,10 +1079,32 @@ Demo 通过本地路径依赖根目录的软件包，修改库源码会直接参
 工作空间的依赖版本记录在 `QuickLayoutKit.xcworkspace/xcshareddata/swiftpm/Package.resolved`；
 根目录的 `Package.resolved` 用于独立使用 Swift Package 的场景。
 
+Demo 的 AppLocalization 接入使用 `LocalizationUpdate` 和 UIKit 原生方向类型。
+可选语言来自主资源包；窗口由 `SceneDelegate` 显式注册、同步和注销，协调器直接参与
+语言切换事务，不再转发完成通知。独立预览宿主需要显式注册自己的窗口才能接收内容刷新。
+iOS 17+ 由 Scene 的 `traitOverrides.layoutDirection` 传播方向，普通页面继承 traits；
+iOS 15/16 则由窗口协调器同步语义边界和现有父容器／呈现控制器的 trait override。
+导航容器在所有系统版本同步语义方向，局部固定方向仍由业务组件直接声明。
+`Localization.applyBoundary(_:to:)` 仅用于旧系统的 App 自有边界，接受原生
+`UISemanticContentAttribute`，不递归覆盖子视图。`.unspecified` 恢复 UIKit 继承，
+与语言菜单的“跟随系统”不同；后者由 `LocalizationController` 重新解析支持的系统语言。
+Demo 的 App 文案使用 `LocalizedLabel` 按有效方向解析 leading 文本对齐；显式居中、
+代码 LTR 保持各自策略。`LocalizedTextField` 使用原生文本对齐，让表单输入、占位提示
+及空文本光标统一跟随 leading；不改写草稿、Unicode 书写方向或选区。`LocalizedButton` 在方向变化时重新安装本按钮的配置，清除旧的
+图文排列缓存。参数编辑用的 `LocalizedSlider` 保持外层控件身份与 `.unspecified`，
+仅在方向变化且未拖动时重建内部原生 UISlider，并在轨道首次生成前设置这个内部控件
+的语义方向；保留数值、范围、禁用状态和 valueChanged 转发。媒体时间轴仍使用独立的
+播放语义。这些是已复现的控件渲染适配，不递归改写任意子视图，也不属于框架宿主的职责。
+依赖初始方向与视口尺寸的展示逻辑使用 `viewIsAppearing(_:)`；它在视图加入层级、traits
+更新后执行，并兼容到 iOS 13。不要在 `viewWillAppear` 提前读取方向后给子视图补写语义。
+列表采用原生注册和布局 API；App 表单采用逻辑 leading 对齐，语言切换不重写草稿或选区。
+用户文本的双向书写顺序仍交给原生文本系统。聊天和目录的阅读位置由 Demo 的 `CollectionReadingAnchor` 配合业务 ID 维护。
+
 Demo 应用支持 iOS 15.0 及以上版本。`Chat` 功能使用 iOS 26 API，仅在 iOS 26
 及以上显示入口；其他演示页面保留 iOS 15 兼容路径。Xcode 预览要求 iOS 17，聊天预览要求
-iOS 26。Demo 单元测试和 UI 测试目标同样支持 iOS 15；聊天相关用例在 iOS 26 以下明确跳过，
-普通布局、菜单和本地化测试继续运行。
+iOS 26。当前 Demo 单元测试和 UI 测试目标的最低版本为 iOS 17；聊天相关用例在 iOS 26
+以下明确跳过。iOS 15/16 的运行时兼容性需另用可运行该系统的设备或测试宿主验证，不能
+以新系统上的构建或条件分支检查代替。
 
 Demo 展示全屏集合视图根布局、背景与垂直滚动页面、外层垂直滚动与内层横向轮播、横屏和
 安全区域、动态字体、等高卡片、列表自适应尺寸、运行时 LTR/RTL 切换、键盘避让和子控制器
@@ -1085,7 +1115,8 @@ placement、覆盖顺序及 QuickLayout `nil` 契约。
 运行 Swift Package 测试：
 
 ```sh
-swift test
+xcodebuild -workspace QuickLayoutKit.xcworkspace -scheme QuickLayoutKit \
+  -destination 'platform=iOS Simulator,name=iPhone 18 Pro' test
 ```
 
 验证 Demo 构建：

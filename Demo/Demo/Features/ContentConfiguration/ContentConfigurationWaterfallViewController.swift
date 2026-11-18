@@ -15,9 +15,16 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
     })
     private(set) var items: [ContentConfigurationWaterfallItem] = []
     var laneCount: Int { waterfallLayout.resolvedLaneCount(in: 0) ?? 0 }
-    private let directionControl = UISegmentedControl(items: ["", ""])
-    private let laneCountLabel = UILabel()
-    private let controlsBackground = UIView()
+    private let directionControl = WaterfallDirectionControl(items: ["", ""])
+    private let laneCountLabel = LocalizedLabel()
+    private let controlsBackground: UIVisualEffectView = {
+        if #available(iOS 26.0, *) {
+            let background = UIVisualEffectView(effect: UIGlassEffect(style: .regular))
+            background.cornerConfiguration = .uniformCorners(radius: .fixed(0))
+            return background
+        }
+        return UIVisualEffectView(effect: UIBlurEffect(style: .systemChromeMaterial))
+    }()
     private var pendingScrollAnchorID: Int?
     private let localizer: Localizer
     private var currentDirection: UIUserInterfaceLayoutDirection = .leftToRight
@@ -35,6 +42,7 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
     /// 仅 UI 回归显式启用时采集滚动期间的安全区、inset 和偏移，不改变正常界面。
     private let recordsScrollDiagnostics = ProcessInfo.processInfo.arguments.contains("-waterfall-scroll-diagnostics")
     private var scrollDiagnostics: [[CGFloat]] = []
+    private var hasStartedScrollDiagnostics = false
     #endif
 
     private lazy var cellRegistration = UICollectionView.CellRegistration<UICollectionViewListCell, Int> {
@@ -83,26 +91,27 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
     }
 
     override var body: Layout {
-        ZStack(alignment: .top) {
-            collectionView
-                .resizable()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            VStack(spacing: 6) {
-                directionControl
-                    .resizable()
-                    .frame(maxWidth: 320)
-                    .frame(height: max(44, UIFont.preferredFont(forTextStyle: .subheadline, compatibleWith: traitCollection).lineHeight + 16))
-                laneCountLabel
+        collectionView
+            .resizable()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .top) {
+                VStack(spacing: 6) {
+                    directionControl
+                        .resizable(axis: .horizontal)
+                        .frame(maxWidth: 320)
+                    laneCountLabel
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .safeAreaPadding(.horizontal, 0)
+                .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { [weak self] height in
+                    self?.additionalSafeAreaInsets.top = height
+                }
+                // 列表继承完整安全区，工具栏位于自身预留的空间内。
+                .padding(.top, max(0, view.safeAreaInsets.top - additionalSafeAreaInsets.top))
+                .background { controlsBackground.resizable() }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity)
-            // 按安全区域的可用宽度居中，避让横屏或侧边系统栏。
-            .safeAreaPadding([.top, .horizontal], 0)
-            .background { controlsBackground.resizable() }
-            .zIndex(1)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     override func viewDidLoad() {
@@ -125,7 +134,6 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
         laneCountLabel.textAlignment = .center
         laneCountLabel.textColor = .secondaryLabel
         laneCountLabel.accessibilityIdentifier = "waterfall.laneCount"
-        controlsBackground.backgroundColor = .systemGroupedBackground
         controlsBackground.isUserInteractionEnabled = false
         controlsBackground.accessibilityIdentifier = "waterfall.controlsBackground"
         collectionView.backgroundColor = .systemGroupedBackground
@@ -134,10 +142,9 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
         // 两个滚动方向都保留安全区，避免横向模式下首行或末行进入系统栏区域。
         collectionView.contentInsetAdjustmentBehavior = .always
         collectionView.isDirectionalLockEnabled = true
-        collectionView.contentInset.top = 44 + laneCountLabel.font.lineHeight + 22
-        collectionView.verticalScrollIndicatorInsets.top = collectionView.contentInset.top
         // 先配置控件，再由宿主应用初始语言和方向并附加 body。
         super.viewDidLoad()
+        setContentScrollView(collectionView, for: .top)
         view.backgroundColor = .systemGroupedBackground
         if #available(iOS 17.0, *) {
             registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) {
@@ -172,25 +179,11 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
     override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
         super.reloadLayoutDirection(direction)
         currentDirection = direction
-        guard let collectionView else { return }
-        collectionView.semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight
         invalidateContent(reason: "direction")
     }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        // 背景覆盖整个工具区；滚动内容和指示器从工具区下方开始。
-        // 以 UIKit 实际追加的安全区为准，工具区只补足剩余高度，避免重复计算。
-        let automaticTopInset = max(0, collectionView.adjustedContentInset.top - collectionView.contentInset.top)
-        let topInset = max(0, controlsBackground.frame.maxY - automaticTopInset)
-        if topInset > 0, abs(collectionView.contentInset.top - topInset) > 0.5 {
-            let wasAtTop = abs(collectionView.contentOffset.y + collectionView.adjustedContentInset.top) <= 1
-            collectionView.contentInset.top = topInset
-            collectionView.verticalScrollIndicatorInsets.top = topInset
-            if wasAtTop || waterfallLayout.configuration.scrollDirection == .horizontal {
-                collectionView.contentOffset.y = -collectionView.adjustedContentInset.top
-            }
-        }
         reconfigureSizingIfNeeded(reason: "container-size")
         restorePendingScrollAnchor()
         #if DEBUG
@@ -309,6 +302,12 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
     }
 
     #if DEBUG
+    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        // 首次挂载时工具栏尚未测量；手势诊断从实际开始拖动时采样。
+        hasStartedScrollDiagnostics = true
+        recordScrollDiagnostics()
+    }
+
     func scrollViewDidScroll(_ scrollView: UIScrollView) { recordScrollDiagnostics() }
 
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
@@ -318,8 +317,9 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) { publishScrollDiagnostics() }
 
     private func recordScrollDiagnostics() {
-        guard recordsScrollDiagnostics, scrollDiagnostics.count < 4_000 else { return }
-        scrollDiagnostics.append([view.safeAreaInsets.top, collectionView.contentInset.top,
+        guard recordsScrollDiagnostics, hasStartedScrollDiagnostics, scrollDiagnostics.count < 4_000 else { return }
+        let systemTop = view.safeAreaInsets.top - additionalSafeAreaInsets.top
+        scrollDiagnostics.append([systemTop, collectionView.contentInset.top,
                                   collectionView.adjustedContentInset.top, collectionView.contentOffset.y,
                                   CGFloat(collectionView.visibleCells.filter { $0.contentConfiguration == nil }.count)])
     }
@@ -416,6 +416,14 @@ final class ContentConfigurationWaterfallViewController: LocalizedQuickLayoutHos
     }
 }
 
+
+private final class WaterfallDirectionControl: UISegmentedControl {
+    override func sizeThatFits(_ size: CGSize) -> CGSize {
+        var measured = super.sizeThatFits(size)
+        measured.height = max(44, measured.height)
+        return measured
+    }
+}
 
 @available(iOS 17.0, *)
 #Preview {

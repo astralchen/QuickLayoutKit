@@ -40,6 +40,7 @@ final class TabLocalizationUITests: XCTestCase {
 
     @MainActor func testEnglishChineseTabTitlesRoundTrip() throws {
         guard #available(iOS 26.0, *) else { throw XCTSkip("Chat requires iOS 26") }
+        XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         app.launchArguments += ["-AppleLanguages", "(en)",
                                 "-quicklayoutkit.demo.locale.identifier", "en-US"]
@@ -76,6 +77,7 @@ final class TabLocalizationUITests: XCTestCase {
 
     @MainActor func testChatDraftAndFocusSurviveLanguageRoundTrip() throws {
         guard #available(iOS 26.0, *) else { throw XCTSkip("Chat requires iOS 26") }
+        XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         app.launchArguments += ["-AppleLanguages", "(zh-Hans)",
                                 "-quicklayoutkit.demo.locale.identifier", "zh-Hans",
@@ -120,6 +122,7 @@ final class TabLocalizationUITests: XCTestCase {
 
     @MainActor func testChineseArabicChineseTabDirectionRoundTrip() throws {
         guard #available(iOS 26.0, *) else { throw XCTSkip("Three root tabs require iOS 26") }
+        XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         app.launchArguments += ["-AppleLanguages", "(zh-Hans)",
                                 "-quicklayoutkit.demo.locale.identifier", "zh-Hans",

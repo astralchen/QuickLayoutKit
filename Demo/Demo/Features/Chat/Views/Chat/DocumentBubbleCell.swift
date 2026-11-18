@@ -32,8 +32,6 @@ final class DocumentBubbleCell: QuickLayoutCollectionViewCell {
     var previewMessageID: Int? { message?.id }
     /// 用户打开当前消息附件时调用的闭包。
     var open: ((Attachment) -> Void)?
-    /// 需要随单元格同步更新布局方向的内容视图。
-    override var quickLayoutDirectionViews: [UIView] { super.quickLayoutDirectionViews + [card] }
     /// 定义 `DocumentBubbleCell` 的布局层级、间距和对齐方式。
     @LayoutBuilder override var body: Layout {
         ContainerRelativeSize(.horizontal, length: { width, _ in min(420, width * 0.70) }) {

@@ -12,10 +12,10 @@ import QuickLayout
 /*
 UIKit / QuickLayout 方向适配原则：
 
-1. Scene 或 controller root 建立 semanticContentAttribute 边界。
+1. iOS 17+ 从 Scene/controller trait 继承；iOS 15/16 由协调器设置兼容边界。
 2. 每个 QuickLayout host 从 effectiveUserInterfaceLayoutDirection 取方向，
    普通布局无需再加同值的 layoutDirection modifier。
-3. 缓存、复用或独立 host 在语言切换时同步 semantic 并失效布局。
+3. 缓存、复用或独立 host 读取自身有效方向，不将解析结果写回 semantic。
 4. UIButton 使用 iOS 15 Configuration 的 leading / trailing placement；
    运行时切换 semantic 后重新应用 configuration，刷新内部图文排列。
 
@@ -75,18 +75,7 @@ class SemanticContentViewController: LocalizedQuickLayoutHostingController {
         super.reloadLayoutDirection(direction)
 
         let update = Localization.layoutDirectionUpdate(direction)
-        UIViewLayoutDirectionUpdater.apply(
-            update,
-            to: [scrollView, titleLabel, descLabel].map {
-                UIViewLayoutDirectionTarget(
-                    $0,
-                    policy: .followApplication
-                )
-            }
-        )
-
-        // 每个可复用分区只更新自己拥有的公开节点。UIKit 明确说明，effective direction
-        // 不保证自动传播到整棵子视图树。
+        // 局部演示保留选择的语义；unspecified 始终表示继承。
         unspecifiedSection.applyLayoutDirection(update)
         ltrSection.applyLayoutDirection(update)
         rtlSection.applyLayoutDirection(update)
@@ -177,26 +166,13 @@ class SemanticContentSectionView: UIView {
         setNeedsLayout()
     }
 
-    func applyLayoutDirection(_ update: UIKitLocalizationUpdate) {
-        let policy: UIViewLayoutDirectionPolicy = semantic == .unspecified
-            ? .followApplication
-            : .fixed(semantic)
-        UIViewLayoutDirectionUpdater.apply(
-            update,
-            to: [
-                self,
-                titleLabel,
-                example1,
-                example2,
-                example3,
-                example4,
-                example5,
-            ].map { UIViewLayoutDirectionTarget($0, policy: policy) }
-        )
+    func applyLayoutDirection(_ update: LocalizationUpdate) {
+        let attribute = semantic
+        [self, titleLabel, example1, example2, example3, example4, example5].forEach {
+            $0.semanticContentAttribute = attribute
+        }
         example4.applySemanticContentAttribute(
-            policy == .followApplication
-                ? update.semanticContentAttribute
-                : semantic
+            attribute
         )
         setNeedsLayout()
     }
@@ -452,6 +428,11 @@ class ExampleRow5: UIView {
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    override func traitCollectionDidChange(_ previous: UITraitCollection?) {
+        super.traitCollectionDidChange(previous)
+        setNeedsLayout()
     }
 
     override func layoutSubviews() {

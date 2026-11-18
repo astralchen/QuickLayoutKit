@@ -13,11 +13,11 @@ final class RoomPKDecorationView: QuickLayoutView {
         }
     }
     /// 标示 PK 本房区域的标签。
-    private let currentLabel = UILabel()
+    private let currentLabel = LocalizedLabel()
     /// 标示 PK 对方区域的标签。
-    private let opponentLabel = UILabel()
+    private let opponentLabel = LocalizedLabel()
     /// 位于双方区域之间的 PK 标记。
-    private let pkLabel = UILabel()
+    private let pkLabel = LocalizedLabel()
 
     /// 使用指定初始矩形创建视图并配置初始外观。
     ///

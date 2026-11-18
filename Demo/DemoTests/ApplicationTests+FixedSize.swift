@@ -7,7 +7,7 @@ import UIKit
 extension ApplicationTests {
     @Test func fixedSizeLabStatesAndOffscreenContentDetermineHeight() async throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let controller = FixedSizeViewController()
         let navigation = UINavigationController(rootViewController: controller)
         let window = try makeVisibleTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
@@ -58,7 +58,7 @@ extension ApplicationTests {
 
     @Test func fixedSizeLabAdaptsToWidthLargeTextAndRTL() async throws {
         Localization.setLocale(identifier: "ar")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let controller = FixedSizeViewController()
         let navigation = UINavigationController(rootViewController: controller)
         let window = try makeVisibleTestWindow(
@@ -68,6 +68,7 @@ extension ApplicationTests {
             contentSizeCategory: .accessibilityExtraExtraExtraLarge
         )
         defer { window.isHidden = true }
+        applyTestLayoutDirection(.rightToLeft, to: controller)
         controller.reloadLayoutDirection(.rightToLeft)
         layout(controller, in: navigation)
         expectCompleteFixedSizeCards(controller)
@@ -107,6 +108,7 @@ extension ApplicationTests {
     private func checkFixedSizeCarouselLeading(rtl: Bool) {
         let stage = FixedSizeStageView()
         stage.reloadLocalizedContent()
+        applyTestLayoutDirection(rtl ? .rightToLeft : .leftToRight, to: stage)
         stage.reloadLayoutDirection(rtl ? .rightToLeft : .leftToRight)
         for width: CGFloat in [320, 236, 320, 844, 280] {
             stage.frame = CGRect(x: 0, y: 0, width: width, height: 1_200)
@@ -134,6 +136,7 @@ extension ApplicationTests {
     private func checkFixedSizeCarouselAwayOffset(rtl: Bool) {
         let stage = FixedSizeStageView()
         stage.reloadLocalizedContent()
+        applyTestLayoutDirection(rtl ? .rightToLeft : .leftToRight, to: stage)
         stage.reloadLayoutDirection(rtl ? .rightToLeft : .leftToRight)
         stage.frame = CGRect(x: 0, y: 0, width: 320, height: 1_200)
         stage.setNeedsQuickLayout()
@@ -150,9 +153,11 @@ extension ApplicationTests {
                 #expect(abs(scroll.contentOffset.x - offset) < 1)
             }
         }
+        applyTestLayoutDirection(rtl ? .leftToRight : .rightToLeft, to: stage)
         stage.reloadLayoutDirection(rtl ? .leftToRight : .rightToLeft)
         stage.layoutIfNeeded()
         expectFixedSizeLeading(stage)
+        applyTestLayoutDirection(rtl ? .rightToLeft : .leftToRight, to: stage)
         stage.reloadLayoutDirection(rtl ? .rightToLeft : .leftToRight)
         stage.layoutIfNeeded()
         expectFixedSizeLeading(stage)
@@ -160,7 +165,7 @@ extension ApplicationTests {
 
     @Test func fixedSizeRouteIsSearchableAndNavigatesToLab() throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let model = MainViewModel()
         let routes = try #require(model.state.sections.first?.routes.map(\.route))
         let position = try #require(routes.firstIndex(of: .viewThatFits))

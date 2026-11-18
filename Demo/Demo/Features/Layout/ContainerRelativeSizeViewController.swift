@@ -78,15 +78,15 @@ final class ContainerRelativeSizeViewController: LocalizedQuickLayoutHostingCont
 
     let pageScrollView = QuickLayoutScrollView(.vertical, showsIndicators: false)
     let previewView = ContainerRelativeSizePreviewView()
-    let metricsLabel = UILabel()
-    private let introLabel = UILabel()
-    private let codeLabel = UILabel()
-    private let expectedLabel = UILabel()
-    private let widthLabel = UILabel()
-    private let widthSlider = UISlider()
-    private let previousButton = UIButton(type: .system)
-    private let scenarioButton = UIButton(type: .system)
-    private let nextButton = UIButton(type: .system)
+    let metricsLabel = LocalizedLabel()
+    private let introLabel = LocalizedLabel()
+    private let codeLabel = LocalizedLabel()
+    private let expectedLabel = LocalizedLabel()
+    private let widthLabel = LocalizedLabel()
+    private let widthSlider = LocalizedSlider()
+    private let previousButton = LocalizedButton(type: .system)
+    private let scenarioButton = LocalizedButton(type: .system)
+    private let nextButton = LocalizedButton(type: .system)
     private lazy var previewStage = ContainerRelativeSizePreviewStage(preview: previewView)
     private(set) var selectedScenario = Scenario.natural
     private(set) var widthFraction: CGFloat = 1
@@ -94,7 +94,7 @@ final class ContainerRelativeSizeViewController: LocalizedQuickLayoutHostingCont
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemGroupedBackground
-        pageScrollView.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         for label in [introLabel, expectedLabel, widthLabel, metricsLabel] {
             label.font = .preferredFont(forTextStyle: .subheadline)
             label.adjustsFontForContentSizeCategory = true
@@ -170,7 +170,6 @@ final class ContainerRelativeSizeViewController: LocalizedQuickLayoutHostingCont
     override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
         super.reloadLayoutDirection(direction)
         for host in [pageScrollView, previewStage, previewView] as [UIView] {
-            host.semanticContentAttribute = direction.appLayoutDirection.semanticContentAttribute
             host.setNeedsLayout()
         }
         codeLabel.semanticContentAttribute = .forceLeftToRight
@@ -249,7 +248,7 @@ private final class ContainerRelativeSizePreviewStage: QuickLayoutView {
     init(preview: ContainerRelativeSizePreviewView) {
         self.preview = preview
         super.init(frame: .zero)
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -268,8 +267,8 @@ private final class ContainerRelativeSizePreviewStage: QuickLayoutView {
 
 final class ContainerRelativeSizePreviewView: QuickLayoutView {
     private(set) var scenario = ContainerRelativeSizeViewController.Scenario.natural
-    let firstSample = UILabel()
-    let secondSample = UILabel()
+    let firstSample = LocalizedLabel()
+    let secondSample = LocalizedLabel()
     var didLayout: (() -> Void)?
 
     var visibleSamples: [UILabel] {
@@ -278,7 +277,7 @@ final class ContainerRelativeSizePreviewView: QuickLayoutView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         backgroundColor = .secondarySystemGroupedBackground
         layer.borderWidth = 1
         layer.borderColor = UIColor.secondaryLabel.cgColor

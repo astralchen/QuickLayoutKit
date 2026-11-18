@@ -56,27 +56,27 @@ final class AudienceProfileView: QuickLayoutView {
     /// 显示用户头像或备用图标的图像视图。
     private let avatarImageView = UIImageView()
     /// 显示用户昵称的标签。
-    private let displayNameLabel = UILabel()
+    private let displayNameLabel = LocalizedLabel()
     /// 显示用户在麦或收听状态的标签。
-    private let presenceLabel = UILabel()
+    private let presenceLabel = LocalizedLabel()
     /// 参与状态标签的背景视图。
     private let presenceBackgroundView = UIView()
     /// 显示详细资料区域标题的标签。
-    private let detailsTitleLabel = UILabel()
+    private let detailsTitleLabel = LocalizedLabel()
     /// 显示用户标识字段标题的标签。
-    private let memberIDTitleLabel = UILabel()
+    private let memberIDTitleLabel = LocalizedLabel()
     /// 显示用户标识值的标签。
-    private let memberIDValueLabel = UILabel()
+    private let memberIDValueLabel = LocalizedLabel()
     /// 显示贡献积分字段标题的标签。
-    private let contributionTitleLabel = UILabel()
+    private let contributionTitleLabel = LocalizedLabel()
     /// 显示已格式化贡献积分的标签。
-    private let contributionValueLabel = UILabel()
+    private let contributionValueLabel = LocalizedLabel()
     /// 分隔相邻内容区域的细线视图。
     private let dividerView = UIView()
     /// 显示用户简介标题的标签。
-    private let aboutTitleLabel = UILabel()
+    private let aboutTitleLabel = LocalizedLabel()
     /// 显示用户简介正文的标签。
-    private let aboutLabel = UILabel()
+    private let aboutLabel = LocalizedLabel()
 
     /// 使用指定初始矩形创建视图并配置初始外观。
     ///
@@ -213,14 +213,13 @@ final class AudienceProfileView: QuickLayoutView {
 
     /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         accessibilityIdentifier = "liveRoom.audience.profile.view"
 
         scrollView.alwaysBounceVertical = false
         scrollView.showsVerticalScrollIndicator = true
         scrollView.contentInsetAdjustmentBehavior = .never
-        scrollView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
+
 
         avatarBackgroundView.layer.cornerRadius = 54
         avatarBackgroundView.layer.cornerCurve = .continuous

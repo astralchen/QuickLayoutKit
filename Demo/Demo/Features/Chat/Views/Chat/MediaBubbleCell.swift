@@ -35,10 +35,6 @@ final class MediaBubbleCell: QuickLayoutCollectionViewCell {
     /// 向页面请求媒体全屏预览的闭包，携带消息、媒体组和起始索引。
     var previewRequested: ((Int, MediaGroupAttachment, Int) -> Void)?
 
-    /// 需要随单元格同步更新布局方向的内容视图。
-    override var quickLayoutDirectionViews: [UIView] {
-        super.quickLayoutDirectionViews + [mediaView]
-    }
 
     /// 定义 `MediaBubbleCell` 的布局层级、间距和对齐方式。
     @LayoutBuilder

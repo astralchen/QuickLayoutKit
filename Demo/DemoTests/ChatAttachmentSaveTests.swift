@@ -197,7 +197,7 @@ struct ChatAttachmentSaveTests {
         let cell = DocumentBubbleCell(frame: .zero)
         for width: CGFloat in [280, 320, 402] {
             for direction in [UIUserInterfaceLayoutDirection.leftToRight, .rightToLeft] {
-                cell.quickLayoutDirectionViews.forEach { $0.semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight }
+                applyTestLayoutDirection(direction, to: cell)
                 func layout(_ state: AttachmentSaveState) -> (CGRect, CGRect) {
                     cell.configure(message(attachment), saveState: state)
                     let attributes = UICollectionViewLayoutAttributes(forCellWith: IndexPath(item: 0, section: 0))
@@ -262,7 +262,7 @@ extension ChatAttachmentSaveTests {
             for width: CGFloat in [280, 320, 402] {
                 for direction in [UIUserInterfaceLayoutDirection.leftToRight, .rightToLeft] {
                     let cell = MediaBubbleCell(frame: .zero)
-                    cell.quickLayoutDirectionViews.forEach { $0.semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight }
+                    applyTestLayoutDirection(direction, to: cell)
                     func layout(_ state: AttachmentSaveState) -> (CGRect, CGRect) {
                         cell.configure(message(.mediaGroup(group)), group: group, frontIndex: count - 1, strings: mediaStrings, saveState: state)
                         let attributes = UICollectionViewLayoutAttributes(forCellWith: IndexPath(item: 0, section: 0))
@@ -308,7 +308,7 @@ extension ChatAttachmentSaveTests {
             for (index, items) in [[fixtures[0]], fixtures].enumerated() {
                 let group = MediaGroupAttachment(items: items)
                 let cell = MediaBubbleCell(frame: .zero)
-                cell.quickLayoutDirectionViews.forEach { $0.semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight }
+                applyTestLayoutDirection(direction, to: cell)
                 canvas.addSubview(cell)
                 cell.configure(message(.mediaGroup(group), id: index), group: group, frontIndex: 0, strings: mediaStrings)
                 let attributes = UICollectionViewLayoutAttributes(forCellWith: IndexPath(item: index, section: 0))
@@ -319,7 +319,7 @@ extension ChatAttachmentSaveTests {
             }
             for ext in ["m4a", "pdf"] {
                 let cell = DocumentBubbleCell(frame: .zero)
-                cell.quickLayoutDirectionViews.forEach { $0.semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight }
+                applyTestLayoutDirection(direction, to: cell)
                 if direction == .rightToLeft { cell.traitOverrides.preferredContentSizeCategory = .accessibilityExtraExtraExtraLarge }
                 canvas.addSubview(cell)
                 let attachment = Demo.Attachment.file(.init(id: UUID(), fileURL: URL(fileURLWithPath: "/tmp/Attachment.\(ext)"), displayName: "Attachment.\(ext)", typeIdentifier: ext == "m4a" ? "public.mpeg-4-audio" : "com.adobe.pdf", byteCount: 12345))

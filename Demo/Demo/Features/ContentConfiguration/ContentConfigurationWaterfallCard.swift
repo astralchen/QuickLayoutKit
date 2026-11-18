@@ -39,8 +39,8 @@ final class ContentConfigurationWaterfallCard: QuickLayoutContentView {
     }
 
     let coverView = UIImageView()
-    let titleLabel = UILabel()
-    let detailLabel = UILabel()
+    let titleLabel = LocalizedLabel()
+    let detailLabel = LocalizedLabel()
     private var imageAspectRatio: CGFloat = 1
     private var sizing = UICollectionViewWaterfallLayout.ItemSizing(
         constraint: CGSize(width: 1, height: CGFloat.infinity),
@@ -146,7 +146,7 @@ final class ContentConfigurationWaterfallBackground: UICollectionReusableView {
 
 /// 固定主轴长度的分组标题，内容布局继续使用 QuickLayoutKit。
 final class ContentConfigurationWaterfallHeader: QuickLayoutCollectionReusableView {
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
     override var body: Layout {
         titleLabel.resizable().padding(12).frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -164,8 +164,7 @@ final class ContentConfigurationWaterfallHeader: QuickLayoutCollectionReusableVi
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     func configure(title: String, direction: UIUserInterfaceLayoutDirection) {
         titleLabel.text = title
-        semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight
-        titleLabel.textAlignment = direction == .rightToLeft ? .right : .left
+        titleLabel.textAlignment = .natural
         accessibilityLabel = title
         setNeedsQuickLayout()
     }

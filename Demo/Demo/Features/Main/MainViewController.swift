@@ -11,7 +11,7 @@ import ListKit
 import QuickLayout
 import QuickLayoutKit
 
-final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLocalizationPreparing {
+final class MainViewController: LocalizedQuickLayoutHostingController {
 
     override var localizedTitleKey: String? { "app.tab.examples" }
 
@@ -57,6 +57,7 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
         }
     }
 
+    private var collectionLayoutDirection: UIUserInterfaceLayoutDirection?
     private(set) var collectionView: UICollectionView
 
     private let viewModel: MainViewModel
@@ -75,16 +76,9 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
     private var isApplyingLocalization = false
     private var isRestoringVisibleAnchor = false
     private var completedRenderGeneration: Int?
-    private lazy var reusableLocalizationContext = UIKitLocalizationContext {
-        [weak self] in
-        self?.currentLocalizationUpdate.snapshot
-            ?? Localization.localizationController.currentSnapshot
-    }
     private var adapter: CollectionListAdapter<String>!
     private let searchController = UISearchController(searchResultsController: nil)
-    private let clearSearchButton = UIButton(type: .system)
-    private lazy var searchInputBinding = Localization.reusableContext
-        .makeTextInputBinding(to: searchController.searchBar)
+    private let clearSearchButton = LocalizedButton(type: .system)
 
     convenience init() {
         self.init(
@@ -99,22 +93,14 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
     ) {
         self.viewModel = viewModel
         self.router = router
-        collectionView = Self.makeCollectionView(
-            semanticContentAttribute: Localization
-                .currentLayoutDirection
-                .semanticContentAttribute
-        )
+        collectionView = Self.makeCollectionView()
         super.init(nibName: nil, bundle: nil)
     }
 
     required init?(coder: NSCoder) {
         viewModel = MainViewModel()
         router = MainRouter()
-        collectionView = Self.makeCollectionView(
-            semanticContentAttribute: Localization
-                .currentLayoutDirection
-                .semanticContentAttribute
-        )
+        collectionView = Self.makeCollectionView()
         super.init(coder: coder)
     }
 
@@ -255,8 +241,7 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
         collectionView.keyboardDismissMode = .onDrag
         collectionView.contentInsetAdjustmentBehavior = .automatic
 
-        // 每个 collection view 拥有独立的 ListKit adapter。局部重建列表时不能把
-        // 旧 diffable data source 或 delegate 带到新实例。
+        // 列表与 adapter 保持身份，语言和方向切换只更新内容与布局。
         adapter = CollectionListAdapter<String>(
             collectionView: collectionView
         )
@@ -270,7 +255,7 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
         viewModel.reloadLocalizedContent()
     }
 
-    func prepareForLocalization(_ update: UIKitLocalizationUpdate) {
+    private func captureLocalizationPosition() {
         // 原列表或已滚动的新列表以当前阅读位置为准，避免初始化锚点覆盖后续滚动。
         // 新列表仍停留在初始顶部、尚未恢复时，继续保留旧列表的稳定条目锚点。
         let hasScrolledContent = collectionView.contentOffset.y
@@ -282,8 +267,8 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
         completedRenderGeneration = nil
     }
 
-    override func applyLocalization(_ update: UIKitLocalizationUpdate) {
-        captureVisibleAnchorIfNeeded()
+    override func applyLocalization(_ update: LocalizationUpdate) {
+        captureLocalizationPosition()
         currentLocalizationUpdate = update
         // 同一次语言更新中的方向和文案回调只累积最终状态，结束后统一提交列表。
         isApplyingLocalization = true
@@ -301,27 +286,18 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
             currentLocalizationUpdate = Localization
                 .layoutDirectionUpdate(direction)
         }
-        let update = UIKitLocalizationUpdate(
-            snapshot: currentLocalizationUpdate.snapshot,
-            reasons: [.layoutDirection]
-        )
-        if collectionView.semanticContentAttribute
-            != update.semanticContentAttribute {
-            rebuildCollectionView(for: update)
-        }
-        // collectionView 是 HostingController 的 QuickLayout 根内容，也是列表方向
-        // 边界。它已在创建时获得最新 semantic；这里继续刷新可见 reusable 内容和
-        // compositional layout 缓存。
-        collectionView.applyLocalization(
-            update,
-            preservingVisibleItem: true,
-            rebuildingLayoutWith: { [unowned self] in
-                makeCollectionViewLayout()
-            }
-        )
         super.reloadLayoutDirection(direction)
-        searchController.searchBar.semanticContentAttribute = update.semanticContentAttribute
-        searchInputBinding.refresh()
+        if collectionLayoutDirection != direction {
+            collectionLayoutDirection = direction
+            captureVisibleAnchorIfNeeded()
+            collectionView.setCollectionViewLayout(makeCollectionViewLayout(), animated: false)
+            for case let cell as UICollectionViewListCell in collectionView.visibleCells {
+                Self.updateParagraphAlignment(cell, direction: direction)
+            }
+            view.setNeedsLayout()
+        } else {
+            collectionView.collectionViewLayout.invalidateLayout()
+        }
     }
 
     private func bindViewModel() {
@@ -370,15 +346,7 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
             transaction: .disabled
         ) { [weak self] _ in
             guard let self, generation == renderGeneration else { return }
-            // apply completion 时可能刚创建新的 cell/header。使用最终 revision
-            // 重新进入公开 configuration 与 UIKit self-sizing 边界。
-            collectionView.applyLocalization(
-                UIKitLocalizationUpdate(
-                    snapshot: currentLocalizationUpdate.snapshot,
-                    reasons: [.layoutDirection, .configuration]
-                ),
-                preservingVisibleItem: true
-            )
+            collectionView.setNeedsLayout()
             // 等待 Controller 完成下一次容器布局；此时新列表的 safe area、
             // adjustedContentInset 和 self-sizing attributes 才是最终值。
             completedRenderGeneration = generation
@@ -393,34 +361,11 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
         }
     }
 
-    private func rebuildCollectionView(
-        for update: UIKitLocalizationUpdate
-    ) {
-        captureVisibleAnchorIfNeeded()
-        completedRenderGeneration = nil
-        collectionView = Self.makeCollectionView(
-            semanticContentAttribute: update.semanticContentAttribute
-        )
-        configureCollectionView()
-
-        // QuickLayout body 的视图身份发生变化；立即提交一次 body diff，让旧列表离层，
-        // 新列表在首次物化滚动指示器前继承正确方向。
-        UIView.performWithoutAnimation {
-            setNeedsQuickLayout()
-            quickLayoutIfNeeded()
-        }
-        // 新列表加入视图层级后再绑定，让 UIKit 跟随其滚动更新导航栏。
-        setContentScrollView(collectionView, for: .top)
-
-        if let latestState {
-            render(latestState)
-        }
-    }
 
     private func captureVisibleAnchorIfNeeded() {
         guard pendingVisibleAnchor == nil,
               let state = latestState,
-              let anchor = collectionView.captureLocalizationAnchor(),
+              let anchor = collectionView.captureReadingAnchor(),
               state.sections.indices.contains(anchor.indexPath.section),
               state.sections[anchor.indexPath.section].routes.indices.contains(anchor.indexPath.item)
         else { return }
@@ -446,7 +391,7 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
             pendingVisibleAnchor = nil
             return
         }
-        let resolvedAnchor = UICollectionViewLocalizationAnchor(
+        let resolvedAnchor = CollectionReadingAnchor(
             indexPath: IndexPath(item: item, section: section),
             offsetFromViewportTop: anchor.offsetFromViewportTop,
             offsetFromViewportLeading: anchor.offsetFromViewportLeading
@@ -454,12 +399,10 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
         isRestoringVisibleAnchor = true
         defer { isRestoringVisibleAnchor = false }
         UIView.performWithoutAnimation {
-            guard collectionView.restoreLocalizationAnchor(resolvedAnchor) else { return }
-            // 恢复滚动会触发大标题折叠，进而再次改变导航栏和列表的内容边距。
-            // 完成容器联动后再对齐一次；防止中间布局回调重复恢复同一锚点。
+            guard collectionView.restoreReadingAnchor(resolvedAnchor) else { return }
             navigationController?.view.setNeedsLayout()
             navigationController?.view.layoutIfNeeded()
-            if collectionView.restoreLocalizationAnchor(resolvedAnchor) {
+            if collectionView.restoreReadingAnchor(resolvedAnchor) {
                 pendingVisibleAnchor = nil
             }
         }
@@ -468,17 +411,13 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
     private func makeSection(
         _ section: MainViewModel.State.Section
     ) -> ListSection<String> {
-        // 列表长期保存配置闭包，只捕获独立上下文，避免反向持有控制器。
-        let localizationContext = reusableLocalizationContext
         return ListSection(section.id) {
             ForEach(section.routes, id: \.id) { routeState in
                 Row(
                     model: routeState,
                     cell: UICollectionViewListCell.self
                 ) { [weak self] cell, routeState, _ in
-                    localizationContext
-                        .prepareForConfiguration(cell)
-                    Self.configure(cell, with: routeState)
+                    Self.configure(cell, with: routeState, direction: self?.currentLocalizationUpdate.layoutDirection ?? Localization.currentUIKitDirection)
                     self?.updateDisclosureAccessory(cell)
                 }
                 .refreshID(routeState.title)
@@ -486,10 +425,11 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
                     self?.viewModel.select(routeState.route)
                 }
                 .onAppear { [weak self] cell, _ in
-                    localizationContext
-                        .restoreOnAttachment(cell)
                     // 复用或预取的 cell 可能在另一种分栏状态下完成配置。
                     self?.updateDisclosureAccessory(cell)
+                    if let self {
+                        Self.updateParagraphAlignment(cell, direction: collectionView.effectiveUserInterfaceLayoutDirection)
+                    }
                 }
             }
         } supplementaries: {
@@ -498,28 +438,26 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
                 kind: UICollectionView.elementKindSectionHeader,
                 elementID: "\(section.id).header"
             ) { header, _ in
-                localizationContext
-                    .prepareForConfiguration(header)
                 header.configure(
                     title: section.title,
                     identifier: section.id
                 )
             }
             .refreshID(section.title)
-            .onAppear { header, _ in
-                localizationContext
-                    .restoreOnAttachment(header)
-            }
         }
         .selectionMode(.single)
     }
 
     private static func configure(
         _ cell: UICollectionViewListCell,
-        with routeState: MainViewModel.State.Route
+        with routeState: MainViewModel.State.Route,
+        direction: UIUserInterfaceLayoutDirection
     ) {
         var content = cell.defaultContentConfiguration()
-        content.text = routeState.title
+        // 目录标题属于 App 文案；原生列表仍管理图标、附件与复用，仅明确段落的 leading 对齐。
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = direction == .rightToLeft ? .right : .left
+        content.attributedText = NSAttributedString(string: routeState.title, attributes: [.paragraphStyle: paragraph])
         content.textProperties.color = .label
         content.textProperties.numberOfLines = 0
         content.image = UIImage(systemName: routeState.route.iconSystemName)
@@ -542,6 +480,21 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
         }
     }
 
+    /// 原生列表管理图标与附件；已缓存的富文本段落需要在有效方向改变后更新。
+    private static func updateParagraphAlignment(_ cell: UICollectionViewListCell, direction: UIUserInterfaceLayoutDirection) {
+        guard var content = cell.contentConfiguration as? UIListContentConfiguration,
+              let text = content.attributedText, text.length > 0 else { return }
+        let alignment: NSTextAlignment = direction == .rightToLeft ? .right : .left
+        let paragraph = (text.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle
+            ?? NSMutableParagraphStyle()
+        guard paragraph.alignment != alignment else { return }
+        paragraph.alignment = alignment
+        let updated = NSMutableAttributedString(attributedString: text)
+        updated.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: updated.length))
+        content.attributedText = updated
+        cell.contentConfiguration = content
+    }
+
     private func makeCollectionViewLayout()
         -> UICollectionViewCompositionalLayout {
         // UIKit 负责 inset grouped 的圆角、分隔线和自适应分组标题空间；
@@ -551,16 +504,11 @@ final class MainViewController: LocalizedQuickLayoutHostingController, UIKitLoca
         return UICollectionViewCompositionalLayout.list(using: configuration)
     }
 
-    private static func makeCollectionView(
-        semanticContentAttribute: UISemanticContentAttribute
-    ) -> UICollectionView {
+    private static func makeCollectionView() -> UICollectionView {
         let collectionView = UICollectionView(
             frame: .zero,
             collectionViewLayout: UICollectionViewFlowLayout()
         )
-        // UIScrollView 的 indicator side 在首次物化时解析。必须在列表进入视图层级
-        // 之前写入方向；运行时切换则由 Owner 局部重建列表实例。
-        collectionView.semanticContentAttribute = semanticContentAttribute
         return collectionView
     }
 }

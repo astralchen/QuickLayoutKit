@@ -106,9 +106,6 @@ final class RoomInformationViewController:
         _ direction: UIUserInterfaceLayoutDirection
     ) {
         super.reloadLayoutDirection(direction)
-        informationView.semanticContentAttribute = direction
-            .appLayoutDirection
-            .semanticContentAttribute
         informationView.setNeedsQuickLayout()
     }
 

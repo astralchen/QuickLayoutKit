@@ -89,21 +89,6 @@ open class QuickLayoutButton:
         }
     }
 
-    /// 控制按钮在附加、测量或布局时如何恢复语义方向。
-    ///
-    /// 默认行为与 ``QuickLayoutView`` 一致，会保留局部播放或空间语义。对于可能被移除并
-    /// 重新附加的普通应用内容，应使用 `.followEnclosingContainer`。
-    open var quickLayoutSemanticDirectionBehavior:
-        QuickLayoutSemanticDirectionBehavior = .preserve {
-        didSet {
-            guard quickLayoutSemanticDirectionBehavior != oldValue else {
-                return
-            }
-            synchronizeDirectionIfNeeded()
-            quickLayoutEnvironmentState.update(self)
-            setNeedsQuickLayout()
-        }
-    }
 
     /// 设置时立即接收初始状态，此后接收每个不同的状态。设置为 `nil` 时停止应用回调，
     /// 但不改变按钮自身的交互状态和生命周期。
@@ -308,11 +293,10 @@ open class QuickLayoutButton:
         _QuickLayoutViewImplementation.willMove(self, toWindow: newWindow)
     }
 
-    /// 进入窗口后同步语义方向并更新按钮环境快照。
+    /// 进入窗口后读取继承的按钮环境快照。
     open override func didMoveToWindow() {
         super.didMoveToWindow()
         guard window != nil else { return }
-        synchronizeDirectionIfNeeded()
         quickLayoutEnvironmentState.update(self)
     }
 
@@ -342,9 +326,8 @@ open class QuickLayoutButton:
         )
     }
 
-    /// 同步方向和环境后，在宿主作用域中应用按钮内容布局。
+    /// 读取有效环境后，在宿主作用域中应用按钮内容布局。
     open override func layoutSubviews() {
-        synchronizeDirectionIfNeeded()
         super.layoutSubviews()
         quickLayoutEnvironmentState.update(self)
         QuickLayoutDiagnostics.recordLayoutPass(
@@ -360,7 +343,6 @@ open class QuickLayoutButton:
 
     /// 使用最新方向和环境测量按钮内容，无法测量时回退到父类实现。
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
-        synchronizeDirectionIfNeeded()
         quickLayoutEnvironmentState.update(self)
         return withQuickLayoutManagedViewState {
             withQuickLayoutContainerSize(size) {
@@ -447,13 +429,6 @@ open class QuickLayoutButton:
         updateAccessibilityTraits()
     }
 
-    /// 按按钮的方向跟随策略同步外层容器方向。
-    private func synchronizeDirectionIfNeeded() {
-        synchronizeQuickLayoutSemanticDirectionIfNeeded(
-            for: self,
-            behavior: quickLayoutSemanticDirectionBehavior
-        )
-    }
 
     /// 按启用状态更新 `.notEnabled` 特征，保留其他辅助功能特征。
     private func updateAccessibilityTraits() {

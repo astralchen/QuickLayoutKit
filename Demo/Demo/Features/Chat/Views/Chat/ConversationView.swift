@@ -38,6 +38,8 @@ nonisolated enum MessageAction: Equatable, Sendable {
 /// 将时间线状态映射为可复用消息单元格，并管理滚动与局部交互的视图。
 @available(iOS 17.0, *)
 final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestureRecognizerDelegate {
+    private var collectionLayoutDirection: UIUserInterfaceLayoutDirection?
+
 
     /// 会话集合视图使用的稳定分区身份。
     nonisolated enum Section: Hashable, Sendable {
@@ -62,6 +64,10 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     }
 
     override func layoutSubviews() {
+        let inheritedDirection = collectionView.effectiveUserInterfaceLayoutDirection
+        if collectionLayoutDirection != inheritedDirection {
+            applyLayoutDirection(inheritedDirection)
+        }
         super.layoutSubviews()
         viewportDidLayout?()
         // QuickLayout 可能在容器进入窗口之后才挂载集合视图，空快照尤其容易先完成。
@@ -96,13 +102,13 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     /// 用户继续滚动或视口改变后，旧快照的完成回调不能恢复过时位置。
     private var readingPositionRevision = 0
     /// 分页插入前的可见消息身份及屏幕偏移，跨连续状态刷新保留至最新快照完成。
-    private var pendingHistoryAnchor: (id: TimelineItemID, anchor: UICollectionViewLocalizationAnchor)?
+    private var pendingHistoryAnchor: (id: TimelineItemID, anchor: CollectionReadingAnchor)?
 
     /// 只选择实际未被导航栏和输入栏遮挡的消息，时间分隔项可随跨页合并而消失。
     ///
     /// - Parameter state: 与当前列表位置对应的插入前状态，用于将索引转换为稳定消息身份。
     /// - Returns: 首条可见消息的身份及距视口顶部、语义前缘的偏移；无可见消息时为 `nil`。
-    private func captureMessageAnchor(in state: ChatViewModel.State?) -> (id: TimelineItemID, anchor: UICollectionViewLocalizationAnchor)? {
+    private func captureMessageAnchor(in state: ChatViewModel.State?) -> (id: TimelineItemID, anchor: CollectionReadingAnchor)? {
         guard let state else { return nil }
         let list = collectionView
         list.layoutIfNeeded()
@@ -126,7 +132,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     private struct ViewportPosition {
         let followsBottom: Bool
         let itemID: TimelineItemID?
-        let anchor: UICollectionViewLocalizationAnchor?
+        let anchor: CollectionReadingAnchor?
     }
     private var pendingViewportPosition: ViewportPosition?
     private var viewportSize: CGSize = .zero
@@ -170,7 +176,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
     func prepareForViewportChange() {
         guard pendingViewportPosition == nil, !isUpdatingViewport else { return }
         debugLogScroll("viewport.capture.begin")
-        let anchor = collectionView.captureLocalizationAnchor()
+        let anchor = collectionView.captureReadingAnchor()
         let itemID = anchor.flatMap { anchor in
             lastState?.timeline.indices.contains(anchor.indexPath.item) == true
                 ? lastState?.timeline[anchor.indexPath.item].id : nil
@@ -231,15 +237,15 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
             scrollToBottom(animated: false)
         } else if let id = position?.itemID, let anchor = position?.anchor,
                   let item = lastState?.timeline.firstIndex(where: { $0.id == id }) {
-            let restored = UICollectionViewLocalizationAnchor(
+            let restored = CollectionReadingAnchor(
                 indexPath: IndexPath(item: item, section: 0),
                 offsetFromViewportTop: anchor.offsetFromViewportTop,
                 offsetFromViewportLeading: anchor.offsetFromViewportLeading
             )
             debugLogScroll("viewport.restore.begin", detail: "itemID=\(id) anchor=\(restored)")
-            collectionView.restoreLocalizationAnchor(restored)
+            collectionView.restoreReadingAnchor(restored)
             collectionView.layoutIfNeeded()
-            collectionView.restoreLocalizationAnchor(restored)
+            collectionView.restoreReadingAnchor(restored)
             debugLogScroll("viewport.restore.end")
         }
     }
@@ -282,8 +288,6 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
 
     /// 最近一次提交的时间线项目数量，用于判断初始滚动行为。
     private var timelineCount = 0
-    /// 最近一次显式应用的界面布局方向。
-    private var lastAppliedLayoutDirection: UIUserInterfaceLayoutDirection?
     /// 页面音频控制器发布的播放状态，供可见和新配置单元格共用。
     private var playbackState: PlaybackState = .idle
     /// 按消息身份保留媒体组当前封面索引的状态存储。
@@ -493,7 +497,7 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         // 回复落地后还会立即刷新“正在输入”状态；跟随意图必须保留到最新一次提交完成。
         if reason == .receivedMessage && wasNearBottom { pendingExplicitScroll = true }
         var localizationAnchor = (preservesHistoryPosition || reason == .historyStatus || reason == .attachmentSave || reason == .messageDeleted || ((reason == .localization || reason == .audioTranscript || reason == .messageStatus || reason == .receivedMessage) && !wasNearBottom))
-            ? collectionView.captureLocalizationAnchor()
+            ? collectionView.captureReadingAnchor()
             : nil
         // 历史插入会改变 IndexPath，必须先用旧时间线身份定位同一条消息。
         if preservesHistoryPosition || reason == .messageDeleted, let anchor = localizationAnchor {
@@ -567,7 +571,6 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                     self.debugLogScroll("render.end", detail: "reason=\(reason)")
                 }
                 self.collectionView.layoutIfNeeded()
-                self.refreshMaterializedContentLayoutDirection()
 
                 if !self.initialPresentation.isPresented {
                     self.pendingExplicitScroll = false
@@ -581,12 +584,12 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
                 if let localizationAnchor, !explicitScroll {
                     guard self.readingPositionRevision == positionRevision else { return }
                     self.debugLogScroll("render.restore", detail: "reason=\(reason) anchor=\(localizationAnchor)")
-                    _ = self.collectionView.restoreLocalizationAnchor(localizationAnchor)
+                    _ = self.collectionView.restoreReadingAnchor(localizationAnchor)
                     if reason == .messageDeleted || restoresHistoryAnchor || reason == .historyStatus {
                         // 首次恢复可能使估算高度的相邻 Cell 进入视口并触发自适应测量。
                         // 完成这一轮布局后，用同一阅读锚点校正最终几何。
                         self.collectionView.layoutIfNeeded()
-                        _ = self.collectionView.restoreLocalizationAnchor(localizationAnchor)
+                        _ = self.collectionView.restoreReadingAnchor(localizationAnchor)
                     }
                     return
                 }
@@ -771,9 +774,9 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
            collectionView.numberOfItems(inSection: 0) == state.timeline.count {
             // 无动画插入在返回主循环前恢复位置，完成回调再校正自适应高度。
             collectionView.layoutIfNeeded()
-            collectionView.restoreLocalizationAnchor(localizationAnchor)
+            collectionView.restoreReadingAnchor(localizationAnchor)
             collectionView.layoutIfNeeded()
-            collectionView.restoreLocalizationAnchor(localizationAnchor)
+            collectionView.restoreReadingAnchor(localizationAnchor)
         }
         if insertsText && (reason == .sentMessage || wasNearBottom) {
             // 无动画 snapshot 已提交，但 ListKit 的完成回调会延迟到下一次主线程调度。
@@ -810,18 +813,19 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         }
     }
 
-    /// 应用指定布局方向并重建集合布局，同时尽量保留当前可见消息位置。
+    /// 应用业务列表的方向边界并使布局失效。
     func applyLayoutDirection(
         _ direction: UIUserInterfaceLayoutDirection
     ) {
-        lastAppliedLayoutDirection = direction
-        collectionView.applyLocalization(
-            Localization.layoutDirectionUpdate(direction),
-            preservingVisibleItem: true,
-            rebuildingLayoutWith: { [unowned self] in
-                makeCollectionViewLayout()
-            }
-        )
+        let changed = collectionLayoutDirection != direction
+        collectionLayoutDirection = direction
+        let anchor = changed ? collectionView.captureReadingAnchor() : nil
+        if changed {
+            collectionView.setCollectionViewLayout(makeCollectionViewLayout(), animated: false)
+            if let anchor { collectionView.restoreReadingAnchor(anchor) }
+        } else {
+            collectionView.collectionViewLayout.invalidateLayout()
+        }
     }
 
     /// 将最后一个时间线项目滚动到可见区域底部；列表为空时直接返回。
@@ -1066,22 +1070,6 @@ final class ConversationView: QuickLayoutView, UICollectionViewDelegate, UIGestu
         }
     }
 
-    /// 向已经物化的单元格重新应用当前布局方向，并保留可见项目位置。
-    private func refreshMaterializedContentLayoutDirection() {
-        guard collectionView.window != nil
-                || collectionView.semanticContentAttribute != .unspecified else {
-            return
-        }
-        let direction = lastAppliedLayoutDirection
-            ?? collectionView.effectiveUserInterfaceLayoutDirection
-        collectionView.applyLocalization(
-            Localization.layoutDirectionUpdate(
-                direction,
-                reasons: [.layoutDirection, .configuration]
-            ),
-            preservingVisibleItem: true
-        )
-    }
 }
 
 #if DEBUG
@@ -1092,6 +1080,7 @@ private func makeConversationPreview(
     direction: UIUserInterfaceLayoutDirection
 ) -> UIViewController {
     let conversationView = ConversationView(frame: .zero)
+    conversationView.traitOverrides.layoutDirection = direction == .rightToLeft ? .rightToLeft : .leftToRight
     conversationView.applyLayoutDirection(direction)
     conversationView.render(ConversationPreviewData.state, reason: .initial)
     return QuickLayoutHostingController {

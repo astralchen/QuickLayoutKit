@@ -39,7 +39,7 @@ struct RoomPKTests {
 
     @Test func exclusiveSeatsPreservePartyVacancyAndRefreshAfterOccupancy() throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let party = try SeatLayoutResolver.resolve(
             snapshot: VoiceRoomViewModel.makeDefaultStageSnapshot()
         ).get()
@@ -101,7 +101,7 @@ struct RoomPKTests {
 
     @Test func vacantSeatContentIsSharedAcrossRoomLayoutsAndMissingAssignments() throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         for mode in [RoomMode.party, .individual, .pk(styleID: "room.nine")] {
             let emptySnapshot = VoiceRoomViewModel.makeDefaultStageSnapshot(
                 roomMode: mode, audienceSeatState: .enabled, assignments: []
@@ -361,7 +361,7 @@ struct RoomPKTests {
 
     @Test func cardsIdentifyRoomAndStageShowsOccupiedZeroScore() throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let presentation = try SeatLayoutResolver.resolve(snapshot: snapshot()).get()
         for side in SeatRoomSide.allCases {
             let slot = try #require(presentation.slots.first { $0.roomSide == side && $0.position.rawValue == 1 })

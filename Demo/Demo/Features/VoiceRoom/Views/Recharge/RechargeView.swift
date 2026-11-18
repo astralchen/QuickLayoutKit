@@ -167,8 +167,7 @@ final class RechargeView: QuickLayoutView {
         accessibilityIdentifier = "liveRoom.recharge.page"
         scrollView.alwaysBounceVertical = false
         scrollView.showsVerticalScrollIndicator = false
-        scrollView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
+
 
         contentView.packageSectionView.packageDidSelect = { [weak self] package in
             self?.packageDidSelect?(package)

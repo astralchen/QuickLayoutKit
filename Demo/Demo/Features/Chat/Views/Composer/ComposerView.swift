@@ -16,8 +16,6 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
 
     /// 启用 TextKit 2、承载文字与内联附件的文本编辑器。
     let textView = ComposerTextView(usingTextLayoutManager: true)
-    lazy var inputBinding = Localization.inputContext(for: self)
-        .makeTextInputBinding(to: textView)
 
     /// 接管系统粘贴并保留文字与附件顺序的协调器。
     lazy var pasteCoordinator = PasteCoordinator(textView: textView)
@@ -32,11 +30,11 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
     /// 发送当前文字或混合草稿的按钮。
     let sendButton = ComposerHitButton(type: .system)
     /// 开始或停止实时听写的按钮。
-    let dictationButton = UIButton(type: .system)
+    let dictationButton = LocalizedButton(type: .system)
     /// 停止录音并保留有效草稿的按钮。
     let recordingStopButton = ComposerHitButton(type: .system)
     /// 丢弃当前音频草稿的按钮。
-    let audioCancelButton = UIButton(type: .system)
+    let audioCancelButton = LocalizedButton(type: .system)
     /// 切换音频草稿播放与暂停的按钮。
     let audioPlayButton = ComposerHitButton(type: .system)
     /// 发送当前音频草稿的按钮。
@@ -395,7 +393,7 @@ final class ComposerView: QuickLayoutView, UITextViewDelegate {
             dismissRecordingUnavailableHint()
             return
         }
-        inputBinding.refresh()
+
         DispatchQueue.main.async { [weak self] in
             self?.updateTextHeight()
         }
@@ -466,6 +464,7 @@ private func makeChatComposerPreview(
     let backgroundView = UIView()
     backgroundView.backgroundColor = .systemBackground
     let composerView = ComposerView(frame: .zero)
+    composerView.traitOverrides.layoutDirection = direction == .rightToLeft ? .rightToLeft : .leftToRight
     composerView.configure(strings: ConversationPreviewData.composerStrings)
     composerView.applyLayoutDirection(direction)
     composerView.textView.text = text

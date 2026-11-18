@@ -80,14 +80,13 @@ final class ExampleSplitViewController: UISplitViewController, UISplitViewContro
         menuController.updateSelectedRoute()
     }
 
-    func applyLocalization(_ update: UIKitLocalizationUpdate) {
-        view.semanticContentAttribute = update.semanticContentAttribute
-        if #available(iOS 17.0, *) { traitOverrides.layoutDirection = update.layoutDirection == .rightToLeft ? .rightToLeft : .leftToRight }
+    func applyLocalization(_ update: LocalizationUpdate) {
+        Localization.applyBoundary(update.semanticContentAttribute, to: view)
     }
 }
 
 private final class ExamplePlaceholderController: LocalizedViewController {
-    private let message = UILabel()
+    private let message = LocalizedLabel()
     override var localizedTitleKey: String? { "app.tab.examples" }
 
     override func viewDidLoad() {

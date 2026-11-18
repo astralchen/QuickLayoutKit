@@ -25,11 +25,11 @@ final class SeatView: QuickLayoutView {
     /// 以波形条显示当前音频活动状态的视图。
     private let speakingIndicatorView = SpeakingIndicatorView()
     /// 显示用户积分或空麦状态的标签。
-    private let scoreLabel = UILabel()
+    private let scoreLabel = LocalizedLabel()
     /// 积分或空麦状态文字后方的背景。
     private let scoreBackgroundView = UIView()
     /// 显示用户昵称或空麦名称的标签。
-    private let nameLabel = UILabel()
+    private let nameLabel = LocalizedLabel()
     /// 覆盖麦位并转发用户选择的透明按钮。
     private let interactionButton = QuickLayoutButton(frame: .zero)
     /// 此位置绑定的麦位数据；缺失记录时为 `nil`。
@@ -477,7 +477,7 @@ final class SeatView: QuickLayoutView {
 
     /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
 
         haloView.backgroundColor = UIColor.white.withAlphaComponent(0.05)
         haloView.layer.borderWidth = 2

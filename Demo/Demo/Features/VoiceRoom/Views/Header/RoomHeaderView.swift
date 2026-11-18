@@ -16,11 +16,11 @@ final class RoomHeaderView: TranslucentCardView {
     /// 打开房间资料页的头像按钮。
     private let roomAvatarButton = SymbolButton(frame: .zero)
     /// 显示组件主标题的标签。
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
     private let followButton = FollowButton(frame: .zero)
     var followDidTap: (() -> Void)?
     /// 显示标题补充说明的标签。
-    private let subtitleLabel = UILabel()
+    private let subtitleLabel = LocalizedLabel()
     /// 显示在线人数并打开观众面板的按钮。
     private let audienceButton = CapsuleTextButton(frame: .zero)
     /// 提示页头可查看更多信息的装饰图标。

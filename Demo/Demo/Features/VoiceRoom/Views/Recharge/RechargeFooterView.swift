@@ -13,7 +13,7 @@ import UIKit
 final class RechargeFooterView: QuickLayoutView {
 
     /// 显示当前操作结果或提示的标签。
-    let statusLabel = UILabel()
+    let statusLabel = LocalizedLabel()
     /// 提交当前充值档位的按钮。
     let rechargeButton = CapsuleTextButton(frame: .zero)
 

@@ -37,7 +37,7 @@ struct AlignmentGuideTests {
         #expect(layout.views().map(ObjectIdentifier.init) == [ObjectIdentifier(view)])
     }
 
-    @Test func physicalPlacementStillIgnoresChildGuides() {
+    @Test func directionalPositionStillIgnoresChildGuides() {
         for outer: LayoutDirection in [.leftToRight, .rightToLeft] {
             for local: LayoutDirection in [.leftToRight, .rightToLeft] {
                 let positioned = UIView()
@@ -48,7 +48,7 @@ struct AlignmentGuideTests {
                     .layoutDirection(local)
                     .applyFrame(CGRect(x: 0, y: 0, width: 100, height: 80),
                                 alignment: .topLeading, layoutDirection: outer)
-                #expect(positioned.frame == CGRect(x: 60, y: 25, width: 20, height: 10))
+                #expect(positioned.frame == CGRect(x: local == .rightToLeft ? 20 : 60, y: 25, width: 20, height: 10))
 
                 let centered = UIView()
                 let layout = GuideCenteredLayout() {

@@ -81,9 +81,9 @@ final class AttachmentPreviewControlsView: QuickLayoutView {
     /// 底部控件与缩略图组合高度，保持已校准的间距。
     private var bottomHeight: CGFloat { (isPlayable ? playbackControls.preferredHeight : 0) + (itemCount > 1 ? AttachmentThumbnailStripView.preferredHeight + (isPlayable ? 4 : 0) : 0) }
     /// 返回按钮保持稳定实例，供转场完成后恢复辅助功能焦点。
-    let closeButton = UIButton(type: .system)
+    let closeButton = LocalizedButton(type: .system)
     /// 菜单入口只显示宿主提供的已有操作。
-    private let moreButton = UIButton(type: .system)
+    private let moreButton = LocalizedButton(type: .system)
 
     /// 安装固定视图层级和事件回调，所有回调由宿主以弱引用连接。
     init(items: [AttachmentPreviewItem], selectedIndex: Int, imageLoader: MediaImageLoader? = nil) {
@@ -139,7 +139,7 @@ final class AttachmentPreviewControlsView: QuickLayoutView {
     /// 独立处理方向和嵌套玻璃布局，不要求宿主访问内部视图。
     override func layoutSubviews() {
         super.layoutSubviews()
-        glassContainer.semanticContentAttribute = semanticContentAttribute
+
         let direction = effectiveUserInterfaceLayoutDirection
         if headerDirection != direction {
             headerDirection = direction
@@ -167,7 +167,7 @@ final class AttachmentPreviewControlsView: QuickLayoutView {
 
     private func layoutLivePhotoBadge() {
         guard !livePhotoButton.isHidden else { return }
-        livePhotoButton.semanticContentAttribute = semanticContentAttribute
+
         let photo = photoRect.isEmpty ? bounds : photoRect
         let leading = max(safeAreaInsets.left, photo.minX) + 16
         let trailing = min(bounds.width - safeAreaInsets.right, photo.maxX) - 16

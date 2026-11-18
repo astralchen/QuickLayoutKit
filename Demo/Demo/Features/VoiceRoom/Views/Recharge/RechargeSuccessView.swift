@@ -38,7 +38,7 @@ final class RechargeSuccessView: UIView {
     /// 显示已关注或已选中状态的勾选图标。
     private let checkmarkImageView = UIImageView()
     /// 显示当前提示正文的标签。
-    private let messageLabel = UILabel()
+    private let messageLabel = LocalizedLabel()
     /// 围绕成功标记播放扩散动画的星光图像视图。
     private let sparkleImageViews = (0..<8).map { index in
         let imageView = UIImageView(

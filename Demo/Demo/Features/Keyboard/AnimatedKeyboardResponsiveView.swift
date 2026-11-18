@@ -13,15 +13,14 @@ import Combine
 
 class AnimatedKeyboardResponsiveView: QuickLayoutView {
 
-    let textField = UITextField()
-    private lazy var inputBinding = Localization.inputContext(for: self).makeTextInputBinding(to: textField)
+    let textField = LocalizedTextField()
     let submitButton: UIButton = {
         var configuration = UIButton.Configuration.filled()
         configuration.cornerStyle = .capsule
-        return UIButton(configuration: configuration)
+        return LocalizedButton(configuration: configuration)
     }()
     let diagnosticsBackgroundView = UIView()
-    let diagnosticsLabel = UILabel()
+    let diagnosticsLabel = LocalizedLabel()
     let contentScrollView = QuickLayoutScrollView()
 
     private lazy var keyboardObserver = QuickLayoutKeyboardObserver()
@@ -85,22 +84,8 @@ class AnimatedKeyboardResponsiveView: QuickLayoutView {
     func applyLayoutDirection(
         _ direction: UIUserInterfaceLayoutDirection
     ) {
-        let attribute: UISemanticContentAttribute = direction == .rightToLeft
-            ? .forceRightToLeft
-            : .forceLeftToRight
-        semanticContentAttribute = attribute
-        [
-            diagnosticsBackgroundView,
-            diagnosticsLabel,
-            textField,
-            submitButton,
-        ].forEach {
-            $0.semanticContentAttribute = attribute
-        }
-        if let configuration = submitButton.configuration {
-            submitButton.configuration = configuration
-        }
-        inputBinding.refresh()
+
+
         setNeedsLayout()
     }
 

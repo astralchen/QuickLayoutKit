@@ -15,9 +15,9 @@ final class LocalizationOverviewViewController: LocalizedQuickLayoutHostingContr
 
     private let viewModel: LocalizationOverviewViewModel
     private let scrollView = QuickLayoutScrollView()
-    private let bodyLabel = UILabel()
-    private let currentLanguageLabel = UILabel()
-    private let directionLabel = UILabel()
+    private let bodyLabel = LocalizedLabel()
+    private let currentLanguageLabel = LocalizedLabel()
+    private let directionLabel = LocalizedLabel()
     private var languageButtons: [UIButton] = []
 
     convenience init() {
@@ -74,31 +74,6 @@ final class LocalizationOverviewViewController: LocalizedQuickLayoutHostingContr
         viewModel.refreshLocalizedContent()
     }
 
-    override func reloadLayoutDirection(
-        _ direction: UIUserInterfaceLayoutDirection
-    ) {
-        super.reloadLayoutDirection(direction)
-
-        let update = Localization.layoutDirectionUpdate(direction)
-        UIViewLayoutDirectionUpdater.apply(
-            update,
-            to: [scrollView, bodyLabel, currentLanguageLabel, directionLabel]
-                .map {
-                    UIViewLayoutDirectionTarget(
-                        $0,
-                        policy: .followApplication
-                    )
-                }
-                + languageButtons.map {
-                    UIViewLayoutDirectionTarget(
-                        $0,
-                        policy: .followApplication
-                    )
-                }
-        )
-        setNeedsQuickLayout()
-    }
-
     private func bindViewModel() {
         viewModel.bind { [weak self] state in
             self?.render(state)
@@ -138,7 +113,7 @@ final class LocalizationOverviewViewController: LocalizedQuickLayoutHostingContr
             ? UIImage(systemName: "checkmark")
             : nil
 
-        let button = UIButton(configuration: configuration)
+        let button = LocalizedButton(configuration: configuration)
         button.accessibilityIdentifier = option.identifier
         button.contentHorizontalAlignment = .leading
         button.addAction(UIAction { [weak self] _ in
@@ -146,7 +121,6 @@ final class LocalizationOverviewViewController: LocalizedQuickLayoutHostingContr
                 self?.viewModel.selectLanguage(identifier: option.identifier)
             }
         }, for: .touchUpInside)
-        button.semanticContentAttribute = scrollView.semanticContentAttribute
         return button
     }
 
@@ -154,7 +128,6 @@ final class LocalizationOverviewViewController: LocalizedQuickLayoutHostingContr
         _ button: UIButton,
         option: LocalizationOverviewViewModel.LanguageOption
     ) {
-        button.semanticContentAttribute = scrollView.semanticContentAttribute
         button.contentHorizontalAlignment = .leading
 
         guard var configuration = button.configuration else {
@@ -176,13 +149,13 @@ final class LocalizationOverviewViewController: LocalizedQuickLayoutHostingContr
 final class UIKitLocalizationShowcaseViewController: LocalizedQuickLayoutHostingController {
     override var localizedTitleKey: String? { "demo.uikitLocalization.title" }
 
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
     private let scrollView = QuickLayoutScrollView()
-    private let subtitleLabel = UILabel()
+    private let subtitleLabel = LocalizedLabel()
     private let modalButton: UIButton = {
         var configuration = UIButton.Configuration.plain()
         configuration.title = Localization.text("uikit.showModal")
-        return UIButton(configuration: configuration)
+        return LocalizedButton(configuration: configuration)
     }()
     private let collectionView: UICollectionView
     private let cellRegistration: UICollectionView.CellRegistration<
@@ -190,13 +163,27 @@ final class UIKitLocalizationShowcaseViewController: LocalizedQuickLayoutHosting
         Int
     >
 
+    private var collectionLayoutDirection: UIUserInterfaceLayoutDirection?
+
+    private static func makeCollectionLayout() -> UICollectionViewLayout {
+        let item = NSCollectionLayoutItem(layoutSize: .init(
+            widthDimension: .fractionalWidth(1), heightDimension: .fractionalHeight(1)
+        ))
+        let group = NSCollectionLayoutGroup.horizontal(
+            layoutSize: .init(widthDimension: .absolute(132), heightDimension: .absolute(64)),
+            subitems: [item]
+        )
+        let section = NSCollectionLayoutSection(group: group)
+        section.interGroupSpacing = 12
+        let configuration = UICollectionViewCompositionalLayoutConfiguration()
+        configuration.scrollDirection = .horizontal
+        // 由原生布局根据继承的方向解析 leading，包括内容宽度不足一个视口的情况。
+        return UICollectionViewCompositionalLayout(section: section, configuration: configuration)
+    }
+
     init() {
-        let layout = UICollectionViewFlowLayout()
-        layout.scrollDirection = .horizontal
-        layout.minimumLineSpacing = 12
-        layout.itemSize = CGSize(width: 132, height: 64)
-        collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        cellRegistration = Localization.reusableContext.makeCellRegistration {
+        collectionView = UICollectionView(frame: .zero, collectionViewLayout: Self.makeCollectionLayout())
+        cellRegistration = UICollectionView.CellRegistration<LocalizationShowcaseCell, Int> {
             cell,
             _,
             item in
@@ -227,6 +214,7 @@ final class UIKitLocalizationShowcaseViewController: LocalizedQuickLayoutHosting
 
         modalButton.addTarget(self, action: #selector(showModal), for: .touchUpInside)
         collectionView.backgroundColor = .clear
+        collectionView.accessibilityIdentifier = "uikitLocalization.collection"
         collectionView.showsHorizontalScrollIndicator = false
         collectionView.dataSource = self
         collectionView.delegate = self
@@ -267,21 +255,16 @@ final class UIKitLocalizationShowcaseViewController: LocalizedQuickLayoutHosting
 
     override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
         super.reloadLayoutDirection(direction)
-        let attribute = direction.appLayoutDirection.semanticContentAttribute
-        [titleLabel, subtitleLabel, modalButton].forEach {
-            $0.semanticContentAttribute = attribute
-        }
-        modalButton.configuration = modalButton.configuration
-        collectionView.applyLocalization(
-            Localization.layoutDirectionUpdate(direction),
-            preservingVisibleItem: true
-        )
+        guard collectionLayoutDirection != direction else { return }
+        collectionLayoutDirection = direction
+        // Compositional Layout 会缓存首次解析的方向；切换时更换原生布局实例。
+        // 保留集合视图身份与 unspecified，不逐项镜像 frame 或强制子视图语义。
+        collectionView.setCollectionViewLayout(Self.makeCollectionLayout(), animated: false)
     }
 
     @objc private func showModal() {
         let modal = LocalizationModalViewController()
         let navigationController = UINavigationController(rootViewController: modal)
-        navigationController.view.semanticContentAttribute = Localization.currentLayoutDirection.semanticContentAttribute
         present(navigationController, animated: true)
     }
 }
@@ -306,12 +289,14 @@ extension UIKitLocalizationShowcaseViewController: UICollectionViewDelegate {
         willDisplay cell: UICollectionViewCell,
         forItemAt indexPath: IndexPath
     ) {
-        Localization.reusableContext.restoreOnAttachment(cell)
+        (cell as? LocalizationShowcaseCell)?.configure(
+            text: Localization.text("uikit.collection.\(indexPath.item + 1)")
+        )
     }
 }
 
 private final class LocalizationShowcaseCell: UICollectionViewCell {
-    private let label = UILabel()
+    private let label = LocalizedLabel()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -348,7 +333,7 @@ private final class LocalizationShowcaseCell: UICollectionViewCell {
 private final class LocalizationModalViewController: LocalizedQuickLayoutHostingController {
     override var localizedTitleKey: String? { "uikit.showModal" }
 
-    private let label = UILabel()
+    private let label = LocalizedLabel()
     private let scrollView = QuickLayoutScrollView()
 
     override func viewDidLoad() {
@@ -379,9 +364,6 @@ private final class LocalizationModalViewController: LocalizedQuickLayoutHosting
         _ direction: UIUserInterfaceLayoutDirection
     ) {
         super.reloadLayoutDirection(direction)
-        label.semanticContentAttribute = direction
-            .appLayoutDirection
-            .semanticContentAttribute
     }
 
     @objc private func close() {
@@ -392,8 +374,8 @@ private final class LocalizationModalViewController: LocalizedQuickLayoutHosting
 final class DirectionalNavigationViewController: LocalizedQuickLayoutHostingController {
     override var localizedTitleKey: String? { "demo.directionalNavigation.title" }
 
-    private let label = UILabel()
-    private let edgeLabel = UILabel()
+    private let label = LocalizedLabel()
+    private let edgeLabel = LocalizedLabel()
     private let scrollView = QuickLayoutScrollView()
 
     override func viewDidLoad() {
@@ -434,11 +416,7 @@ final class DirectionalNavigationViewController: LocalizedQuickLayoutHostingCont
 
     override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
         super.reloadLayoutDirection(direction)
-        let appDirection = direction.appLayoutDirection
-        let attribute = appDirection.semanticContentAttribute
-        [label, edgeLabel].forEach {
-            $0.semanticContentAttribute = attribute
-        }
+
         let leading = UIBarButtonItem(title: Localization.text("navigation.leading"), style: .plain, target: nil, action: nil)
         let trailing = UIBarButtonItem(title: Localization.text("navigation.trailing"), style: .plain, target: nil, action: nil)
         let language = UIBarButtonItem(
@@ -448,26 +426,15 @@ final class DirectionalNavigationViewController: LocalizedQuickLayoutHostingCont
         )
         language.accessibilityLabel = Localization.text("language.menu.accessibility")
 
-        switch direction {
-        case .leftToRight:
-            navigationItem.leftBarButtonItem = leading
-            navigationItem.rightBarButtonItems = [language, trailing]
-        case .rightToLeft:
-            navigationItem.leftBarButtonItem = trailing
-            navigationItem.rightBarButtonItems = [language, leading]
-        @unknown default:
-            navigationItem.leftBarButtonItem = leading
-            navigationItem.rightBarButtonItems = [language, trailing]
-        }
-        if let edgePan = navigationController?.interactivePopGestureRecognizer as? UIScreenEdgePanGestureRecognizer {
-            edgePan.edges = DirectionalLayout.backSwipeRectEdge(layoutDirection: appDirection)
-        }
+        // UIKit 按导航栏方向解析前后缘，系统返回手势由导航控制器管理。
+        navigationItem.leftBarButtonItem = leading
+        navigationItem.rightBarButtonItems = [language, trailing]
         updateEdgeLabel()
     }
 
     private func updateEdgeLabel() {
-        let layoutDirection = Localization.currentLayoutDirection
-        let edgeKey = DirectionalLayout.backSwipeEdge(
+        let layoutDirection = view.effectiveUserInterfaceLayoutDirection
+        let edgeKey = DirectionalLayout.backSwipeRectEdge(
             layoutDirection: layoutDirection
         ) == .right
             ? "navigation.edge.right"
@@ -495,10 +462,10 @@ final class SemanticGestureViewController: LocalizedQuickLayoutHostingController
         .frame(minHeight: 180)
     }
     private let scrollView = QuickLayoutScrollView()
-    private let hintLabel = UILabel()
-    private let resultLabel = UILabel()
+    private let hintLabel = LocalizedLabel()
+    private let resultLabel = LocalizedLabel()
     private var translationX: CGFloat = 0
-    private var lastDirection: SemanticHorizontalDirection?
+    private var lastDirection: NSDirectionalRectEdge?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -537,14 +504,10 @@ final class SemanticGestureViewController: LocalizedQuickLayoutHostingController
     ) {
         super.reloadLayoutDirection(direction)
 
-        let attribute = direction.appLayoutDirection.semanticContentAttribute
-        [containerView, hintLabel, resultLabel].forEach {
-            $0.semanticContentAttribute = attribute
-        }
         if translationX != 0 {
             lastDirection = DirectionalLayout.semanticHorizontalDirection(
                 translationX: translationX,
-                layoutDirection: direction.appLayoutDirection
+                layoutDirection: direction
             )
         }
         updateResultLabel()
@@ -554,7 +517,7 @@ final class SemanticGestureViewController: LocalizedQuickLayoutHostingController
         translationX = gesture.translation(in: containerView).x
         lastDirection = DirectionalLayout.semanticHorizontalDirection(
             translationX: translationX,
-            layoutDirection: Localization.currentLayoutDirection
+            layoutDirection: containerView.effectiveUserInterfaceLayoutDirection
         )
         updateResultLabel()
     }
@@ -566,13 +529,13 @@ final class SemanticGestureViewController: LocalizedQuickLayoutHostingController
             directionText = Localization.text("gesture.leading")
         case .trailing:
             directionText = Localization.text("gesture.trailing")
-        case nil:
+        default:
             directionText = Localization.text("gesture.none")
         }
 
         let isBackSwipe = DirectionalLayout.isBackSwipe(
             translationX: translationX,
-            layoutDirection: Localization.currentLayoutDirection
+            layoutDirection: containerView.effectiveUserInterfaceLayoutDirection
         )
         let backSwipeText = Localization.text(
             isBackSwipe ? "common.boolean.true" : "common.boolean.false"
@@ -593,15 +556,15 @@ final class SemanticGestureViewController: LocalizedQuickLayoutHostingController
 final class LocalizationBoundaryViewController: LocalizedQuickLayoutHostingController {
     override var localizedTitleKey: String? { "demo.localizationBoundary.title" }
 
-    private let bodyLabel = UILabel()
-    private let metadataLabel = UILabel()
+    private let bodyLabel = LocalizedLabel()
+    private let metadataLabel = LocalizedLabel()
     private let scrollView = QuickLayoutScrollView()
     private let alertButton: UIButton = {
         var configuration = UIButton.Configuration.plain()
         configuration.title = Localization.text(
             "boundary.recreateAlert"
         )
-        return UIButton(configuration: configuration)
+        return LocalizedButton(configuration: configuration)
     }()
 
     override func viewDidLoad() {
@@ -650,11 +613,6 @@ final class LocalizationBoundaryViewController: LocalizedQuickLayoutHostingContr
     ) {
         super.reloadLayoutDirection(direction)
 
-        let attribute = direction.appLayoutDirection.semanticContentAttribute
-        [bodyLabel, metadataLabel, alertButton].forEach {
-            $0.semanticContentAttribute = attribute
-        }
-        alertButton.configuration = alertButton.configuration
     }
 
     @objc private func showBoundaryAlert() {

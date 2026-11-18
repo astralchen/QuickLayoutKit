@@ -150,19 +150,19 @@ final class ViewThatFitsViewController: LocalizedQuickLayoutHostingController {
     let previewView = ViewThatFitsPreviewView()
     let previewScrollView = QuickLayoutScrollView(.horizontal)
 
-    private let introLabel = UILabel()
-    private let previousButton = UIButton(type: .system)
-    private let scenarioButton = UIButton(type: .system)
-    private let nextButton = UIButton(type: .system)
-    private let codeLabel = UILabel()
-    let expectedLabel = UILabel()
-    private let widthTitleLabel = UILabel()
-    private let widthValueLabel = UILabel()
-    private let widthSlider = UISlider()
-    private let heightTitleLabel = UILabel()
-    private let heightValueLabel = UILabel()
-    private let heightSlider = UISlider()
-    let metricsLabel = UILabel()
+    private let introLabel = LocalizedLabel()
+    private let previousButton = LocalizedButton(type: .system)
+    private let scenarioButton = LocalizedButton(type: .system)
+    private let nextButton = LocalizedButton(type: .system)
+    private let codeLabel = LocalizedLabel()
+    let expectedLabel = LocalizedLabel()
+    private let widthTitleLabel = LocalizedLabel()
+    private let widthValueLabel = LocalizedLabel()
+    private let widthSlider = LocalizedSlider()
+    private let heightTitleLabel = LocalizedLabel()
+    private let heightValueLabel = LocalizedLabel()
+    private let heightSlider = LocalizedSlider()
+    let metricsLabel = LocalizedLabel()
 
     private(set) var selectedScenario = Scenario.defaultBothAxes
     private(set) var proposedSize = Scenario.defaultBothAxes.proposedSize
@@ -213,11 +213,7 @@ final class ViewThatFitsViewController: LocalizedQuickLayoutHostingController {
         _ direction: UIUserInterfaceLayoutDirection
     ) {
         super.reloadLayoutDirection(direction)
-        let semanticAttribute = direction
-            .appLayoutDirection
-            .semanticContentAttribute
-        pageScrollView.semanticContentAttribute = semanticAttribute
-        previewView.semanticContentAttribute = semanticAttribute
+
         previewView.setNeedsQuickLayout()
         setNeedsQuickLayout()
     }
@@ -239,7 +235,7 @@ final class ViewThatFitsViewController: LocalizedQuickLayoutHostingController {
                 expectedLabel
 
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack {
+                    HStack(spacing: 8) {
                         widthTitleLabel
                         widthValueLabel
                     }
@@ -247,7 +243,7 @@ final class ViewThatFitsViewController: LocalizedQuickLayoutHostingController {
                         .resizable(axis: .horizontal)
                         .frame(height: 32)
 
-                    HStack {
+                    HStack(spacing: 8) {
                         heightTitleLabel
                         heightValueLabel
                     }
@@ -295,9 +291,8 @@ final class ViewThatFitsViewController: LocalizedQuickLayoutHostingController {
     private func configureViews() {
         view.backgroundColor = .systemGroupedBackground
         pageScrollView.backgroundColor = .systemGroupedBackground
-        pageScrollView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
-        previewScrollView.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
+
         previewScrollView.contentInsetAdjustmentBehavior = .never
 
         introLabel.font = .preferredFont(forTextStyle: .body)
@@ -340,6 +335,9 @@ final class ViewThatFitsViewController: LocalizedQuickLayoutHostingController {
             $0.adjustsFontForContentSizeCategory = true
             $0.numberOfLines = 0
         }
+        codeLabel.textAlignment = .left
+        expectedLabel.font = .preferredFont(forTextStyle: .caption1)
+        metricsLabel.font = .preferredFont(forTextStyle: .caption1)
         codeLabel.textColor = .systemIndigo
         expectedLabel.textColor = .label
         metricsLabel.textColor = .secondaryLabel
@@ -471,7 +469,7 @@ struct ViewThatFitsCandidate: Sendable {
 
 final class ViewThatFitsPreviewView: QuickLayoutView {
 
-    private let candidateViews: [UILabel] = [UILabel(), UILabel(), UILabel()]
+    private let candidateViews: [UILabel] = [LocalizedLabel(), LocalizedLabel(), LocalizedLabel()]
     private var axes: AxisSet = [.horizontal, .vertical]
     private var candidates: [ViewThatFitsCandidate] = []
 
@@ -553,7 +551,7 @@ final class ViewThatFitsPreviewView: QuickLayoutView {
         layer.borderWidth = 1
         layer.borderColor = UIColor.separator.cgColor
         clipsToBounds = true
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         accessibilityIdentifier = "viewThatFits.preview"
 
         let colors: [UIColor] = [.systemBlue, .systemOrange, .systemGreen]

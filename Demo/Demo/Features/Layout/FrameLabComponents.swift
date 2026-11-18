@@ -50,10 +50,10 @@ final class FrameLabIntroduction {
 @MainActor
 final class FrameLabScenarioNavigation: NSObject {
     private let presentation: FrameLabPresentation
-    private let scenarioButton = UIButton(type: .system)
+    private let scenarioButton = LocalizedButton(type: .system)
     private let counter = FrameLabText.make(.subheadline, color: .secondaryLabel)
-    private let previousButton = UIButton(type: .system)
-    private let nextButton = UIButton(type: .system)
+    private let previousButton = LocalizedButton(type: .system)
+    private let nextButton = LocalizedButton(type: .system)
     private let counterSurface = FrameLabText.surface(color: .quaternarySystemFill)
 
     var onSelect: ((FrameLabScenario) -> Void)?
@@ -186,9 +186,8 @@ final class FrameLabPreviewPanel {
         contentLegend.label.text = Localization.text("frame.content")
     }
 
-    func reloadLayoutDirection(_ semantic: UISemanticContentAttribute) {
+    func invalidateLayout() {
         for view in [stage, previewView] as [UIView] {
-            view.semanticContentAttribute = semantic
             view.setNeedsLayout()
         }
     }
@@ -221,8 +220,8 @@ final class FrameLabPreviewPanel {
 final class FrameLabOptions: NSObject {
     private let presentation: FrameLabPresentation
     private let options = UISegmentedControl()
-    private let optionMenu = UIButton(type: .system)
-    private let alignmentMenu = UIButton(type: .system)
+    private let optionMenu = LocalizedButton(type: .system)
+    private let alignmentMenu = LocalizedButton(type: .system)
     private let alignmentGrid = FrameLabAlignmentGrid()
     private let alignmentName = FrameLabText.make(.headline, color: .systemBlue)
     private let alignmentTitle = FrameLabText.make(.headline)
@@ -292,8 +291,7 @@ final class FrameLabOptions: NSObject {
         }
     }
 
-    func reloadLayoutDirection(_ semantic: UISemanticContentAttribute) {
-        alignmentGrid.semanticContentAttribute = semantic
+    func invalidateLayout() {
         alignmentGrid.setNeedsLayout()
         alignmentName.semanticContentAttribute = .forceLeftToRight
     }
@@ -336,7 +334,7 @@ final class FrameLabOptions: NSObject {
 /// 参数区：提供可分别插入页面的布局片段，适配两种模式的参数排列顺序。
 @MainActor
 final class FrameLabParameters: NSObject {
-    private let moreButton = UIButton(type: .system)
+    private let moreButton = LocalizedButton(type: .system)
     private let widthControl = FrameLabSliderRow(minimum: 0.5, maximum: 1, identifier: "frame.width")
     private let heightControl = FrameLabSliderRow(minimum: 140, maximum: 280, identifier: "frame.height")
     private let stretchLabel = FrameLabText.make(.body)
@@ -400,9 +398,8 @@ final class FrameLabParameters: NSObject {
         stretchSwitch.accessibilityLabel = stretchLabel.text
     }
 
-    func reloadLayoutDirection(_ semantic: UISemanticContentAttribute) {
+    func invalidateLayout() {
         for view in [widthControl, heightControl] {
-            view.semanticContentAttribute = semantic
             view.setNeedsLayout()
         }
     }
@@ -439,7 +436,7 @@ final class FrameLabCodeCard: NSObject {
     private let presentation: FrameLabPresentation
     private let codeLabel = FrameLabText.make(.footnote)
     private let codeTitle = FrameLabText.make(.caption1, color: .secondaryLabel)
-    private let copyButton = UIButton(type: .system)
+    private let copyButton = LocalizedButton(type: .system)
     private let explanation = FrameLabText.make(.footnote, color: .secondaryLabel)
     private let codeSurface = FrameLabText.surface(color: .tertiarySystemGroupedBackground)
     private let codeInsetSurface = FrameLabText.surface()
@@ -516,7 +513,7 @@ private final class FrameLabAlignmentGrid: QuickLayoutView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         accessibilityIdentifier = "frame.alignmentGrid"
         for button in buttons {
             button.addTarget(self, action: #selector(selected(_:)), for: .touchUpInside)
@@ -595,7 +592,7 @@ private final class FrameLabPreviewStage: QuickLayoutView {
     init(preview: FrameLabPreviewView) {
         self.preview = preview
         super.init(frame: .zero)
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -619,7 +616,7 @@ private final class FrameLabLegend: QuickLayoutView {
     init(color: UIColor, dashed: Bool = false, filled: Bool = false) {
         marker = FrameLabBoundaryView(color: color, dashed: dashed)
         super.init(frame: .zero)
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         if filled { marker.backgroundColor = color.withAlphaComponent(0.25) }
     }
 
@@ -631,7 +628,7 @@ private final class FrameLabLegend: QuickLayoutView {
 private final class FrameLabSliderRow: QuickLayoutView {
     let title = FrameLabText.make(.subheadline)
     let value = FrameLabText.make(.subheadline, color: .secondaryLabel)
-    let slider = UISlider()
+    let slider = LocalizedSlider()
     var onChange: ((CGFloat) -> Void)?
     var showsRange = false
     private let minimumLabel = FrameLabText.make(.caption1, color: .secondaryLabel)
@@ -639,7 +636,7 @@ private final class FrameLabSliderRow: QuickLayoutView {
 
     init(minimum: Float, maximum: Float, identifier: String) {
         super.init(frame: .zero)
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         slider.minimumValue = minimum
         slider.maximumValue = maximum
         minimumLabel.text = String(Int(minimum))
@@ -686,7 +683,7 @@ private final class FrameLabSliderRow: QuickLayoutView {
 @MainActor
 enum FrameLabText {
     static func make(_ style: UIFont.TextStyle, color: UIColor = .label) -> UILabel {
-        let label = UILabel()
+        let label = LocalizedLabel()
         label.font = .preferredFont(forTextStyle: style)
         label.adjustsFontForContentSizeCategory = true
         label.textColor = color

@@ -18,11 +18,11 @@ final class RechargeBalanceCardView: QuickLayoutView {
     /// 组件内容后方的背景视图。
     let backgroundView = UIView()
     /// 显示余额说明标题的标签。
-    let captionLabel = UILabel()
+    let captionLabel = LocalizedLabel()
     /// 显示当前字段值的标签。
-    let valueLabel = UILabel()
+    let valueLabel = LocalizedLabel()
     /// 显示目标余额或充值需求说明的标签。
-    let requirementLabel = UILabel()
+    let requirementLabel = LocalizedLabel()
 
     /// 使用指定初始矩形创建视图并配置初始外观。
     ///

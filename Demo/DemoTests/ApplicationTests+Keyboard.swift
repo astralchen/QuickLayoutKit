@@ -502,6 +502,7 @@ extension ApplicationTests {
             width: 390,
             height: 844
         )
+        applyTestLayoutDirection(.leftToRight, to: viewController)
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
 
@@ -522,12 +523,14 @@ extension ApplicationTests {
         #expect(ltrTextFieldFrame.maxY < ltrSubmitFrame.minY)
         #expect(textField.textAlignment == .left)
 
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
+
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.layoutIfNeeded()
         keyboardView.layoutIfNeeded()
 
         #expect(keyboardView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
-        #expect(keyboardView.semanticContentAttribute == .forceRightToLeft)
+        #expect(keyboardView.semanticContentAttribute == .unspecified)
         #expect(textField.effectiveUserInterfaceLayoutDirection == .rightToLeft)
         #expect(submitButton.effectiveUserInterfaceLayoutDirection == .rightToLeft)
         #expect(textField.textAlignment == .right)
@@ -539,6 +542,8 @@ extension ApplicationTests {
             submitButton.convert(submitButton.bounds, to: keyboardView)
                 .approximatelyEquals(ltrSubmitFrame)
         )
+
+        applyTestLayoutDirection(.leftToRight, to: viewController)
 
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()

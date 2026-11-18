@@ -15,6 +15,36 @@ final class ComposerTextView: UITextView {
     /// 允许粘贴时、执行系统粘贴之前调用的闭包。
     var willPaste: (() -> Void)?
 
+    /// 在编辑器自身继承到新方向后刷新离屏附件，避免读取父视图通知时尚未更新的 trait。
+    var layoutDirectionDidChange: (() -> Void)?
+    private var renderedDirection: UIUserInterfaceLayoutDirection?
+
+    override var semanticContentAttribute: UISemanticContentAttribute {
+        didSet { setNeedsLayout() }
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        refreshLayoutDirection()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        refreshLayoutDirection()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        refreshLayoutDirection()
+    }
+
+    private func refreshLayoutDirection() {
+        let direction = effectiveUserInterfaceLayoutDirection
+        guard renderedDirection != direction else { return }
+        renderedDirection = direction
+        layoutDirectionDidChange?()
+    }
+
     /// 在输入未暂停时通知粘贴准备回调，并执行系统粘贴。
     override func paste(_ sender: Any?) {
         guard !isInputSuspended else { return }

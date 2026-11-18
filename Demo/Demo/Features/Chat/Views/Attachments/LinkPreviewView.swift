@@ -27,6 +27,20 @@ final class LinkPreviewView: UIView {
     /// 指示当前预览是否具有可显示站点图标的布尔值。
     var hasSiteIcon: Bool { siteIconView.image != nil }
 
+    override var semanticContentAttribute: UISemanticContentAttribute {
+        didSet { setNeedsLayout() }
+    }
+
+    override func traitCollectionDidChange(_ previous: UITraitCollection?) {
+        super.traitCollectionDidChange(previous)
+        setNeedsLayout()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        setNeedsLayout()
+    }
+
     /// 创建使用指定缓存链接元数据的预览视图，不启动网络请求。
     init(link: LinkAttachment? = nil) {
         self.link = link

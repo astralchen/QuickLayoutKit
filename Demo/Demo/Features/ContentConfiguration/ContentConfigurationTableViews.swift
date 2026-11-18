@@ -6,7 +6,6 @@
 //
 
 import UIKit
-import AppLocalization
 import ListKit
 import QuickLayout
 import QuickLayoutKit
@@ -18,11 +17,8 @@ final class ContentConfigurationTableListView: UIView {
     private lazy var adapter = TableListAdapter<ContentConfigurationListSection>(
         tableView: tableView
     )
-    // 防止较早一次语言刷新晚完成后，重新调整已经进入新语言的列表。
+    // 只有最新一次提交完成后才调整 supplementary 高度。
     private var renderGeneration = 0
-    // ListKit 的异步 apply completion 必须沿用 Controller 最近一次明确应用的
-    // 方向；测试、局部容器以及未来 Scene provider 都不能被全局当前值覆盖。
-    private var lastAppliedLayoutDirection: UIUserInterfaceLayoutDirection?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -42,8 +38,6 @@ final class ContentConfigurationTableListView: UIView {
     ) {
         renderGeneration &+= 1
         let generation = renderGeneration
-        let expectedRevision = Localization.localizationController
-            .currentSnapshot.revision
 
         adapter.apply(
             transaction: .disabled,
@@ -52,16 +46,11 @@ final class ContentConfigurationTableListView: UIView {
                     completion?()
                     return
                 }
-                guard self.renderGeneration == generation,
-                      expectedRevision == Localization.localizationController
-                        .currentSnapshot.revision else {
+                guard self.renderGeneration == generation else {
                     completion?()
                     return
                 }
 
-                // apply 完成时 header/footer/cell 可能刚被创建或复用，必须在
-                // 最终视图集合上再次同步当前 table 方向。
-                self.refreshMaterializedContentLayoutDirection()
                 if summary.refreshMetrics
                     .visibleReconfiguredSupplementaryCount > 0,
                    !summary.animation.layoutInvalidated {
@@ -135,35 +124,7 @@ final class ContentConfigurationTableListView: UIView {
         }
     }
 
-    func applyLayoutDirection(
-        _ direction: UIUserInterfaceLayoutDirection
-    ) {
-        lastAppliedLayoutDirection = direction
-        // 方向边界由 table 容器控制，同时保留用户当前看到的逻辑行。
-        tableView.applyLocalization(
-            Localization.layoutDirectionUpdate(direction),
-            preservingVisibleRow: true
-        )
-    }
 
-    private func refreshMaterializedContentLayoutDirection() {
-        guard tableView.window != nil
-                || tableView.semanticContentAttribute != .unspecified else {
-            return
-        }
-        // 等待 snapshot 后新增/复用的视图物化，再用 table 当前的最终方向
-        // 统一触发 reusable host 和自动尺寸布局刷新。
-        tableView.layoutIfNeeded()
-        let direction = lastAppliedLayoutDirection
-            ?? tableView.effectiveUserInterfaceLayoutDirection
-        tableView.applyLocalization(
-            Localization.layoutDirectionUpdate(
-                direction,
-                reasons: [.layoutDirection, .configuration]
-            ),
-            preservingVisibleRow: true
-        )
-    }
 
     private func refreshAutomaticSectionLayoutPreservingVisibleRow() {
         let minimumOffsetY = -tableView.adjustedContentInset.top
@@ -244,15 +205,6 @@ final class ContentConfigurationTableHeaderFooterView:
 
     let sectionContentView = ContentConfigurationSectionView(frame: .zero)
 
-    // Header/footer 的 contentView、QuickLayout host 和文本叶子都可能来自
-    // 复用池；显式列出后由 table 的最终 effective direction 一次同步。
-    override var quickLayoutDirectionViews: [UIView] {
-        super.quickLayoutDirectionViews + [
-            sectionContentView,
-            sectionContentView.titleLabel,
-            sectionContentView.detailLabel,
-        ]
-    }
 
     override var body: Layout {
         ZStack {

@@ -97,7 +97,7 @@ final class FrameLabViewController: LocalizedQuickLayoutHostingController {
         reset.accessibilityLabel = Localization.text("frame.reset")
         reset.tintColor = .systemBlue
         language?.tintColor = .systemBlue
-        navigationItem.setBarButtonItems([reset] + (language.map { [$0] } ?? []), side: .trailing)
+        navigationItem.rightBarButtonItems = [reset] + (language.map { [$0] } ?? [])
     }
 
     /// 只重置当前模式，另一模式的参数、展开状态与滚动位置保持不变。
@@ -131,6 +131,7 @@ final class FrameLabViewController: LocalizedQuickLayoutHostingController {
     page.loadViewIfNeeded()
     page.contentView.selectScenario(.alignment)
     page.contentView.selectAlignment(0)
+    page.traitOverrides.layoutDirection = .rightToLeft
     page.reloadLayoutDirection(.rightToLeft)
     return UINavigationController(rootViewController: page)
 }

@@ -13,10 +13,6 @@ final class TypingCell: QuickLayoutCollectionViewCell {
     /// 显示三个圆点及辅助功能输入状态的气泡视图。
     let typingView = TypingBubbleView(frame: .zero)
 
-    /// 需要随单元格同步更新布局方向的内容视图。
-    override var quickLayoutDirectionViews: [UIView] {
-        super.quickLayoutDirectionViews + [typingView]
-    }
 
     /// 定义 `TypingCell` 的布局层级、间距和对齐方式。
     override var body: Layout {

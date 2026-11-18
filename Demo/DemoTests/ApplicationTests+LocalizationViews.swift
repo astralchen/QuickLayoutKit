@@ -74,28 +74,33 @@ extension ApplicationTests {
         }
     }
 
-    @Test func overviewPageReflectsArabicDirection() {
+    @Test func overviewPageReflectsArabicDirection() throws {
         Localization.setLocale(identifier: "ar")
         let viewController = LocalizationOverviewViewController()
         viewController.loadViewIfNeeded()
         viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
         viewController.reloadLocalizedContent()
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
         viewController.reloadLayoutDirection(.rightToLeft)
+        let window = try makeVisibleTestWindow(rootViewController: viewController)
+        Localization.register(window: window)
+        defer { Localization.unregister(window: window); window.isHidden = true }
         viewController.view.setNeedsLayout()
         viewController.view.layoutIfNeeded()
 
         let labels = viewController.view.allSubviews(of: UILabel.self).compactMap(\.text)
 
         #expect(labels.contains { $0.contains("RTL") })
-        #expect(viewController.view.semanticContentAttribute == .forceRightToLeft)
+        #expect(viewController.view.effectiveUserInterfaceLayoutDirection == .rightToLeft)
 
-        Localization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en")
     }
 
     @Test func uikitShowcaseAppliesCollectionDirection() throws {
         Localization.setLocale(identifier: "ar")
         let viewController = UIKitLocalizationShowcaseViewController()
         viewController.loadViewIfNeeded()
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
         viewController.reloadLayoutDirection(.rightToLeft)
         // 声明式宿主在首次布局时挂载 body，而非在 viewDidLoad 中立即 addSubview。
         viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
@@ -103,9 +108,59 @@ extension ApplicationTests {
 
         let collectionView = try #require(viewController.view.allSubviews(of: UICollectionView.self).first)
 
-        #expect(collectionView.semanticContentAttribute == .forceRightToLeft)
+        #expect(collectionView.semanticContentAttribute == .unspecified)
 
-        Localization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en")
+    }
+
+    @Test func uikitShowcaseAlignsItemsToInheritedLeadingAcrossWidths() async throws {
+        let controller = UIKitLocalizationShowcaseViewController()
+        controller.loadViewIfNeeded()
+        controller.view.frame = CGRect(x: 0, y: 0, width: 600, height: 400)
+        controller.view.layoutIfNeeded()
+        let collection = try #require(controller.view.allSubviews(of: UICollectionView.self).first)
+        // 原生父视图固定测试视口，避免声明式宿主在下一轮布局覆盖手工指定的尺寸。
+        collection.removeFromSuperview()
+        let host = UIViewController()
+        host.view.addSubview(collection)
+        let window = try makeVisibleTestWindow(rootViewController: host)
+        defer { window.isHidden = true; Localization.setLocale(identifier: "en") }
+        for width: CGFloat in [600, 280, 600] {
+            for locale in ["en", "ar", "en", "ar"] {
+                Localization.setLocale(identifier: locale)
+                let rtl = locale == "ar"
+                applyTestLayoutDirection(rtl ? .rightToLeft : .leftToRight, to: host)
+                controller.reloadLayoutDirection(rtl ? .rightToLeft : .leftToRight)
+                controller.reloadLocalizedContent()
+                collection.frame = CGRect(x: 20, y: 100, width: width, height: 82)
+                collection.collectionViewLayout.invalidateLayout()
+                collection.layoutIfNeeded()
+                try await Task.sleep(for: .milliseconds(100))
+                #expect(abs(collection.bounds.width - width) < 1)
+                #expect(collection.semanticContentAttribute == .unspecified)
+                #expect(collection.effectiveUserInterfaceLayoutDirection == (rtl ? .rightToLeft : .leftToRight))
+                if width > 420 {
+                    // 读取实际 cell 的屏幕几何；layout attributes 可能仍处于 UIKit 镜像前的坐标系。
+                    let frames = try (0..<3).map { index in
+                        let cell = try #require(collection.cellForItem(at: IndexPath(item: index, section: 0)))
+                        return cell.convert(cell.bounds, to: host.view)
+                    }
+                    let viewport = collection.convert(collection.bounds, to: host.view)
+                    #expect(rtl ? frames[0].midX > frames[1].midX : frames[0].midX < frames[1].midX)
+                    #expect(abs(abs(frames[1].minX - frames[0].minX) - 144) < 1)
+                    #expect(rtl ? abs(frames[0].maxX - viewport.maxX) < 1 : abs(frames[0].minX - viewport.minX) < 1,
+                            "locale=\(locale), viewport=\(viewport), cells=\(frames)")
+                } else {
+                    #expect(collection.contentSize.width >= 420)
+                    for index in [2, 0] {
+                        collection.scrollToItem(at: IndexPath(item: index, section: 0), at: .centeredHorizontally, animated: false)
+                        collection.layoutIfNeeded()
+                        let cell = try #require(collection.cellForItem(at: IndexPath(item: index, section: 0)))
+                        #expect(collection.bounds.intersects(cell.convert(cell.bounds, to: collection)))
+                    }
+                }
+            }
+        }
     }
 
     @Test func localizationOverviewMirrorsItsReusedLeadingContent() throws {
@@ -141,6 +196,7 @@ extension ApplicationTests {
             size: CGSize(width: 390, height: 844)
         )
         defer { testWindow.isHidden = true }
+        applyTestLayoutDirection(.leftToRight, to: viewController)
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
 
@@ -179,6 +235,7 @@ extension ApplicationTests {
 
         usesRightToLeftLayout = true
         viewController.reloadLocalizedContent()
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.layoutIfNeeded()
         scrollView.layoutIfNeeded()
@@ -205,7 +262,7 @@ extension ApplicationTests {
         #expect(rtlConfiguration.image != nil)
         #expect(updatedButton.titleLabel?.text == expectedTitle)
         #expect(updatedButton.imageView?.image != nil)
-        #expect(scrollView.semanticContentAttribute == .forceRightToLeft)
+        #expect(scrollView.semanticContentAttribute == .unspecified)
         #expect(bodyLabel.effectiveUserInterfaceLayoutDirection == .rightToLeft)
         #expect(updatedButton.effectiveUserInterfaceLayoutDirection == .rightToLeft)
         #expect(rtlButtonTitleFrame.midX > rtlButtonImageFrame.midX)
@@ -238,6 +295,7 @@ extension ApplicationTests {
 
         usesRightToLeftLayout = false
         viewController.reloadLocalizedContent()
+        applyTestLayoutDirection(.leftToRight, to: viewController)
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
         scrollView.layoutIfNeeded()
@@ -264,6 +322,7 @@ extension ApplicationTests {
             width: 390,
             height: 844
         )
+        applyTestLayoutDirection(.leftToRight, to: viewController)
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
         viewController.scrollView.layoutIfNeeded()
@@ -277,6 +336,8 @@ extension ApplicationTests {
 
         #expect(ltrIconFrame.midX < ltrTextFieldFrame.midX)
 
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
+
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.layoutIfNeeded()
         viewController.scrollView.layoutIfNeeded()
@@ -286,7 +347,7 @@ extension ApplicationTests {
         let rtlTextFieldFrame = textField.convert(textField.bounds, to: fieldView)
 
         #expect(fieldView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
-        #expect(fieldView.semanticContentAttribute == .forceRightToLeft)
+        #expect(fieldView.semanticContentAttribute == .unspecified)
         #expect(iconView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
         #expect(textField.effectiveUserInterfaceLayoutDirection == .rightToLeft)
         #expect(rtlIconFrame.midX > rtlTextFieldFrame.midX)
@@ -304,6 +365,8 @@ extension ApplicationTests {
                 in: fieldView.bounds.width
             )
         )
+
+        applyTestLayoutDirection(.leftToRight, to: viewController)
 
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
@@ -328,6 +391,7 @@ extension ApplicationTests {
             size: CGSize(width: 390, height: 1600)
         )
         defer { testWindow.isHidden = true }
+        applyTestLayoutDirection(.leftToRight, to: viewController)
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
         viewController.scrollView.layoutIfNeeded()
@@ -368,6 +432,8 @@ extension ApplicationTests {
                 > forcedRTLRow.trailingBackgroundView.frame.midX
         )
 
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
+
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.layoutIfNeeded()
         viewController.scrollView.layoutIfNeeded()
@@ -389,7 +455,7 @@ extension ApplicationTests {
         )
 
         #expect(unspecifiedRow.effectiveUserInterfaceLayoutDirection == .rightToLeft)
-        #expect(unspecifiedRow.semanticContentAttribute == .forceRightToLeft)
+        #expect(unspecifiedRow.semanticContentAttribute == .unspecified)
         #expect(forcedLTRRow.effectiveUserInterfaceLayoutDirection == .leftToRight)
         #expect(forcedRTLRow.effectiveUserInterfaceLayoutDirection == .rightToLeft)
         #expect(
@@ -413,6 +479,8 @@ extension ApplicationTests {
         )
         #expect(rtlForcedLTRFrame.approximatelyEquals(ltrForcedLTRFrame))
         #expect(rtlForcedRTLFrame.approximatelyEquals(ltrForcedRTLFrame))
+
+        applyTestLayoutDirection(.leftToRight, to: viewController)
 
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
@@ -441,6 +509,6 @@ extension ApplicationTests {
         #expect(physicalRight == .leading)
         #expect(isBackSwipe)
 
-        Localization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en")
     }
 }

@@ -95,7 +95,7 @@ extension ChatViewController {
                 }
                 controller = preview
             }
-            controller.view.semanticContentAttribute = composerView.semanticContentAttribute
+
             attachmentPreviewController = controller
             var presenter: UIViewController = self
             while let presented = presenter.presentedViewController { presenter = presented }

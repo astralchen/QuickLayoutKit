@@ -11,8 +11,8 @@ final class FollowButton: MinimumHitTargetButton {
 
     private let gradientView = FollowGradientView()
     private let followedBackground = UIView()
-    private let followLabel = UILabel()
-    private let followedLabel = UILabel()
+    private let followLabel = LocalizedLabel()
+    private let followedLabel = LocalizedLabel()
     private let plusImageView = UIImageView(image: UIImage(systemName: "plus"))
     private let checkmarkImageView = UIImageView(image: UIImage(systemName: "checkmark"))
     private let activityIndicatorView = UIActivityIndicatorView(style: .medium)
@@ -211,7 +211,7 @@ final class FollowButton: MinimumHitTargetButton {
     }
 
     private func configureViews() {
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         layer.cornerCurve = .circular
         gradientView.clipsToBounds = true
         followedBackground.backgroundColor = .white.withAlphaComponent(0.14)

@@ -25,11 +25,12 @@ extension ContentConfigurationCollectionTests {
         let collectionIndex = try #require(routes.firstIndex(of: .collectionContentConfiguration))
         #expect(routes[collectionIndex + 1] == .waterfallContentConfiguration)
 
-        Localization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en")
         let fixture = try WaterfallFixture(localizer: .live)
         defer { fixture.window.isHidden = true }
-        for language in ["en-US", "zh-Hans", "ar"] {
+        for language in ["en", "zh-Hans", "ar"] {
             Localization.setLocale(identifier: language)
+            applyTestLayoutDirection(Localization.currentUIKitDirection, to: fixture.controller)
             fixture.controller.reloadLayoutDirection(Localization.currentUIKitDirection)
             fixture.controller.reloadLocalizedContent()
             await fixture.settle()
@@ -130,6 +131,7 @@ extension ContentConfigurationCollectionTests {
         try fixture.verifyVisibleGeometry()
 
         let ltr = try #require(controller.waterfallLayout.layoutAttributesForItem(at: first)).frame
+        applyTestLayoutDirection(.rightToLeft, to: controller)
         controller.reloadLayoutDirection(.rightToLeft)
         await fixture.settle()
         let rtl = try #require(controller.waterfallLayout.layoutAttributesForItem(at: first)).frame
@@ -138,6 +140,7 @@ extension ContentConfigurationCollectionTests {
             $0.contentView.effectiveUserInterfaceLayoutDirection == .rightToLeft
         })
         try fixture.verifyVisibleGeometry()
+        applyTestLayoutDirection(.leftToRight, to: controller)
         controller.reloadLayoutDirection(.leftToRight)
         await fixture.settle()
         #expect(try #require(controller.waterfallLayout.layoutAttributesForItem(at: first)).frame == ltr)
@@ -205,6 +208,7 @@ extension ContentConfigurationCollectionTests {
         try fixture.saveSnapshot(name: "waterfall-review-after-large-type")
         fixture.setPreferredContentSizeCategory(.large)
         Localization.setLocale(identifier: "ar")
+        applyTestLayoutDirection(.rightToLeft, to: controller)
         controller.reloadLayoutDirection(.rightToLeft)
         controller.reloadLocalizedContent()
         await fixture.settle()
@@ -242,8 +246,9 @@ extension ContentConfigurationCollectionTests {
             controller.view.frame.size.height = size.height
             for insets in [UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 80),
                            UIEdgeInsets(top: 0, left: 80, bottom: 0, right: 0)] {
-                controller.additionalSafeAreaInsets = insets
+                fixture.parent.additionalSafeAreaInsets = insets
                 for direction: UIUserInterfaceLayoutDirection in [.leftToRight, .rightToLeft] {
+                    applyTestLayoutDirection(direction, to: controller)
                     controller.reloadLayoutDirection(direction)
                     for scrollDirection: UICollectionView.ScrollDirection in [.vertical, .horizontal] {
                         controller.setScrollDirection(scrollDirection)
@@ -255,7 +260,7 @@ extension ContentConfigurationCollectionTests {
                         #expect(abs(label.frame.midX - safeFrame.midX) <= 1)
                         #expect(control.frame.minX >= safeFrame.minX + 11)
                         #expect(control.frame.maxX <= safeFrame.maxX - 11)
-                        #expect(abs(control.frame.minY - safeFrame.minY - 8) <= 1)
+                        #expect(abs(control.frame.minY - fixture.parent.view.safeAreaInsets.top - 8) <= 1)
                         #expect(abs(background.frame.width - controller.view.bounds.width) <= 1)
                     }
                 }
@@ -271,12 +276,21 @@ extension ContentConfigurationCollectionTests {
         let controller = fixture.controller
         let collection = try #require(controller.collectionView)
         let snapshots = controller.snapshotApplicationCount
+        let background = try #require(controller.view.subviews.first { $0.accessibilityIdentifier == "waterfall.controlsBackground" })
         // 模拟导航栏收起／展开：视图尺寸不变，安全区和 adjusted inset 连续变化。
         for top: CGFloat in [44, 30, 16, 0, 16, 30, 44, 0] {
             collection.contentOffset.y = top == 0 ? 0 : 600
-            controller.additionalSafeAreaInsets.top = top
+            fixture.parent.additionalSafeAreaInsets.top = top
             controller.view.setNeedsLayout()
             await fixture.settle()
+            #expect(collection.contentInset.top == 0)
+            #expect(collection.automaticallyAdjustsScrollIndicatorInsets)
+            #expect(abs(collection.frame.minY + collection.adjustedContentInset.top - background.frame.maxY) <= 1)
+            if top > 0 {
+                #expect(collection.visibleCells.contains { cell in
+                    cell.convert(cell.bounds, to: controller.view).intersects(background.frame)
+                })
+            }
             try fixture.verifyVisibleGeometry()
         }
         collection.contentOffset.y = -collection.adjustedContentInset.top
@@ -374,6 +388,7 @@ extension ContentConfigurationCollectionTests {
         await fixture.settle()
         try verifyHorizontal()
         fixture.setPreferredContentSizeCategory(.large)
+        applyTestLayoutDirection(.rightToLeft, to: controller)
         controller.reloadLayoutDirection(.rightToLeft)
         await fixture.settle()
         try verifyHorizontal()
@@ -383,6 +398,7 @@ extension ContentConfigurationCollectionTests {
         collection.scrollToItem(at: IndexPath(item: 0, section: 1), at: .right, animated: false)
         await fixture.settle()
         try verifyHorizontal()
+        applyTestLayoutDirection(.leftToRight, to: controller)
         controller.reloadLayoutDirection(.leftToRight)
         controller.setScrollDirection(.vertical)
         collection.contentOffset = CGPoint(x: 0, y: -collection.adjustedContentInset.top)
@@ -473,6 +489,7 @@ private final class WaterfallFixture {
         controller.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         controller.didMove(toParent: parent)
         window.isHidden = false
+        applyTestLayoutDirection(.leftToRight, to: controller)
         controller.reloadLayoutDirection(.leftToRight)
     }
 
@@ -512,10 +529,14 @@ private final class WaterfallFixture {
         #expect(direction.accessibilityIdentifier == "waterfall.direction")
         #expect(direction.bounds.width <= min(320, controller.view.bounds.width - 24) + 1)
         #expect(direction.bounds.height >= 44)
-        #expect(abs(direction.frame.minY - controller.view.safeAreaInsets.top - 8) <= 1)
+        #expect(abs(direction.frame.minY - parent.view.safeAreaInsets.top - 8) <= 1)
         let hit = controller.view.hitTest(CGPoint(x: direction.frame.midX, y: direction.frame.midY), with: nil)
         #expect(hit?.isDescendant(of: direction) == true)
-        #expect(collection.frame == controller.view.bounds)
+        let toolbar = try #require(controller.view.subviews.first { $0.accessibilityIdentifier == "waterfall.controlsBackground" })
+        #expect(collection.frame.minY == controller.view.bounds.minY)
+        #expect(abs(collection.adjustedContentInset.top - toolbar.frame.maxY) <= 1)
+        #expect(abs(collection.frame.maxY - controller.view.bounds.maxY) <= 1)
+        #expect(abs(collection.frame.width - controller.view.bounds.width) <= 1)
         #expect(collection.contentInsetAdjustmentBehavior == .always)
         #expect(!collection.visibleCells.isEmpty)
         for path in collection.indexPathsForVisibleItems {

@@ -16,9 +16,9 @@ private final class GiftItemButton: QuickLayoutButton {
     /// 显示组件符号图像的视图。
     private let imageView = UIImageView()
     /// 显示组件主标题的标签。
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
     /// 显示单份礼物金币价格的标签。
-    private let priceLabel = UILabel()
+    private let priceLabel = LocalizedLabel()
     /// 礼物图标的边长，单位为点。
     private var imageSide: CGFloat = 20
 

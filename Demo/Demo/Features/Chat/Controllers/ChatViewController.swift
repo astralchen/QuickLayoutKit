@@ -633,9 +633,7 @@ final class ChatViewController: LocalizedQuickLayoutHostingController, MediaImag
         _ direction: UIUserInterfaceLayoutDirection
     ) {
         super.reloadLayoutDirection(direction)
-        let semanticAttribute = direction.appLayoutDirection
-            .semanticContentAttribute
-        contactTitleView.semanticContentAttribute = semanticAttribute
+
         composerView.applyLayoutDirection(direction)
         conversationView.applyLayoutDirection(direction)
         setNeedsQuickLayout()

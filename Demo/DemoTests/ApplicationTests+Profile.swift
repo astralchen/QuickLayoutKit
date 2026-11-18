@@ -13,7 +13,7 @@ extension ApplicationTests {
     @Test(arguments: ["zh-Hans", "ar"])
     func profileHasNoHorizontalRangeAfterNavigationAndResize(locale: String) throws {
         Localization.setLocale(identifier: locale)
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let navigationController = UINavigationController(rootViewController: UIViewController())
         let window = try makeVisibleTestWindow(rootViewController: navigationController)
         defer { window.isHidden = true }
@@ -83,8 +83,7 @@ extension ApplicationTests {
         #expect(sections.allSatisfy { $0.bounds.height > 0 })
         #expect(
             sections.allSatisfy {
-                $0.quickLayoutSemanticDirectionBehavior
-                    == .followEnclosingContainer
+                $0.semanticContentAttribute == .unspecified
             }
         )
 
@@ -109,7 +108,7 @@ extension ApplicationTests {
     func profileKeepsLandscapeSectionsInsideTheSafeViewport(locale: String) throws {
         Localization.setLocale(identifier: locale)
         defer {
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
         }
 
         let viewController = ProfileViewController()
@@ -184,7 +183,7 @@ extension ApplicationTests {
     @Test func profileCardTitlesShareTheSameLogicalLeadingEdge() throws {
         Localization.setLocale(identifier: "ar")
         defer {
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
         }
 
         let viewController = ProfileViewController()
@@ -197,9 +196,9 @@ extension ApplicationTests {
         )
         viewController.view.layoutIfNeeded()
 
-        Localization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en")
         viewController.applyLocalization(
-            .initial(
+            .init(
                 snapshot: Localization.localizationController.currentSnapshot
             )
         )
@@ -233,6 +232,8 @@ extension ApplicationTests {
             body: "Short localized body."
         )
 
+        applyTestLayoutDirection(.leftToRight, to: viewController)
+
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
         let ltrLeadingEdges = zip(cards, titleLabels).map { card, label in
@@ -241,6 +242,8 @@ extension ApplicationTests {
 
         #expect(cards.allSatisfy { abs($0.bounds.width - 370) < 0.001 })
         #expect(ltrLeadingEdges.allSatisfy { abs($0 - 16) < 0.001 })
+
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
 
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.layoutIfNeeded()
@@ -253,13 +256,10 @@ extension ApplicationTests {
 
     @Test func profileSectionOwnedButtonsRecoverTheirDirectionRoundTrip() throws {
         let viewController = ProfileViewController()
-        viewController.loadViewIfNeeded()
-        viewController.view.frame = CGRect(
-            x: 0,
-            y: 0,
-            width: 390,
-            height: 1200
-        )
+        let window = try makeVisibleTestWindow(rootViewController: viewController, size: CGSize(width: 390, height: 1200))
+        defer { window.isHidden = true }
+
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
 
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.layoutIfNeeded()
@@ -271,23 +271,23 @@ extension ApplicationTests {
         actionsView.layoutIfNeeded()
         let buttons = actionsView.allSubviews(of: UIButton.self)
 
-        #expect(actionsView.semanticContentAttribute == .forceRightToLeft)
+        #expect(actionsView.semanticContentAttribute == .unspecified)
         #expect(buttons.count == 2)
-        #expect(
-            buttons.allSatisfy {
-                $0.semanticContentAttribute == .forceRightToLeft
-                    && $0.effectiveUserInterfaceLayoutDirection == .rightToLeft
-            }
-        )
+        for button in buttons {
+            #expect(button.semanticContentAttribute == .unspecified)
+            #expect(button.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        }
+
+        applyTestLayoutDirection(.leftToRight, to: viewController)
 
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
         actionsView.layoutIfNeeded()
 
-        #expect(actionsView.semanticContentAttribute == .forceLeftToRight)
+        #expect(actionsView.semanticContentAttribute == .unspecified)
         #expect(
             buttons.allSatisfy {
-                $0.semanticContentAttribute == .forceLeftToRight
+                $0.semanticContentAttribute == .unspecified
                     && $0.effectiveUserInterfaceLayoutDirection == .leftToRight
             }
         )
@@ -303,6 +303,7 @@ extension ApplicationTests {
             width: 390,
             height: 1200
         )
+        applyTestLayoutDirection(.leftToRight, to: viewController)
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
 
@@ -323,6 +324,8 @@ extension ApplicationTests {
         chip.layoutIfNeeded()
         let ltrChipFrame = chip.convert(chip.bounds, to: skillCloud)
 
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
+
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.layoutIfNeeded()
         scrollView.layoutIfNeeded()
@@ -331,7 +334,7 @@ extension ApplicationTests {
         let rtlChipFrame = chip.convert(chip.bounds, to: skillCloud)
 
         #expect(skillLabel.superview === chip)
-        #expect(scrollView.semanticContentAttribute == .forceRightToLeft)
+        #expect(scrollView.semanticContentAttribute == .unspecified)
         #expect(chip.effectiveUserInterfaceLayoutDirection == .rightToLeft)
         #expect(skillCloud.effectiveUserInterfaceLayoutDirection == .rightToLeft)
         #expect(rtlChipFrame.minX > ltrChipFrame.minX)
@@ -342,6 +345,8 @@ extension ApplicationTests {
                 in: skillCloud.bounds.width
             )
         )
+
+        applyTestLayoutDirection(.leftToRight, to: viewController)
 
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()

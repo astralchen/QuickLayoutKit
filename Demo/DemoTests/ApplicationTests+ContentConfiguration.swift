@@ -272,7 +272,8 @@ extension ApplicationTests {
         let viewController = UIViewController()
         viewController.view = listView
         viewController.view.semanticContentAttribute = .forceRightToLeft
-        listView.applyLayoutDirection(.rightToLeft)
+        applyTestLayoutDirection(.rightToLeft, to: listView)
+        listView.tableView.setNeedsLayout()
         let window = try makeVisibleTestWindow(
             rootViewController: viewController,
             size: CGSize(width: 320, height: 640)
@@ -328,7 +329,7 @@ extension ApplicationTests {
             listView.effectiveUserInterfaceLayoutDirection == .rightToLeft
         )
         #expect(
-            listView.tableView.semanticContentAttribute == .forceRightToLeft
+            listView.tableView.semanticContentAttribute == .unspecified
         )
         #expect(
             listView.tableView.effectiveUserInterfaceLayoutDirection
@@ -342,13 +343,13 @@ extension ApplicationTests {
             footer.effectiveUserInterfaceLayoutDirection
                 == listView.tableView.effectiveUserInterfaceLayoutDirection
         )
-        #expect(header.semanticContentAttribute == .forceRightToLeft)
-        #expect(footer.semanticContentAttribute == .forceRightToLeft)
+        #expect(header.semanticContentAttribute == .unspecified)
+        #expect(footer.semanticContentAttribute == .unspecified)
         #expect(
-            headerContent.semanticContentAttribute == .forceRightToLeft
+            headerContent.semanticContentAttribute == .unspecified
         )
         #expect(
-            footerContent.semanticContentAttribute == .forceRightToLeft
+            footerContent.semanticContentAttribute == .unspecified
         )
         #expect(
             header.contentView.bounds.insetBy(dx: -1, dy: -1)
@@ -437,7 +438,9 @@ extension ApplicationTests {
             )
         ]
 
-        listView.applyLayoutDirection(.leftToRight)
+        applyTestLayoutDirection(.leftToRight, to: listView)
+
+        listView.tableView.setNeedsLayout()
         await withCheckedContinuation { continuation in
             listView.render(
                 items: items,
@@ -479,7 +482,8 @@ extension ApplicationTests {
             )
             // Match production ordering: localized content starts an
             // asynchronous ListKit apply before direction is updated.
-            listView.applyLayoutDirection(.rightToLeft)
+            applyTestLayoutDirection(.rightToLeft, to: listView)
+            listView.tableView.setNeedsLayout()
         }
 
         let updatedHeader = try #require(
@@ -515,10 +519,10 @@ extension ApplicationTests {
         #expect(updatedHeader === initialHeader)
         #expect(updatedFooter === initialFooter)
         #expect(
-            listView.tableView.semanticContentAttribute == .forceRightToLeft
+            listView.tableView.semanticContentAttribute == .unspecified
         )
-        #expect(headerContent.semanticContentAttribute == .forceRightToLeft)
-        #expect(footerContent.semanticContentAttribute == .forceRightToLeft)
+        #expect(headerContent.semanticContentAttribute == .unspecified)
+        #expect(footerContent.semanticContentAttribute == .unspecified)
         #expect(
             updatedHeader.contentView.bounds.insetBy(dx: -1, dy: -1)
                 .contains(headerContent.frame)

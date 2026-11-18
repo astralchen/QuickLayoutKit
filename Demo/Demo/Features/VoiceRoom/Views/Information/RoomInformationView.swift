@@ -125,14 +125,13 @@ final class RoomInformationView: QuickLayoutView {
 
     /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         accessibilityIdentifier = "liveRoom.information.view"
 
         scrollView.alwaysBounceVertical = false
         scrollView.showsVerticalScrollIndicator = true
         scrollView.contentInsetAdjustmentBehavior = .never
-        scrollView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
+
     }
 }
 
@@ -148,13 +147,13 @@ private final class RoomInformationProfileCardView: QuickLayoutView {
         image: UIImage(systemName: "music.mic.circle.fill")
     )
     /// 显示房间名称的标签。
-    private let roomTitleLabel = UILabel()
+    private let roomTitleLabel = LocalizedLabel()
     /// 显示房间副标题的标签。
-    private let roomSubtitleLabel = UILabel()
+    private let roomSubtitleLabel = LocalizedLabel()
     /// 表示直播状态的圆点装饰。
     private let statusDotView = UIView()
     /// 显示直播状态文案的标签。
-    private let liveStatusLabel = UILabel()
+    private let liveStatusLabel = LocalizedLabel()
     /// 直播状态文字与圆点后方的背景。
     private let statusBackgroundView = UIView()
 
@@ -215,7 +214,7 @@ private final class RoomInformationProfileCardView: QuickLayoutView {
 
     /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
 
         avatarBackgroundView.backgroundColor = UIColor.systemPink
             .withAlphaComponent(0.24)
@@ -261,7 +260,7 @@ private final class RoomInformationDetailsCardView: QuickLayoutView {
     /// 显示占麦用户资料的卡片内容视图。
     private let cardView = TranslucentCardView()
     /// 显示组件主标题的标签。
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
     /// 显示房间号字段的资料行。
     private let roomIDRowView = RoomInformationDetailRowView(
         valueAccessibilityIdentifier: "liveRoom.information.roomID"
@@ -337,7 +336,7 @@ private final class RoomInformationDetailsCardView: QuickLayoutView {
 
     /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         titleLabel.configureVoiceRoomInformation(
             font: .preferredFont(forTextStyle: .headline),
             color: .white
@@ -352,9 +351,9 @@ private final class RoomInformationDetailsCardView: QuickLayoutView {
 private final class RoomInformationDetailRowView: QuickLayoutView {
 
     /// 显示组件主标题的标签。
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
     /// 显示当前字段值的标签。
-    private let valueLabel = UILabel()
+    private let valueLabel = LocalizedLabel()
 
     /// 创建资料行，并为字段值设置指定的辅助功能标识。
     init(valueAccessibilityIdentifier: String) {
@@ -390,7 +389,7 @@ private final class RoomInformationDetailRowView: QuickLayoutView {
 
     /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         titleLabel.configureVoiceRoomInformation(
             font: .preferredFont(forTextStyle: .subheadline),
             color: UIColor.white.withAlphaComponent(0.58)
@@ -410,9 +409,9 @@ private final class RoomInformationAnnouncementCardView: QuickLayoutView {
     /// 显示占麦用户资料的卡片内容视图。
     private let cardView = TranslucentCardView()
     /// 显示组件主标题的标签。
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
     /// 显示房间公告正文的标签。
-    private let announcementLabel = UILabel()
+    private let announcementLabel = LocalizedLabel()
 
     /// 使用指定初始矩形创建视图并配置初始外观。
     ///
@@ -449,7 +448,7 @@ private final class RoomInformationAnnouncementCardView: QuickLayoutView {
 
     /// 配置子视图的样式、交互和辅助功能属性。
     private func configureViews() {
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         titleLabel.configureVoiceRoomInformation(
             font: .preferredFont(forTextStyle: .headline),
             color: .white

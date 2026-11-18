@@ -29,10 +29,11 @@ extension ApplicationTests {
         }
     }
 
-    @Test func horizontalScrollStartsFromRightInRTL() {
+    @Test func horizontalScrollStartsFromRightInRTL() throws {
         let viewController = HorizontalScrollViewViewController()
-        viewController.loadViewIfNeeded()
-        viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        let window = try makeVisibleTestWindow(rootViewController: viewController, size: CGSize(width: 390, height: 844))
+        defer { window.isHidden = true }
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.setNeedsLayout()
         viewController.view.layoutIfNeeded()
@@ -50,22 +51,23 @@ extension ApplicationTests {
         #expect(abs(firstCardFrame.maxX - expectedLeadingEdge) < 1)
     }
 
-    @Test func horizontalScrollPreparesRTLStartBeforeAppearAnimation() {
+    @Test func horizontalScrollPreparesRTLStartBeforeAppearAnimation() throws {
+        let navigation = UINavigationController(rootViewController: UIViewController())
+        let window = try makeVisibleTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
+        defer { window.isHidden = true }
+        applyTestLayoutDirection(.rightToLeft, to: navigation)
         let viewController = HorizontalScrollViewViewController()
-        viewController.loadViewIfNeeded()
-        viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
-        viewController.reloadLayoutDirection(.rightToLeft)
-
-        viewController.beginAppearanceTransition(true, animated: true)
-        viewController.endAppearanceTransition()
-
+        navigation.pushViewController(viewController, animated: true)
+        navigation.view.layoutIfNeeded()
+        viewController.view.layoutIfNeeded()
+        #expect(viewController.scrollView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
         #expect(viewController.scrollView.contentOffset.x > 0)
     }
 
     @Test func horizontalScrollUsesViewportRelativeCards() {
-        Localization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en")
         defer {
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
         }
 
         let viewController = HorizontalScrollViewViewController()
@@ -235,9 +237,9 @@ extension ApplicationTests {
     }
 
     @Test func horizontalScrollHasContentOnFirstNavigationLayout() throws {
-        Localization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en")
         defer {
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
         }
 
         let rootViewController = UIViewController()
@@ -265,9 +267,9 @@ extension ApplicationTests {
     }
 
     @Test func horizontalScrollKeepsLandscapeContentInsideSafeArea() throws {
-        Localization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en")
         defer {
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
         }
 
         let viewController = HorizontalScrollViewViewController()
@@ -358,6 +360,7 @@ extension ApplicationTests {
         )
 
         window.semanticContentAttribute = .forceRightToLeft
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.setNeedsLayout()
         window.layoutIfNeeded()
@@ -401,8 +404,8 @@ extension ApplicationTests {
     ///
     /// - Note: 本测试不执行设备旋转或系统侧栏操作。
     @Test func horizontalCarouselRemeasuresHeightAfterSafeAreaChanges() throws {
-        Localization.setLocale(identifier: "en-US")
-        defer { Localization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "en")
+        defer { Localization.setLocale(identifier: "en") }
         let controller = HorizontalScrollViewViewController()
         let window = try makeVisibleTestWindow(
             rootViewController: controller,
@@ -427,9 +430,9 @@ extension ApplicationTests {
     }
 
     @Test func horizontalScrollModelsLocalizedDestinationDiscovery() throws {
-        Localization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en")
         defer {
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
         }
 
         let viewController = HorizontalScrollViewViewController()
@@ -513,6 +516,7 @@ extension ApplicationTests {
         Localization.setLocale(identifier: "ar")
         window.semanticContentAttribute = .forceRightToLeft
         viewController.reloadLocalizedContent()
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.setNeedsLayout()
         viewController.scrollView.setNeedsLayout()

@@ -21,11 +21,11 @@ final class AudienceMemberCell: QuickLayoutCollectionViewCell {
     /// 显示用户头像或备用图标的图像视图。
     private let avatarImageView = UIImageView()
     /// 显示用户昵称或空麦名称的标签。
-    private let nameLabel = UILabel()
+    private let nameLabel = LocalizedLabel()
     /// 显示用户在麦或收听状态的标签。
-    private let presenceLabel = UILabel()
+    private let presenceLabel = LocalizedLabel()
     /// 显示用户贡献积分的标签。
-    private let contributionLabel = UILabel()
+    private let contributionLabel = LocalizedLabel()
 
     /// 使用指定初始矩形创建视图并配置初始外观。
     ///

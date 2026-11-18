@@ -75,6 +75,20 @@ final class WaveformView: UIView {
         didSet { setNeedsDisplay() }
     }
 
+    override var semanticContentAttribute: UISemanticContentAttribute {
+        didSet { setNeedsDisplay() }
+    }
+
+    override func traitCollectionDidChange(_ previous: UITraitCollection?) {
+        super.traitCollectionDidChange(previous)
+        setNeedsDisplay()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        setNeedsDisplay()
+    }
+
     /// 使用指定初始边框创建 `WaveformView`，并配置其子视图和默认外观。
     ///
     /// - Parameter frame: 在父视图坐标系中指定的初始边框。

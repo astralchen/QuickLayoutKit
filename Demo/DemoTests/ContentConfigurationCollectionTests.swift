@@ -37,6 +37,7 @@ struct ContentConfigurationCollectionTests {
         window.isHidden = false
         defer { window.isHidden = true }
         controller.view.frame = window.bounds
+        applyTestLayoutDirection(.leftToRight, to: controller)
         controller.reloadLayoutDirection(.leftToRight)
         controller.view.layoutIfNeeded()
         let collectionView = try #require(
@@ -75,6 +76,7 @@ struct ContentConfigurationCollectionTests {
 
         usesLongText = true
         controller.reloadLocalizedContent()
+        applyTestLayoutDirection(.rightToLeft, to: controller)
         controller.reloadLayoutDirection(.rightToLeft)
         let expanded = await eventually {
             collectionView.layoutIfNeeded()
@@ -110,6 +112,7 @@ struct ContentConfigurationCollectionTests {
 
         usesLongText = false
         controller.reloadLocalizedContent()
+        applyTestLayoutDirection(.leftToRight, to: controller)
         controller.reloadLayoutDirection(.leftToRight)
         let restored = await eventually {
             collectionView.layoutIfNeeded()
@@ -149,6 +152,7 @@ struct ContentConfigurationCollectionTests {
         window.isHidden = false
         defer { window.isHidden = true }
         controller.view.frame = window.bounds
+        applyTestLayoutDirection(.leftToRight, to: controller)
         controller.reloadLayoutDirection(.leftToRight)
         controller.view.layoutIfNeeded()
         let collection = try #require(
@@ -164,6 +168,7 @@ struct ContentConfigurationCollectionTests {
         ))
         #expect(initialHeader.frame.maxY <= initialCellFrame.minY)
         for direction in [UIUserInterfaceLayoutDirection.rightToLeft, .leftToRight] {
+            applyTestLayoutDirection(direction, to: controller)
             controller.reloadLayoutDirection(direction)
             controller.view.layoutIfNeeded()
             collection.layoutIfNeeded()

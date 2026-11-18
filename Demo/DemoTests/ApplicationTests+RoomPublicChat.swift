@@ -31,7 +31,7 @@ extension ApplicationTests {
     }
 
     @Test func publicChatPresentationLocalizesWithoutChangingMessageIdentity() {
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let messages = RoomPublicChatFixtures.messages
         Localization.setLocale(identifier: "zh-Hans")
         let chinese = messages.map(RoomPublicMessagePresentation.init)
@@ -159,7 +159,7 @@ extension ApplicationTests {
     @Test(arguments: [CGFloat(320), 402, 653, 768], ["zh-Hans", "ar"])
     func publicChatShortMessagesStayBelowSeatsDuringModeChanges(width: CGFloat, locale: String) async throws {
         Localization.setLocale(identifier: locale)
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let model = VoiceRoomViewModel(publicMessages: Array(RoomPublicChatFixtures.messages.prefix(1)))
         let room = VoiceRoomViewController(viewModel: model)
         let navigation = UINavigationController(rootViewController: room)
@@ -193,7 +193,7 @@ extension ApplicationTests {
 
     @Test func publicChatKeepsGlyphsUprightAcrossLanguageSwitches() async throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let room = VoiceRoomViewController()
         let window = try makeVisibleTestWindow(rootViewController: room)
         Localization.register(window: window)
@@ -223,7 +223,7 @@ extension ApplicationTests {
     @Test(arguments: ["zh-Hans", "ar"])
     func publicChatAdaptsToNarrowLargeTypeAndRTL(locale: String) async throws {
         Localization.setLocale(identifier: locale)
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let parent = UIViewController()
         let room = VoiceRoomViewController()
         parent.addChild(room)
