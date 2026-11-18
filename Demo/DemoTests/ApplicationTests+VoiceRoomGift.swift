@@ -11,7 +11,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomGiftFlowSelectsOccupiedRecipientAndCompletesFlight() async throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -508,7 +508,7 @@ extension ApplicationTests {
         UIView.setAnimationsEnabled(false)
         defer {
             UIView.setAnimationsEnabled(animationsWereEnabled)
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
         }
 
         let viewModel = VoiceRoomViewModel()
@@ -528,6 +528,7 @@ extension ApplicationTests {
             window.semanticContentAttribute = direction == .rightToLeft
                 ? .forceRightToLeft : .forceLeftToRight
             giftSheet.reloadLocalizedContent()
+            applyTestLayoutDirection(direction, to: giftSheet)
             giftSheet.reloadLayoutDirection(direction)
             giftSheet.view.setNeedsLayout()
             giftSheet.view.layoutIfNeeded()
@@ -561,7 +562,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomGiftQuantityMenuUpdatesCostBalanceAndLayout() throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -742,7 +743,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomGiftSheetFitsIPhoneSEAndCurrentFiveSeatState() async throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -837,7 +838,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomGiftRecipientListScrollsWhenUsersExceedViewport() throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let recipients = (0..<12).map { index in
             SeatAssignment(
@@ -930,7 +931,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomGiftGridExpandsColumnsInsideIPadContainer() throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -999,7 +1000,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomGiftGridUsesFiveColumnsInsideMediumContainer() throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)

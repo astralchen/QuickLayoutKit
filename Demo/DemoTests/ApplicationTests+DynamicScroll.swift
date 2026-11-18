@@ -135,6 +135,7 @@ extension ApplicationTests {
             )
         )
         viewController.loadViewIfNeeded()
+        applyTestLayoutDirection(.leftToRight, to: viewController)
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
         viewController.view.setNeedsLayout()
@@ -234,6 +235,7 @@ extension ApplicationTests {
             width: 402,
             height: 844
         )
+        applyTestLayoutDirection(.leftToRight, to: viewController)
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.setNeedsLayout()
         viewController.view.layoutIfNeeded()
@@ -275,6 +277,7 @@ extension ApplicationTests {
 
         prefix = "rtl."
         viewController.reloadLocalizedContent()
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.setNeedsLayout()
         viewController.view.layoutIfNeeded()

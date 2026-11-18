@@ -4,8 +4,7 @@ import QuickLayout
 /// 使用 QuickLayout 实现 UIKit 内容配置的基类。
 ///
 /// 使用 `UIContentConfiguration` 渲染 QuickLayout 内容时，应创建该类型的子类。
-/// 基类会在应用配置、测量、布局和附加视图前，从最近的公开复用容器恢复布局方向。
-/// 该机制能够覆盖 UIKit 插入的中间配置宿主，而无需检查或修改其私有视图层级。
+/// 内容视图保持 UIKit 原生方向继承，不在配置、测量或复用时改写语义属性。
 ///
 /// 默认由容器提供宽度、内容决定高度。UIKit 读取固有尺寸时也会通过 `sizeThatFits(_:)`
 /// 测量；约束尺寸或内容变化会使固有尺寸失效。可通过继承的双轴弹性属性配置其他尺寸策略。
@@ -16,8 +15,7 @@ open class QuickLayoutContentView: QuickLayoutView, UIContentView {
 
     /// 该内容视图表示的 UIKit 配置。
     ///
-    /// 单元格更新配置状态时，UIKit 会写入该属性。每次赋值都会先恢复复用容器的布局方向，
-    /// 再调用 ``applyContentConfiguration(_:)``。子类只需在这一边界验证具体配置类型，
+    /// 单元格更新配置状态时，UIKit 会写入该属性，并调用 ``applyContentConfiguration(_:)``。子类只需在这一边界验证具体配置类型，
     /// 从而保持与 UIKit 原生类型擦除 `UIContentView` 契约一致。
     public final var configuration: UIContentConfiguration {
         get {
@@ -25,7 +23,6 @@ open class QuickLayoutContentView: QuickLayoutView, UIContentView {
         }
         set {
             storedConfiguration = newValue
-            synchronizeConfiguredDirectionIfNeeded()
             applyContentConfiguration(newValue)
         }
     }
@@ -36,8 +33,6 @@ open class QuickLayoutContentView: QuickLayoutView, UIContentView {
     public init(configuration: UIContentConfiguration) {
         storedConfiguration = configuration
         super.init(frame: .zero)
-        quickLayoutSemanticDirectionBehavior =
-            .followEnclosingReusableView
     }
 
     /// 不支持归档初始化；请使用 `init(configuration:)` 提供初始内容配置。
@@ -122,7 +117,6 @@ open class QuickLayoutContentView: QuickLayoutView, UIContentView {
     /// 子类配置完内部视图后，应在初始化方法末尾调用一次。此后为 `configuration` 赋值时，
     /// 会自动调用同一个可重写方法。
     public final func applyCurrentContentConfiguration() {
-        synchronizeConfiguredDirectionIfNeeded()
         applyContentConfiguration(storedConfiguration)
     }
 
@@ -139,12 +133,4 @@ open class QuickLayoutContentView: QuickLayoutView, UIContentView {
         setNeedsQuickLayout()
     }
 
-    /// 按宿主方向策略恢复复用容器的有效方向，返回是否实际修改。
-    @discardableResult
-    private func synchronizeConfiguredDirectionIfNeeded() -> Bool {
-        synchronizeQuickLayoutSemanticDirectionIfNeeded(
-            for: self,
-            behavior: quickLayoutSemanticDirectionBehavior
-        )
-    }
 }

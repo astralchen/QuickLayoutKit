@@ -20,22 +20,10 @@ final class SwiftUILocalizationBridgeViewController: LocalizedViewController {
         installHostedViewIfNeeded()
     }
 
-    override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
-        super.reloadLayoutDirection(direction)
-        guard let hostingController else { return }
-        // SwiftUI 文案和布局由观察到的本地化环境更新，UIKit 只同步宿主视图边界。
-        UIViewLayoutDirectionUpdater.apply(
-            Localization.currentUIKitUpdate,
-            to: [UIViewLayoutDirectionTarget(
-                hostingController.view,
-                policy: .fixed(direction.appLayoutDirection.semanticContentAttribute)
-            )]
-        )
-    }
+
 
     private func installHostedViewIfNeeded() {
         guard hostingController == nil else { return }
-        let update = Localization.currentUIKitUpdate
         let root = AnyView(
             SwiftUILocalizationBridgeView(
                 localizationController: Localization.localizationController,
@@ -45,15 +33,6 @@ final class SwiftUILocalizationBridgeViewController: LocalizedViewController {
         )
 
         let hostingController = UIHostingController(rootView: root)
-        UIViewLayoutDirectionUpdater.apply(
-            update,
-            to: [
-                UIViewLayoutDirectionTarget(
-                    hostingController.view,
-                    policy: .followApplication
-                )
-            ]
-        )
         addChild(hostingController)
         hostingController.view.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(hostingController.view)

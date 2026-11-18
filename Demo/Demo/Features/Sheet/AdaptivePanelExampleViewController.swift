@@ -10,12 +10,12 @@ final class AdaptivePanelExampleViewController: LocalizedQuickLayoutHostingContr
     private let placementControl = UISegmentedControl(items: ["automatic", "leading", "center", "trailing"])
     private let expandSwitch = UISwitch()
     private let dimSwitch = UISwitch()
-    private let expandLabel = UILabel()
-    private let dimLabel = UILabel()
-    private let openButton = UIButton(type: .system)
-    private let backgroundButton = UIButton(type: .system)
-    private let metrics = UILabel()
-    private let pose = UILabel()
+    private let expandLabel = LocalizedLabel()
+    private let dimLabel = LocalizedLabel()
+    private let openButton = LocalizedButton(type: .system)
+    private let backgroundButton = LocalizedButton(type: .system)
+    private let metrics = LocalizedLabel()
+    private let pose = LocalizedLabel()
     private let scroll = QuickLayoutScrollView()
     private var panel: AdaptivePanelController?
     private var nativeContent: AdaptivePanelExampleContent?
@@ -313,9 +313,9 @@ final class AdaptivePanelExampleViewController: LocalizedQuickLayoutHostingContr
 /// 两个宿主共用这份内容，包含输入、滚动、选择和关闭操作。
 final class AdaptivePanelExampleContent: QuickLayoutHostingController, UITableViewDataSource, UITableViewDelegate {
     let tableView = UITableView()
-    private let field = UITextField()
-    private let closeButton = UIButton(type: .system)
-    private let diagnostics = UILabel()
+    private let field = LocalizedTextField()
+    private let closeButton = LocalizedButton(type: .system)
+    private let diagnostics = LocalizedLabel()
     var onClose: (() -> Void)?
     var onLayout: (() -> Void)?
 

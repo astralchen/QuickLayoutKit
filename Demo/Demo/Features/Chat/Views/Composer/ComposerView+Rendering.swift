@@ -120,7 +120,7 @@ extension ComposerView {
                 textView.textStorage.setAttributedString(body)
             }
             isApplyingTranscription = false
-            inputBinding.refresh()
+
             updateTextHeight()
             // 只报告已写入编辑器的听写结果，麦克风会话和录音计时不参与持久化。
             draftDidChange?()
@@ -177,25 +177,9 @@ extension ComposerView {
         }
     }
 
-    /// 应用输入栏所有控件所使用的语义方向。
+    /// 方向环境改变后重新测量离屏文本附件，输入控件保持原生继承。
     func applyLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
-        let semanticAttribute = direction.appLayoutDirection
-            .semanticContentAttribute
-        semanticContentAttribute = semanticAttribute
-        attachmentGlassView.semanticContentAttribute = semanticAttribute
-        inputGlassView.semanticContentAttribute = semanticAttribute
-        textActionContainer.semanticContentAttribute = semanticAttribute
-        recordingGlassView.semanticContentAttribute = semanticAttribute
-        previewGlassView.semanticContentAttribute = semanticAttribute
-        audioCancelGlassView.semanticContentAttribute = semanticAttribute
-        previewDurationContainer.semanticContentAttribute = semanticAttribute
-        mediaDraftStripView.semanticContentAttribute = semanticAttribute
-        mediaDraftSeparatorView.semanticContentAttribute = semanticAttribute
-        textView.semanticContentAttribute = semanticAttribute
-        inputBinding.refresh()
-        placeholderLabel.semanticContentAttribute = semanticAttribute
         placeholderLabel.textAlignment = textView.textAlignment
-        recordingUnavailableLabel.semanticContentAttribute = semanticAttribute
         refreshTextAttachments()
         setNeedsQuickLayout()
     }

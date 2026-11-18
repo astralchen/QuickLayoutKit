@@ -5,6 +5,8 @@ public extension Element {
 
     /// 将元素的中心放置在父元素所建议空间内的指定点。
     ///
+    /// 对齐 SwiftUI：水平坐标从布局前缘计算，RTL 时由布局系统自动镜像。
+    ///
     /// - Parameter position: 元素中心在父元素坐标空间中的位置。
     /// - Returns: 中心位于指定位置的元素。
     func position(_ position: CGPoint) -> Element & Layout {
@@ -14,7 +16,7 @@ public extension Element {
     /// 将元素的中心放置在父元素所建议空间内的指定坐标。
     ///
     /// - Parameters:
-    ///   - x: 元素中心的水平坐标。
+    ///   - x: 元素中心相对于布局前缘的水平坐标。
     ///   - y: 元素中心的垂直坐标。
     /// - Returns: 中心位于指定坐标的元素。
     func position(x: CGFloat, y: CGFloat) -> Element & Layout {
@@ -41,12 +43,12 @@ enum _ZIndexLayoutValueKey: LayoutValueKey {
     static let defaultValue: Double = 0
 }
 
-/// 以物理中心坐标放置理想尺寸内容的包装器。
+/// 按布局方向解析中心坐标、放置理想尺寸内容的包装器。
 private struct PositionElement: Layout, _LayoutValueProvidingElement {
 
     /// 被当前修饰元素包装的布局内容。
     let child: Element
-    /// 子元素中心在父布局建议空间中的物理坐标。
+    /// 子元素中心在父布局建议空间中的逻辑坐标。
     let position: CGPoint
 
     /// 继续向内查询自定义布局值时访问的子元素。
@@ -55,7 +57,7 @@ private struct PositionElement: Layout, _LayoutValueProvidingElement {
     /// 本层不提供布局值，交由查询器继续访问子元素。
     func _layoutValue(for key: ObjectIdentifier) -> _AnyLayoutValue? { nil }
 
-    /// 测量理想尺寸，解析有限容器空间，再补偿布局方向放置内容。
+    /// 测量理想尺寸并解析有限容器空间，沿用布局系统的方向性放置。
     func quick_layoutThatFits(_ proposedSize: CGSize) -> LayoutNode {
         let childLayout = child.quick_layoutThatFits(
             ProposedSize.unspecified.quickLayoutProposal
@@ -162,25 +164,17 @@ private struct PositionPrecomputedLayoutElement: Layout {
     func quick_extractViewsIntoArray(_ views: inout [UIView]) {}
 }
 
-/// 将物理原点转换为方向性偏移，并用固定容器维持外层尺寸。
+/// 以方向性偏移放置逻辑原点，并用固定容器维持外层尺寸。
 private func positionedPositionElement(
     _ layout: LayoutNode,
     at origin: CGPoint,
     in containerSize: CGSize
 ) -> Element & Layout {
-    let horizontalOffset: CGFloat
-    if LayoutContext.layoutDirection == .rightToLeft {
-        let leadingOrigin = containerSize.width - layout.size.width
-        horizontalOffset = leadingOrigin - origin.x
-    } else {
-        horizontalOffset = origin.x
-    }
-
     let offsetChild = OffsetElement(
         child: PositionPrecomputedLayoutElement(layout: layout),
-        offset: CGPoint(x: horizontalOffset, y: origin.y)
+        offset: origin
     )
-        // 避免外层固定框架解析顶部前缘对齐时，子元素的对齐参考线改变此处的物理位置。
+        // 避免外层固定框架解析顶部前缘对齐时，子元素的对齐参考线改变此处的中心位置。
         .defaultPlacementGuides()
 
     let positionedChild = FixedFrameElement(
@@ -190,7 +184,7 @@ private func positionedPositionElement(
         alignment: .topLeading
     )
     return positionedChild
-        // 按父元素的布局方向解析包装层参考线，避免局部布局方向覆盖向外泄漏物理补偿。
+        // 按父元素的布局方向解析包装层参考线，避免局部布局方向覆盖影响外层放置。
         .defaultPlacementGuides()
 }
 

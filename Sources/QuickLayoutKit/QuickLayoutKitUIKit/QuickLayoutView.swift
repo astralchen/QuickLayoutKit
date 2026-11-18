@@ -102,29 +102,10 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         }
     }
 
-    /// 宿主在附加、布局和测量时采用的语义方向策略。
-    ///
-    /// 默认值 `.preserve` 会保留局部播放或空间语义。对于可从层级中移除且重新附加时
-    /// 必须恢复容器最新方向的应用内容宿主，应使用 `.followEnclosingContainer`。
-    open var quickLayoutSemanticDirectionBehavior:
-        QuickLayoutSemanticDirectionBehavior = .preserve {
-        didSet {
-            guard quickLayoutSemanticDirectionBehavior != oldValue else {
-                return
-            }
-            synchronizeQuickLayoutSemanticDirectionIfNeeded(
-                for: self,
-                behavior: quickLayoutSemanticDirectionBehavior
-            )
-            quickLayoutEnvironmentState.update(self)
-            setNeedsQuickLayout()
-        }
-    }
 
     /// 用于解析宿主布局方向的语义角色。
     ///
-    /// 应用内切换语言时通常会直接更新该属性。属性变化会立即发布新的有效方向并使宿主内容
-    /// 失效，而不等待后续特征或布局回调。
+    /// 显式局部语义变化会立即发布有效方向并使内容失效；普通内容保持 `.unspecified`。
     open override var semanticContentAttribute: UISemanticContentAttribute {
         didSet {
             guard semanticContentAttribute != oldValue else { return }
@@ -171,15 +152,11 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         QuickLayoutSafeAreaBodyBridge.willMove(self, toWindow: newWindow)
     }
 
-    /// 刷新键盘状态，并在进入窗口后同步容器方向与环境。
+    /// 刷新键盘状态，并在进入窗口后读取有效方向与环境。
     open override func didMoveToWindow() {
         super.didMoveToWindow()
         updateKeyboardSafeAreaObservation()
         guard window != nil else { return }
-        synchronizeQuickLayoutSemanticDirectionIfNeeded(
-            for: self,
-            behavior: quickLayoutSemanticDirectionBehavior
-        )
         quickLayoutEnvironmentState.update(self)
     }
 
@@ -208,12 +185,8 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         quickLayoutEnvironmentState.update(self, explicitReason: .layoutMargins)
     }
 
-    /// 同步方向、键盘与环境后，在状态和容器作用域中应用 `body` 布局。
+    /// 读取有效方向、键盘与环境后，在状态和容器作用域中应用 `body` 布局。
     open override func layoutSubviews() {
-        synchronizeQuickLayoutSemanticDirectionIfNeeded(
-            for: self,
-            behavior: quickLayoutSemanticDirectionBehavior
-        )
         super.layoutSubviews()
         updateKeyboardSafeAreaObservation()
         quickLayoutEnvironmentState.update(self)
@@ -255,13 +228,9 @@ open class QuickLayoutView: UIView, HasBody, QuickLayoutUpdating, QuickLayoutEnv
         }
     }
 
-    /// 同步最新方向和键盘上下文后测量内容；无法获得 QuickLayout 尺寸时使用父类结果。
+    /// 读取有效方向和键盘上下文后测量内容；无法获得 QuickLayout 尺寸时使用父类结果。
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
         // 切换区域设置或布局方向后，自适应尺寸可能先于下一次布局执行，因此测量必须读取最新环境。
-        synchronizeQuickLayoutSemanticDirectionIfNeeded(
-            for: self,
-            behavior: quickLayoutSemanticDirectionBehavior
-        )
         quickLayoutEnvironmentState.update(self)
         return withQuickLayoutManagedViewState {
             keyboardSafeAreaCoordinator?.refresh()

@@ -104,6 +104,8 @@ private final class ArrangementPane: QuickLayoutView, ArrangementContextSource {
         }
         return resizable().frame(width: frame.width, height: frame.height)
             .position(x: frame.midX, y: frame.midY)
+            // placement 已按 UIKit 物理区域及 RTL 解析；这里只放置宿主，内容仍原生继承方向。
+            .layoutDirection(.leftToRight)
     }
 
     override func layoutSubviews() {

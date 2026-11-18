@@ -16,8 +16,8 @@ import Combine
 @QuickLayout
 class FormHeaderView: UIView {
 
-    let titleLabel = UILabel()
-    let subtitleLabel = UILabel()
+    let titleLabel = LocalizedLabel()
+    let subtitleLabel = LocalizedLabel()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -45,15 +45,7 @@ class FormHeaderView: UIView {
         setNeedsLayout()
     }
 
-    func applySemanticContentAttribute(
-        _ semanticContentAttribute: UISemanticContentAttribute
-    ) {
-        self.semanticContentAttribute = semanticContentAttribute
-        [titleLabel, subtitleLabel].forEach {
-            $0.semanticContentAttribute = semanticContentAttribute
-        }
-        setNeedsLayout()
-    }
+
 
     var body: Layout {
         VStack(spacing: 4) {
@@ -99,15 +91,7 @@ class FormFieldView: UIView {
         setNeedsLayout()
     }
 
-    func applySemanticContentAttribute(
-        _ semanticContentAttribute: UISemanticContentAttribute
-    ) {
-        self.semanticContentAttribute = semanticContentAttribute
-        [textField, iconView, containerView].forEach {
-            $0.semanticContentAttribute = semanticContentAttribute
-        }
-        setNeedsLayout()
-    }
+
 
     var body: Layout {
         ZStack {
@@ -132,7 +116,7 @@ class FormFieldView: UIView {
 @QuickLayout
 class NotesFieldView: UIView {
 
-    let label = UILabel()
+    let label = LocalizedLabel()
     let textView: UITextView
 
     init(textView: UITextView) {
@@ -155,15 +139,7 @@ class NotesFieldView: UIView {
         setNeedsLayout()
     }
 
-    func applySemanticContentAttribute(
-        _ semanticContentAttribute: UISemanticContentAttribute
-    ) {
-        self.semanticContentAttribute = semanticContentAttribute
-        [label, textView].forEach {
-            $0.semanticContentAttribute = semanticContentAttribute
-        }
-        setNeedsLayout()
-    }
+
 
     var body: Layout {
         VStack(spacing: 8) {
@@ -193,15 +169,11 @@ class ScrollViewWithKeyboardViewController: LocalizedQuickLayoutHostingControlle
     // 界面组件
     let headerView = FormHeaderView()
 
-    let nameTextField = UITextField()
-    let emailTextField = UITextField()
-    let phoneTextField = UITextField()
-    let addressTextField = UITextField()
+    let nameTextField = LocalizedTextField()
+    let emailTextField = LocalizedTextField()
+    let phoneTextField = LocalizedTextField()
+    let addressTextField = LocalizedTextField()
     let notesTextView = UITextView()
-    private lazy var inputContext = Localization.inputContext(for: view)
-    private lazy var inputBindings = [nameTextField, emailTextField, phoneTextField, addressTextField]
-        .map { inputContext.makeTextInputBinding(to: $0) }
-        + [inputContext.makeTextInputBinding(to: notesTextView)]
 
     let customInputButton: UIButton = {
         var configuration = UIButton.Configuration.tinted()
@@ -209,7 +181,7 @@ class ScrollViewWithKeyboardViewController: LocalizedQuickLayoutHostingControlle
         configuration.image = UIImage(systemName: "keyboard.badge.eye")
         configuration.imagePlacement = .leading
         configuration.imagePadding = 8
-        return UIButton(configuration: configuration)
+        return LocalizedButton(configuration: configuration)
     }()
     let submitButton: UIButton = {
         var configuration = UIButton.Configuration.filled()
@@ -225,7 +197,7 @@ class ScrollViewWithKeyboardViewController: LocalizedQuickLayoutHostingControlle
         configuration.image = UIImage(systemName: "checkmark.circle.fill")
         configuration.imagePlacement = .leading
         configuration.imagePadding = 8
-        return UIButton(configuration: configuration)
+        return LocalizedButton(configuration: configuration)
     }()
 
     // 表单字段视图
@@ -351,29 +323,9 @@ class ScrollViewWithKeyboardViewController: LocalizedQuickLayoutHostingControlle
 
     override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
         super.reloadLayoutDirection(direction)
-        let attribute = view.semanticContentAttribute
-
-        scrollView.semanticContentAttribute = attribute
-        headerView.applySemanticContentAttribute(attribute)
-        [
-            nameFieldView,
-            emailFieldView,
-            phoneFieldView,
-            addressFieldView,
-        ].forEach {
-            $0.applySemanticContentAttribute(attribute)
-        }
-        notesFieldView.applySemanticContentAttribute(attribute)
-
-        // 重新应用配置，刷新 UIButton.Configuration 内部的图文排列。
         [customInputButton, submitButton].forEach {
-            $0.semanticContentAttribute = attribute
-            if let configuration = $0.configuration {
-                $0.configuration = configuration
-            }
             $0.setNeedsLayout()
         }
-        inputBindings.forEach { $0.refresh() }
 
         scrollView.setNeedsLayout()
         setNeedsQuickLayout()
@@ -505,11 +457,11 @@ class ScrollViewWithKeyboardViewController: LocalizedQuickLayoutHostingControlle
 
     private func focus(_ field: FormViewModel.Field) {
         switch field {
-        case .name: nameTextField.becomeFirstResponder()
-        case .email: emailTextField.becomeFirstResponder()
-        case .phone: phoneTextField.becomeFirstResponder()
-        case .address: addressTextField.becomeFirstResponder()
-        case .notes: notesTextView.becomeFirstResponder()
+        case .name: _ = nameTextField.becomeFirstResponder()
+        case .email: _ = emailTextField.becomeFirstResponder()
+        case .phone: _ = phoneTextField.becomeFirstResponder()
+        case .address: _ = addressTextField.becomeFirstResponder()
+        case .notes: _ = notesTextView.becomeFirstResponder()
         }
     }
 }

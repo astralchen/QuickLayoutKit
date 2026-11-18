@@ -27,6 +27,7 @@ extension ApplicationTests {
             size: CGSize(width: 320, height: 260)
         )
         defer { window.isHidden = true }
+        applyTestLayoutDirection(.leftToRight, to: viewController)
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
 
@@ -76,11 +77,11 @@ extension ApplicationTests {
         )
 
         #expect(titleLabel.text == "ltr.contentConfiguration.sample.title.1")
-        #expect(tableView.semanticContentAttribute == .forceLeftToRight)
+        #expect(tableView.semanticContentAttribute == .unspecified)
         #expect(
             tableView.effectiveUserInterfaceLayoutDirection == .leftToRight
         )
-        #expect(contentView.semanticContentAttribute == .forceLeftToRight)
+        #expect(contentView.semanticContentAttribute == .unspecified)
         #expect(
             cell.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
@@ -94,7 +95,7 @@ extension ApplicationTests {
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
         #expect(ltrIconFrame.midX < ltrTitleFrame.midX)
-        #expect(headerContent.semanticContentAttribute == .forceLeftToRight)
+        #expect(headerContent.semanticContentAttribute == .unspecified)
         #expect(
             header.contentView.bounds.insetBy(dx: -1, dy: -1)
                 .contains(headerContent.frame)
@@ -153,7 +154,7 @@ extension ApplicationTests {
             to: footerContent
         )
 
-        #expect(footerContent.semanticContentAttribute == .forceLeftToRight)
+        #expect(footerContent.semanticContentAttribute == .unspecified)
         #expect(
             footer.contentView.bounds.insetBy(dx: -1, dy: -1)
                 .contains(footerContent.frame)
@@ -191,6 +192,8 @@ extension ApplicationTests {
             animated: false
         )
         tableView.layoutIfNeeded()
+
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
 
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.layoutIfNeeded()
@@ -235,11 +238,11 @@ extension ApplicationTests {
             to: rtlHeaderContent
         )
 
-        #expect(tableView.semanticContentAttribute == .forceRightToLeft)
+        #expect(tableView.semanticContentAttribute == .unspecified)
         #expect(
             tableView.effectiveUserInterfaceLayoutDirection == .rightToLeft
         )
-        #expect(rtlContentView.semanticContentAttribute == .forceRightToLeft)
+        #expect(rtlContentView.semanticContentAttribute == .unspecified)
         #expect(
             rtlCell.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
@@ -267,7 +270,7 @@ extension ApplicationTests {
                 in: rtlContentView.bounds.width
             )
         )
-        #expect(rtlHeaderContent.semanticContentAttribute == .forceRightToLeft)
+        #expect(rtlHeaderContent.semanticContentAttribute == .unspecified)
         #expect(
             rtlHeader.contentView.bounds.insetBy(dx: -1, dy: -1)
                 .contains(rtlHeaderContent.frame)
@@ -319,6 +322,8 @@ extension ApplicationTests {
             )
         )
 
+        applyTestLayoutDirection(.leftToRight, to: viewController)
+
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
         tableView.layoutIfNeeded()
@@ -356,11 +361,11 @@ extension ApplicationTests {
             to: returnedHeaderContent
         )
 
-        #expect(tableView.semanticContentAttribute == .forceLeftToRight)
+        #expect(tableView.semanticContentAttribute == .unspecified)
         #expect(
             tableView.effectiveUserInterfaceLayoutDirection == .leftToRight
         )
-        #expect(returnedContent.semanticContentAttribute == .forceLeftToRight)
+        #expect(returnedContent.semanticContentAttribute == .unspecified)
         #expect(
             returnedCell.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
@@ -369,7 +374,7 @@ extension ApplicationTests {
             returnedContent.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
-        #expect(returnedHeaderContent.semanticContentAttribute == .forceLeftToRight)
+        #expect(returnedHeaderContent.semanticContentAttribute == .unspecified)
         #expect(
             returnedHeader.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
@@ -409,6 +414,7 @@ extension ApplicationTests {
 
         prefix = "rtl."
         viewController.reloadLocalizedContent()
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
         viewController.reloadLayoutDirection(.rightToLeft)
         let localizedContentDidApply = await waitForCondition {
             guard
@@ -461,11 +467,11 @@ extension ApplicationTests {
         )
 
         #expect(localizedContent.titleLabel.text == "rtl.contentConfiguration.sample.title.1")
-        #expect(tableView.semanticContentAttribute == .forceRightToLeft)
+        #expect(tableView.semanticContentAttribute == .unspecified)
         #expect(
             tableView.effectiveUserInterfaceLayoutDirection == .rightToLeft
         )
-        #expect(localizedContent.semanticContentAttribute == .forceRightToLeft)
+        #expect(localizedContent.semanticContentAttribute == .unspecified)
         #expect(
             localizedCell.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
@@ -474,7 +480,7 @@ extension ApplicationTests {
             localizedContent.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
-        #expect(localizedHeaderContent.semanticContentAttribute == .forceRightToLeft)
+        #expect(localizedHeaderContent.semanticContentAttribute == .unspecified)
         #expect(
             localizedHeader.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
@@ -548,7 +554,7 @@ extension ApplicationTests {
         )
 
         #expect(newlyVisibleContent.titleLabel.text == "rtl.contentConfiguration.sample.title.4")
-        #expect(newlyVisibleContent.semanticContentAttribute == .forceRightToLeft)
+        #expect(newlyVisibleContent.semanticContentAttribute == .unspecified)
         #expect(
             newlyVisibleCell.effectiveUserInterfaceLayoutDirection
                 == tableView.effectiveUserInterfaceLayoutDirection
@@ -562,7 +568,7 @@ extension ApplicationTests {
                 == tableView.effectiveUserInterfaceLayoutDirection
         )
         #expect(newIconFrame.midX > newTitleFrame.midX)
-        #expect(rtlFooterContent.semanticContentAttribute == .forceRightToLeft)
+        #expect(rtlFooterContent.semanticContentAttribute == .unspecified)
         #expect(
             rtlFooter.contentView.bounds.insetBy(dx: -1, dy: -1)
                 .contains(rtlFooterContent.frame)
@@ -646,10 +652,10 @@ extension ApplicationTests {
                 verticalFittingPriority: .fittingSizeLevel
             )
 
-        #expect(tableView.semanticContentAttribute == .forceRightToLeft)
+        #expect(tableView.semanticContentAttribute == .unspecified)
         #expect(
             returnedRTLHeaderContent.semanticContentAttribute
-                == .forceRightToLeft
+                == .unspecified
         )
         #expect(
             returnedRTLHeader.effectiveUserInterfaceLayoutDirection

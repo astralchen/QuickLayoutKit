@@ -7,6 +7,65 @@ import UIKit
 @MainActor
 @Suite(.serialized)
 struct ContainerRelativeFrameParityTests {
+    @Test func positionMatchesSwiftUILayoutDirection() async {
+        for width: CGFloat in [300, 600] {
+            for rtl in [false, true] {
+                for localRTL in [false, true] {
+                    for pointOverload in [false, true] {
+                        let reference = UIView()
+                        let actual = UIView()
+                        let leaf = RelativeFrameProbe(view: reference)
+                            .frame(width: 40, height: 20)
+                            .alignmentGuide(.leading) { _ in 7 }
+                            .alignmentGuide(.top) { _ in 3 }
+                        let positioned = pointOverload
+                            ? AnyView(leaf.position(CGPoint(x: 60, y: 54)))
+                            : AnyView(leaf.position(x: 60, y: 54))
+                        let host = UIHostingController(rootView: positioned
+                            .environment(\.layoutDirection, localRTL ? .rightToLeft : .leftToRight)
+                            .environment(\.layoutDirection, rtl ? .rightToLeft : .leftToRight)
+                        )
+                        host.safeAreaRegions = []
+                        let controller = UIViewController()
+                        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 800, height: 800))
+                        window.rootViewController = controller
+                        window.isHidden = false
+                        controller.addChild(host)
+                        controller.view.addSubview(host.view)
+                        host.didMove(toParent: controller)
+                        defer { window.isHidden = true }
+                        host.view.frame = CGRect(x: 0, y: 100, width: width, height: 200)
+                        for _ in 0..<5 {
+                            host.view.setNeedsLayout()
+                            host.view.layoutIfNeeded()
+                            try? await Task.sleep(for: .milliseconds(20))
+                        }
+                        let nativeFrame = reference.convert(reference.bounds, to: host.view)
+                        let actualLeaf = actual.frame(width: 40, height: 20)
+                            .alignmentGuide(.leading) { _ in 7 }
+                            .alignmentGuide(.top) { _ in 3 }
+                        let actualPositioned: any QuickLayout.Layout = pointOverload
+                            ? actualLeaf.position(CGPoint(x: 60, y: 54))
+                            : actualLeaf.position(x: 60, y: 54)
+                        actualPositioned
+                            .layoutDirection(localRTL ? .rightToLeft : .leftToRight)
+                            .applyFrame(
+                                CGRect(x: 0, y: 0, width: width, height: 200),
+                                alignment: .topLeading,
+                                layoutDirection: rtl ? .rightToLeft : .leftToRight
+                            )
+                        print("POSITION-PARITY width=\(width) rtl=\(rtl) localRTL=\(localRTL) point=\(pointOverload) SwiftUI=\(nativeFrame) QuickLayoutKit=\(actual.frame)")
+                        #expect(reference.superview != nil)
+                        #expect(abs(actual.frame.minX - nativeFrame.minX) < 0.5)
+                        #expect(abs(actual.frame.minY - nativeFrame.minY) < 0.5)
+                        #expect(abs(actual.frame.width - nativeFrame.width) < 0.5)
+                        #expect(abs(actual.frame.height - nativeFrame.height) < 0.5)
+                    }
+                }
+            }
+        }
+    }
+
     @Test func nearestContainersAndNestedScrollsMatchSwiftUI() async {
         await compareModes(0..<8)
         await compareModes(29..<31)
@@ -197,7 +256,7 @@ struct ContainerRelativeFrameParityTests {
         let actualHost = RelativeFrameHost {
             actualRoot.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        actualHost.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
+        applyTestLayoutDirection(rtl ? .rightToLeft : .leftToRight, to: actualHost)
         let controller = UIViewController()
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 800, height: 800))
         window.rootViewController = controller
@@ -309,7 +368,7 @@ extension ContainerRelativeFrameParityTests {
 private final class RelativeFrameScroll: QuickLayoutScrollView {
     override init(frame: CGRect) {
         super.init(frame: frame)
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }

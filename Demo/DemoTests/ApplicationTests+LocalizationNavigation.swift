@@ -11,7 +11,7 @@ extension ApplicationTests {
 
     @Test func arabicDiagnosticScreensRenderLocalizedText() throws {
         Localization.setLocale(identifier: "ar")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let navigation = DirectionalNavigationViewController()
         let navigationHost = UINavigationController(rootViewController: navigation)
@@ -78,36 +78,36 @@ extension ApplicationTests {
         #expect(!destination.navigationItem.hidesBackButton)
     }
 
-    @Test func localizationChangeSeparatesLocaleAndDirectionReasons() {
-        let leftToRightChange = LocalizationChange(
-            previous: LocalizationSnapshot(
-                locale: .englishUS,
+    @Test func localizationUpdateSeparatesContentAndDirectionChanges() {
+        let leftToRightChange = LocalizationUpdate(
+            snapshot: LocalizationSnapshot(
+                locale: AppLocale(identifier: "zh-Hans"),
                 followsSystemLocale: false,
                 revision: 0
             ),
-            current: LocalizationSnapshot(
-                locale: .simplifiedChinese,
+            previousSnapshot: LocalizationSnapshot(
+                locale: AppLocale(identifier: "en"),
                 followsSystemLocale: false,
                 revision: 1
             )
         )
-        let rightToLeftChange = LocalizationChange(
-            previous: LocalizationSnapshot(
-                locale: .englishUS,
+        let rightToLeftChange = LocalizationUpdate(
+            snapshot: LocalizationSnapshot(
+                locale: AppLocale(identifier: "ar"),
                 followsSystemLocale: false,
                 revision: 0
             ),
-            current: LocalizationSnapshot(
-                locale: .arabic,
+            previousSnapshot: LocalizationSnapshot(
+                locale: AppLocale(identifier: "en"),
                 followsSystemLocale: false,
                 revision: 1
             )
         )
 
-        #expect(leftToRightChange.localeChanged)
-        #expect(!leftToRightChange.layoutDirectionChanged)
-        #expect(rightToLeftChange.localeChanged)
-        #expect(rightToLeftChange.layoutDirectionChanged)
+        #expect(leftToRightChange.requiresLocalizedContentRefresh)
+        #expect(!leftToRightChange.requiresLayoutDirectionRefresh)
+        #expect(rightToLeftChange.requiresLocalizedContentRefresh)
+        #expect(rightToLeftChange.requiresLayoutDirectionRefresh)
     }
 
     /// 真实按钮位置由 TabLocalizationUITests 验证；此处只访问公开的导航项状态。
@@ -120,7 +120,7 @@ extension ApplicationTests {
         )
         defer {
             window.isHidden = true
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
         }
         Localization.setLocale(identifier: "zh-Hans")
         Localization.installLanguageMenu(on: viewController)
@@ -140,8 +140,8 @@ extension ApplicationTests {
         }
     }
 
-    @Test func plainNavigationPreviewReceivesLanguageMenuSelections() async throws {
-        Localization.setLocale(identifier: "en-US")
+    @Test func registeredNavigationPreviewReceivesLanguageMenuSelections() async throws {
+        Localization.setLocale(identifier: "en")
 
         let profileViewController = ProfileViewController()
         let navigationController = UINavigationController(
@@ -155,18 +155,19 @@ extension ApplicationTests {
         defer {
             Localization.unregister(window: window)
             window.isHidden = true
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
         }
 
         #expect(profileViewController.title == "Profile")
+        Localization.register(window: window)
 
         Localization.setLocale(identifier: "ar")
         let appliedArabic = await waitForCondition {
             profileViewController.title
                 == Localization.text("demo.profile.title")
-                && window.semanticContentAttribute == .forceRightToLeft
-                && profileViewController.view.semanticContentAttribute
-                    == .forceRightToLeft
+                && window.effectiveUserInterfaceLayoutDirection == .rightToLeft
+                && profileViewController.view.effectiveUserInterfaceLayoutDirection
+                    == .rightToLeft
         }
         #expect(appliedArabic)
 
@@ -174,9 +175,9 @@ extension ApplicationTests {
         let appliedChinese = await waitForCondition {
             profileViewController.title
                 == Localization.text("demo.profile.title")
-                && window.semanticContentAttribute == .forceLeftToRight
-                && profileViewController.view.semanticContentAttribute
-                    == .forceLeftToRight
+                && window.effectiveUserInterfaceLayoutDirection == .leftToRight
+                && profileViewController.view.effectiveUserInterfaceLayoutDirection
+                    == .leftToRight
         }
         #expect(appliedChinese)
     }
@@ -193,16 +194,9 @@ extension ApplicationTests {
         inheritedContainer.addSubview(inheritedLabel)
         rootViewController.view.addSubview(inheritedContainer)
         window.semanticContentAttribute = .forceRightToLeft
-        UIViewLayoutDirectionUpdater.apply(
-            Localization.layoutDirectionUpdate(.rightToLeft),
-            to: [rootViewController.view, inheritedContainer, inheritedLabel]
-                .map {
-                    UIViewLayoutDirectionTarget(
-                        $0,
-                        policy: .followApplication
-                    )
-                }
-        )
+        [rootViewController.view, inheritedContainer, inheritedLabel].forEach {
+            $0.semanticContentAttribute = .forceRightToLeft
+        }
         window.layoutIfNeeded()
 
         #expect(window.semanticContentAttribute == .forceRightToLeft)
@@ -215,16 +209,9 @@ extension ApplicationTests {
         )
 
         window.semanticContentAttribute = .forceLeftToRight
-        UIViewLayoutDirectionUpdater.apply(
-            Localization.layoutDirectionUpdate(.leftToRight),
-            to: [rootViewController.view, inheritedContainer, inheritedLabel]
-                .map {
-                    UIViewLayoutDirectionTarget(
-                        $0,
-                        policy: .followApplication
-                    )
-                }
-        )
+        [rootViewController.view, inheritedContainer, inheritedLabel].forEach {
+            $0.semanticContentAttribute = .forceLeftToRight
+        }
         window.layoutIfNeeded()
 
         #expect(window.semanticContentAttribute == .forceLeftToRight)

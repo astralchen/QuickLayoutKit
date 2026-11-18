@@ -107,6 +107,7 @@ extension ApplicationTests {
         }
 
         window.semanticContentAttribute = .forceRightToLeft
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
         viewController.reloadLayoutDirection(.rightToLeft)
         navigationController.view.layoutIfNeeded()
         viewController.view.layoutIfNeeded()
@@ -130,13 +131,15 @@ extension ApplicationTests {
         )
         #expect(
             viewController.weeklyProgressView.semanticContentAttribute
-                == .forceLeftToRight
+                == .unspecified
         )
-        #expect(viewController.weeklyProgressView.transform.a == -1)
+        #expect(viewController.weeklyProgressView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
+        #expect(viewController.weeklyProgressView.transform == .identity)
         #expect(viewController.weeklyProgressView.transform.d == 1)
         #expect(rtlMetricFrames[0].minX > rtlMetricFrames[2].minX)
 
         window.semanticContentAttribute = .forceLeftToRight
+        applyTestLayoutDirection(.leftToRight, to: viewController)
         viewController.reloadLayoutDirection(.leftToRight)
         navigationController.view.layoutIfNeeded()
         viewController.view.layoutIfNeeded()
@@ -160,7 +163,7 @@ extension ApplicationTests {
         )
         #expect(
             viewController.weeklyProgressView.semanticContentAttribute
-                == .forceLeftToRight
+                == .unspecified
         )
         #expect(viewController.weeklyProgressView.transform == .identity)
         #expect(ltrMetricFrames[0].minX < ltrMetricFrames[2].minX)

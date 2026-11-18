@@ -157,10 +157,10 @@ open class QuickLayoutLinearGradientView: UIView {
         _ previousTraitCollection: UITraitCollection?
     ) {
         super.traitCollectionDidChange(previousTraitCollection)
-        guard previousTraitCollection?.hasDifferentColorAppearance(
-            comparedTo: traitCollection
-        ) != false else { return }
-        updateGradient()
+        if previousTraitCollection?.hasDifferentColorAppearance(comparedTo: traitCollection) != false {
+            updateGradient()
+        }
+        // 单独的方向变化不属于颜色外观变化，同样必须更新图层端点。
         updateResolvedPoints()
     }
 

@@ -261,41 +261,7 @@ struct QuickLayoutKitTests {
         #expect(button.backgroundColor == nil)
     }
 
-    @MainActor
-    @Test func quickLayoutButtonRestoresDirectionAfterReattachment() {
-        let first = UIView()
-        let second = UIView()
-        let button = QuickLayoutButton(action: {}) {
-            HStack(spacing: 8) {
-                first.frame(width: 20, height: 20)
-                second.frame(width: 20, height: 20)
-            }
-        }
-        button.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
 
-        let container = UIView(
-            frame: CGRect(x: 0, y: 0, width: 120, height: 44)
-        )
-        container.semanticContentAttribute = .forceLeftToRight
-        container.addSubview(button)
-        button.frame = container.bounds
-        button.setNeedsLayout()
-        button.layoutIfNeeded()
-
-        #expect(button.semanticContentAttribute == .forceLeftToRight)
-        #expect(first.frame.minX < second.frame.minX)
-
-        button.removeFromSuperview()
-        container.semanticContentAttribute = .forceRightToLeft
-        container.addSubview(button)
-        _ = button.sizeThatFits(container.bounds.size)
-        button.setNeedsLayout()
-        button.layoutIfNeeded()
-
-        #expect(button.semanticContentAttribute == .forceRightToLeft)
-        #expect(first.frame.minX > second.frame.minX)
-    }
 
     @MainActor
     @Test(arguments: [false, true])
@@ -499,55 +465,7 @@ struct QuickLayoutKitTests {
         #expect(bodyView.frame.size == CGSize(width: 80, height: 20))
     }
 
-    @MainActor
-    @Test func tableReusableHostsSynchronizeDirectionFromTheirTable() {
-        let cell = DirectionProbeTableViewCell(
-            style: .default,
-            reuseIdentifier: nil
-        )
-        let header = DirectionProbeTableHeaderFooterView(
-            reuseIdentifier: nil
-        )
-        let dataSource = TableHeaderFooterDataSource(
-            header: header,
-            cell: cell
-        )
-        let tableView = UITableView(
-            frame: CGRect(x: 0, y: 0, width: 320, height: 240),
-            style: .plain
-        )
-        tableView.semanticContentAttribute = .forceLeftToRight
-        tableView.dataSource = dataSource
-        tableView.delegate = dataSource
-        let viewController = UIViewController()
-        viewController.view = tableView
-        let window = UIWindow(frame: tableView.bounds)
-        window.rootViewController = viewController
-        window.isHidden = false
-        defer { window.isHidden = true }
 
-        tableView.reloadData()
-        window.layoutIfNeeded()
-
-        #expect(cell.semanticContentAttribute == .forceLeftToRight)
-        #expect(cell.contentView.semanticContentAttribute == .forceLeftToRight)
-        #expect(cell.directionView.semanticContentAttribute == .forceLeftToRight)
-        #expect(header.semanticContentAttribute == .forceLeftToRight)
-        #expect(header.contentView.semanticContentAttribute == .forceLeftToRight)
-        #expect(header.directionView.semanticContentAttribute == .forceLeftToRight)
-
-        tableView.semanticContentAttribute = .forceRightToLeft
-        cell.setNeedsLayout()
-        header.setNeedsLayout()
-        window.layoutIfNeeded()
-
-        #expect(cell.semanticContentAttribute == .forceRightToLeft)
-        #expect(cell.contentView.semanticContentAttribute == .forceRightToLeft)
-        #expect(cell.directionView.semanticContentAttribute == .forceRightToLeft)
-        #expect(header.semanticContentAttribute == .forceRightToLeft)
-        #expect(header.contentView.semanticContentAttribute == .forceRightToLeft)
-        #expect(header.directionView.semanticContentAttribute == .forceRightToLeft)
-    }
 
     @MainActor
     @Test func windowBackedTableReusableHostsFollowDirectionRoundTrips() {
@@ -563,7 +481,7 @@ struct QuickLayoutKitTests {
             cell: cell
         )
         let tableView = UITableView(frame: .zero, style: .plain)
-        tableView.semanticContentAttribute = .forceLeftToRight
+        setNativeTestDirection(.leftToRight, on: tableView)
         tableView.dataSource = dataSource
         tableView.delegate = dataSource
 
@@ -587,7 +505,7 @@ struct QuickLayoutKitTests {
         #expect(cell.first.frame.minX < cell.second.frame.minX)
         #expect(header.first.frame.minX < header.second.frame.minX)
 
-        tableView.semanticContentAttribute = .forceRightToLeft
+        setNativeTestDirection(.rightToLeft, on: tableView)
         cell.setNeedsQuickLayout()
         header.setNeedsQuickLayout()
         tableView.setNeedsLayout()
@@ -598,7 +516,7 @@ struct QuickLayoutKitTests {
         #expect(cell.first.frame.minX > cell.second.frame.minX)
         #expect(header.first.frame.minX > header.second.frame.minX)
 
-        tableView.semanticContentAttribute = .forceLeftToRight
+        setNativeTestDirection(.leftToRight, on: tableView)
         cell.setNeedsQuickLayout()
         header.setNeedsQuickLayout()
         tableView.setNeedsLayout()
@@ -619,7 +537,7 @@ struct QuickLayoutKitTests {
             frame: .zero,
             collectionViewLayout: layout
         )
-        collectionView.semanticContentAttribute = .forceLeftToRight
+        setNativeTestDirection(.leftToRight, on: collectionView)
         collectionView.register(
             DirectionPairCollectionViewCell.self,
             forCellWithReuseIdentifier: "cell"
@@ -662,7 +580,7 @@ struct QuickLayoutKitTests {
         #expect(cell.first.frame.minX < cell.second.frame.minX)
         #expect(header.first.frame.minX < header.second.frame.minX)
 
-        collectionView.semanticContentAttribute = .forceRightToLeft
+        setNativeTestDirection(.rightToLeft, on: collectionView)
         collectionView.collectionViewLayout.invalidateLayout()
         cell.setNeedsQuickLayout()
         header.setNeedsQuickLayout()
@@ -673,7 +591,7 @@ struct QuickLayoutKitTests {
         #expect(cell.first.frame.minX > cell.second.frame.minX)
         #expect(header.first.frame.minX > header.second.frame.minX)
 
-        collectionView.semanticContentAttribute = .forceLeftToRight
+        setNativeTestDirection(.leftToRight, on: collectionView)
         collectionView.collectionViewLayout.invalidateLayout()
         cell.setNeedsQuickLayout()
         header.setNeedsQuickLayout()
@@ -1534,129 +1452,11 @@ struct QuickLayoutKitTests {
         #expect(scrollView.semanticContentAttribute == .playback)
     }
 
-    @MainActor
-    @Test func detachedHostsRecoverLatestContainerDirectionWhenReattached() {
-        let pair = (UIView(), UIView())
-        let hostingView = DirectionRecordingQuickLayoutView()
-        hostingView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
-        let scrollView = QuickLayoutScrollView(.horizontal) {
-            pair.0.frame(width: 60, height: 20)
-            pair.1.frame(width: 60, height: 20)
-        }
-        scrollView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
 
-        let container = UIView(
-            frame: CGRect(x: 0, y: 0, width: 240, height: 120)
-        )
-        container.semanticContentAttribute = .forceLeftToRight
-        hostingView.frame = CGRect(x: 0, y: 0, width: 100, height: 40)
-        scrollView.frame = CGRect(x: 0, y: 50, width: 100, height: 40)
-        container.addSubview(hostingView)
-        container.addSubview(scrollView)
 
-        let viewController = UIViewController()
-        viewController.view = container
-        let window = UIWindow(frame: container.bounds)
-        window.rootViewController = viewController
-        window.isHidden = false
-        defer { window.isHidden = true }
-        window.layoutIfNeeded()
 
-        #expect(hostingView.effectiveUserInterfaceLayoutDirection == .leftToRight)
-        #expect(scrollView.effectiveUserInterfaceLayoutDirection == .leftToRight)
 
-        hostingView.removeFromSuperview()
-        scrollView.removeFromSuperview()
-        container.semanticContentAttribute = .forceRightToLeft
-        // Detached hosts intentionally keep their last state until an owner
-        // measures them or an attachment hook supplies a current container.
-        #expect(hostingView.semanticContentAttribute == .forceLeftToRight)
-        #expect(scrollView.semanticContentAttribute == .forceLeftToRight)
 
-        let viewDirectionChangeCount = hostingView.environmentChangeReasons.count
-        container.addSubview(hostingView)
-        container.addSubview(scrollView)
-        window.layoutIfNeeded()
-
-        #expect(hostingView.semanticContentAttribute == .forceRightToLeft)
-        #expect(scrollView.semanticContentAttribute == .forceRightToLeft)
-        #expect(hostingView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
-        #expect(scrollView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
-        #expect(
-            hostingView.environmentChangeReasons.count
-                == viewDirectionChangeCount + 1
-        )
-        #expect(
-            hostingView.environmentChangeReasons.last?
-                .contains(.layoutDirection) == true
-        )
-    }
-
-    @MainActor
-    @Test func offWindowHostResolvesDirectionWhenContainerEntersWindow() {
-        let container = UIView(
-            frame: CGRect(x: 0, y: 0, width: 160, height: 80)
-        )
-        container.semanticContentAttribute = .forceRightToLeft
-        let hostingView = QuickLayoutView()
-        hostingView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
-        hostingView.semanticContentAttribute = .forceLeftToRight
-        container.addSubview(hostingView)
-
-        #expect(hostingView.window == nil)
-        #expect(hostingView.semanticContentAttribute == .forceLeftToRight)
-
-        let viewController = UIViewController()
-        viewController.view = container
-        let window = UIWindow(frame: container.bounds)
-        window.rootViewController = viewController
-        window.isHidden = false
-        defer { window.isHidden = true }
-
-        #expect(hostingView.window === window)
-        #expect(hostingView.semanticContentAttribute == .forceRightToLeft)
-        #expect(hostingView.quickLayoutEnvironment.layoutDirection == .rightToLeft)
-    }
-
-    @MainActor
-    @Test func offWindowHostsResolveContainerDirectionBeforeMeasurementAndLayout() {
-        let container = UIView(
-            frame: CGRect(x: 0, y: 0, width: 160, height: 120)
-        )
-        container.semanticContentAttribute = .forceRightToLeft
-
-        let hostingView = QuickLayoutView()
-        hostingView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
-        hostingView.semanticContentAttribute = .forceLeftToRight
-        container.addSubview(hostingView)
-
-        let scrollView = QuickLayoutScrollView(.vertical) {
-            UIView().frame(width: 40, height: 40)
-        }
-        scrollView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
-        scrollView.semanticContentAttribute = .forceLeftToRight
-        scrollView.frame = CGRect(x: 0, y: 40, width: 100, height: 80)
-        container.addSubview(scrollView)
-
-        #expect(container.window == nil)
-
-        _ = hostingView.sizeThatFits(CGSize(width: 100, height: 40))
-        scrollView.layoutIfNeeded()
-
-        #expect(hostingView.semanticContentAttribute == .forceRightToLeft)
-        #expect(
-            hostingView.quickLayoutEnvironment.layoutDirection == .rightToLeft
-        )
-        #expect(scrollView.semanticContentAttribute == .forceRightToLeft)
-        #expect(
-            scrollView.quickLayoutEnvironment.layoutDirection == .rightToLeft
-        )
-    }
 
     @MainActor
     @Test func contentViewAppliesSupportedConfigurationsImmediately() {
@@ -1673,164 +1473,11 @@ struct QuickLayoutKitTests {
         #expect(contentView.label.text == "updated")
     }
 
-    @MainActor
-    @Test func contentViewsResolveEveryPublicReusableBoundary() {
-        let boundaries: [UIView] = [
-            UITableViewCell(style: .default, reuseIdentifier: nil),
-            UITableViewHeaderFooterView(reuseIdentifier: nil),
-            UICollectionViewCell(frame: .zero),
-            UICollectionReusableView(frame: .zero),
-        ]
-        let root = UIView(
-            frame: CGRect(x: 0, y: 0, width: 320, height: 480)
-        )
-        let viewController = UIViewController()
-        viewController.view = root
-        let window = UIWindow(frame: root.bounds)
-        window.rootViewController = viewController
-        window.isHidden = false
-        defer { window.isHidden = true }
 
-        for (index, boundary) in boundaries.enumerated() {
-            boundary.frame = CGRect(
-                x: 0,
-                y: CGFloat(index * 80),
-                width: 320,
-                height: 64
-            )
-            boundary.semanticContentAttribute = .forceRightToLeft
-            root.addSubview(boundary)
 
-            // Simulates a UIKit-owned configuration host that retained an
-            // opposite direction. The content must resolve the public owner,
-            // rather than treating this intermediate view as authoritative.
-            let intermediateHost = UIView(frame: boundary.bounds)
-            intermediateHost.semanticContentAttribute = .forceLeftToRight
-            addToReusableBoundary(intermediateHost, boundary: boundary)
 
-            let contentView = ConfigurationProbeContentView(
-                configuration: ConfigurationProbe(value: "\(index)")
-            )
-            contentView.frame = intermediateHost.bounds
-            intermediateHost.addSubview(contentView)
-            contentView.setNeedsLayout()
-            contentView.layoutIfNeeded()
 
-            #expect(
-                contentView.semanticContentAttribute == .forceRightToLeft
-            )
-            #expect(
-                contentView.quickLayoutEnvironment.layoutDirection
-                    == .rightToLeft
-            )
-        }
-    }
 
-    @MainActor
-    @Test func contentConfigurationSynchronizesDirectionBeforeBusinessContent() {
-        let cell = UICollectionViewCell(
-            frame: CGRect(x: 0, y: 0, width: 240, height: 60)
-        )
-        cell.semanticContentAttribute = .forceLeftToRight
-        let intermediateHost = UIView(frame: cell.contentView.bounds)
-        intermediateHost.semanticContentAttribute = .forceLeftToRight
-        cell.contentView.addSubview(intermediateHost)
-        let contentView = ConfigurationProbeContentView(
-            configuration: ConfigurationProbe(value: "ltr")
-        )
-        contentView.frame = intermediateHost.bounds
-        intermediateHost.addSubview(contentView)
-
-        let viewController = UIViewController()
-        viewController.view.addSubview(cell)
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 240, height: 80))
-        window.rootViewController = viewController
-        window.isHidden = false
-        defer { window.isHidden = true }
-        window.layoutIfNeeded()
-
-        let initialDirectionChangeCount = contentView
-            .environmentChangeReasons
-            .filter { $0.contains(.layoutDirection) }
-            .count
-        cell.semanticContentAttribute = .forceRightToLeft
-        contentView.configuration = ConfigurationProbe(value: "rtl")
-
-        #expect(contentView.appliedValues.last == "rtl")
-        #expect(contentView.appliedDirections.last == .rightToLeft)
-        #expect(
-            contentView.environmentChangeReasons
-                .filter { $0.contains(.layoutDirection) }
-                .count == initialDirectionChangeCount + 1
-        )
-
-        cell.semanticContentAttribute = .forceLeftToRight
-        contentView.configuration = ConfigurationProbe(value: "restored")
-
-        #expect(contentView.appliedDirections.last == .leftToRight)
-        #expect(
-            contentView.semanticContentAttribute == .forceLeftToRight
-        )
-    }
-
-    @MainActor
-    @Test func contentViewsRecoverAfterDetachAndCanPreserveFixedSemantics() {
-        let container = UIView(
-            frame: CGRect(x: 0, y: 0, width: 320, height: 160)
-        )
-        let cell = UITableViewCell(
-            style: .default,
-            reuseIdentifier: nil
-        )
-        cell.frame = CGRect(x: 0, y: 0, width: 320, height: 64)
-        cell.semanticContentAttribute = .forceRightToLeft
-        container.addSubview(cell)
-        let host = UIView(frame: cell.contentView.bounds)
-        cell.contentView.addSubview(host)
-        let contentView = ConfigurationProbeContentView(
-            configuration: ConfigurationProbe(value: "moving")
-        )
-        contentView.frame = host.bounds
-        host.addSubview(contentView)
-
-        let viewController = UIViewController()
-        viewController.view = container
-        let window = UIWindow(frame: container.bounds)
-        window.rootViewController = viewController
-        window.isHidden = false
-        defer { window.isHidden = true }
-        window.layoutIfNeeded()
-        contentView.layoutIfNeeded()
-
-        #expect(contentView.semanticContentAttribute == .forceRightToLeft)
-
-        contentView.removeFromSuperview()
-        cell.semanticContentAttribute = .forceLeftToRight
-        #expect(contentView.semanticContentAttribute == .forceRightToLeft)
-
-        host.addSubview(contentView)
-        contentView.layoutIfNeeded()
-        #expect(contentView.semanticContentAttribute == .forceLeftToRight)
-
-        cell.removeFromSuperview()
-        cell.semanticContentAttribute = .forceRightToLeft
-        #expect(contentView.window == nil)
-        #expect(contentView.semanticContentAttribute == .forceLeftToRight)
-
-        _ = contentView.sizeThatFits(
-            CGSize(width: 320, height: CGFloat.greatestFiniteMagnitude)
-        )
-        #expect(contentView.semanticContentAttribute == .forceRightToLeft)
-
-        contentView.quickLayoutSemanticDirectionBehavior = .preserve
-        contentView.semanticContentAttribute = .playback
-        cell.semanticContentAttribute = .forceRightToLeft
-        contentView.configuration = ConfigurationProbe(value: "fixed")
-        contentView.setNeedsLayout()
-        contentView.layoutIfNeeded()
-
-        #expect(contentView.semanticContentAttribute == .playback)
-    }
 
     @MainActor
     @Test func quickLayoutHostsFollowContainerAppliedDirectionChanges() {
@@ -1870,8 +1517,8 @@ struct QuickLayoutKitTests {
         hostingView.layoutIfNeeded()
         scrollView.layoutIfNeeded()
 
-        #expect(hostingView.semanticContentAttribute == .forceLeftToRight)
-        #expect(scrollView.semanticContentAttribute == .forceLeftToRight)
+        #expect(hostingView.semanticContentAttribute == .unspecified)
+        #expect(scrollView.semanticContentAttribute == .unspecified)
         #expect(viewPair.0.frame.minX < viewPair.1.frame.minX)
         #expect(scrollPair.0.frame.minX < scrollPair.1.frame.minX)
         let viewLeftToRightFrames = (viewPair.0.frame, viewPair.1.frame)
@@ -1886,8 +1533,8 @@ struct QuickLayoutKitTests {
         )
         window.layoutIfNeeded()
 
-        #expect(hostingView.semanticContentAttribute == .forceRightToLeft)
-        #expect(scrollView.semanticContentAttribute == .forceRightToLeft)
+        #expect(hostingView.semanticContentAttribute == .unspecified)
+        #expect(scrollView.semanticContentAttribute == .unspecified)
         #expect(hostingView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
         #expect(scrollView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
         #expect(viewPair.0.frame.minX > viewPair.1.frame.minX)
@@ -1968,8 +1615,8 @@ struct QuickLayoutKitTests {
             directionView.first.frame,
             directionView.second.frame
         )
-        #expect(representable.semanticContentAttribute == .forceLeftToRight)
-        #expect(directionView.semanticContentAttribute == .forceLeftToRight)
+        #expect(representable.semanticContentAttribute == .unspecified)
+        #expect(directionView.semanticContentAttribute == .unspecified)
         #expect(directionView.first.frame.minX < directionView.second.frame.minX)
 
         applyTestLayoutDirection(
@@ -1980,8 +1627,8 @@ struct QuickLayoutKitTests {
         window.layoutIfNeeded()
         representable.quickLayoutIfNeeded()
 
-        #expect(representable.semanticContentAttribute == .forceRightToLeft)
-        #expect(directionView.semanticContentAttribute == .forceRightToLeft)
+        #expect(representable.semanticContentAttribute == .unspecified)
+        #expect(directionView.semanticContentAttribute == .unspecified)
         #expect(directionView.effectiveUserInterfaceLayoutDirection == .rightToLeft)
         #expect(directionView.first.frame.minX > directionView.second.frame.minX)
 
@@ -3825,7 +3472,7 @@ struct QuickLayoutKitTests {
     }
 
     @MainActor
-    @Test func positionUsesPhysicalCoordinatesInBothLayoutDirections() {
+    @Test func positionMirrorsCoordinatesInRightToLeftLayout() {
         let leftToRightView = IntrinsicTestView(
             size: CGSize(width: 20, height: 10)
         )
@@ -3847,11 +3494,11 @@ struct QuickLayoutKitTests {
 
         let expectedFrame = CGRect(x: 60, y: 25, width: 20, height: 10)
         #expect(leftToRightView.frame == expectedFrame)
-        #expect(rightToLeftView.frame == expectedFrame)
+        #expect(rightToLeftView.frame == CGRect(x: 20, y: 25, width: 20, height: 10))
     }
 
     @MainActor
-    @Test func explicitAlignmentGuidesDoNotMovePhysicalPlacements() {
+    @Test func explicitAlignmentGuidesDoNotMovePositionedCenters() {
         let frame = CGRect(x: 0, y: 0, width: 100, height: 80)
 
         let directionPairs: [(
@@ -3881,7 +3528,7 @@ struct QuickLayoutKitTests {
 
             #expect(
                 positionedView.frame
-                    == CGRect(x: 60, y: 25, width: 20, height: 10)
+                    == CGRect(x: directionPair.local == .rightToLeft ? 20 : 60, y: 25, width: 20, height: 10)
             )
 
             let customLayoutView = IntrinsicTestView(
@@ -4281,9 +3928,6 @@ private final class DirectionProbeTableViewCell: QuickLayoutTableViewCell {
 
     let directionView = UIView()
 
-    override var quickLayoutDirectionViews: [UIView] {
-        super.quickLayoutDirectionViews + [directionView]
-    }
 
     @LayoutBuilder
     override var body: Layout {
@@ -4297,9 +3941,6 @@ private final class DirectionProbeTableHeaderFooterView:
 
     let directionView = UIView()
 
-    override var quickLayoutDirectionViews: [UIView] {
-        super.quickLayoutDirectionViews + [directionView]
-    }
 
     @LayoutBuilder
     override var body: Layout {
@@ -4847,20 +4488,8 @@ private func applyTestLayoutDirection(
     container: UIView,
     hosts: [UIView]
 ) {
-    let attribute: UISemanticContentAttribute = direction == .rightToLeft
-        ? .forceRightToLeft
-        : .forceLeftToRight
-    container.semanticContentAttribute = attribute
-    container.setNeedsLayout()
-
-    for host in hosts {
-        host.semanticContentAttribute = attribute
-        if let updating = host as? QuickLayoutUpdating {
-            updating.setNeedsQuickLayout()
-        } else {
-            host.setNeedsLayout()
-        }
-    }
+    setNativeTestDirection(direction, on: container)
+    for host in hosts { host.setNeedsLayout() }
 }
 
 @MainActor

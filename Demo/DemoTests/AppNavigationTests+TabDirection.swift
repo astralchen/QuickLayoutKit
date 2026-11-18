@@ -29,7 +29,7 @@ extension AppNavigationTests {
         #expect(await waitForCondition { chat.composerView.textView.isFirstResponder })
         var expectedDraft = "语言切换保留草稿"
         let originalModel = tabs.viewModel
-        for language in ["ar", "zh-Hans", "en-US", "ar", "zh-Hans"] {
+        for language in ["ar", "zh-Hans", "en", "ar", "zh-Hans"] {
             Localization.setLocale(identifier: language)
             #expect(await waitForCondition {
                 tabs.viewModel.state.items.first(where: { $0.id == .chat })?.title == Localization.text("app.tab.chat")
@@ -56,7 +56,7 @@ extension AppNavigationTests {
         }
     }
 
-    @Test(arguments: ["zh-Hans", "ar", "en-US"])
+    @Test(arguments: ["zh-Hans", "ar", "en"])
     func tabLabelsKeepTheirOrientationAcrossLanguageRoundTrips(initialLanguage: String) async throws {
         let previousLocale = Localization.localizationController.currentLocale.identifier
         let followedSystem = Localization.localizationController.followsSystemLocale
@@ -78,7 +78,7 @@ extension AppNavigationTests {
         let originalTabBar = tabs.tabBar
         var originalFloatingCollection: UICollectionView?
 
-        for language in [initialLanguage, "zh-Hans", "en-US", "zh-Hans", "ar", "zh-Hans", "ar", "en-US", "zh-Hans"] {
+        for language in [initialLanguage, "zh-Hans", "en", "zh-Hans", "ar", "zh-Hans", "ar", "en", "zh-Hans"] {
             split.tabBarItem.badgeValue = "7"
             Localization.setLocale(identifier: language)
             let expectedDirection: UIUserInterfaceLayoutDirection = language == "ar" ? .rightToLeft : .leftToRight

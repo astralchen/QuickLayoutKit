@@ -7,6 +7,7 @@
 
 import AppLocalization
 import Foundation
+import UIKit
 
 @MainActor
 struct LocalizationOverviewService {
@@ -38,8 +39,9 @@ struct LocalizationOverviewService {
                 ),
                 isFollowSystemOption: true
             )
-            let supportedLanguages = controller.supportedLocales.map { locale in
-                Language(
+            let supportedLanguages = controller.supportedLocalizations.map { identifier in
+                let locale = AppLocale(identifier: identifier)
+                return Language(
                     identifier: locale.identifier,
                     nativeName: locale.nativeDisplayName,
                     localizedName: Localization.localeDisplayName(locale),

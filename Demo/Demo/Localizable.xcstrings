@@ -7133,7 +7133,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "UIKit وتحديث النص"
+            "value" : "توطين UIKit"
           }
         },
         "en" : {
@@ -16517,19 +16517,19 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "يضع position مركز العنصر عند إحداثي فعلي. لذلك تبقى النقاط نفسها في تخطيطي LTR وRTL."
+            "value" : "يحدد position مركز العنصر انطلاقًا من الحافة الأمامية للتخطيط. ينعكس الموضع الأفقي في RTL كما في SwiftUI."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "position places an element's center at a physical coordinate, so the points stay unchanged in LTR and RTL layouts."
+            "value" : "position places an element’s center relative to the layout’s leading edge. RTL mirrors the horizontal position, matching SwiftUI."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "position 将元素中心放到物理坐标点，因此切换 LTR 与 RTL 时这些坐标保持不变。"
+            "value" : "position 从布局前缘定位元素中心；RTL 下水平位置自动镜像，与 SwiftUI 一致。"
           }
         }
       }
@@ -17874,7 +17874,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "UILabel و UIButton و UICollectionView يتم تحديثها عبر بروتوكولات UIKit."
+            "value" : "تُحدَّث عناصر UILabel و UIButton و UICollectionView عبر بروتوكولات UIKit."
           }
         },
         "en" : {

@@ -10,6 +10,8 @@ import AppLocalization
 import ListKit
 
 final class ContentConfigurationCollectionViewController: LocalizedViewController {
+    private var collectionLayoutDirection: UIUserInterfaceLayoutDirection?
+
 
     override var localizedTitleKey: String? { "demo.contentConfiguration.collection.title" }
 
@@ -18,9 +20,6 @@ final class ContentConfigurationCollectionViewController: LocalizedViewControlle
     private lazy var adapter = CollectionListAdapter<ContentConfigurationListSection>(
         collectionView: collectionView
     )
-    // ListKit 的 apply completion 可能晚于下一次语言切换返回。
-    // 只允许最新一代 snapshot 在完成后继续调整方向和布局。
-    private var renderGeneration = 0
 
     convenience init() {
         self.init(
@@ -54,10 +53,7 @@ final class ContentConfigurationCollectionViewController: LocalizedViewControlle
 
     override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
         super.reloadLayoutDirection(direction)
-        // 控制器负责把方向同步给真正管理 reusable view 的 collection。
-        // semantic 不会复制给已物化的子节点；compositional layout 又会缓存
-        // 方向相关的私有坐标映射。AppLocalization 统一处理方向边界、布局
-        // 失效和可见项；页面只提供自己的 compositional layout 工厂。
+        // 页面拥有组合布局，在方向改变时重建其缓存；复用内容由 UIKit 管理。
         applyCollectionLayoutDirection(direction)
     }
 
@@ -80,23 +76,7 @@ final class ContentConfigurationCollectionViewController: LocalizedViewControlle
     }
 
     private func render(_ state: ContentConfigurationListViewModel.State) {
-        renderGeneration &+= 1
-        let generation = renderGeneration
-        let expectedRevision = Localization.localizationController
-            .currentSnapshot.revision
-
-        adapter.apply(
-            transaction: .disabled,
-            completion: { [weak self] _ in
-                // 语言可能在异步 apply 期间再次变化，过期 completion 不能
-                // 用旧 snapshot 的时序覆盖当前方向。
-                guard let self,
-                      self.renderGeneration == generation,
-                      expectedRevision == Localization.localizationController
-                        .currentSnapshot.revision else { return }
-                self.refreshMaterializedContentLayoutDirection()
-            }
-        ) {
+        adapter.apply(transaction: .disabled) {
             ListSection(.content) {
                 ForEach(state.items, id: \.id) { item in
                     Row(model: item.model, cell: UICollectionViewListCell.self) {
@@ -171,30 +151,20 @@ final class ContentConfigurationCollectionViewController: LocalizedViewControlle
         }
     }
 
-    private func refreshMaterializedContentLayoutDirection() {
-        guard collectionView.window != nil
-                || collectionView.semanticContentAttribute != .unspecified else {
-            return
-        }
-        // snapshot 完成后 cell 可能刚创建或刚复用。先物化当前布局，再按
-        // collection 的 effective direction 失效布局，让框架同步实际 host。
-        collectionView.layoutIfNeeded()
-        applyCollectionLayoutDirection(
-            collectionView.effectiveUserInterfaceLayoutDirection
-        )
-    }
-
     private func applyCollectionLayoutDirection(
         _ direction: UIUserInterfaceLayoutDirection
     ) {
         guard let collectionView else { return }
-        collectionView.applyLocalization(
-            Localization.layoutDirectionUpdate(direction),
-            preservingVisibleItem: true,
-            rebuildingLayoutWith: { [unowned self] in
-                adapter.makeCompositionalLayout()
-            }
-        )
+        let changed = collectionLayoutDirection != direction
+        collectionLayoutDirection = direction
+        if changed {
+            let offset = collectionView.contentOffset
+            collectionView.setCollectionViewLayout(adapter.makeCompositionalLayout(), animated: false)
+            collectionView.layoutIfNeeded()
+            collectionView.setContentOffset(offset, animated: false)
+        } else {
+            collectionView.collectionViewLayout.invalidateLayout()
+        }
     }
 }
 

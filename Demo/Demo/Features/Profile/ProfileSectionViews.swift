@@ -13,12 +13,12 @@ class ProfileSectionView: QuickLayoutView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
     }
 }
 
@@ -42,11 +42,11 @@ final class ProfileHeroView: ProfileSectionView {
     private let avatarContainerView = UIView()
     private let avatarImageView = UIImageView()
     private let statusDotView = UIView()
-    private let nameLabel = UILabel()
-    private let roleLabel = UILabel()
+    private let nameLabel = LocalizedLabel()
+    private let roleLabel = LocalizedLabel()
     private let locationIconView = UIImageView()
-    private let locationLabel = UILabel()
-    private let availabilityLabel = UILabel()
+    private let locationLabel = LocalizedLabel()
+    private let availabilityLabel = LocalizedLabel()
     private let availabilityBackgroundView = UIView()
 
     override init(frame: CGRect) {
@@ -226,8 +226,8 @@ final class ProfileStatsView: ProfileSectionView {
 
 private final class ProfileStatView: ProfileCardView {
 
-    private let valueLabel = UILabel()
-    private let titleLabel = UILabel()
+    private let valueLabel = LocalizedLabel()
+    private let titleLabel = LocalizedLabel()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -271,8 +271,8 @@ private final class ProfileStatView: ProfileCardView {
 
 final class ProfileAboutView: ProfileCardView {
 
-    private let titleLabel = UILabel()
-    private let bodyLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
+    private let bodyLabel = LocalizedLabel()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -310,10 +310,10 @@ final class ProfileAboutView: ProfileCardView {
 
 final class ProfileActivityView: ProfileCardView {
 
-    private let sectionTitleLabel = UILabel()
+    private let sectionTitleLabel = LocalizedLabel()
     private let iconView = UIImageView()
-    private let titleLabel = UILabel()
-    private let detailLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
+    private let detailLabel = LocalizedLabel()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -376,7 +376,7 @@ final class ProfileActivityView: ProfileCardView {
 
 final class ProfileSkillsView: ProfileCardView {
 
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
     private let skillCloudView = ProfileSkillCloudView()
 
     override init(frame: CGRect) {
@@ -417,20 +417,13 @@ final class ProfileActionsView: ProfileSectionView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        synchronizeButtonDirection()
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
-        synchronizeButtonDirection()
     }
 
-    override var semanticContentAttribute: UISemanticContentAttribute {
-        didSet {
-            guard semanticContentAttribute != oldValue else { return }
-            synchronizeButtonDirection()
-        }
-    }
+
 
     func configure(messageTitle: String, portfolioTitle: String) {
         updateTitle(messageTitle, for: messageButton)
@@ -464,13 +457,7 @@ final class ProfileActionsView: ProfileSectionView {
         button.configuration = configuration
     }
 
-    private func synchronizeButtonDirection() {
-        [messageButton, portfolioButton].forEach {
-            $0.semanticContentAttribute = semanticContentAttribute
-            $0.setNeedsUpdateConfiguration()
-            $0.setNeedsLayout()
-        }
-    }
+
 
     private static func makeButton(
         style: UIButton.Configuration,
@@ -481,7 +468,7 @@ final class ProfileActionsView: ProfileSectionView {
         configuration.image = UIImage(systemName: imageName)
         configuration.imagePlacement = .leading
         configuration.imagePadding = 8
-        return UIButton(configuration: configuration)
+        return LocalizedButton(configuration: configuration)
     }
 }
 
@@ -529,7 +516,7 @@ private final class ProfileSkillCloudView: ProfileSectionView {
 
 private final class ProfileChipView: ProfileSectionView {
 
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
 
     override init(frame: CGRect) {
         super.init(frame: frame)

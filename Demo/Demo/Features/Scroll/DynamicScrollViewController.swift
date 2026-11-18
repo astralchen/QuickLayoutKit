@@ -57,7 +57,7 @@ class DynamicScrollViewController: LocalizedQuickLayoutHostingController {
         config.imagePlacement = .leading
         config.imagePadding = 6
         
-        let addButton = UIButton(configuration: config)
+        let addButton = LocalizedButton(configuration: config)
         addButton.addTarget(self, action: #selector(addItemTapped), for: .touchUpInside)
         addButton.accessibilityIdentifier = "dynamic.addButton"
         return addButton
@@ -160,17 +160,8 @@ class DynamicScrollViewController: LocalizedQuickLayoutHostingController {
     ) {
         super.reloadLayoutDirection(direction)
 
-        let semanticContentAttribute = direction
-            .appLayoutDirection
-            .semanticContentAttribute
-        scrollView.semanticContentAttribute = semanticContentAttribute
-        addButton.semanticContentAttribute = semanticContentAttribute
-        // 重新应用配置，刷新 UIButton.Configuration 内部的图文排列。
-        if let configuration = addButton.configuration {
-            addButton.configuration = configuration
-        }
         itemViewCache.values.forEach {
-            $0.applyLayoutDirection(semanticContentAttribute)
+            $0.refreshButtonLayout()
         }
 
         scrollView.setNeedsLayout()
@@ -315,9 +306,7 @@ class DynamicScrollViewController: LocalizedQuickLayoutHostingController {
             }
 
             itemView.configure(with: item)
-            itemView.applyLayoutDirection(
-                view.semanticContentAttribute
-            )
+            itemView.refreshButtonLayout()
             return itemView
         }
         setNeedsQuickLayout()
@@ -403,9 +392,9 @@ private final class DynamicScrollItemView: UIView {
     /// 不参与辅助功能朗读的装饰图标。
     private let accentIconView = UIImageView()
     /// 支持动态字体和多行显示的项目标题。
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
     /// 说明删除操作的可见提示文本。
-    private let deleteHintLabel = UILabel()
+    private let deleteHintLabel = LocalizedLabel()
     /// 由控制器连接删除操作的独立按钮。
     let deleteButton: UIButton = {
         var configuration = UIButton.Configuration.tinted()
@@ -413,7 +402,7 @@ private final class DynamicScrollItemView: UIView {
         configuration.baseForegroundColor = .systemRed
         configuration.baseBackgroundColor = .systemRed
         configuration.cornerStyle = .capsule
-        return UIButton(configuration: configuration)
+        return LocalizedButton(configuration: configuration)
     }()
 
     /// 按当前布局方向排列图标、文本和删除按钮的卡片内容。
@@ -518,27 +507,8 @@ private final class DynamicScrollItemView: UIView {
         setNeedsLayout()
     }
 
-    /// 将指定语义方向应用于卡片及其内容视图。
-    ///
-    /// 重新应用按钮配置，使其内部内容同步采用新的语义方向。
-    ///
-    /// - Parameter semanticContentAttribute: 卡片及其子视图应采用的语义方向属性。
-    func applyLayoutDirection(
-        _ semanticContentAttribute: UISemanticContentAttribute
-    ) {
-        self.semanticContentAttribute = semanticContentAttribute
-        [
-            accentBackgroundView,
-            accentIconView,
-            titleLabel,
-            deleteHintLabel,
-            deleteButton,
-        ].forEach {
-            $0.semanticContentAttribute = semanticContentAttribute
-        }
-        if let configuration = deleteButton.configuration {
-            deleteButton.configuration = configuration
-        }
+    /// 更新按钮配置后的尺寸。
+    func refreshButtonLayout() {
         setNeedsLayout()
     }
 

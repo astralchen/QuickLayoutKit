@@ -153,7 +153,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomPublicChatMessagesFillAvailableWidthOnIPad() async throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let viewController = VoiceRoomViewController()
         let navigationController = UINavigationController(
@@ -193,7 +193,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomNineSeatSecondRowKeepsTextAtIdealSize() throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let viewModel = VoiceRoomViewModel(
             stageSnapshot: VoiceRoomViewModel.makeDefaultStageSnapshot(
@@ -295,7 +295,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomSeatNamesSeparateOccupantsFromVacantSlots() throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let viewController = VoiceRoomViewController(
             viewModel: VoiceRoomViewModel()
@@ -341,7 +341,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomFiveSeatLayoutUsesLargeHostAndFitsNarrowScreen() throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let viewController = VoiceRoomViewController()
         applyVoiceRoomSnapshot(

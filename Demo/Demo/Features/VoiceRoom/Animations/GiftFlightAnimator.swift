@@ -24,7 +24,7 @@ final class GiftFlightAnimator {
     /// 显示礼物符号的图像视图。
     private let giftImageView = UIImageView()
     /// 显示赠送数量的文本标签。
-    private let quantityLabel = UILabel()
+    private let quantityLabel = LocalizedLabel()
     /// 当前动画完成后的回调；清理后释放。
     private var completion: (() -> Void)?
     /// 延迟结束动画的工作项，取消时同步撤销。
@@ -445,7 +445,7 @@ final class GiftFlightAnimator {
             imageView.heightAnchor.constraint(equalToConstant: 38),
         ])
 
-        let titleLabel = UILabel()
+        let titleLabel = LocalizedLabel()
         titleLabel.text = Localization.text(
             "liveRoom.gift.celebration",
             gift.localizedTitle

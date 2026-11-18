@@ -7,15 +7,15 @@ final class DirectionalGridViewController: LocalizedQuickLayoutHostingController
     override var localizedTitleKey: String? { "demo.directionalGrid.title" }
 
     private let scrollView = QuickLayoutScrollView()
-    private let introduction = UILabel()
+    private let introduction = LocalizedLabel()
     private let axisControl = UISegmentedControl(items: ["VGrid", "HGrid"])
     private let sizingControl = UISegmentedControl(items: ["fixed", "flexible", "adaptive", "mixed"])
     private let alignmentControl = UISegmentedControl(items: ["leading", "center", "trailing"])
-    private let widthLabel = UILabel()
-    private let widthHint = UILabel()
-    private let widthSlider = UISlider()
+    private let widthLabel = LocalizedLabel()
+    private let widthHint = LocalizedLabel()
+    private let widthSlider = LocalizedSlider()
     private let directionControl = UISegmentedControl(items: ["LTR", "RTL"])
-    private let codeLabel = UILabel()
+    private let codeLabel = LocalizedLabel()
     let preview = DirectionalGridPreviewView()
 
     override func viewDidLoad() {
@@ -144,7 +144,7 @@ final class DirectionalGridPreviewView: QuickLayoutView {
     var viewportSize: CGSize { scrollView.bounds.size }
     private var reportedViewportSize: CGSize = .zero
     let cards: [UILabel] = (0..<11).map { index in
-        let label = UILabel()
+        let label = LocalizedLabel()
         label.text = String(format: "%02d", index + 1)
         label.font = .preferredFont(forTextStyle: .headline)
         label.adjustsFontForContentSizeCategory = true

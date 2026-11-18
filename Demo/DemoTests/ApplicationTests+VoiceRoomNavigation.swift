@@ -41,7 +41,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomOccupiedSeatPresentsUserCardAndEmptySeatDoesNot() throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -161,7 +161,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomFollowButtonShowsRequestingState() async throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let requestHandler = ControlledFollowRequestHandler()
         let viewModel = VoiceRoomViewModel(
@@ -292,7 +292,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomAudienceButtonPresentsAdaptiveSheet() async throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -425,7 +425,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomAudienceItemPushesUserProfile() async throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -549,7 +549,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomAvatarPushesInformationController() throws {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
@@ -677,7 +677,7 @@ extension ApplicationTests {
 
     @Test func voiceRoomKeepsSystemBackButtonAfterSwitchingToArabic() {
         Localization.setLocale(identifier: "zh-Hans")
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
         let rootViewController = UIViewController()
         let navigationController = UINavigationController(

@@ -17,14 +17,14 @@ final class PositionAndZIndexViewController: LocalizedQuickLayoutHostingControll
     }
 
     private let scrollView = QuickLayoutScrollView()
-    private let introLabel = UILabel()
-    private let positionTitleLabel = UILabel()
-    private let positionDescriptionLabel = UILabel()
-    private let positionCodeLabel = UILabel()
+    private let introLabel = LocalizedLabel()
+    private let positionTitleLabel = LocalizedLabel()
+    private let positionDescriptionLabel = LocalizedLabel()
+    private let positionCodeLabel = LocalizedLabel()
     let positionCanvas = PositionCanvas()
-    private let zIndexTitleLabel = UILabel()
-    private let zIndexDescriptionLabel = UILabel()
-    private let zIndexCodeLabel = UILabel()
+    private let zIndexTitleLabel = LocalizedLabel()
+    private let zIndexDescriptionLabel = LocalizedLabel()
+    private let zIndexCodeLabel = LocalizedLabel()
     let zIndexCanvas = ZIndexCanvas()
 
     override func viewDidLoad() {
@@ -61,11 +61,7 @@ final class PositionAndZIndexViewController: LocalizedQuickLayoutHostingControll
     ) {
         super.reloadLayoutDirection(direction)
 
-        let semanticContentAttribute = direction
-            .appLayoutDirection
-            .semanticContentAttribute
         [scrollView, positionCanvas, zIndexCanvas].forEach {
-            $0.semanticContentAttribute = semanticContentAttribute
             $0.setNeedsLayout()
         }
         setNeedsQuickLayout()
@@ -116,6 +112,7 @@ final class PositionAndZIndexViewController: LocalizedQuickLayoutHostingControll
     }
 
     private func configureCodeLabel(_ label: UILabel) {
+        label.textAlignment = .left
         label.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
         label.textColor = .systemIndigo
         label.adjustsFontForContentSizeCategory = true
@@ -129,9 +126,9 @@ final class PositionCanvas: UIView {
     private let backgroundView = UIView()
     private let horizontalGuideView = UIView()
     private let verticalGuideView = UIView()
-    let firstBadge = UILabel()
-    let centerBadge = UILabel()
-    let lastBadge = UILabel()
+    let firstBadge = LocalizedLabel()
+    let centerBadge = LocalizedLabel()
+    let lastBadge = LocalizedLabel()
     private let firstBadgeBackground = UIView()
     private let centerBadgeBackground = UIView()
     private let lastBadgeBackground = UIView()
@@ -220,9 +217,9 @@ final class PositionCanvas: UIView {
 final class ZIndexCanvas: UIView {
 
     private let backgroundView = UIView()
-    let backCard = UILabel()
-    let frontCard = UILabel()
-    let middleCard = UILabel()
+    let backCard = LocalizedLabel()
+    let frontCard = LocalizedLabel()
+    let middleCard = LocalizedLabel()
     private let backCardBackground = UIView()
     private let frontCardBackground = UIView()
     private let middleCardBackground = UIView()

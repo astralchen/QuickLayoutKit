@@ -18,9 +18,6 @@ final class MainMenuSectionHeaderView: QuickLayoutCollectionReusableView {
         return .groupedHeader()
     }
 
-    override var semanticContentAttribute: UISemanticContentAttribute {
-        didSet { listContentView.semanticContentAttribute = semanticContentAttribute }
-    }
 
     override var body: Layout {
         listContentView
@@ -45,7 +42,7 @@ final class MainMenuSectionHeaderView: QuickLayoutCollectionReusableView {
         content.text = title
         content.textProperties.numberOfLines = 0
         listContentView.configuration = content
-        listContentView.semanticContentAttribute = semanticContentAttribute
+
         accessibilityLabel = title
         accessibilityIdentifier = identifier
         setNeedsQuickLayout()
@@ -69,7 +66,7 @@ private func makeMainMenuSectionHeaderPreview(
     semanticContentAttribute: UISemanticContentAttribute = .forceLeftToRight
 ) -> UIViewController {
     let header = MainMenuSectionHeaderView(frame: .zero)
-    header.semanticContentAttribute = semanticContentAttribute
+
     header.configure(title: title, identifier: "main.section.preview")
     let controller = QuickLayoutHostingController {
         header
@@ -79,7 +76,8 @@ private func makeMainMenuSectionHeaderPreview(
     }
     controller.loadViewIfNeeded()
     controller.view.backgroundColor = .systemGroupedBackground
-    controller.view.semanticContentAttribute = semanticContentAttribute
+
+    controller.traitOverrides.layoutDirection = semanticContentAttribute == .forceRightToLeft ? .rightToLeft : .leftToRight
     controller.traitOverrides.preferredContentSizeCategory = contentSizeCategory
     return controller
 }

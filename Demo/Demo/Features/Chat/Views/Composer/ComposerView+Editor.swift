@@ -219,7 +219,6 @@ extension ComposerView {
         textView.typingAttributes = style.attributes(
             font: .preferredFont(forTextStyle: .body, compatibleWith: traitCollection), color: .label
         )
-        inputBinding.refresh()
     }
 
     /// 将当前布局方向应用到全部内联附件，并刷新其视图和测量。
@@ -305,12 +304,7 @@ extension ComposerView {
 
     /// 将开始编辑事件转发给页面，由页面协调照片面板到键盘的交接。
     func textViewDidBeginEditing(_ textView: UITextView) {
-        inputBinding.refresh()
         textInputDidBeginEditing?()
-    }
-
-    func textViewDidChangeSelection(_ textView: UITextView) {
-        inputBinding.refresh()
     }
 
     /// 在 UIKit 应用手动文本编辑前停止正在进行的语音转写。

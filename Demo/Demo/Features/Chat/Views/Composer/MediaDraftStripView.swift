@@ -121,9 +121,14 @@ final class MediaDraftStripView: QuickLayoutView, MediaDraftCollectionViewLayout
             .frame(maxHeight: .infinity, alignment: .bottom)
     }
 
-    override var semanticContentAttribute: UISemanticContentAttribute {
-        didSet {
-            collectionView.semanticContentAttribute = semanticContentAttribute
+    override func quickLayoutEnvironmentDidChange(
+        _ environment: QuickLayoutEnvironment,
+        reason: QuickLayoutEnvironmentChangeReason
+    ) {
+        super.quickLayoutEnvironmentDidChange(environment, reason: reason)
+        // 方向由原生 trait／旧系统控制器边界继承；semantic 没有被赋值也会改变。
+        // 只使自定义几何缓存失效，不写回 collection、cell 或内容视图的语义。
+        if reason.contains(.layoutDirection) {
             draftLayout.invalidateGeometry()
         }
     }
@@ -303,7 +308,6 @@ final class MediaDraftStripView: QuickLayoutView, MediaDraftCollectionViewLayout
     private final class DraftCell: QuickLayoutCollectionViewCell {
         let itemView = DraftItemView()
         var representedID: UUID?
-        override var quickLayoutDirectionViews: [UIView] { [self, contentView, itemView] }
         override var body: Layout { itemView.resizable() }
         override init(frame: CGRect) {
             super.init(frame: frame)

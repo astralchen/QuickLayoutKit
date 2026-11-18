@@ -6,6 +6,10 @@ import UIKit
 @MainActor
 @Suite(.serialized)
 struct AppNavigationTests {
+    init() {
+        Localization.setLocale(identifier: "en")
+    }
+
     @Test func catalogClearActionPreservesFirstResponderAndSearchPresentation() async throws {
         let tabs = AppTabBarController(viewModel: AppNavigationViewModel(chatAvailable: false))
         let window = try makeVisibleTestWindow(rootViewController: tabs, size: CGSize(width: 1024, height: 768))

@@ -27,10 +27,6 @@ final class AudioBubbleCell: QuickLayoutCollectionViewCell {
     /// 当前绑定的消息展示模型；未配置或复用清理后为 `nil`。
     private var message: MessagePresentation?
 
-    /// 需要随单元格同步更新布局方向的内容视图。
-    override var quickLayoutDirectionViews: [UIView] {
-        super.quickLayoutDirectionViews + [bubbleView]
-    }
 
     /// 定义 `AudioBubbleCell` 的布局层级、间距和对齐方式。
     @LayoutBuilder

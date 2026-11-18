@@ -55,12 +55,12 @@ final class HorizontalScrollViewViewController:
     let pageScrollView = QuickLayoutScrollView()
     let scrollView = QuickLayoutScrollView(.horizontal, showsIndicators: false)
 
-    private let eyebrowLabel = UILabel()
-    private let headlineLabel = UILabel()
-    private let subtitleLabel = UILabel()
+    private let eyebrowLabel = LocalizedLabel()
+    private let headlineLabel = LocalizedLabel()
+    private let subtitleLabel = LocalizedLabel()
     private let gestureIconView = UIImageView()
-    private let gestureLabel = UILabel()
-    private let pageLabel = UILabel()
+    private let gestureLabel = LocalizedLabel()
+    private let pageLabel = LocalizedLabel()
 
     let views: [HorizontalDestinationCardView] =
         HorizontalDestinationCardView.Palette.allCases.map {
@@ -76,8 +76,9 @@ final class HorizontalScrollViewViewController:
         reloadLocalizedContent()
     }
 
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
+    override func viewIsAppearing(_ animated: Bool) {
+        super.viewIsAppearing(animated)
+        // 此时根视图已入层级，方向 traits 和视口尺寸已就绪；兼容 iOS 13+。
         prepareInitialScrollPosition()
     }
 
@@ -123,13 +124,8 @@ final class HorizontalScrollViewViewController:
         _ direction: UIUserInterfaceLayoutDirection
     ) {
         super.reloadLayoutDirection(direction)
-        let semanticContentAttribute = direction
-            .appLayoutDirection
-            .semanticContentAttribute
-        pageScrollView.semanticContentAttribute = semanticContentAttribute
-        scrollView.semanticContentAttribute = semanticContentAttribute
+
         views.forEach {
-            $0.semanticContentAttribute = semanticContentAttribute
             $0.setNeedsQuickLayout()
         }
         // 语义方向变化可能在父级布局过程中重建横向内容。布局完成后重新定位到逻辑
@@ -220,14 +216,12 @@ final class HorizontalScrollViewViewController:
         view.backgroundColor = .systemGroupedBackground
         pageScrollView.backgroundColor = .systemGroupedBackground
         pageScrollView.showsVerticalScrollIndicator = false
-        pageScrollView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
+
 
         scrollView.backgroundColor = .clear
         scrollView.decelerationRate = .fast
         scrollView.delegate = self
-        scrollView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
+
 
         eyebrowLabel.font = .preferredFont(forTextStyle: .caption1)
         eyebrowLabel.adjustsFontForContentSizeCategory = true

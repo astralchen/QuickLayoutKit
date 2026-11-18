@@ -42,8 +42,8 @@ final class FixedSizeView: QuickLayoutView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
-        pageScrollView.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
+
         pageScrollView.accessibilityIdentifier = "fixedSize.page"
         scenarioControl.selectedSegmentTintColor = .secondarySystemGroupedBackground
         scenarioControl.accessibilityIdentifier = "fixedSize.mode"
@@ -89,10 +89,6 @@ final class FixedSizeView: QuickLayoutView {
     }
 
     func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
-        semanticContentAttribute = direction.appLayoutDirection.semanticContentAttribute
-        pageScrollView.semanticContentAttribute = semanticContentAttribute
-        introView.semanticContentAttribute = semanticContentAttribute
-        explanationView.semanticContentAttribute = semanticContentAttribute
         stageView.reloadLayoutDirection(direction)
         setNeedsQuickLayout()
     }
@@ -111,7 +107,7 @@ final class FixedSizeView: QuickLayoutView {
 @MainActor
 enum FixedSizeText {
     static func make(style: UIFont.TextStyle, color: UIColor) -> UILabel {
-        let label = UILabel()
+        let label = LocalizedLabel()
         label.font = .preferredFont(forTextStyle: style)
         label.adjustsFontForContentSizeCategory = true
         label.numberOfLines = 0
@@ -127,7 +123,7 @@ private final class FixedSizeIntroView: QuickLayoutView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         eyebrowLabel.text = "FIXED SIZE / QUICKLAYOUTKIT"
         headlineLabel.font = UIFontMetrics(forTextStyle: .largeTitle).scaledFont(
             for: .systemFont(ofSize: 34, weight: .bold)
@@ -155,12 +151,12 @@ private final class FixedSizeExplanationView: QuickLayoutView {
     private let explanationLabel = FixedSizeText.make(style: .headline, color: .label)
     private let codeLabel = FixedSizeText.make(style: .footnote, color: .systemIndigo)
     private let compatibilityLabel = FixedSizeText.make(style: .footnote, color: .secondaryLabel)
-    private let sourceButton = UIButton(type: .system)
+    private let sourceButton = LocalizedButton(type: .system)
     var onOpenSource: (() -> Void)?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         backgroundColor = .secondarySystemGroupedBackground
         layer.cornerRadius = 20
         layer.cornerCurve = .continuous

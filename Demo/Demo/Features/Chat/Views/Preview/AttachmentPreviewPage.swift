@@ -8,8 +8,6 @@ import QuickLayoutKit
 
 /// 一个可复用预览页，负责只读内容、缩放和可取消的原图加载。
 final class AttachmentPreviewPage: QuickLayoutCollectionViewCell, UIScrollViewDelegate {
-    /// 分页固定为物理 LTR；文字方向由预览控制器设置，不从分页列表覆盖。
-    override func synchronizeLayoutDirectionFromCollectionViewIfNeeded() -> Bool { false }
 
     let imageScrollView = UIScrollView()
     let imageView = UIImageView()

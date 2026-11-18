@@ -43,9 +43,9 @@ final class GiftSheetView:
         endPoint: UnitPoint(x: 0.90, y: 0.72)
     )
     /// 显示收礼选择摘要或提示的标签。
-    let recipientTitleLabel = UILabel()
+    let recipientTitleLabel = LocalizedLabel()
     /// 显示当前礼物目录摘要的标签。
-    let giftSummaryLabel = UILabel()
+    let giftSummaryLabel = LocalizedLabel()
     /// 与当前收礼列表对应的选择按钮。
     var recipientButtons: [GiftRecipientButton]
     /// 横向排列收礼人按钮的滚动容器。
@@ -77,9 +77,9 @@ final class GiftSheetView:
         return collectionView
     }()
     /// 显示当前金币余额或余额不足提示的标签。
-    let balanceLabel = UILabel()
+    let balanceLabel = LocalizedLabel()
     /// 展示当前数量并弹出预设数量菜单的按钮。
-    let quantityButton = UIButton(type: .system)
+    let quantityButton = LocalizedButton(type: .system)
     /// 提交当前选择或输入内容的按钮。
     let sendButton = CapsuleTextButton(frame: .zero)
     /// 等待布局完成后滚动居中的栏目；没有请求时为 `nil`。
@@ -320,7 +320,7 @@ final class GiftSheetView:
 
     /// 配置子视图的样式、交互和辅助功能属性。
     func configureViews() {
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         accessibilityIdentifier = "liveRoom.gift.sheet"
         backgroundColor = .clear
 
@@ -363,8 +363,7 @@ final class GiftSheetView:
         recipientCarouselScrollView.clipsToBounds = true
         recipientCarouselScrollView.accessibilityIdentifier =
             "liveRoom.gift.recipientScroll"
-        recipientCarouselScrollView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
+
 
         categoryCarouselScrollView.backgroundColor = .clear
         // 内容不足一屏时不制造可滚动手感，保持栏目自然排列。
@@ -376,8 +375,7 @@ final class GiftSheetView:
         categoryCarouselScrollView.clipsToBounds = true
         categoryCarouselScrollView.accessibilityIdentifier =
             "liveRoom.gift.categoryScroll"
-        categoryCarouselScrollView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
+
 
         giftSummaryLabel.font = .systemFont(ofSize: 12, weight: .medium)
         giftSummaryLabel.textColor = .systemYellow

@@ -121,13 +121,13 @@ final class ContentMarginsViewController: LocalizedQuickLayoutHostingController 
         .vertical,
         showsIndicators: false
     )
-    private let introLabel = UILabel()
-    private let previousButton = UIButton(type: .system)
-    private let scenarioButton = UIButton(type: .system)
-    private let nextButton = UIButton(type: .system)
-    private let codeLabel = UILabel()
-    private let expectedLabel = UILabel()
-    let metricsLabel = UILabel()
+    private let introLabel = LocalizedLabel()
+    private let previousButton = LocalizedButton(type: .system)
+    private let scenarioButton = LocalizedButton(type: .system)
+    private let nextButton = LocalizedButton(type: .system)
+    private let codeLabel = LocalizedLabel()
+    private let expectedLabel = LocalizedLabel()
+    let metricsLabel = LocalizedLabel()
     private let contentRows: [ContentMarginRowView]
 
     private(set) var selectedScenario = Scenario.automaticAll
@@ -178,15 +178,11 @@ final class ContentMarginsViewController: LocalizedQuickLayoutHostingController 
         _ direction: UIUserInterfaceLayoutDirection
     ) {
         super.reloadLayoutDirection(direction)
-        let semanticAttribute = direction
-            .appLayoutDirection
-            .semanticContentAttribute
+
         [pageScrollView, previewScrollView].forEach {
-            $0.semanticContentAttribute = semanticAttribute
             $0.setNeedsLayout()
         }
         contentRows.forEach {
-            $0.semanticContentAttribute = semanticAttribute
             $0.setNeedsQuickLayout()
         }
         setNeedsQuickLayout()
@@ -284,8 +280,7 @@ final class ContentMarginsViewController: LocalizedQuickLayoutHostingController 
     private func configureViews() {
         view.backgroundColor = .systemGroupedBackground
         pageScrollView.backgroundColor = .systemGroupedBackground
-        pageScrollView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
+
 
         previewScrollView.backgroundColor = .systemOrange.withAlphaComponent(
             0.12
@@ -295,8 +290,7 @@ final class ContentMarginsViewController: LocalizedQuickLayoutHostingController 
         previewScrollView.clipsToBounds = true
         previewScrollView.indicatorStyle = .black
         previewScrollView.accessibilityIdentifier = "contentMargins.preview"
-        previewScrollView.quickLayoutSemanticDirectionBehavior =
-            .followEnclosingContainer
+
 
         introLabel.font = .preferredFont(forTextStyle: .body)
         introLabel.textColor = .secondaryLabel
@@ -338,6 +332,9 @@ final class ContentMarginsViewController: LocalizedQuickLayoutHostingController 
             $0.adjustsFontForContentSizeCategory = true
             $0.numberOfLines = 0
         }
+        codeLabel.textAlignment = .left
+        expectedLabel.textAlignment = .left
+        metricsLabel.textAlignment = .left
         codeLabel.textColor = .systemIndigo
         expectedLabel.textColor = .label
         metricsLabel.textColor = .secondaryLabel
@@ -423,14 +420,13 @@ final class ContentMarginsViewController: LocalizedQuickLayoutHostingController 
 private final class ContentMarginRowView: QuickLayoutView {
 
     private let index: Int
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
     private let backgroundView = UIView()
 
     init(index: Int) {
         self.index = index
         super.init(frame: .zero)
 
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
         titleLabel.text = "Content \(index)"
         titleLabel.font = .monospacedSystemFont(ofSize: 18, weight: .semibold)
         titleLabel.textColor = .white

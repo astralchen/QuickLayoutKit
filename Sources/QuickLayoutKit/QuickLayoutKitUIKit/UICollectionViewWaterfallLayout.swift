@@ -450,6 +450,9 @@ open class UICollectionViewWaterfallLayout: UICollectionViewLayout {
     }
     /// 携带新测量、候选几何和锚点补偿的布局失效上下文。
     private final class InvalidationContext: UICollectionViewLayoutInvalidationContext {
+        /// 环境改变时要求 UIKit 丢弃全部属性；内部测量缓存仍可按键复用。
+        var invalidatesAllAttributes = false
+        override var invalidateEverything: Bool { invalidatesAllAttributes || super.invalidateEverything }
         /// 本次首选属性回调提供的有效测量键和主轴长度。
         var measurement: (WaterfallMeasurementKey, CGFloat)?
         /// 本次测量回调对应的数据源位置。
@@ -502,8 +505,10 @@ open class UICollectionViewWaterfallLayout: UICollectionViewLayout {
     private var lastOffsetObserved: CGPoint?
     /// 是否已排入一次尺寸策略失效通知。
     private var notificationPending = false
-    /// 查询期间发现环境变化时，合并安排一次 UIKit 布局失效。
-    private var environmentUpdatePending = false
+    /// 将查询中发现的环境变化移出 UIKit 当前属性／cell 更新调用栈后提交。
+    private var environmentInvalidationPending = false
+    /// 查询已校正几何后，仍需让 UIKit 丢弃其属性缓存并重新布局可见内容。
+    private var directionInvalidationPending = false
     /// 是否正在准备布局，用于抑制同步重入。
     private var preparing = false
     /// 当前解析环境下缓存的分区配置副本。
@@ -532,7 +537,10 @@ open class UICollectionViewWaterfallLayout: UICollectionViewLayout {
     /// 使用支持测量和锚点补偿的自定义失效上下文。
     public override class var invalidationContextClass: AnyClass { InvalidationContext.self }
     /// 最近已提交几何的内容尺寸；首次准备前为零。
-    open override var collectionViewContentSize: CGSize { geometry.size }
+    open override var collectionViewContentSize: CGSize {
+        refreshInheritedDirectionIfNeeded()
+        return geometry.size
+    }
 
     // MARK: - 配置查询与失效
 
@@ -589,6 +597,8 @@ open class UICollectionViewWaterfallLayout: UICollectionViewLayout {
     }
     /// 使全部尺寸指标失效，并记录原因及安排尺寸策略回调。
     private func metricsChanged(_ reason: String) {
+        generation += 1
+        measurements.removeAll()
         invalidateLayout()
         notifySizingChange()
         traceInvalidation(reason: reason)
@@ -604,6 +614,7 @@ open class UICollectionViewWaterfallLayout: UICollectionViewLayout {
         }
     }
     /// 比较影响布局的容器和环境值，变化时清空分区配置并递增版本。
+    /// 查询可能先于 UIKit 的布局周期发现安全区变化，此时也必须安排真正的布局失效。
     private func refreshEnvironment(_ bounds: CGRect) {
         let insets = collectionView?.adjustedContentInset ?? .zero
         let safeArea = collectionView?.safeAreaInsets ?? .zero
@@ -617,18 +628,26 @@ open class UICollectionViewWaterfallLayout: UICollectionViewLayout {
         resolutionSize = bounds.size; resolutionInsets = insets; resolutionSafeArea = safeArea
         resolutionMargins = margins; resolutionTraits = traits; resolutionRTL = direction
         geometryNeedsUpdate = true
-        // 旋转的安全区、边距和特征可能晚于 bounds 提交。公开尺寸查询及拟合校验也会
-        // 发现这些变化，不能只标记内部几何过期，否则 UIKit 不再 prepare，尺寸会一直为零。
-        // 延后到查询栈外失效；若正常 prepare 已提交新几何，则不再重复重建或清空测量缓存。
-        guard !preparing, !environmentUpdatePending else { return }
-        environmentUpdatePending = true
+        if !preparing, bounds == collectionView?.bounds {
+            scheduleEnvironmentInvalidation()
+        }
+    }
+
+    /// 在下一主循环提交失效并安排布局，避免在属性查询／cell 更新期间重入。
+    private func scheduleEnvironmentInvalidation() {
+        guard !environmentInvalidationPending else { return }
+        environmentInvalidationPending = true
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.environmentUpdatePending = false
-            guard self.geometryNeedsUpdate, self.collectionView != nil else { return }
+            self.environmentInvalidationPending = false
+            guard self.geometryNeedsUpdate || self.directionInvalidationPending else { return }
+            self.directionInvalidationPending = false
             let context = InvalidationContext()
             context.preservesMeasurements = true
+            context.invalidatesAllAttributes = true
             self.invalidateLayout(with: context)
+            self.collectionView?.setNeedsLayout()
+            self.notifySizingChange()
         }
     }
     /// 在当前原生环境中解析、复制和规范分区配置，移除重复背景类型。
@@ -650,6 +669,16 @@ open class UICollectionViewWaterfallLayout: UICollectionViewLayout {
     }
 
     // MARK: - 几何准备与属性查询
+
+    /// UIKit 可能在尺寸不变时直接查询缓存，尚未调用 prepare。
+    /// 同步校正查询结果，原生失效延后提交，避免在属性查询中重入 UICollectionView。
+    private func refreshInheritedDirectionIfNeeded() {
+        guard let collectionView, !preparing, !geometry.sections.isEmpty, geometry.rtl != rtl else { return }
+        directionInvalidationPending = true
+        refreshEnvironment(collectionView.bounds)
+        scheduleEnvironmentInvalidation()
+        prepare()
+    }
 
     /// 提交仍有效的候选或重建几何，清理缓存并恢复旧锚点的可见位置。
     open override func prepare() {
@@ -709,6 +738,7 @@ open class UICollectionViewWaterfallLayout: UICollectionViewLayout {
     }
     /// 创建包含当前测量身份的条目属性；尚无该条目几何时返回 `nil`。
     open override func layoutAttributesForItem(at indexPath: IndexPath) -> UICollectionViewLayoutAttributes? {
+        refreshInheritedDirectionIfNeeded()
         guard let record = record(at: indexPath, in: geometry) else { return nil }
         let attributes = WaterfallAttributes(forCellWith: indexPath)
         attributes.setMeasurement(record.key, identity: record.identity)
@@ -787,6 +817,7 @@ open class UICollectionViewWaterfallLayout: UICollectionViewLayout {
     }
     /// 合并查询范围内的条目、自然或固定补充视图以及可向外扩展的装饰视图属性。
     open override func layoutAttributesForElements(in rect: CGRect) -> [UICollectionViewLayoutAttributes]? {
+        refreshInheritedDirectionIfNeeded()
         var result = paths(in: rect, snapshot: geometry, countCandidates: true).compactMap { layoutAttributesForItem(at: $0) }
         // 边界补充视图的自然位置和固定位置均受分区范围约束；背景可以延伸到分区之外。
         for section in intersectingSections(rect, in: geometry) {
@@ -815,6 +846,7 @@ open class UICollectionViewWaterfallLayout: UICollectionViewLayout {
     }
     /// 解析主轴两端补充视图的自然或固定位置，将固定范围限制在所属分区内。
     open override func layoutAttributesForSupplementaryView(ofKind elementKind: String, at indexPath: IndexPath) -> UICollectionViewLayoutAttributes? {
+        refreshInheritedDirectionIfNeeded()
         guard indexPath.item == 0, geometry.sections.indices.contains(indexPath.section), let collectionView else { return nil }
         let section = geometry.sections[indexPath.section]
         let metrics = section.metrics
@@ -858,6 +890,7 @@ open class UICollectionViewWaterfallLayout: UICollectionViewLayout {
     }
     /// 返回指定分区背景的属性；无对应类型、位置无效或矩形为空时返回 `nil`。
     open override func layoutAttributesForDecorationView(ofKind elementKind: String, at indexPath: IndexPath) -> UICollectionViewLayoutAttributes? {
+        refreshInheritedDirectionIfNeeded()
         guard indexPath.item == 0, geometry.sections.indices.contains(indexPath.section),
               let item = geometry.sections[indexPath.section].metrics.configuration.decorationItems.first(where: { $0.elementKind == elementKind }),
               let frame = decorationFrame(item, section: indexPath.section) else { return nil }
@@ -897,15 +930,15 @@ open class UICollectionViewWaterfallLayout: UICollectionViewLayout {
 
     // MARK: - 布局失效与测量反馈
 
-    /// 边界尺寸改变或存在固定补充视图时请求布局失效。
+    /// 边界尺寸、继承方向改变或存在固定补充视图时请求布局失效。
     open override func shouldInvalidateLayout(forBoundsChange newBounds: CGRect) -> Bool {
-        newBounds.size != collectionView?.bounds.size || geometry.hasPinnedBoundaries
+        newBounds.size != collectionView?.bounds.size || geometry.rtl != rtl || geometry.hasPinnedBoundaries
     }
     /// 尺寸变化时预计算候选几何与锚点补偿；仅滚动时保留原几何。
     open override func invalidationContext(forBoundsChange newBounds: CGRect) -> UICollectionViewLayoutInvalidationContext {
         let context = super.invalidationContext(forBoundsChange: newBounds) as! InvalidationContext
         context.preservesMeasurements = true
-        context.updatesGeometry = newBounds.size != collectionView?.bounds.size
+        context.updatesGeometry = newBounds.size != collectionView?.bounds.size || geometry.rtl != rtl
         if context.updatesGeometry {
             let next = makeGeometry(bounds: newBounds)
             context.candidate = Candidate(geometry: next, baseVersion: version, sizingChanged: true)
@@ -979,10 +1012,10 @@ open class UICollectionViewWaterfallLayout: UICollectionViewLayout {
                     // 数据源更新时按稳定标识保留测量结果。
                 } else if !context.invalidateEverything, let paths = context.invalidatedItemIndexPaths {
                     for path in paths { if let key = record(at: path, in: geometry)?.key { measurements.removeValue(forKey: key.id) } }
-                } else {
-                    generation += 1
-                    measurements.removeAll()
                 }
+                // 普通全量失效只重建布局，不代表内容尺寸失效。UIKit 的导航栏／安全区
+                // 更新也会走这里；清空测量会使条目退回估算高度并反向补偿滚动位置。
+                // 真正的全量测量失效由 metricsChanged 显式递增代次并清理缓存。
             }
         }
         super.invalidateLayout(with: context)

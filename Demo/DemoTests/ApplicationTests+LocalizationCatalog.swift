@@ -10,9 +10,9 @@ import QuickLayoutKit
 extension ApplicationTests {
 
     @Test func percentagesFollowApplicationLanguage() throws {
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
 
-        for identifier in ["en-US", "zh-Hans", "ar"] {
+        for identifier in ["en", "zh-Hans", "ar"] {
             Localization.setLocale(identifier: identifier)
             // 使用独立的系统数字格式器校验区域规则，避免固定某个系统版本的阿拉伯数字形态。
             let formatter = NumberFormatter()
@@ -35,7 +35,7 @@ extension ApplicationTests {
     }
 
     @Test func localizationResolvesCoreLanguages() {
-        Localization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en")
         #expect(Localization.text("main.title") == "Examples")
         #expect(Localization.text("demo.localizationOverview.title") == "Language Center")
 
@@ -84,7 +84,7 @@ extension ApplicationTests {
         )
         #expect(Localization.currentLayoutDirection == .rightToLeft)
 
-        Localization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en")
     }
 
     @Test func localizationStringCatalogContainsSupportedLocales() throws {

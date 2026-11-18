@@ -90,7 +90,7 @@ final class FrameLabPreviewView: QuickLayoutView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         accessibilityIdentifier = "frame.preview"
         sample.accessibilityIdentifier = "frame.sample"
         frameMarker.accessibilityIdentifier = "frame.frame"
@@ -241,7 +241,7 @@ final class FrameLabBoundaryView: UIView {
 #Preview("真实布局 · RTL 前缘对齐") {
     let preview = FrameLabPreviewView()
     preview.state = FrameLabPresentation.guided.initialState
-    preview.semanticContentAttribute = .forceRightToLeft
+    preview.traitOverrides.layoutDirection = .rightToLeft
     return QuickLayoutView {
         preview.resizable().frame(height: 180).padding(16)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

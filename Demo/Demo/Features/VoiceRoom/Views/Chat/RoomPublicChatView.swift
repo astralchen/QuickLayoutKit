@@ -6,6 +6,8 @@ import UIKit
 
 /// 单一可滚动公屏；ListKit 管理复用及增量更新，阅读位置独立于业务消息。
 final class RoomPublicChatView: QuickLayoutView, UIScrollViewDelegate {
+    private var collectionLayoutDirection: UIUserInterfaceLayoutDirection?
+
     let collectionView = UICollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
     var columnDidLayout: (() -> Void)?
     var scrollView: UIScrollView { collectionView }
@@ -49,6 +51,10 @@ final class RoomPublicChatView: QuickLayoutView, UIScrollViewDelegate {
     }
 
     override func layoutSubviews() {
+        let inheritedDirection = collectionView.effectiveUserInterfaceLayoutDirection
+        if collectionLayoutDirection != inheritedDirection {
+            updateLayoutDirection(inheritedDirection)
+        }
         isAdjustingPosition = true
         super.layoutSubviews()
         isAdjustingPosition = false
@@ -125,12 +131,14 @@ final class RoomPublicChatView: QuickLayoutView, UIScrollViewDelegate {
     }
 
     func updateLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
-        // 让本地化适配器检测方向变化并替换组合布局，避免复用旧方向的镜像状态。
-        collectionView.applyLocalization(
-            Localization.layoutDirectionUpdate(direction),
-            preservingVisibleItem: true,
-            rebuildingLayoutWith: makeCollectionViewLayout
-        )
+        let changed = collectionLayoutDirection != direction
+        collectionLayoutDirection = direction
+        if changed {
+            // UIKit 的组合布局会保留镜像状态，由拥有布局的业务组件重建。
+            collectionView.setCollectionViewLayout(makeCollectionViewLayout(), animated: false)
+        } else {
+            collectionView.collectionViewLayout.invalidateLayout()
+        }
         scheduleReconciliation()
     }
 

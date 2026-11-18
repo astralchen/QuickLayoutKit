@@ -246,6 +246,7 @@ extension ApplicationTests {
             width: 390,
             height: 844
         )
+        applyTestLayoutDirection(.leftToRight, to: viewController)
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
 
@@ -264,13 +265,15 @@ extension ApplicationTests {
         )
         let ltrStateFrame = stateLabel.convert(stateLabel.bounds, to: scrollView)
 
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
+
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.layoutIfNeeded()
         scrollView.layoutIfNeeded()
         let rtlStateFrame = stateLabel.convert(stateLabel.bounds, to: scrollView)
 
         #expect(stateLabel.effectiveUserInterfaceLayoutDirection == .rightToLeft)
-        #expect(scrollView.semanticContentAttribute == .forceRightToLeft)
+        #expect(scrollView.semanticContentAttribute == .unspecified)
         #expect(
             isHorizontalMirror(
                 rtlStateFrame,
@@ -278,6 +281,8 @@ extension ApplicationTests {
                 in: scrollView.contentSize.width
             )
         )
+
+        applyTestLayoutDirection(.leftToRight, to: viewController)
 
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
@@ -295,6 +300,8 @@ extension ApplicationTests {
         let childView = child.view!
         let childIdentity = ObjectIdentifier(child)
         #expect(childView.effectiveUserInterfaceLayoutDirection == .leftToRight)
+
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
 
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.layoutIfNeeded()
@@ -319,6 +326,8 @@ extension ApplicationTests {
                 $0.effectiveUserInterfaceLayoutDirection == .rightToLeft
             }
         )
+
+        applyTestLayoutDirection(.leftToRight, to: viewController)
 
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()

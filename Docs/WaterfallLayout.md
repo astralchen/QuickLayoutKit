@@ -82,6 +82,35 @@ section 使用相对坐标，每 128 项保存一个不可变几何块及前后�
 
 `WaterfallLayoutEngineTests.swift` 包含解析／Sendable、固定数据参考算法对照、混合宽度重测、交错与过期回调、稀疏列查询、缓存上限、删除回退、bounds、背景溢出，以及非主 actor 属性相等性和复制的测试。`WaterfallLayoutTests.swift` 与 `ContentConfigurationWaterfallTests.swift` 覆盖原有布局、真实卡片、动态字号、方向、补充视图、背景和 snapshot 分离。
 
+### 滚动时导航栏收起与展开
+
+导航栏随滚动收起／展开会改变集合视图的 `safeAreaInsets` 和 `adjustedContentInset`，即使 `bounds.size` 没有改变。尺寸策略查询可能先于下一次 `prepare()` 发现该变化。旧实现只把内部几何标为过期并返回零约束，没有为 UIKit 安排后续布局，也没有发出尺寸策略通知；此时配置的 cell 会暂时清空内容。预取 cell 还可能错过只刷新可见项的通知，回到顶部后只显示分区背景。
+
+环境查询现在合并安排下一主循环的失效请求，显式通知 UIKit 全部布局属性需要更新，并保留仍匹配的测量缓存。延后提交让失效请求离开 UIKit 当前的属性查询／cell 更新过程，再显式安排集合视图布局。已在 `prepare()` 中处理的变化无需重复提交；目标 bounds 的预计算仍由对应的 bounds 失效上下文负责。Demo 在 `willDisplay` 中重新读取条目的尺寸策略并配置内容，覆盖预取期间尚未获得有效几何的情况。
+
+2026-11-16 的回归包含：
+
+- `environmentChangeDiscoveredBySizingQuerySchedulesPreparation(horizontal:)`：直接注入环境变化，验证尺寸查询之后无需手动调用 `prepare()` 即可恢复有效策略，并在纵／横两个方向保留已测量尺寸。
+- `waterfallSafeAreaChangesWhileScrollingKeepCardsConfigured()`：在三列容器中连续改变顶部安全区并往返滚动，检查卡片测量、位置、内容和数据 snapshot 次数。
+- `waterfallConfiguresPreparedCellsWhenTheyBecomeVisible()`：模拟错过可见项刷新通知的空配置预取 cell，验证进入屏幕时补齐内容。
+- `WaterfallScrollingUITests.testCardsSurviveNavigationBarCollapseAndReturnToTop`：真实滑动触发顶部栏收起，断言工具区纵坐标确实改变；往返滚动并回顶后检查首张及所有可点击卡片的内容，同时断言顶部栏已展开。修复前的手势测试和环境查询测试均失败。
+
+首轮卡片回顶恢复回归在 iPhone Duo / iOS 27.2 模拟器运行 `ContentConfigurationCollectionTests`、`WaterfallLayoutEngineTests` 和上述 UI 测试：34 项通过、0 项失败、1 项跳过。跳过项为默认禁用的 `scalabilityMatrix` 性能矩阵；本次未执行真机验证。
+
+### 导航栏往返过渡中的闪烁
+
+只检查滚动结束后的卡片存在性会漏掉导航栏过渡中的闪烁。中文内容快速往返滚动时，补充采样捕获到一次上滑内顶部安全区 `82 → 58.33 → 82 → 24`，并出现反向的内容偏移变化。
+
+普通 `invalidateLayout()`／UIKit 全量布局失效原来会清除所有测量，令卡片重新使用估算高度，随后再次测量并执行滚动锚点补偿。现在普通全量失效保留按身份、内容版本、约束及环境匹配的测量；`invalidateMeasurements(reason:)`、元数据提供者替换和滚动方向变化仍显式递增测量代次并清理缓存。指定条目的失效仍清除对应条目测量。
+
+Demo 在布局策略暂不可用时继续使用已知约束渲染当前条目，避免主动清空内容配置；复用 cell 同时更新到当前条目的模型。配置身份、内容版本、尺寸策略及高亮状态均未变化时直接保留现有内容，减少重复测量。
+
+新增 `fullLayoutInvalidationRetainsMeasurementsUntilExplicitlyInvalidated()` 检查普通全量失效前后的全部条目 frame 和测量缓存，并验证显式测量失效仍有效；`waterfallPendingGeometryKeepsContentAndReusedCellsRenderCurrentItem()` 检查过渡期间内容保持及复用身份。中文快速往返手势测试 `testNavigationTransitionsKeepContentAndScrollDirectionStable` 在每次手势过程中采集安全区、自定义 inset、调整后 inset、内容偏移和可见空 cell 数，检查导航栏没有反向切换、工具区 inset 稳定且没有空内容。采样仅在 Debug 构建通过 `-waterfall-scroll-diagnostics` 显式启用，结果保存在 UI 测试附件。
+
+补充修复后的完整相关回归为 37 项通过、0 项失败、1 项性能矩阵跳过。随后复用同一构建，以 `-test-iterations 3` 连续执行中文快速往返测试，3 轮全部通过，合计 21 次快速滑动；每轮均实际覆盖导航栏收起和展开。验证设备为 iPhone Duo / iOS 27.2 模拟器，未执行真机验证。
+
+UIKit 契约参考：[adjustedContentInset](https://developer.apple.com/documentation/uikit/uiscrollview/adjustedcontentinset)、[invalidateLayout(with:)](https://developer.apple.com/documentation/uikit/uicollectionviewlayout/invalidatelayout(with:))、[prepare()](https://developer.apple.com/documentation/uikit/uicollectionviewlayout/prepare())。
+
 性能测试默认禁用，通过 `WATERFALL_BENCHMARK=1` 启用。原始 `WaterfallLayoutPerformanceTests.swift` 保持基准场景用于前后对照；新增矩阵为 3 轮 × 1,000／10,000 条 × 纵向／横向／横向 RTL × 两条 flexible／单 adaptive／fixed+flexible × 1／10 section。
 
 矩阵记录 P50/P95、每次耗时、实际 lane 数、完整重建、重排项数、区域候选、锚点查找、候选复用、元数据查询、缓存数量和进程常驻内存。缓存 prepare、稳定滚动及拟合后 prepare 断言零重建／元数据查询；查询 P95 ≤ 2 ms，尾部 64 项内更新 P95 ≤ 8 ms，且只重排至多 192 项／次。

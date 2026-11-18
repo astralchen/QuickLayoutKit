@@ -33,8 +33,8 @@ final class ContentConfigurationView: QuickLayoutContentView {
     }
 
     let iconView = UIImageView()
-    let titleLabel = UILabel()
-    let detailLabel = UILabel()
+    let titleLabel = LocalizedLabel()
+    let detailLabel = LocalizedLabel()
 
     override var body: Layout {
         HStack(alignment: .top, spacing: 8) {

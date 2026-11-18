@@ -7,17 +7,13 @@ protocol AppTabActivity: AnyObject {
     func resignActiveTab()
 }
 
-final class AppTabBarController: UITabBarController, UITabBarControllerDelegate, UIKitLocalizationPreparing, UIKitLocalizationApplying {
+final class AppTabBarController: UITabBarController, UITabBarControllerDelegate, UIKitLocalizationApplying {
     let viewModel: AppNavigationViewModel
     private(set) var featureControllers: [AppTab: UIViewController] = [:]
 
     init(viewModel: AppNavigationViewModel = AppNavigationViewModel()) {
         self.viewModel = viewModel
         super.init(nibName: nil, bundle: nil)
-        // 首次创建系统栏之前，同步应用所选语言的真实布局方向。
-        if #available(iOS 17.0, *) {
-            traitOverrides.layoutDirection = Localization.currentUIKitDirection == .rightToLeft ? .rightToLeft : .leftToRight
-        }
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -40,7 +36,7 @@ final class AppTabBarController: UITabBarController, UITabBarControllerDelegate,
         }
         viewControllers = viewModel.state.items.compactMap { featureControllers[$0.id] }
         viewModel.bind { [weak self] state in self?.render(state) }
-        applyLocalization(.initial(snapshot: Localization.localizationController.currentSnapshot))
+        applyLocalization(.init(snapshot: Localization.localizationController.currentSnapshot))
     }
 
     var selectedFeature: AppTab { viewModel.state.selectedTab }
@@ -101,16 +97,9 @@ final class AppTabBarController: UITabBarController, UITabBarControllerDelegate,
         controllers.forEach { ($0 as? AppTabActivity)?.resignActiveTab() }
     }
 
-    func prepareForLocalization(_ update: UIKitLocalizationUpdate) {
-        guard update.requiresLayoutDirectionRefresh else { return }
-        // 必须早于协调器更新 window / 容器方向；applyLocalization 时可能已触发系统布局。
-        // 此处仅同步临时兼容缓存，真实方向、文案仍由正常本地化流程更新。
-        FloatingTabBarDirectionWorkaround.prepare(in: viewIfLoaded, direction: update.layoutDirection)
-    }
-
-    func applyLocalization(_ update: UIKitLocalizationUpdate) {
-        view.semanticContentAttribute = update.semanticContentAttribute
-        tabBar.semanticContentAttribute = update.semanticContentAttribute
+    func applyLocalization(_ update: LocalizationUpdate) {
+        Localization.applyBoundary(update.semanticContentAttribute, to: view)
+        Localization.applyBoundary(update.semanticContentAttribute, to: tabBar)
         viewModel.reloadLocalizedContent()
     }
 }

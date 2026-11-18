@@ -37,7 +37,7 @@ extension ApplicationTests {
     @Test func frameLabPresentationsKeepIndependentExperimentsAndScrollPositions() throws {
         let controller = FrameLabViewController()
         let navigation = UINavigationController(rootViewController: controller)
-        let window = try makeVisibleTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
+        let window = try makeVisibleLocalizedTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
         defer { window.isHidden = true }
         layout(controller, in: navigation)
         let first = controller.contentView
@@ -93,10 +93,10 @@ extension ApplicationTests {
 
     /// 验证六场景首尾导航、九宫格位置与选中状态，以及 RTL 镜像和按钮复用。
     @Test func frameLabGuidedNavigationAndAlignmentGrid() throws {
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         let controller = FrameLabViewController()
         let navigation = UINavigationController(rootViewController: controller)
-        let window = try makeVisibleTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
+        let window = try makeVisibleLocalizedTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
         defer { window.isHidden = true }
         controller.selectPresentation(.guided)
         let page = controller.contentView
@@ -113,9 +113,10 @@ extension ApplicationTests {
         #expect(page.state.scenario == .composition)
         page.moveScenario(by: -1)
         #expect(page.state.scenario == .alignment)
-        for locale in ["en-US", "ar"] {
+        for locale in ["en", "ar"] {
             Localization.setLocale(identifier: locale)
             controller.reloadLocalizedContent()
+            applyTestLayoutDirection(Localization.currentUIKitDirection, to: controller)
             controller.reloadLayoutDirection(Localization.currentUIKitDirection)
             for index in 0..<9 {
                 layout(controller, in: navigation)
@@ -232,19 +233,20 @@ extension ApplicationTests {
 
     /// 遍历两种模式、三种语言、窄屏／横屏、六场景与宽度比例，检查实际几何和横向溢出。
     @Test func frameLabAdaptsControlsAndReportsActualGeometry() throws {
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         for presentation in FrameLabPresentation.allCases {
             let controller = FrameLabViewController()
             let navigation = UINavigationController(rootViewController: controller)
-            let window = try makeVisibleTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
+            let window = try makeVisibleLocalizedTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
             defer { window.isHidden = true }
             controller.selectPresentation(presentation)
             let page = controller.contentView
             if presentation == .guided { page.toggleMoreParameters() }
             layout(controller, in: navigation)
-            for locale in ["en-US", "zh-Hans", "ar"] {
+            for locale in ["en", "zh-Hans", "ar"] {
                 Localization.setLocale(identifier: locale)
                 controller.reloadLocalizedContent()
+                applyTestLayoutDirection(Localization.currentUIKitDirection, to: controller)
                 controller.reloadLayoutDirection(Localization.currentUIKitDirection)
                 for size in [CGSize(width: 320, height: 740), CGSize(width: 740, height: 390)] {
                     window.frame.size = size
@@ -274,12 +276,12 @@ extension ApplicationTests {
 
     /// 验证连续尺寸变化不会替换分段视图或菜单，并能正常响应后续选项与语言变化。
     @Test func frameLabResizingPreservesSelectedControls() throws {
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         Localization.setLocale(identifier: "zh-Hans")
         for presentation in FrameLabPresentation.allCases {
             let controller = FrameLabViewController()
             let navigation = UINavigationController(rootViewController: controller)
-            let window = try makeVisibleTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
+            let window = try makeVisibleLocalizedTestWindow(rootViewController: navigation, size: CGSize(width: 390, height: 844))
             defer { window.isHidden = true }
             layout(controller, in: navigation)
             controller.selectPresentation(presentation)
@@ -317,7 +319,7 @@ extension ApplicationTests {
             #expect(page.state.option == 0)
             page.selectScenario(.bounds)
             #expect(options.titleForSegment(at: 0) == Localization.text("frame.option.minimum"))
-            Localization.setLocale(identifier: "en-US")
+            Localization.setLocale(identifier: "en")
             page.reloadLocalizedContent()
             #expect(options.titleForSegment(at: 0) == Localization.text("frame.option.minimum"))
         }
@@ -325,8 +327,8 @@ extension ApplicationTests {
 
     /// 验证首页顺序、搜索与路由接入，并检查实验室全部文案的中英阿翻译完整性。
     @Test func frameLabRouteAndCatalogAreComplete() throws {
-        defer { Localization.setLocale(identifier: "en-US") }
-        Localization.setLocale(identifier: "en-US")
+        defer { Localization.setLocale(identifier: "en") }
+        Localization.setLocale(identifier: "en")
         let model = MainViewModel()
         let routes = try #require(model.state.sections.first?.routes.map(\.route))
         let index = try #require(routes.firstIndex(of: .frame))
@@ -355,12 +357,12 @@ extension ApplicationTests {
 
     /// 验证辅助功能字号下用菜单替代分段，滑块与九宫格仍满足触控尺寸且不横向溢出。
     @Test func frameLabLargeTextKeepsControlsReachable() throws {
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         Localization.setLocale(identifier: "zh-Hans")
         for presentation in FrameLabPresentation.allCases {
             let controller = FrameLabViewController()
             let navigation = UINavigationController(rootViewController: controller)
-            let window = try makeVisibleTestWindow(rootViewController: navigation,
+            let window = try makeVisibleLocalizedTestWindow(rootViewController: navigation,
                                                    size: CGSize(width: 320, height: 740),
                                                    contentSizeCategory: .accessibilityExtraExtraExtraLarge)
             defer { window.isHidden = true }

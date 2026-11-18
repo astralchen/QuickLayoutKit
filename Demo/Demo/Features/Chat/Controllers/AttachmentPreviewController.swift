@@ -170,7 +170,7 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
             previousMetrics = pagingLayout.metrics
             finishPaging(at: index)
         }
-        chrome.semanticContentAttribute = view.semanticContentAttribute
+
         chrome.layoutIfNeeded()
         updateOriginalEligibility()
         for case let page as AttachmentPreviewPage in collectionView.visibleCells {
@@ -203,8 +203,8 @@ final class AttachmentPreviewController: QuickLayoutHostingController, UICollect
     }
     /// ListKit 负责注册、复用和稳定身份；页面只配置附件内容与回调。
     private func configure(_ page: AttachmentPreviewPage, item: AttachmentPreviewItem, index: Int) {
-        page.semanticContentAttribute = view.semanticContentAttribute
-        page.contentView.semanticContentAttribute = view.semanticContentAttribute
+
+
         page.configure(item, imageLoader: mediaImageLoader, isVisible: false, playbackCoordinator: playbackCoordinator)
         page.setLivePhotoMode(livePhotoModes[item.id] ?? .live)
         page.photoGeometryDidChange = { [weak self, weak page] in

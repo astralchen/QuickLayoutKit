@@ -18,7 +18,7 @@ final class GiftRecipientButton: QuickLayoutButton {
     /// 显示用户头像或备用人物符号的图像视图。
     private let symbolImageView = UIImageView()
     /// 显示用户昵称或空麦名称的标签。
-    private let nameLabel = UILabel()
+    private let nameLabel = LocalizedLabel()
     /// 收礼人选中标记的圆形背景。
     private let selectionBadgeView = UIView()
     /// 收礼人选中标记中的勾选图像。
@@ -191,7 +191,7 @@ final class GiftRecipientButton: QuickLayoutButton {
 final class GiftSelectAllButton: QuickLayoutButton {
 
     /// 显示组件主标题的标签。
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
     /// 按钮当前显示的标题文本。
     var displayedTitle: String? { titleLabel.text }
 

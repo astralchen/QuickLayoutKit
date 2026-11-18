@@ -24,6 +24,7 @@ extension ApplicationTests {
             size: CGSize(width: 320, height: 220)
         )
         defer { window.isHidden = true }
+        applyTestLayoutDirection(.leftToRight, to: viewController)
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
 
@@ -64,14 +65,14 @@ extension ApplicationTests {
         )
 
         #expect(titleLabel.text == "ltr.contentConfiguration.sample.title.1")
-        #expect(collectionView.semanticContentAttribute == .forceLeftToRight)
+        #expect(collectionView.semanticContentAttribute == .unspecified)
         #expect(
             collectionView.effectiveUserInterfaceLayoutDirection
                 == .leftToRight
         )
-        #expect(cell.semanticContentAttribute == .forceLeftToRight)
-        #expect(cell.contentView.semanticContentAttribute == .forceLeftToRight)
-        #expect(contentView.semanticContentAttribute == .forceLeftToRight)
+        #expect(cell.semanticContentAttribute == .unspecified)
+        #expect(cell.contentView.semanticContentAttribute == .unspecified)
+        #expect(contentView.semanticContentAttribute == .unspecified)
         #expect(iconView.semanticContentAttribute == .unspecified)
         #expect(titleLabel.semanticContentAttribute == .unspecified)
         #expect(contentView.detailLabel.semanticContentAttribute == .unspecified)
@@ -84,6 +85,8 @@ extension ApplicationTests {
                 == collectionView.effectiveUserInterfaceLayoutDirection
         )
         #expect(ltrIconFrame.midX < ltrTitleFrame.midX)
+
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
 
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.view.layoutIfNeeded()
@@ -115,17 +118,17 @@ extension ApplicationTests {
             to: window
         )
 
-        #expect(collectionView.semanticContentAttribute == .forceRightToLeft)
+        #expect(collectionView.semanticContentAttribute == .unspecified)
         #expect(
             collectionView.effectiveUserInterfaceLayoutDirection
                 == .rightToLeft
         )
-        #expect(rtlCell.semanticContentAttribute == .forceRightToLeft)
+        #expect(rtlCell.semanticContentAttribute == .unspecified)
         #expect(
             rtlCell.contentView.semanticContentAttribute
-                == .forceRightToLeft
+                == .unspecified
         )
-        #expect(rtlContentView.semanticContentAttribute == .forceRightToLeft)
+        #expect(rtlContentView.semanticContentAttribute == .unspecified)
         #expect(rtlContentView.iconView.semanticContentAttribute == .unspecified)
         #expect(rtlContentView.titleLabel.semanticContentAttribute == .unspecified)
         #expect(rtlContentView.detailLabel.semanticContentAttribute == .unspecified)
@@ -154,6 +157,8 @@ extension ApplicationTests {
             )
         )
 
+        applyTestLayoutDirection(.leftToRight, to: viewController)
+
         viewController.reloadLayoutDirection(.leftToRight)
         viewController.view.layoutIfNeeded()
         collectionView.layoutIfNeeded()
@@ -167,17 +172,17 @@ extension ApplicationTests {
         )
         returnedContent.layoutIfNeeded()
 
-        #expect(collectionView.semanticContentAttribute == .forceLeftToRight)
+        #expect(collectionView.semanticContentAttribute == .unspecified)
         #expect(
             collectionView.effectiveUserInterfaceLayoutDirection
                 == .leftToRight
         )
-        #expect(returnedCell.semanticContentAttribute == .forceLeftToRight)
+        #expect(returnedCell.semanticContentAttribute == .unspecified)
         #expect(
             returnedCell.contentView.semanticContentAttribute
-                == .forceLeftToRight
+                == .unspecified
         )
-        #expect(returnedContent.semanticContentAttribute == .forceLeftToRight)
+        #expect(returnedContent.semanticContentAttribute == .unspecified)
         #expect(returnedContent.iconView.semanticContentAttribute == .unspecified)
         #expect(returnedContent.titleLabel.semanticContentAttribute == .unspecified)
         #expect(returnedContent.detailLabel.semanticContentAttribute == .unspecified)
@@ -213,23 +218,18 @@ extension ApplicationTests {
             )
                 .approximatelyEquals(ltrTitleFrame)
         )
-        #expect(
-            returnedContent.iconView.convert(
-                returnedContent.iconView.bounds,
-                to: window
-            )
-                .approximatelyEquals(ltrIconWindowFrame)
-        )
-        #expect(
-            returnedContent.titleLabel.convert(
-                returnedContent.titleLabel.bounds,
-                to: window
-            )
-                .approximatelyEquals(ltrTitleWindowFrame)
-        )
+        // 原生列表允许 self-sizing 改变垂直偏移；这里严格验证窗口中的水平几何，
+        // 仍能检测 reusable view 的残留镜像，不再要求本地化层恢复阅读锚点。
+        let returnedIconWindowFrame = returnedContent.iconView.convert(returnedContent.iconView.bounds, to: window)
+        let returnedTitleWindowFrame = returnedContent.titleLabel.convert(returnedContent.titleLabel.bounds, to: window)
+        #expect(abs(returnedIconWindowFrame.minX - ltrIconWindowFrame.minX) < 1)
+        #expect(abs(returnedIconWindowFrame.width - ltrIconWindowFrame.width) < 1)
+        #expect(abs(returnedTitleWindowFrame.minX - ltrTitleWindowFrame.minX) < 1)
+        #expect(abs(returnedTitleWindowFrame.width - ltrTitleWindowFrame.width) < 1)
 
         prefix = "rtl."
         viewController.reloadLocalizedContent()
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
         viewController.reloadLayoutDirection(.rightToLeft)
         let localizedContentDidApply = await waitForCondition {
             guard
@@ -255,17 +255,17 @@ extension ApplicationTests {
         )
         localizedContent.layoutIfNeeded()
         #expect(localizedContent.titleLabel.text == "rtl.contentConfiguration.sample.title.1")
-        #expect(collectionView.semanticContentAttribute == .forceRightToLeft)
+        #expect(collectionView.semanticContentAttribute == .unspecified)
         #expect(
             collectionView.effectiveUserInterfaceLayoutDirection
                 == .rightToLeft
         )
-        #expect(localizedCell.semanticContentAttribute == .forceRightToLeft)
+        #expect(localizedCell.semanticContentAttribute == .unspecified)
         #expect(
             localizedCell.contentView.semanticContentAttribute
-                == .forceRightToLeft
+                == .unspecified
         )
-        #expect(localizedContent.semanticContentAttribute == .forceRightToLeft)
+        #expect(localizedContent.semanticContentAttribute == .unspecified)
         #expect(localizedContent.iconView.semanticContentAttribute == .unspecified)
         #expect(localizedContent.titleLabel.semanticContentAttribute == .unspecified)
         #expect(localizedContent.detailLabel.semanticContentAttribute == .unspecified)
@@ -310,14 +310,14 @@ extension ApplicationTests {
             )
         )
         #expect(newlyVisibleContent.titleLabel.text == "rtl.contentConfiguration.sample.title.4")
-        #expect(newlyVisibleCell.semanticContentAttribute == .forceRightToLeft)
+        #expect(newlyVisibleCell.semanticContentAttribute == .unspecified)
         #expect(
             newlyVisibleCell.contentView.semanticContentAttribute
-                == .forceRightToLeft
+                == .unspecified
         )
         #expect(
             newlyVisibleContent.semanticContentAttribute
-                == .forceRightToLeft
+                == .unspecified
         )
         #expect(newlyVisibleContent.iconView.semanticContentAttribute == .unspecified)
         #expect(newlyVisibleContent.titleLabel.semanticContentAttribute == .unspecified)
@@ -334,6 +334,7 @@ extension ApplicationTests {
 
         prefix = "returned."
         viewController.reloadLocalizedContent()
+        applyTestLayoutDirection(.leftToRight, to: viewController)
         viewController.reloadLayoutDirection(.leftToRight)
         collectionView.scrollToItem(
             at: IndexPath(item: 0, section: 0),
@@ -379,10 +380,10 @@ extension ApplicationTests {
             returnedLocalizedContent.titleLabel.text
                 == "returned.contentConfiguration.sample.title.1"
         )
-        #expect(collectionView.semanticContentAttribute == .forceLeftToRight)
+        #expect(collectionView.semanticContentAttribute == .unspecified)
         #expect(
             returnedLocalizedContent.semanticContentAttribute
-                == .forceLeftToRight
+                == .unspecified
         )
         // 文本宽度可以因语言变化而不同；物理 leading 坐标必须回到初始 LTR，
         // 这能捕获局部 frame 正确但 window 坐标仍残留 RTL 镜像的回归。

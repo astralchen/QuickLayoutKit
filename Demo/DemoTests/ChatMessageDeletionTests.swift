@@ -59,19 +59,19 @@ struct ChatMessageDeletionTests {
         conversation.collectionView.layoutIfNeeded()
         conversation.collectionView.scrollToItem(at: IndexPath(item: 20, section: 0), at: .top, animated: false)
         conversation.collectionView.layoutIfNeeded()
-        let anchor = try #require(conversation.collectionView.captureLocalizationAnchor())
+        let anchor = try #require(conversation.collectionView.captureReadingAnchor())
         let anchorID = messages[anchor.indexPath.item].id
         messages.removeFirst()
         conversation.render(state(), reason: .messageDeleted)
         #expect(await eventually {
             guard conversation.collectionView.numberOfItems(inSection: 0) == 49,
-                  let restored = conversation.collectionView.captureLocalizationAnchor(),
+                  let restored = conversation.collectionView.captureReadingAnchor(),
                   messages.indices.contains(restored.indexPath.item) else { return false }
             return messages[restored.indexPath.item].id == anchorID
                 && abs(restored.offsetFromViewportTop - anchor.offsetFromViewportTop) < 1
         })
         conversation.collectionView.layoutIfNeeded()
-        let after = try #require(conversation.collectionView.captureLocalizationAnchor())
+        let after = try #require(conversation.collectionView.captureReadingAnchor())
         #expect(messages[after.indexPath.item].id == anchorID)
         #expect(abs(after.offsetFromViewportTop - anchor.offsetFromViewportTop) < 1)
         // 删除当前锚点仍停留在相邻消息附近，不跳到底部。
@@ -79,7 +79,7 @@ struct ChatMessageDeletionTests {
         conversation.render(state(), reason: .messageDeleted)
         #expect(await eventually { conversation.collectionView.numberOfItems(inSection: 0) == 48 })
         conversation.collectionView.layoutIfNeeded()
-        let neighboring = try #require(conversation.collectionView.captureLocalizationAnchor())
+        let neighboring = try #require(conversation.collectionView.captureReadingAnchor())
         #expect(abs(messages[neighboring.indexPath.item].id - anchorID) <= 2)
         #expect(!conversation.isNearBottom)
     }

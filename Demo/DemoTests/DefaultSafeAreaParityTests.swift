@@ -210,8 +210,6 @@ struct DefaultSafeAreaParityTests {
         let kitHost = DefaultSafeAreaTestHost { content }
         kitHost.quickLayoutKeyboardSafeAreaBehavior = .disabled
         kitHost.semanticContentAttribute = rtl ? .forceRightToLeft : .forceLeftToRight
-        nested.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
-        scroll.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
         let controller = UIViewController()
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 800, height: 800))
         window.rootViewController = controller

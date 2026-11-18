@@ -98,6 +98,8 @@ final class MediaMessageView: QuickLayoutView, UIGestureRecognizerDelegate {
                     .position(x: card.restingFrame.midX, y: card.restingFrame.midY)
             }
         }
+        // 拖动策略和 restingFrame 使用 UIKit 物理坐标；仅固定几何放置，子视图仍继承语义方向。
+        .layoutDirection(.leftToRight)
     }
 
     /// 数量标题沿消息的物理外侧对齐，保留图标在文字左侧的排列。

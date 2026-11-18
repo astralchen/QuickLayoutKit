@@ -80,24 +80,6 @@ open class QuickLayoutScrollView:
         }
     }
 
-    /// 滚动宿主在附加和布局时采用的语义方向策略。
-    ///
-    /// 默认值 `.preserve` 会保护局部固定语义。滚动视图可能在运行时切换语言期间被移除，
-    /// 或在不同容器之间移动时，应设置为 `.followEnclosingContainer`。
-    open var quickLayoutSemanticDirectionBehavior:
-        QuickLayoutSemanticDirectionBehavior = .preserve {
-        didSet {
-            guard quickLayoutSemanticDirectionBehavior != oldValue else {
-                return
-            }
-            synchronizeQuickLayoutSemanticDirectionIfNeeded(
-                for: self,
-                behavior: quickLayoutSemanticDirectionBehavior
-            )
-            quickLayoutEnvironmentState.update(self)
-            setNeedsQuickLayout()
-        }
-    }
 
     /// 用于解析接收者布局方向的语义角色。
     ///
@@ -191,14 +173,10 @@ open class QuickLayoutScrollView:
         configureAxisBehavior()
     }
 
-    /// 进入窗口后同步方向、安全区域边距与环境，并请求重新布局。
+    /// 进入窗口后读取有效方向、安全区域边距与环境，并请求重新布局。
     open override func didMoveToWindow() {
         super.didMoveToWindow()
         guard window != nil else { return }
-        synchronizeQuickLayoutSemanticDirectionIfNeeded(
-            for: self,
-            behavior: quickLayoutSemanticDirectionBehavior
-        )
         quickLayoutContentMarginState.updateSafeArea(
             on: self,
             keepsContentAtStart: true
@@ -295,10 +273,6 @@ open class QuickLayoutScrollView:
     /// 测量不依赖上一次布局留下的 bounds 或 contentSize。
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
         QuickLayoutContentMarginTransaction.flush()
-        synchronizeQuickLayoutSemanticDirectionIfNeeded(
-            for: self,
-            behavior: quickLayoutSemanticDirectionBehavior
-        )
         quickLayoutEnvironmentState.update(self)
         quickLayoutUpdateContentMarginDirectionIfNeeded()
 
@@ -358,10 +332,6 @@ open class QuickLayoutScrollView:
     /// 内容在交叉轴上的滚动范围始终采用扣除实际边距后的视口长度。
     override open func layoutSubviews() {
         QuickLayoutContentMarginTransaction.flush()
-        synchronizeQuickLayoutSemanticDirectionIfNeeded(
-            for: self,
-            behavior: quickLayoutSemanticDirectionBehavior
-        )
         super.layoutSubviews()
 
         withQuickLayoutManagedViewState {

@@ -21,7 +21,7 @@ final class AudioBubbleView: QuickLayoutView {
     }
 
     /// 用于触发播放操作的按钮。
-    let playButton = UIButton(type: .system)
+    let playButton = LocalizedButton(type: .system)
     /// 显示附件波形和播放进度的绘制视图。
     let waveformView = WaveformView()
     /// 显示音频或视频时长的标签。

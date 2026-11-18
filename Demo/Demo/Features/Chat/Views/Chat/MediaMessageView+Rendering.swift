@@ -46,9 +46,6 @@ extension MediaMessageView {
             }
             orderedCards.append(card)
             card.isHidden = false
-            // 可复用卡片拥有自己的 QuickLayout 环境，显式同步消息的有效方向。
-            card.semanticContentAttribute = effectiveUserInterfaceLayoutDirection == .rightToLeft
-                ? .forceRightToLeft : .forceLeftToRight
             card.configure(
                 item,
                 index: index,

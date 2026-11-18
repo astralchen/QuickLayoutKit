@@ -35,10 +35,6 @@ final class SeatCollectionCell: QuickLayoutCollectionViewCell {
         return nil
     }
 
-    /// 与工程内其他 CollectionView Cell 一样，同步已经物化的内容宿主。
-    override var quickLayoutDirectionViews: [UIView] {
-        super.quickLayoutDirectionViews + [currentSeatView]
-    }
 
     /// 描述此组件当前内容和布局关系的 QuickLayout 布局。
     override var body: Layout {

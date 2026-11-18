@@ -298,12 +298,15 @@ extension ApplicationTests {
         #expect(!composer.sendButton.isUserInteractionEnabled)
         #expect(!composer.placeholderLabel.isHidden)
 
+        applyTestLayoutDirection(.rightToLeft, to: composer)
+
         composer.applyLayoutDirection(.rightToLeft)
-        #expect(composer.semanticContentAttribute == .forceRightToLeft)
-        #expect(composer.textView.semanticContentAttribute == .forceRightToLeft)
-        #expect(composer.textView.textAlignment == .right)
+        #expect(composer.semanticContentAttribute == .unspecified)
+        #expect(composer.textView.semanticContentAttribute == .unspecified)
+        #expect(composer.textView.textAlignment == .natural)
+        applyTestLayoutDirection(.leftToRight, to: composer)
         composer.applyLayoutDirection(.leftToRight)
-        #expect(composer.semanticContentAttribute == .forceLeftToRight)
+        #expect(composer.semanticContentAttribute == .unspecified)
     }
 
     @Test(.enabled(if: ChatTestAvailability.isSupported)) func composerPreservesDraftAcrossAudioStates() {

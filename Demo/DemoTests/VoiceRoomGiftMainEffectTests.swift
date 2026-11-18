@@ -40,7 +40,7 @@ struct VoiceRoomGiftMainEffectTests {
         // 上游共用素材的不同名称必须各自保留，不能按 URL 合并礼物。
         #expect(Set(vapEntries.map(\.url)).count < vapGifts.count)
         #expect(Set(svgaEntries.map(\.url)).count < svgaGifts.count)
-        defer { Localization.setLocale(identifier: "en-US") }
+        defer { Localization.setLocale(identifier: "en") }
         for language in ["zh-Hans", "en", "ar"] {
             Localization.setLocale(identifier: language)
             for gift in vapGifts.dropFirst() + svgaGifts.dropFirst() {

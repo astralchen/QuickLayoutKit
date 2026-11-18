@@ -14,6 +14,8 @@ import UIKit
 /// 展示在线观众列表并转发用户选择的面板控制器。
 final class AudienceSheetViewController:
     LocalizedQuickLayoutHostingController {
+    private var collectionLayoutDirection: UIUserInterfaceLayoutDirection?
+
 
     /// 提供当前页面业务状态并处理用户操作的视图模型。
     let viewModel: AudienceSheetViewModel
@@ -91,16 +93,13 @@ final class AudienceSheetViewController:
         _ direction: UIUserInterfaceLayoutDirection
     ) {
         super.reloadLayoutDirection(direction)
-        sheetView.semanticContentAttribute = direction
-            .appLayoutDirection
-            .semanticContentAttribute
-        sheetView.collectionView.applyLocalization(
-            Localization.layoutDirectionUpdate(direction),
-            preservingVisibleItem: true,
-            rebuildingLayoutWith: { [unowned self] in
-                makeAudienceListLayout()
-            }
-        )
+        let changed = collectionLayoutDirection != direction
+        collectionLayoutDirection = direction
+        if changed {
+            sheetView.collectionView.setCollectionViewLayout(makeAudienceListLayout(), animated: false)
+        } else {
+            sheetView.collectionView.collectionViewLayout.invalidateLayout()
+        }
         sheetView.setNeedsQuickLayout()
     }
 
@@ -144,15 +143,7 @@ final class AudienceSheetViewController:
             completion: { [weak self] _ in
                 // 列表可能已提交更新的快照，旧 diff 的完成回调不再修改当前布局方向。
                 guard let self, generation == renderGeneration else { return }
-                // ListKit 完成 diff 后 Cell 才全部物化，再同步当前语言方向和自适应尺寸。
-                sheetView.collectionView.applyLocalization(
-                    Localization.layoutDirectionUpdate(
-                        sheetView.collectionView
-                            .effectiveUserInterfaceLayoutDirection,
-                        reasons: [.layoutDirection, .configuration]
-                    ),
-                    preservingVisibleItem: true
-                )
+                sheetView.collectionView.setNeedsLayout()
             }
         ) {
             ListSection("audience") {

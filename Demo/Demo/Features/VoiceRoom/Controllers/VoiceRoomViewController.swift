@@ -311,9 +311,7 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
     ) {
         seatStageView.finishUpdatesImmediately()
         super.reloadLayoutDirection(direction)
-        let semanticAttribute = direction
-            .appLayoutDirection
-            .semanticContentAttribute
+
         [
             stageContainer,
             roomHeaderView,
@@ -321,7 +319,6 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
             messagesView,
             actionBarView,
         ].forEach {
-            $0.semanticContentAttribute = semanticAttribute
             $0.setNeedsLayout()
         }
         messagesView.updateLayoutDirection(direction)
@@ -521,7 +518,7 @@ private final class FittedRoomStageView: UIView {
             }
         }
         super.init(frame: .zero)
-        content.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         addSubview(content)
     }
 

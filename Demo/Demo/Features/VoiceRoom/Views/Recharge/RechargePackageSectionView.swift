@@ -27,7 +27,7 @@ final class RechargePackageSectionView: QuickLayoutView {
     }
 
     /// 显示组件主标题的标签。
-    let titleLabel = UILabel()
+    let titleLabel = LocalizedLabel()
     /// 按档位顺序排列的充值选择按钮。
     private(set) var packageButtons: [RechargePackageButton] = []
     /// 最近一次按容器宽度解析出的网格列数。

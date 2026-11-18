@@ -4,11 +4,11 @@ import UIKit
 @available(iOS 26.0, *)
 final class AttachmentPlaybackControlsView: UIVisualEffectView {
     /// 播放按钮，保留稳定的辅助功能入口以支持宿主测试。
-    let playButton = UIButton(type: .system)
+    let playButton = LocalizedButton(type: .system)
     /// 两种形态共享的滑动控件，任何形态切换都不重新挂载。
     let slider = AttachmentPlaybackSlider(frame: .zero)
     /// 静音按钮只表达用户意图，不持有音频会话。
-    private let muteButton = UIButton(type: .system)
+    private let muteButton = LocalizedButton(type: .system)
     /// 左侧精确时间，拖动时直接显示目标位置。
     private let timeLabel = UILabel()
     /// 右侧总时长，保持与左侧文字同一基线。

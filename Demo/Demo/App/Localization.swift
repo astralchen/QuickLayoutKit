@@ -14,8 +14,7 @@ enum Localization {
         "demo.language.menu"
 
     static let localizationController = LocalizationController(
-        supportedLocales: [.englishUS, .simplifiedChinese, .arabic],
-        fallbackLocale: .englishUS,
+        resourceBundle: .main,
         preferenceStore: UserDefaultsLocalePreferenceStore(
             key: "quicklayoutkit.demo.locale.identifier"
         )
@@ -23,97 +22,54 @@ enum Localization {
 
     static let resolver = LocalizedStringResolver(
         localeProvider: { localizationController.currentLocale },
-        fallbackLocale: .englishUS,
+        fallbackLocale: AppLocale(identifier: localizationController.fallbackLocalization),
         missingKeyHandler: { key, locale, _ in
             assertionFailure("Missing localization key '\(key)' for \(locale.identifier)")
         }
     )
 
-    /// Reusable UIKit 内容每次配置或重新挂载时都通过该 context 读取最新
-    /// snapshot；context 本身不会缓存创建时的语言或方向。
-    static let reusableContext = UIKitLocalizationContext(
-        localizationController: localizationController
-    )
-
-    /// 输入组件跟随自己的公开方向边界，兼顾独立方向演示与正常应用语言刷新。
-    /// 每次读取最新快照；弱引用容器，避免输入绑定反向持有组件。
-    static func inputContext(for container: UIView) -> UIKitLocalizationContext {
-        UIKitLocalizationContext { [weak container] in
-            layoutDirectionUpdate(
-                container?.effectiveUserInterfaceLayoutDirection ?? currentUIKitDirection
-            ).snapshot
-        }
-    }
-
     private static let sceneCoordinator = UIWindowSceneLocalizationCoordinator(
         localizationController: localizationController
     )
-    private static var notificationToken: NSObjectProtocol?
-    private static var lastDistributedSnapshot: LocalizationSnapshot?
 
-    static var currentLayoutDirection: AppUserInterfaceLayoutDirection {
+    static var currentLayoutDirection: UIUserInterfaceLayoutDirection {
         localizationController.layoutDirection
     }
 
     static var currentUIKitDirection: UIUserInterfaceLayoutDirection {
-        currentLayoutDirection.uiLayoutDirection
+        currentLayoutDirection
     }
 
-    static var currentUIKitUpdate: UIKitLocalizationUpdate {
-        .initial(snapshot: localizationController.currentSnapshot)
+    static var currentUIKitUpdate: LocalizationUpdate {
+        .init(snapshot: localizationController.currentSnapshot)
     }
 
+    /// 用于 iOS 15/16 中由 App 管理的视图的兼容边界。
+    /// 不递归覆盖子视图，以保留 playback、spatial 和固定 LTR 等语义例外。
+    /// 显式传入 `.unspecified` 可撤销此边界的强制方向，恢复 UIKit 继承。
+    static func applyBoundary(_ semantic: UISemanticContentAttribute, to view: UIView) {
+        if #available(iOS 17.0, *) { return }
+        view.semanticContentAttribute = semantic
+    }
+
+    /// 独立方向演示的局部更新；应用语言切换使用控制器发布的真实快照。
     static func layoutDirectionUpdate(
-        _ direction: UIUserInterfaceLayoutDirection,
-        reasons: UIKitLocalizationUpdateReason = [.layoutDirection]
-    ) -> UIKitLocalizationUpdate {
+        _ direction: UIUserInterfaceLayoutDirection
+    ) -> LocalizationUpdate {
         let snapshot = localizationController.currentSnapshot
-        if direction == snapshot.layoutDirection.uiLayoutDirection {
-            return UIKitLocalizationUpdate(snapshot: snapshot, reasons: reasons)
+        guard direction != snapshot.layoutDirection else {
+            return LocalizationUpdate(snapshot: snapshot)
         }
-        // 仅供独立方向演示使用；正常语言刷新始终保留真实语言、选择状态和版本。
-        let locale: AppLocale = direction == .rightToLeft ? .arabic : .englishUS
-        return UIKitLocalizationUpdate(
-            snapshot: LocalizationSnapshot(
-                locale: locale,
-                followsSystemLocale: false,
-                revision: localizationController.currentSnapshot.revision
-            ),
-            reasons: reasons
-        )
+        return LocalizationUpdate(snapshot: LocalizationSnapshot(
+            locale: AppLocale(identifier: direction == .rightToLeft ? "ar" : "en"),
+            followsSystemLocale: snapshot.followsSystemLocale,
+            revision: snapshot.revision
+        ))
     }
 
     static func start() {
-        // 方向边界只设置在窗口和控制器上。若通过 UIView appearance proxy 设置，
-        // 每个新视图都会把继承方向固化为显式值，导致既有子树无法跟随运行时切换。
-        guard notificationToken == nil else { return }
-        lastDistributedSnapshot = localizationController.currentSnapshot
-        notificationToken = NotificationCenter.default.addObserver(
-            forName: LocalizationController.localizationDidChangeNotification,
-            object: localizationController,
-            queue: .main
-        ) { notification in
-            guard let change = notification.userInfo?[LocalizationController.localizationChangeUserInfoKey] as? LocalizationChange else {
-                return
-            }
-
-            Task { @MainActor in
-                guard change.current.revision
-                    == localizationController.currentSnapshot.revision else {
-                    return
-                }
-                // 合并的是最终状态与上次实际分发状态之间的差异，不能只保留最后一条
-                // 增量通知，否则 RTL → 中文 → 英文会漏掉第一步的方向变化。
-                let mergedChange = LocalizationChange(
-                    previous: lastDistributedSnapshot ?? change.previous,
-                    current: change.current
-                )
-                lastDistributedSnapshot = change.current
-                // Demo 主动查找已连接场景，使没有 SceneDelegate 的交互式 #Preview 窗口
-                // 也能与正式应用接收同一次原子更新。
-                sceneCoordinator.reloadAllScenes(for: mergedChange)
-            }
-        }
+        // 协调器直接参与控制器事务；持有实例即可，不再异步转发完成通知。
+        _ = sceneCoordinator
     }
 
     static func register(window: UIWindow) {
@@ -168,8 +124,7 @@ enum Localization {
     }
 
     static func installLanguageMenu(on viewController: UIViewController) {
-        // #Preview 不会执行 AppDelegate；此处重复启动是幂等操作，可确保预览和正式应用
-        // 都能监听菜单中的语言选择。
+        // 确保应用协调器已经创建；预览窗口由预览宿主显式注册。
         start()
         let item = UIBarButtonItem(
             image: UIImage(systemName: "globe"),
@@ -178,10 +133,7 @@ enum Localization {
         )
         item.accessibilityLabel = text("language.menu.accessibility")
         item.accessibilityIdentifier = languageMenuItemAccessibilityIdentifier
-        viewController.navigationItem.setBarButtonItem(
-            item,
-            side: .trailing
-        )
+        viewController.navigationItem.rightBarButtonItem = item
     }
 
     static func reloadLanguageMenu(on viewController: UIViewController) {
@@ -200,7 +152,6 @@ enum Localization {
 
         item.menu = languageMenu()
         item.accessibilityLabel = text("language.menu.accessibility")
-        navigationItem.setBarButtonItem(item, side: .trailing)
     }
 
     static func languageMenu() -> UIMenu {
@@ -214,8 +165,9 @@ enum Localization {
             }
         }
 
-        let localeActions = localizationController.supportedLocales.map { locale in
-            UIAction(
+        let localeActions = localizationController.supportedLocalizations.map { identifier in
+            let locale = AppLocale(identifier: identifier)
+            return UIAction(
                 title: locale.nativeDisplayName,
                 subtitle: localeDisplayName(locale),
                 image: (!localizationController.followsSystemLocale && locale == localizationController.currentLocale) ? UIImage(systemName: "checkmark") : nil
@@ -248,9 +200,9 @@ extension UIViewController {
 
     @MainActor
     func applyLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
-        UIViewLayoutDirectionUpdater.apply(
-            Localization.layoutDirectionUpdate(direction),
-            to: [UIViewLayoutDirectionTarget(view, policy: .followApplication)]
+        Localization.applyBoundary(
+            direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight,
+            to: view
         )
     }
 }

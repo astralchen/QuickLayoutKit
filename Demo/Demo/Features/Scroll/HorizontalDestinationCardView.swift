@@ -115,17 +115,17 @@ final class HorizontalDestinationCardView: QuickLayoutView {
 
     private let artworkView: HorizontalDestinationArtworkView
     private let artworkSymbolView = UIImageView()
-    private let tagLabel = UILabel()
+    private let tagLabel = LocalizedLabel()
     private let tagBackgroundView = UIView()
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
     private let locationIconView = UIImageView()
-    private let locationLabel = UILabel()
-    private let summaryLabel = UILabel()
+    private let locationLabel = LocalizedLabel()
+    private let summaryLabel = LocalizedLabel()
     private let ratingIconView = UIImageView()
-    private let ratingLabel = UILabel()
+    private let ratingLabel = LocalizedLabel()
     private let separatorView = UIView()
-    private let priceCaptionLabel = UILabel()
-    private let priceLabel = UILabel()
+    private let priceCaptionLabel = LocalizedLabel()
+    private let priceLabel = LocalizedLabel()
     private let disclosureIconView = UIImageView()
     private var content: HorizontalDestinationCardContent?
 
@@ -268,7 +268,7 @@ final class HorizontalDestinationCardView: QuickLayoutView {
     private func setupViews() {
         quickLayoutHorizontalFlexibility = .fullyFlexible
         quickLayoutVerticalFlexibility = .fixedSize
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         backgroundColor = .secondarySystemGroupedBackground
         layer.cornerRadius = 22
         layer.shadowColor = UIColor.black.cgColor

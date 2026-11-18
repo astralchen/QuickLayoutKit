@@ -13,11 +13,11 @@ import UIKit
 final class AudienceSheetHeaderView: QuickLayoutView {
 
     /// 显示组件主标题的标签。
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
     /// 显示汇总信息的标签。
-    private let summaryLabel = UILabel()
+    private let summaryLabel = LocalizedLabel()
     /// 显示标题补充说明的标签。
-    private let subtitleLabel = UILabel()
+    private let subtitleLabel = LocalizedLabel()
     /// 分隔相邻内容区域的细线视图。
     private let dividerView = UIView()
 

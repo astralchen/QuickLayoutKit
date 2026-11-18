@@ -10,8 +10,8 @@ import QuickLayoutKit
 extension ApplicationTests {
 
     @Test func safeAreaPaddingCoversQuickLayoutCombinations() throws {
-        Localization.setLocale(identifier: "en-US")
-        defer { Localization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "en")
+        defer { Localization.setLocale(identifier: "en") }
 
         let viewController = SafeAreaPaddingViewController()
         let navigationController = UINavigationController(
@@ -166,6 +166,7 @@ extension ApplicationTests {
         )
 
         window.semanticContentAttribute = .forceRightToLeft
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
         viewController.reloadLayoutDirection(.rightToLeft)
         viewController.selectScenario(
             at: SafeAreaPaddingViewController.Scenario
@@ -262,8 +263,8 @@ extension ApplicationTests {
     }
 
     @Test func contentMarginsCoversSwiftUIPlacementCombinations() throws {
-        Localization.setLocale(identifier: "en-US")
-        defer { Localization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "en")
+        defer { Localization.setLocale(identifier: "en") }
 
         let viewController = ContentMarginsViewController()
         let navigationController = UINavigationController(
@@ -333,6 +334,7 @@ extension ApplicationTests {
         )
 
         window.semanticContentAttribute = .forceRightToLeft
+        applyTestLayoutDirection(.rightToLeft, to: viewController)
         viewController.reloadLayoutDirection(.rightToLeft)
         layout(viewController, in: navigationController)
 
@@ -387,8 +389,8 @@ extension ApplicationTests {
     }
 
     @Test func viewThatFitsCoversSwiftUISelectionContract() throws {
-        Localization.setLocale(identifier: "en-US")
-        defer { Localization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "en")
+        defer { Localization.setLocale(identifier: "en") }
 
         let viewController = ViewThatFitsViewController()
         let navigationController = UINavigationController(
@@ -559,9 +561,9 @@ extension ApplicationTests {
         #expect(scrollView.contentOffset.y > 0)
     }
 
-    @Test func positionAndZIndexUsesPhysicalPointsAndLayerOrdering() throws {
-        Localization.setLocale(identifier: "en-US")
-        defer { Localization.setLocale(identifier: "en-US") }
+    @Test func positionAndZIndexFollowsDirectionAndPreservesLayerOrdering() throws {
+        Localization.setLocale(identifier: "en")
+        defer { Localization.setLocale(identifier: "en") }
 
         let viewController = PositionAndZIndexViewController()
         let navigationController = UINavigationController(
@@ -648,22 +650,43 @@ extension ApplicationTests {
         #expect(scrollView.verticalScrollIndicatorInsets.bottom == 24)
         #expect(scrollView.automaticallyAdjustsScrollIndicatorInsets)
 
-        window.semanticContentAttribute = .forceRightToLeft
-        viewController.reloadLayoutDirection(.rightToLeft)
-        viewController.view.layoutIfNeeded()
-        viewController.positionCanvas.layoutIfNeeded()
+        // 原生方向从宿主继承，中心位置随 RTL 镜像，图层顺序保持不变。
+        for direction: UIUserInterfaceLayoutDirection in [.rightToLeft, .leftToRight, .rightToLeft] {
+            applyTestLayoutDirection(direction, to: viewController)
+            viewController.reloadLayoutDirection(direction)
+            viewController.view.layoutIfNeeded()
+            viewController.positionCanvas.layoutIfNeeded()
+            viewController.zIndexCanvas.layoutIfNeeded()
 
-        #expect(
-            center(
-                of: viewController.positionCanvas.centerBadge,
-                in: viewController.positionCanvas
-            ).approximatelyEquals(CGPoint(x: 144, y: 100))
-        )
+            for canvas in [viewController.positionCanvas, viewController.zIndexCanvas] as [UIView] {
+                #expect(canvas.semanticContentAttribute == .unspecified)
+                #expect(canvas.effectiveUserInterfaceLayoutDirection == direction)
+            }
+
+            let positions: [(UIView, UIView, CGPoint)] = [
+                (viewController.positionCanvas.firstBadge, viewController.positionCanvas, CGPoint(x: 60, y: 54)),
+                (viewController.positionCanvas.centerBadge, viewController.positionCanvas, CGPoint(x: 144, y: 100)),
+                (viewController.positionCanvas.lastBadge, viewController.positionCanvas, CGPoint(x: 228, y: 146)),
+                (viewController.zIndexCanvas.backCard, viewController.zIndexCanvas, CGPoint(x: 86, y: 120)),
+                (viewController.zIndexCanvas.frontCard, viewController.zIndexCanvas, CGPoint(x: 146, y: 72)),
+                (viewController.zIndexCanvas.middleCard, viewController.zIndexCanvas, CGPoint(x: 216, y: 122)),
+            ]
+            for (card, canvas, point) in positions {
+                #expect(center(of: card, in: canvas).approximatelyEquals(CGPoint(
+                    x: direction == .rightToLeft ? canvas.bounds.width - point.x : point.x,
+                    y: point.y
+                )))
+                #expect(card.semanticContentAttribute == .unspecified)
+            }
+            #expect(viewController.zIndexCanvas.backCard.layer.zPosition == 0)
+            #expect(viewController.zIndexCanvas.middleCard.layer.zPosition == 1)
+            #expect(viewController.zIndexCanvas.frontCard.layer.zPosition == 3)
+        }
     }
 
     @Test func counterFallsBackToVerticalActionsWhenNarrow() {
-        Localization.setLocale(identifier: "en-US")
-        defer { Localization.setLocale(identifier: "en-US") }
+        Localization.setLocale(identifier: "en")
+        defer { Localization.setLocale(identifier: "en") }
         let viewController = CounterViewController()
         viewController.loadViewIfNeeded()
         viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 500)

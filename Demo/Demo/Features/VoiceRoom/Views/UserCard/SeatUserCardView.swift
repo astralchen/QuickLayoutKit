@@ -17,21 +17,21 @@ final class SeatUserCardView: TranslucentCardView {
     let closeButton = SymbolButton(frame: .zero)
 
     /// 显示组件主标题的标签。
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
     /// 提供头像底色和圆角的背景视图。
     private let avatarBackgroundView = UIView()
     /// 显示用户头像或备用图标的图像视图。
     private let avatarImageView = UIImageView()
     /// 显示用户昵称或空麦名称的标签。
-    private let nameLabel = UILabel()
+    private let nameLabel = LocalizedLabel()
     /// 显示麦位角色、编号或所属房间的标签。
-    private let seatLabel = UILabel()
+    private let seatLabel = LocalizedLabel()
     /// 显示用户积分或空麦状态的标签。
-    private let scoreLabel = UILabel()
+    private let scoreLabel = LocalizedLabel()
     /// 显示麦克风可用或静音状态的图像视图。
     private let microphoneImageView = UIImageView()
     /// 显示麦克风状态的文本标签。
-    private let microphoneLabel = UILabel()
+    private let microphoneLabel = LocalizedLabel()
     /// 资料卡头像内容的目标边长，单位为点。
     private var avatarContentSize: CGFloat = 52
 

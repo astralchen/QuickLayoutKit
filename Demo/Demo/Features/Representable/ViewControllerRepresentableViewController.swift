@@ -17,7 +17,7 @@ final class ViewControllerRepresentableViewController: LocalizedQuickLayoutHosti
     override var localizedTitleKey: String? { "demo.representable.title" }
 
     private let scrollView = QuickLayoutScrollView()
-    private let stateLabel = UILabel()
+    private let stateLabel = LocalizedLabel()
     private let logTextView = UITextView()
 
     private lazy var showLazyButton = makeButton(titleKey: "representable.showLazy", action: #selector(showLazyA))
@@ -76,14 +76,7 @@ final class ViewControllerRepresentableViewController: LocalizedQuickLayoutHosti
     ) {
         super.reloadLayoutDirection(direction)
 
-        let attribute = direction.appLayoutDirection.semanticContentAttribute
-        scrollView.semanticContentAttribute = attribute
-        [stateLabel, logTextView].forEach {
-            $0.semanticContentAttribute = attribute
-        }
         directionSensitiveButtons.forEach {
-            $0.semanticContentAttribute = attribute
-            $0.configuration = $0.configuration
             $0.setNeedsLayout()
         }
 
@@ -232,24 +225,8 @@ private extension ViewControllerRepresentableViewController {
         to host: QuickLayoutViewControllerRepresentable
     ) {
         let update = Localization.layoutDirectionUpdate(direction)
-        UIViewLayoutDirectionUpdater.apply(
-            update,
-            to: [UIViewLayoutDirectionTarget(host, policy: .followApplication)]
-        )
         if let applying = host.viewController as? UIKitLocalizationApplying {
             applying.applyLocalization(update)
-        } else {
-            if let childView = host.viewController?.viewIfLoaded {
-                UIViewLayoutDirectionUpdater.apply(
-                    update,
-                    to: [
-                        UIViewLayoutDirectionTarget(
-                            childView,
-                            policy: .followApplication
-                        )
-                    ]
-                )
-            }
         }
         host.setNeedsQuickLayout()
     }
@@ -267,7 +244,7 @@ private extension ViewControllerRepresentableViewController {
         configuration.baseForegroundColor = .systemBlue
         configuration.cornerStyle = .medium
 
-        let button = UIButton(configuration: configuration)
+        let button = LocalizedButton(configuration: configuration)
         button.contentHorizontalAlignment = .leading
         button.addTarget(self, action: action, for: .touchUpInside)
         return button
@@ -354,8 +331,8 @@ private final class LoggingChildViewController: UIViewController, UIKitLocalizat
     let name: String
 
     private let logHandler: (String) -> Void
-    private let titleLabel = UILabel()
-    private let subtitleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
+    private let subtitleLabel = LocalizedLabel()
     private let actionButton: UIButton = {
         var configuration = UIButton.Configuration.filled()
         configuration.title = Localization.text(
@@ -364,7 +341,7 @@ private final class LoggingChildViewController: UIViewController, UIKitLocalizat
         configuration.baseBackgroundColor = .systemGreen.withAlphaComponent(0.16)
         configuration.baseForegroundColor = .systemGreen
         configuration.cornerStyle = .medium
-        return UIButton(configuration: configuration)
+        return LocalizedButton(configuration: configuration)
     }()
     private var usesExpandedPreferredSize = false
 
@@ -415,18 +392,7 @@ private final class LoggingChildViewController: UIViewController, UIKitLocalizat
         log("viewDidLoad")
     }
 
-    func applyLocalization(_ update: UIKitLocalizationUpdate) {
-        if update.requiresLayoutDirectionRefresh {
-            UIViewLayoutDirectionUpdater.apply(
-                update,
-                to: [
-                    UIViewLayoutDirectionTarget(view, policy: .followApplication),
-                    UIViewLayoutDirectionTarget(titleLabel, policy: .followApplication),
-                    UIViewLayoutDirectionTarget(subtitleLabel, policy: .followApplication),
-                    UIViewLayoutDirectionTarget(actionButton, policy: .followApplication)
-                ]
-            )
-        }
+    func applyLocalization(_ update: LocalizationUpdate) {
         guard update.requiresLocalizedContentRefresh else { return }
         titleLabel.text = Localization.text("representable.child.title", name)
         subtitleLabel.text = Localization.text("representable.child.subtitle")

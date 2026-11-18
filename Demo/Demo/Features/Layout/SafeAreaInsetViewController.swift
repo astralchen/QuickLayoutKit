@@ -7,10 +7,10 @@ import UIKit
 final class SafeAreaInsetViewController: LocalizedQuickLayoutHostingController {
     override var localizedTitleKey: String? { "demo.safeAreaInset.title" }
     let stage = SafeAreaInsetStageView()
-    private let scenarioButton = UIButton(type: .system)
-    private let spacingButton = UIButton(type: .system)
-    private let sizeButton = UIButton(type: .system)
-    private let explanationLabel = UILabel()
+    private let scenarioButton = LocalizedButton(type: .system)
+    private let spacingButton = LocalizedButton(type: .system)
+    private let sizeButton = LocalizedButton(type: .system)
+    private let explanationLabel = LocalizedLabel()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -61,11 +61,7 @@ final class SafeAreaInsetViewController: LocalizedQuickLayoutHostingController {
 
     override func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
         super.reloadLayoutDirection(direction)
-        let attribute: UISemanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight
-        stage.semanticContentAttribute = attribute
-        stage.scrollView.semanticContentAttribute = attribute
-        stage.primaryBar.semanticContentAttribute = attribute
-        stage.secondaryBar.semanticContentAttribute = attribute
+
         stage.setNeedsQuickLayout()
     }
 
@@ -108,7 +104,7 @@ final class SafeAreaInsetStageView: QuickLayoutView {
     let primaryBar = SafeAreaInsetBarView()
     let secondaryBar = SafeAreaInsetBarView()
     private let rows: [UILabel] = (1...24).map { index in
-        let label = UILabel()
+        let label = LocalizedLabel()
         label.tag = index
         label.numberOfLines = 0
         label.font = .preferredFont(forTextStyle: .body)
@@ -124,7 +120,7 @@ final class SafeAreaInsetStageView: QuickLayoutView {
         scrollView.accessibilityIdentifier = "safeAreaInset.scroll"
         scrollView.keyboardDismissMode = .interactive
         scrollView.alwaysBounceVertical = true
-        scrollView.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         primaryBar.accessibilityIdentifier = "safeAreaInset.primary"
         secondaryBar.accessibilityIdentifier = "safeAreaInset.secondary"
         secondaryBar.insetBackground.backgroundColor = .secondarySystemBackground
@@ -210,8 +206,8 @@ final class SafeAreaInsetBarView: QuickLayoutView, UITextFieldDelegate {
     var backgroundBottomExtension: CGFloat = 0 {
         didSet { updateBackgroundFrame() }
     }
-    let titleLabel = UILabel()
-    let field = UITextField()
+    let titleLabel = LocalizedLabel()
+    let field = LocalizedTextField()
     var expanded = false {
         didSet { if expanded != oldValue { invalidateContentLayout() } }
     }

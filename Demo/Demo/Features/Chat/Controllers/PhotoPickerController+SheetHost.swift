@@ -20,7 +20,7 @@ extension PhotoPickerController {
         /// 作为子控制器嵌入可测量面板的系统照片选择器。
         let picker: PHPickerViewController
         var finishSelection: (() -> Void)?
-        private let doneButton = UIButton(type: .system)
+        private let doneButton = LocalizedButton(type: .system)
         private var attachedConstraints: [NSLayoutConstraint] = []
         private var detachedConstraints: [NSLayoutConstraint] = []
         private var showsDoneButton = false

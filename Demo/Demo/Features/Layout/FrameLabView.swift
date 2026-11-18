@@ -40,8 +40,8 @@ final class FrameLabView: QuickLayoutView {
         super.init(frame: .zero)
         backgroundColor = .systemGroupedBackground
         tintColor = .systemBlue
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
-        pageScrollView.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
+
         pageScrollView.accessibilityIdentifier = "frame.page"
         bindActions()
         reloadLocalizedContent()
@@ -226,12 +226,9 @@ final class FrameLabView: QuickLayoutView {
     }
 
     func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
-        let semantic = direction.appLayoutDirection.semanticContentAttribute
-        semanticContentAttribute = semantic
-        pageScrollView.semanticContentAttribute = semantic
-        preview.reloadLayoutDirection(semantic)
-        options.reloadLayoutDirection(semantic)
-        parameters.reloadLayoutDirection(semantic)
+        preview.invalidateLayout()
+        options.invalidateLayout()
+        parameters.invalidateLayout()
         setNeedsQuickLayout()
     }
 

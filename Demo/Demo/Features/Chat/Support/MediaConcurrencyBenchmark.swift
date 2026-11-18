@@ -12,7 +12,7 @@ final class MediaConcurrencyBenchmark {
     /// 驱动不延长聊天页面生命周期。
     private weak var chat: ChatViewController?
     /// 测量状态和 JSON 结果通过测试按钮的辅助功能值交给 XCTest。
-    private let button = UIButton(type: .system)
+    private let button = LocalizedButton(type: .system)
     /// 本次场景；正常构建不存在此入口。
     private let scenario: String
     /// 哈希验证后的固定原件清单，重复来源仍有独立的导入身份。

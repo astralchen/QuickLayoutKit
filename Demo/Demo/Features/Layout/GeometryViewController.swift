@@ -7,18 +7,18 @@ final class GeometryViewController: LocalizedQuickLayoutHostingController {
     override var localizedTitleKey: String? { "demo.geometry.title" }
     private let page = QuickLayoutScrollView(.vertical)
     private let canvas = GeometryCanvas()
-    private let scenario = UIButton(type: .system)
-    private let options = UIButton(type: .system)
-    private let directionButton = UIButton(type: .system)
-    private let width = UISlider()
-    private let margin = UISlider()
-    private let radius = UISlider()
-    private let metrics = UILabel()
-    private let code = UILabel()
-    private let instructions = UILabel()
-    private let widthLabel = UILabel()
-    private let marginLabel = UILabel()
-    private let radiusLabel = UILabel()
+    private let scenario = LocalizedButton(type: .system)
+    private let options = LocalizedButton(type: .system)
+    private let directionButton = LocalizedButton(type: .system)
+    private let width = LocalizedSlider()
+    private let margin = LocalizedSlider()
+    private let radius = LocalizedSlider()
+    private let metrics = LocalizedLabel()
+    private let code = LocalizedLabel()
+    private let instructions = LocalizedLabel()
+    private let widthLabel = LocalizedLabel()
+    private let marginLabel = LocalizedLabel()
+    private let radiusLabel = LocalizedLabel()
     private var selection = 0
     private var includeInactive = false
     private var mirrors = true
@@ -299,7 +299,8 @@ private final class GeometryCanvas: QuickLayoutView {
             let region = availableRegion?.intersection(bounds) ?? bounds
             sample.resizable().frame(width: max(0, region.width), height: max(0, region.height))
                 .geometryAnchor(anchor)
-                .position(x: region.midX, y: region.midY)
+                // UIKit 区域是物理坐标；转换为 position 的前缘坐标，保留内容的有效布局方向。
+                .position(x: rtl ? bounds.width - region.midX : region.midX, y: region.midY)
         } else {
             ScrollView(horizontal, .horizontal) {
                 sample.resizable().frame(width: max(100, bounds.width * fraction * 1.6), height: 200)

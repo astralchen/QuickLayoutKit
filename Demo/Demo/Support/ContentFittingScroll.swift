@@ -18,7 +18,7 @@ struct ContentFittingScroll: @MainActor Layout {
         let content = content()
         self.maximumHeightFraction = min(1, max(0, maximumHeightFraction))
         scrollView.contentInsetAdjustmentBehavior = .never
-        scrollView.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         viewport = ScrollView(scrollView) { content }
     }
 

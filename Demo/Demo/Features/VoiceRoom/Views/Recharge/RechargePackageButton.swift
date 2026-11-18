@@ -14,9 +14,9 @@ import UIKit
 final class RechargePackageButton: QuickLayoutButton {
 
     /// 显示充值档位基础金币数的标签。
-    private let amountLabel = UILabel()
+    private let amountLabel = LocalizedLabel()
     /// 显示档位赠送金币或标准档位说明的标签。
-    private let detailLabel = UILabel()
+    private let detailLabel = LocalizedLabel()
 
     /// 使用指定初始矩形创建视图并配置初始外观。
     ///

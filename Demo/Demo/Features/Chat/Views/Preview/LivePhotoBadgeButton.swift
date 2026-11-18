@@ -6,6 +6,20 @@ import UIKit
 final class LivePhotoBadgeButton: UIButton {
     private let chevron = UIImageView(image: UIImage(systemName: "chevron.down"))
     private var arrowSide: CGFloat = 10
+    override var semanticContentAttribute: UISemanticContentAttribute {
+        didSet { setNeedsLayout() }
+    }
+
+    override func traitCollectionDidChange(_ previous: UITraitCollection?) {
+        super.traitCollectionDidChange(previous)
+        setNeedsLayout()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        setNeedsLayout()
+    }
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         showsMenuAsPrimaryAction = true

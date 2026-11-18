@@ -25,11 +25,12 @@ extension ContentConfigurationCollectionTests {
         let collectionIndex = try #require(routes.firstIndex(of: .collectionContentConfiguration))
         #expect(routes[collectionIndex + 1] == .waterfallContentConfiguration)
 
-        Localization.setLocale(identifier: "en-US")
+        Localization.setLocale(identifier: "en")
         let fixture = try WaterfallFixture(localizer: .live)
         defer { fixture.window.isHidden = true }
-        for language in ["en-US", "zh-Hans", "ar"] {
+        for language in ["en", "zh-Hans", "ar"] {
             Localization.setLocale(identifier: language)
+            applyTestLayoutDirection(Localization.currentUIKitDirection, to: fixture.controller)
             fixture.controller.reloadLayoutDirection(Localization.currentUIKitDirection)
             fixture.controller.reloadLocalizedContent()
             await fixture.settle()
@@ -155,6 +156,7 @@ extension ContentConfigurationCollectionTests {
         try fixture.verifyVisibleGeometry()
 
         let ltr = try #require(controller.waterfallLayout.layoutAttributesForItem(at: first)).frame
+        applyTestLayoutDirection(.rightToLeft, to: controller)
         controller.reloadLayoutDirection(.rightToLeft)
         await fixture.settle()
         let rtl = try #require(controller.waterfallLayout.layoutAttributesForItem(at: first)).frame
@@ -163,6 +165,7 @@ extension ContentConfigurationCollectionTests {
             $0.contentView.effectiveUserInterfaceLayoutDirection == .rightToLeft
         })
         try fixture.verifyVisibleGeometry()
+        applyTestLayoutDirection(.leftToRight, to: controller)
         controller.reloadLayoutDirection(.leftToRight)
         await fixture.settle()
         #expect(try #require(controller.waterfallLayout.layoutAttributesForItem(at: first)).frame == ltr)
@@ -230,6 +233,7 @@ extension ContentConfigurationCollectionTests {
         try fixture.saveSnapshot(name: "waterfall-review-after-large-type")
         fixture.setPreferredContentSizeCategory(.large)
         Localization.setLocale(identifier: "ar")
+        applyTestLayoutDirection(.rightToLeft, to: controller)
         controller.reloadLayoutDirection(.rightToLeft)
         controller.reloadLocalizedContent()
         await fixture.settle()
@@ -303,8 +307,9 @@ extension ContentConfigurationCollectionTests {
             controller.view.frame.size.height = size.height
             for insets in [UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 80),
                            UIEdgeInsets(top: 0, left: 80, bottom: 0, right: 0)] {
-                controller.additionalSafeAreaInsets = insets
+                fixture.parent.additionalSafeAreaInsets = insets
                 for direction: UIUserInterfaceLayoutDirection in [.leftToRight, .rightToLeft] {
+                    applyTestLayoutDirection(direction, to: controller)
                     controller.reloadLayoutDirection(direction)
                     for scrollDirection: UICollectionView.ScrollDirection in [.vertical, .horizontal] {
                         controller.setScrollDirection(scrollDirection)
@@ -316,12 +321,85 @@ extension ContentConfigurationCollectionTests {
                         #expect(abs(label.frame.midX - safeFrame.midX) <= 1)
                         #expect(control.frame.minX >= safeFrame.minX + 11)
                         #expect(control.frame.maxX <= safeFrame.maxX - 11)
-                        #expect(abs(control.frame.minY - safeFrame.minY - 8) <= 1)
+                        #expect(abs(control.frame.minY - fixture.parent.view.safeAreaInsets.top - 8) <= 1)
                         #expect(abs(background.frame.width - controller.view.bounds.width) <= 1)
                     }
                 }
             }
         }
+    }
+
+    @Test func waterfallSafeAreaChangesWhileScrollingKeepCardsConfigured() async throws {
+        let fixture = try WaterfallFixture()
+        defer { fixture.window.isHidden = true }
+        fixture.resize(width: 600)
+        await fixture.settle()
+        let controller = fixture.controller
+        let collection = try #require(controller.collectionView)
+        let snapshots = controller.snapshotApplicationCount
+        let background = try #require(controller.view.subviews.first { $0.accessibilityIdentifier == "waterfall.controlsBackground" })
+        // 模拟导航栏收起／展开：视图尺寸不变，安全区和 adjusted inset 连续变化。
+        for top: CGFloat in [44, 30, 16, 0, 16, 30, 44, 0] {
+            collection.contentOffset.y = top == 0 ? 0 : 600
+            fixture.parent.additionalSafeAreaInsets.top = top
+            controller.view.setNeedsLayout()
+            await fixture.settle()
+            #expect(collection.contentInset.top == 0)
+            #expect(collection.automaticallyAdjustsScrollIndicatorInsets)
+            #expect(abs(collection.frame.minY + collection.adjustedContentInset.top - background.frame.maxY) <= 1)
+            if top > 0 {
+                #expect(collection.visibleCells.contains { cell in
+                    cell.convert(cell.bounds, to: controller.view).intersects(background.frame)
+                })
+            }
+            try fixture.verifyVisibleGeometry()
+        }
+        collection.contentOffset.y = -collection.adjustedContentInset.top
+        await fixture.settle()
+        try fixture.verifyVisibleGeometry()
+        #expect(controller.snapshotApplicationCount == snapshots)
+    }
+
+    @Test func waterfallConfiguresPreparedCellsWhenTheyBecomeVisible() async throws {
+        let fixture = try WaterfallFixture()
+        defer { fixture.window.isHidden = true }
+        await fixture.settle()
+        let collection = try #require(fixture.controller.collectionView)
+        let cell = UICollectionViewListCell(frame: .zero)
+        // 模拟几何失效期间创建、错过可见项刷新通知的预取 cell。
+        #expect(cell.contentConfiguration == nil)
+        collection.delegate?.collectionView?(collection, willDisplay: cell, forItemAt: IndexPath(item: 0, section: 0))
+        #expect(WaterfallFixture.card(in: cell) != nil)
+    }
+
+    @Test func waterfallPendingGeometryKeepsContentAndReusedCellsRenderCurrentItem() async throws {
+        let fixture = try WaterfallFixture()
+        defer { fixture.window.isHidden = true }
+        fixture.resize(width: 600)
+        await fixture.settle()
+        let controller = fixture.controller
+        let collection = try #require(controller.collectionView)
+        let firstPath = IndexPath(item: 0, section: 0)
+        let cell = try #require(collection.cellForItem(at: firstPath) as? UICollectionViewListCell)
+        let card = try #require(WaterfallFixture.card(in: cell))
+        let original = try #require(cell.contentConfiguration as? ContentConfigurationWaterfallCard.Configuration)
+        let snapshots = controller.snapshotApplicationCount
+        controller.waterfallLayout.invalidateSectionConfigurations(reason: "navigation-bar-transition")
+        #expect(controller.waterfallLayout.sizingForItem(at: firstPath).constraint == .zero)
+        controller.collectionView(collection, willDisplay: cell, forItemAt: firstPath)
+        #expect(WaterfallFixture.card(in: cell) === card)
+        #expect((cell.contentConfiguration as? ContentConfigurationWaterfallCard.Configuration)?.sizing == original.sizing)
+
+        // 同一过渡中进入屏幕的复用 cell 必须使用当前条目，不能保留上一条目的正文。
+        let reused = UICollectionViewListCell(frame: cell.frame)
+        reused.contentConfiguration = original
+        controller.collectionView(collection, willDisplay: reused, forItemAt: IndexPath(item: 1, section: 0))
+        let next = try #require(reused.contentConfiguration as? ContentConfigurationWaterfallCard.Configuration)
+        #expect(next.item.id == 1)
+        #expect(WaterfallFixture.card(in: reused) != nil)
+        await fixture.settle()
+        try fixture.verifyVisibleGeometry()
+        #expect(controller.snapshotApplicationCount == snapshots)
     }
 
     @Test func waterfallNativeCellsFitHorizontallyAndReturnToVertical() async throws {
@@ -371,6 +449,7 @@ extension ContentConfigurationCollectionTests {
         await fixture.settle()
         try verifyHorizontal()
         fixture.setPreferredContentSizeCategory(.large)
+        applyTestLayoutDirection(.rightToLeft, to: controller)
         controller.reloadLayoutDirection(.rightToLeft)
         await fixture.settle()
         try verifyHorizontal()
@@ -380,6 +459,7 @@ extension ContentConfigurationCollectionTests {
         collection.scrollToItem(at: IndexPath(item: 0, section: 1), at: .right, animated: false)
         await fixture.settle()
         try verifyHorizontal()
+        applyTestLayoutDirection(.leftToRight, to: controller)
         controller.reloadLayoutDirection(.leftToRight)
         controller.setScrollDirection(.vertical)
         collection.contentOffset = CGPoint(x: 0, y: -collection.adjustedContentInset.top)
@@ -470,6 +550,7 @@ private final class WaterfallFixture {
         controller.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         controller.didMove(toParent: parent)
         window.isHidden = false
+        applyTestLayoutDirection(.leftToRight, to: controller)
         controller.reloadLayoutDirection(.leftToRight)
     }
 
@@ -509,10 +590,14 @@ private final class WaterfallFixture {
         #expect(direction.accessibilityIdentifier == "waterfall.direction")
         #expect(direction.bounds.width <= min(320, controller.view.bounds.width - 24) + 1)
         #expect(direction.bounds.height >= 44)
-        #expect(abs(direction.frame.minY - controller.view.safeAreaInsets.top - 8) <= 1)
+        #expect(abs(direction.frame.minY - parent.view.safeAreaInsets.top - 8) <= 1)
         let hit = controller.view.hitTest(CGPoint(x: direction.frame.midX, y: direction.frame.midY), with: nil)
         #expect(hit?.isDescendant(of: direction) == true)
-        #expect(collection.frame == controller.view.bounds)
+        let toolbar = try #require(controller.view.subviews.first { $0.accessibilityIdentifier == "waterfall.controlsBackground" })
+        #expect(collection.frame.minY == controller.view.bounds.minY)
+        #expect(abs(collection.adjustedContentInset.top - toolbar.frame.maxY) <= 1)
+        #expect(abs(collection.frame.maxY - controller.view.bounds.maxY) <= 1)
+        #expect(abs(collection.frame.width - controller.view.bounds.width) <= 1)
         #expect(collection.contentInsetAdjustmentBehavior == .always)
         #expect(!collection.visibleCells.isEmpty)
         for path in collection.indexPathsForVisibleItems {

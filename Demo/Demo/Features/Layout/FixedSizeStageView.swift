@@ -16,8 +16,8 @@ final class FixedSizeStageView: QuickLayoutView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
-        carouselScrollView.quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
+
         carouselScrollView.accessibilityIdentifier = "fixedSize.carousel"
         carouselScrollView.alwaysBounceHorizontal = true
         metricsLabel.accessibilityIdentifier = "fixedSize.metrics"
@@ -102,11 +102,8 @@ final class FixedSizeStageView: QuickLayoutView {
     }
 
     func reloadLayoutDirection(_ direction: UIUserInterfaceLayoutDirection) {
-        let semantic = direction.appLayoutDirection.semanticContentAttribute
-        semanticContentAttribute = semantic
-        carouselScrollView.semanticContentAttribute = semantic
+
         cards.forEach {
-            $0.semanticContentAttribute = semantic
             $0.setNeedsQuickLayout()
         }
         needsLeadingPosition = true
@@ -165,9 +162,9 @@ final class FixedSizeStageView: QuickLayoutView {
 }
 
 final class FixedSizeLabCardView: QuickLayoutView {
-    let titleLabel = UILabel()
-    let detailLabel = UILabel()
-    private let numberLabel = UILabel()
+    let titleLabel = LocalizedLabel()
+    let detailLabel = LocalizedLabel()
+    private let numberLabel = LocalizedLabel()
     private let symbolView = UIImageView()
 
     init(index: Int) {
@@ -181,7 +178,7 @@ final class FixedSizeLabCardView: QuickLayoutView {
         layer.cornerRadius = 20
         layer.cornerCurve = .continuous
         clipsToBounds = true
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         accessibilityIdentifier = "fixedSize.card.\(index)"
         numberLabel.text = String(format: "%02d", index + 1)
         numberLabel.font = .preferredFont(forTextStyle: .headline)

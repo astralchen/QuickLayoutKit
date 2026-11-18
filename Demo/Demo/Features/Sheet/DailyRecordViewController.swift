@@ -11,7 +11,7 @@ final class DailyRecordViewController: LocalizedQuickLayoutHostingController {
     private let introduction = recordLabel(.subheadline, color: .secondaryLabel)
     private let month = recordLabel(.headline)
     private let summary = RecordSummaryView()
-    private let openButton = UIButton(type: .system)
+    private let openButton = LocalizedButton(type: .system)
     private var days: [UIButton] = []
     private var recordMonth = DailyRecordMonth()
 
@@ -39,7 +39,7 @@ final class DailyRecordViewController: LocalizedQuickLayoutHostingController {
             let day = recordMonth.calendar.component(.day, from: date)
             let isToday = recordMonth.isToday(date)
             let lunarText = recordMonth.lunarText(for: date)
-            let button = UIButton(type: .system)
+            let button = LocalizedButton(type: .system)
             button.configuration = isToday ? .filled() : .tinted()
             button.configuration?.title = day.formatted(.number.locale(Localization.localizationController.locale))
             button.configuration?.subtitle = lunarText
@@ -265,7 +265,7 @@ private final class RecordSessionView: QuickLayoutView {
 
 @MainActor
 private func recordLabel(_ style: UIFont.TextStyle, color: UIColor = .label) -> UILabel {
-    let label = UILabel()
+    let label = LocalizedLabel()
     label.font = .preferredFont(forTextStyle: style)
     label.adjustsFontForContentSizeCategory = true
     label.numberOfLines = 0

@@ -66,35 +66,7 @@ final class CounterViewController: LocalizedQuickLayoutHostingController {
         viewModel.reloadLocalizedContent()
     }
 
-    override func reloadLayoutDirection(
-        _ direction: UIUserInterfaceLayoutDirection
-    ) {
-        super.reloadLayoutDirection(direction)
 
-        let update = Localization.layoutDirectionUpdate(direction)
-        UIViewLayoutDirectionUpdater.apply(
-            update,
-            to: [
-                UIViewLayoutDirectionTarget(
-                    scrollView,
-                    policy: .followApplication
-                ),
-                UIViewLayoutDirectionTarget(
-                    incrementButton,
-                    policy: .followApplication
-                ),
-                UIViewLayoutDirectionTarget(
-                    decrementButton,
-                    policy: .followApplication
-                ),
-                UIViewLayoutDirectionTarget(
-                    resetButton,
-                    policy: .followApplication
-                ),
-            ]
-        )
-        setNeedsQuickLayout()
-    }
 
     override var body: Layout {
         ScrollView(scrollView) {
@@ -157,7 +129,7 @@ private class CounterCardView: QuickLayoutView {
     }
 
     private func configureCard() {
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
         backgroundColor = .secondarySystemGroupedBackground
         layer.cornerRadius = 20
         layer.cornerCurve = .continuous
@@ -166,13 +138,13 @@ private class CounterCardView: QuickLayoutView {
 
 private final class CounterHeroView: CounterCardView {
 
-    private let eyebrowLabel = UILabel()
-    private let headlineLabel = UILabel()
-    private let subtitleLabel = UILabel()
+    private let eyebrowLabel = LocalizedLabel()
+    private let headlineLabel = LocalizedLabel()
+    private let subtitleLabel = LocalizedLabel()
     private let iconBackgroundView = UIView()
     private let iconView = UIImageView(image: UIImage(systemName: "drop.fill"))
-    private let progressLabel = UILabel()
-    private let goalLabel = UILabel()
+    private let progressLabel = LocalizedLabel()
+    private let goalLabel = LocalizedLabel()
     private let progressView = UIProgressView(progressViewStyle: .default)
 
     override init(frame: CGRect) {
@@ -275,10 +247,10 @@ private final class CounterHeroView: CounterCardView {
 
 private final class CounterControlsView: CounterCardView {
 
-    private let titleLabel = UILabel()
-    private let subtitleLabel = UILabel()
-    let countLabel = UILabel()
-    private let unitLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
+    private let subtitleLabel = LocalizedLabel()
+    let countLabel = LocalizedLabel()
+    private let unitLabel = LocalizedLabel()
     let incrementButton = CounterActionButton(
         style: .filled,
         imageName: "plus"
@@ -404,7 +376,7 @@ private final class CounterActionButton: QuickLayoutButton {
     private let style: Style
     private let backgroundView = UIView()
     private let imageView = UIImageView()
-    private let titleLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
 
     var title: String? {
         get { titleLabel.text }
@@ -466,7 +438,7 @@ private final class CounterActionButton: QuickLayoutButton {
     }
 
     private func configureAppearance() {
-        quickLayoutSemanticDirectionBehavior = .followEnclosingContainer
+
 
         titleLabel.font = .preferredFont(forTextStyle: .headline)
         titleLabel.adjustsFontForContentSizeCategory = true
@@ -515,8 +487,8 @@ private final class CounterStatusView: CounterCardView {
 
     private let iconBackgroundView = UIView()
     private let iconView = UIImageView()
-    private let titleLabel = UILabel()
-    private let messageLabel = UILabel()
+    private let titleLabel = LocalizedLabel()
+    private let messageLabel = LocalizedLabel()
     let resetButton = CounterActionButton(style: .destructive)
 
     override init(frame: CGRect) {

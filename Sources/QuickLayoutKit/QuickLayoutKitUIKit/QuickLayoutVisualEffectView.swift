@@ -45,21 +45,6 @@ open class QuickLayoutVisualEffectView:
         }
     }
 
-    /// 控制宿主在附加、测量或布局时如何恢复语义方向。
-    ///
-    /// 默认值 `.preserve` 保持 UIKit 的局部语义。需要跟随直接外层容器时，设置为
-    /// `.followEnclosingContainer`。
-    open var quickLayoutSemanticDirectionBehavior:
-        QuickLayoutSemanticDirectionBehavior = .preserve {
-        didSet {
-            guard quickLayoutSemanticDirectionBehavior != oldValue else {
-                return
-            }
-            synchronizeDirectionIfNeeded()
-            quickLayoutEnvironmentState.update(self)
-            setNeedsQuickLayout()
-        }
-    }
 
     /// 视觉效果视图承载的 QuickLayout 内容。
     ///
@@ -113,11 +98,10 @@ open class QuickLayoutVisualEffectView:
         QuickLayoutSafeAreaBodyBridge.willMove(self, toWindow: newWindow)
     }
 
-    /// 进入窗口后同步语义方向，并刷新效果宿主的环境快照。
+    /// 进入窗口后刷新效果宿主继承的环境快照。
     open override func didMoveToWindow() {
         super.didMoveToWindow()
         guard window != nil else { return }
-        synchronizeDirectionIfNeeded()
         quickLayoutEnvironmentState.update(self)
     }
 
@@ -147,9 +131,8 @@ open class QuickLayoutVisualEffectView:
         )
     }
 
-    /// 同步方向和环境后，在宿主状态与容器作用域中布局效果内容。
+    /// 读取有效环境后，在宿主状态与容器作用域中布局效果内容。
     open override func layoutSubviews() {
-        synchronizeDirectionIfNeeded()
         super.layoutSubviews()
         quickLayoutEnvironmentState.update(self)
         QuickLayoutDiagnostics.recordLayoutPass(
@@ -165,7 +148,6 @@ open class QuickLayoutVisualEffectView:
 
     /// 使用最新方向和环境测量效果内容，无法测量时使用父类结果。
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
-        synchronizeDirectionIfNeeded()
         quickLayoutEnvironmentState.update(self)
         return withQuickLayoutManagedViewState {
             withQuickLayoutContainerSize(size) {
@@ -220,11 +202,4 @@ open class QuickLayoutVisualEffectView:
         setNeedsQuickLayout()
     }
 
-    /// 按效果宿主的语义策略同步容器方向。
-    private func synchronizeDirectionIfNeeded() {
-        synchronizeQuickLayoutSemanticDirectionIfNeeded(
-            for: self,
-            behavior: quickLayoutSemanticDirectionBehavior
-        )
-    }
 }
