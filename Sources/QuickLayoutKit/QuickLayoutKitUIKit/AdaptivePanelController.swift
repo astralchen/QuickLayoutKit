@@ -8,19 +8,20 @@ import UIKit
 /// 面板负责内容控制器的生命周期、档位、手势及安全区布局。
 @MainActor
 public final class AdaptivePanelController: UIViewController {
-    public typealias Detent = AdaptivePanelDetent
-    public enum Placement: Sendable { case automatic, leading, center, trailing }
+    public typealias Detent = SheetPresentationController.Detent
+    public typealias Placement = SheetPresentationController.Placement
     public enum ChangeReason: Sendable { case programmatic, interaction, environment }
     public enum SafeAreaSource: Sendable { case container, window }
 
     public let contentViewController: UIViewController
     public var detents: [Detent] = [.large()] { didSet { invalidateDetents() } }
     public var selectedDetentIdentifier: Detent.Identifier? { didSet { invalidateDetents() } }
-    /// nil 表示所有档位均可操作背景；设置标识后，仅该档位及更低档位允许操作背景。
+    /// 默认每档都遮暗背景，并保留面板的非模态触摸穿透。指定标识后，该档及以下完全透亮，更高档遮暗并拦截背景触摸。
     public var largestUndimmedDetentIdentifier: Detent.Identifier? { didSet { invalidateDetents() } }
     public var prefersScrollingExpandsWhenScrolledToEdge = true
     public var prefersGrabberVisible = true { didSet { invalidateDetents() } }
-    public var preferredCornerRadius: CGFloat = 24 { didSet { invalidateDetents() } }
+    /// nil 跟随系统 Sheet 的四角样式；指定值作用于当前可见的圆角。
+    public var preferredCornerRadius: CGFloat? { didSet { invalidateDetents() } }
     public var preferredPlacement: Placement = .automatic { didSet { invalidateDetents() } }
     public weak var sourceView: UIView? { didSet { invalidateDetents() } }
     /// 默认尊重宿主安全区；覆盖导航栏或标签栏的页面浮层可选择窗口安全区。
@@ -30,6 +31,10 @@ public final class AdaptivePanelController: UIViewController {
     public var prefersPageSizing = true { didSet { invalidateDetents() } }
     public var prefersEdgeAttachedInCompactHeight = true { didSet { invalidateDetents() } }
     public var widthFollowsPreferredContentSizeWhenEdgeAttached = false { didSet { invalidateDetents() } }
+    /// 页式中小档位的单侧留白。普通 iPhone 竖屏在 iOS 26 起默认为 8 pt，较早系统为 0。
+    public var horizontalInset: CGFloat = SheetRegionGeometry.defaultPageInset { didSet { invalidateDetents() } }
+    /// 页式中小档位的底部留白，独立于内容安全区，默认值和 horizontalInset 相同。
+    public var bottomInset: CGFloat = SheetRegionGeometry.defaultPageInset { didSet { invalidateDetents() } }
     public var allowsInteractiveDismissal = true
     public var dismissesOnBackdropTap = true
     public var avoidsKeyboard = true { didSet { invalidateDetents() } }
@@ -44,11 +49,16 @@ public final class AdaptivePanelController: UIViewController {
     /// 面板的外部边界，使用宿主坐标，包含贴底时的安全区。
     public var panelFrame: CGRect { isViewLoaded ? surface.frame : .zero }
 
+    private(set) var isAtMaximumDetent = false
+    let presenterEffect = SheetPresenterEffect()
+    private var presentingPanel = false
+    private var floatingOverlay: AdaptivePanelOverlay?
+    var layoutContainer: UIView { floatingOverlay ?? view }
     let surface = AdaptivePanelSurface()
     let grabberArea = AdaptivePanelGrabber()
     let backdrop = UIControl()
     lazy var pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
-    var resolvedDetents: [(identifier: Detent.Identifier, height: CGFloat)] = []
+    var resolvedDetents: [(identifier: Detent.Identifier, height: CGFloat, backgroundEffect: UIVisualEffect?)] = []
     var interactiveHeight: CGFloat?
     var currentHeight: CGFloat = 0
     var draggingPanel = false
@@ -67,10 +77,6 @@ public final class AdaptivePanelController: UIViewController {
     private var previousReportedFrame: CGRect?
     private var previousReportedAngle: CGFloat?
     private var previousReportedRegion: CGRect?
-    // 浮层边缘留白属于外观参数，不是设备尺寸。新建 UIView 的默认边距会随环境变为 0，
-    // 因此不从尚未入窗的临时视图读取；宽高仍由当前容器、安全区和可读区域求解。
-    private let floatingMargins = UIEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
-
     public init(contentViewController: UIViewController) {
         precondition(contentViewController.parent == nil, "面板内容已经属于其他父控制器")
         self.contentViewController = contentViewController
@@ -95,9 +101,11 @@ public final class AdaptivePanelController: UIViewController {
 
     public override func viewDidLoad() {
         super.viewDidLoad()
-        backdrop.backgroundColor = UIColor.black.withAlphaComponent(0.25)
+        if #available(iOS 26, *) { backdrop.cornerConfiguration = .corners(radius: .containerConcentric()) }
         backdrop.addTarget(self, action: #selector(backdropTapped), for: .touchUpInside)
         view.addSubview(backdrop)
+        NotificationCenter.default.addObserver(self, selector: #selector(detentEffectChanged(_:)),
+            name: Detent.effectChanged, object: nil)
         surface.backgroundColor = .secondarySystemGroupedBackground
         surface.layer.cornerCurve = .continuous
         surface.clipsToBounds = true
@@ -147,20 +155,34 @@ public final class AdaptivePanelController: UIViewController {
         precondition(container === parent.view || container.isDescendant(of: parent.view), "宿主区域必须属于父控制器")
         isDismissing = false
         didRotateWhilePresented = false
+        if container === parent.view { presenterEffect.configure(presenter: parent) }
+        let overlayHost = container === parent.view ? presenterEffect.panelContainer(for: container) : container
         parent.addChild(self)
+        beginAppearanceTransition(true, animated: animated)
         view.frame = container.bounds
         view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         container.addSubview(view)
+        if overlayHost !== container {
+            let overlay = AdaptivePanelOverlay(frame: overlayHost.bounds)
+            overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            overlay.panel = self
+            overlayHost.addSubview(overlay)
+            overlay.addSubview(backdrop)
+            overlay.addSubview(surface)
+            floatingOverlay = overlay
+        }
+        presenterEffect.installDimming(in: backdrop, surface: surface)
         didMove(toParent: parent)
+        presentingPanel = true
         view.layoutIfNeeded()
-        beginAppearanceTransition(true, animated: animated)
         if animated {
             surface.transform = CGAffineTransform(translationX: 0, y: view.bounds.maxY - surface.frame.minY)
-            backdrop.alpha = 0
+            presenterEffect.dimming.amount = 0
         }
         runTransition(animated: animated, animations: {
+            self.presentingPanel = false
+            self.layoutPanel()
             self.surface.transform = .identity
-            self.backdrop.alpha = 1
         }) { self.endAppearanceTransition() }
     }
 
@@ -169,14 +191,23 @@ public final class AdaptivePanelController: UIViewController {
         finishTransition()
         isDismissing = true
         pan.isEnabled = false
-        view.endEditing(true)
+        layoutContainer.endEditing(true)
         willMove(toParent: nil)
         beginAppearanceTransition(false, animated: animated)
         runTransition(animated: animated, animations: {
             self.surface.transform = CGAffineTransform(translationX: 0, y: self.view.bounds.height + 1)
-            self.backdrop.alpha = 0
+            self.presenterEffect.dimming.amount = 0
+            self.presenterEffect.restore()
         }) {
             self.endAppearanceTransition()
+            self.presenterEffect.reset()
+            if let overlay = self.floatingOverlay {
+                self.view.addSubview(self.backdrop)
+                self.view.addSubview(self.surface)
+                overlay.removeFromSuperview()
+                self.floatingOverlay = nil
+                self.view.transform = .identity
+            }
             self.view.removeFromSuperview()
             self.removeFromParent()
             self.surface.transform = .identity
@@ -187,6 +218,21 @@ public final class AdaptivePanelController: UIViewController {
             self.onDismiss?()
             completion?()
         }
+    }
+
+    fileprivate func hostWindowChanged() {
+        guard let overlay = floatingOverlay else { return }
+        guard let host = view.superview, view.window != nil else {
+            presenterEffect.restore()
+            overlay.removeFromSuperview()
+            return
+        }
+        let container = presenterEffect.panelContainer(for: host)
+        if overlay.superview !== container {
+            overlay.frame = container.bounds
+            container.addSubview(overlay)
+        }
+        invalidateDetents()
     }
 
     public func invalidateDetents() { viewIfLoaded?.setNeedsLayout() }
@@ -255,6 +301,7 @@ public final class AdaptivePanelController: UIViewController {
     }
 
     private func layoutPanel() {
+        let view = layoutContainer
         guard view.bounds.width > 0, view.bounds.height > 0 else { return }
         backdrop.frame = view.bounds
         var safe = view.bounds.inset(by: view.safeAreaInsets)
@@ -266,7 +313,9 @@ public final class AdaptivePanelController: UIViewController {
             }
         }
         guard !safe.isNull, safe.width > 0, safe.height > 0 else { return }
-        let compactHeight = traitCollection.verticalSizeClass == .compact
+        // 容器接入窗口前，已由父控制器指定的尺寸类别仍可用于预布局。
+        let traits = view.window == nil ? traitCollection : view.traitCollection
+        let compactHeight = traits.verticalSizeClass == .compact
         let foldedPage = prefersPageSizing && hingeState == .closed
         let safeInsets = UIEdgeInsets(top: safe.minY - view.bounds.minY, left: safe.minX - view.bounds.minX,
                                       bottom: view.bounds.maxY - safe.maxY, right: view.bounds.maxX - safe.maxX)
@@ -294,9 +343,9 @@ public final class AdaptivePanelController: UIViewController {
         #endif
         var region = selectedRegion(AdaptivePanelContext.regions(in: safe, divisions: layoutDivisions)) ?? safe
         let originalBottom = region.maxY
-        let floating = traitCollection.horizontalSizeClass == .regular && !compactHeight
+        let floating = traits.horizontalSizeClass == .regular && !compactHeight
         // Duo 内屏页面在编辑时沿用无键盘的档位上下文，仅将显示外框临时展开。
-        let innerPhonePage = prefersPageSizing && floating && traitCollection.userInterfaceIdiom == .phone
+        let innerPhonePage = prefersPageSizing && floating && traits.userInterfaceIdiom == .phone
             && (hingeState == .partiallyOpen || hingeState == .fullyOpen)
         var expandsForEditing = false
         if avoidsKeyboard, let keyboardFrameInScreen, let window = view.window {
@@ -313,49 +362,60 @@ public final class AdaptivePanelController: UIViewController {
         }
         // readableContentGuide 表达的是正文宽度，页面外框还包含正文两侧边距。
         let readableWidth = view.readableContentGuide.layoutFrame.width
-        let readablePageWidth = readableWidth > 0 ? readableWidth + view.layoutMargins.left + view.layoutMargins.right : region.width
+        let naturalPageWidth = readableWidth > 0 ? readableWidth + (parent?.view.layoutMargins.left ?? 0) + (parent?.view.layoutMargins.right ?? 0) : region.width
+        let readablePageWidth = presenterEffect.readablePageWidth(naturalPageWidth, available: region.width, in: view)
         // regular/regular 的手机 Sheet 仍以底部为锚点，并包含底部安全区。
-        let phonePage = (floating || foldedPage) && prefersPageSizing && traitCollection.userInterfaceIdiom == .phone
-        let fillsRegion = traitCollection.verticalSizeClass == .regular && !phonePage
+        let phonePage = (floating || foldedPage) && prefersPageSizing && traits.userInterfaceIdiom == .phone
+        let fillsRegion = traits.verticalSizeClass == .regular && !phonePage
             && (!floating || (!phonePage && prefersPageSizing && readablePageWidth >= region.width))
-        let insetPage: Bool
-        if #available(iOS 27.0, *) { insetPage = fillsRegion } else { insetPage = false }
-        let bottomInset = (!floating || phonePage || insetPage) && abs(region.maxY - safe.maxY) < 1 && region.maxY == originalBottom
+        let sideGap = min(max(0, horizontalInset), region.width / 4)
+        let bottomGap = min(max(0, bottomInset), region.height)
+        let safeBottom = (!floating || phonePage || fillsRegion) && abs(region.maxY - safe.maxY) < 1 && region.maxY == originalBottom
             ? safeInsets.bottom : 0
-        // 使用容器提供的布局边距，窗口、文字尺寸或容器变化后重新计算。
-        // layoutMargins 可能已包含安全区，region 已扣除安全区，不能再次扣除它。
-        let margin: CGFloat = insetPage ? 0 : phonePage ? floatingMargins.bottom : floating && !prefersPageSizing ? min(max(0, view.layoutMargins.left - view.safeAreaInsets.left),
+        let margin: CGFloat = phonePage ? sideGap : floating && !prefersPageSizing ? min(max(0, view.layoutMargins.left - view.safeAreaInsets.left),
                                             max(0, view.layoutMargins.right - view.safeAreaInsets.right)) : 0
-        // 无顶部安全区的展开横屏需要浮层顶边留白；已有状态栏安全区时不再重复扣除。
-        var maximum = max(1, region.height - (phonePage ? max(0, margin - safeInsets.top) : margin * 2))
-        // iPadOS 27.2 的窗口级 page sheet 在打开后旋转会为最大档保留额外顶距。
-        // 44 pt 是该呈现路径的实测留白，面板宽高仍由当前容器、档位和安全区求解。
-        if #available(iOS 27.2, *), didRotateWhilePresented, prefersPageSizing, floating,
-           traitCollection.userInterfaceIdiom == .pad, let window = view.window,
-           view.convert(view.bounds, to: window).equalTo(window.bounds) {
-            // 宿主可能已通过导航栏等安全区留出顶距，只扣除尚未包含的部分。
+        var topGap = phonePage ? max(0, 8 - safeInsets.top) : margin * 2
+        if #unavailable(iOS 26), traits.userInterfaceIdiom == .phone, !compactHeight, !floating {
+            topGap = 10
+        }
+        let stackedTopGap = prefersPageSizing ? presenterEffect.additionalTop(in: view, foldedPage: foldedPage) : 0
+        topGap += stackedTopGap
+        var maximum = max(1, region.height - topGap)
+        let window = view.window
+        let coversWindow = window.map { view.convert(view.bounds, to: $0).equalTo($0.bounds) } ?? false
+        let windowedPad = coversWindow && SheetRegionGeometry.isWindowedPad(view)
+        if #available(iOS 26, *), coversWindow, compactHeight, prefersEdgeAttachedInCompactHeight {
+            if #unavailable(iOS 27) { maximum = max(maximum, min(384, region.height + safeBottom)) }
+        }
+        let rotatedPage: Bool
+        if #available(iOS 27.2, *) {
+            rotatedPage = didRotateWhilePresented && prefersPageSizing && floating && traits.userInterfaceIdiom == .pad
+        } else { rotatedPage = false }
+        if coversWindow, let window, windowedPad || rotatedPage {
+            // 窗口控件和旋转后的窗口级页面可能已由宿主安全区留出顶距。
             let windowSafeTop = view.convert(window.safeAreaLayoutGuide.layoutFrame, from: window).minY
-            let remainingClearance = max(0, windowSafeTop + 44 - region.minY)
-            maximum = max(1, maximum - remainingClearance)
+            maximum = max(1, maximum - max(0, windowSafeTop + 44 - region.minY))
         }
         if floating, !prefersPageSizing, contentViewController.preferredContentSize.height > 0 {
             maximum = min(maximum, contentViewController.preferredContentSize.height)
         }
-        var context = AdaptivePanelContext(containerBounds: view.bounds, availableRegion: region,
-            divisionRegions: divisions, containerTraitCollection: traitCollection, maximumDetentValue: maximum,
-            hingeAngle: hingeAngle, hingeState: hingeState)
-        context.safeAreaInsets = safeInsets
+        let context = AdaptivePanelContext(containerBounds: view.bounds, availableRegion: region,
+            divisionRegions: divisions, containerTraitCollection: traits, maximumDetentValue: maximum,
+            hingeAngle: hingeAngle, hingeState: hingeState, safeAreaInsets: safeInsets,
+            minimumMediumHeight: windowedPad ? 266 : 0)
         self.context = context
         var seen = Set<Detent.Identifier>()
         resolvedDetents = detents.compactMap { detent in
             guard seen.insert(detent.identifier).inserted, let height = detent.resolvedValue(in: context) else { return nil }
-            return (detent.identifier, height)
+            return (detent.identifier, height, detent.backgroundEffect)
         }.sorted { $0.height < $1.height }
         // 配置为空或全部停用时，提供可见的最大档位，确保用户仍可操作和关闭内容。
-        if resolvedDetents.isEmpty { resolvedDetents = [(.large, maximum)] }
+        if resolvedDetents.isEmpty { resolvedDetents = [(.large, maximum, nil)] }
         let selected = resolvedDetents.first { $0.identifier == selectedDetentIdentifier } ?? resolvedDetents[0]
+        isAtMaximumDetent = abs(selected.height - maximum) < 0.5
         let previous = effectiveIdentifier
         effectiveIdentifier = selected.identifier
+        surface.updateBackgroundEffect(selected.backgroundEffect)
         if selectedDetentIdentifier != selected.identifier { selectedDetentIdentifier = selected.identifier }
         var height = interactiveHeight ?? (expandsForEditing ? maximum : selected.height)
         if compactHeight && !prefersEdgeAttachedInCompactHeight { height = maximum }
@@ -368,12 +428,13 @@ public final class AdaptivePanelController: UIViewController {
             if phonePage {
                 // 手机展开后可变成 regular/regular；页面宽度还需受容器短边限制。
                 // 使用容器而非 UIScreen，支持子容器、旋转与窗口缩放。
-                automaticWidth = foldedPage ? region.width - floatingMargins.left - floatingMargins.right
-                    : min(automaticWidth, min(view.bounds.width, view.bounds.height) - floatingMargins.left - floatingMargins.right)
+                automaticWidth = foldedPage ? region.width - 2 * sideGap
+                    : min(automaticWidth, min(view.bounds.width, view.bounds.height) - 2 * sideGap)
             }
             let target = preferredWidth > 0 && (!floating || !prefersPageSizing) ? preferredWidth : automaticWidth
             width = min(max(1, region.width - margin * 2), max(1, target))
         }
+        let logicalWidth = width
         var x = horizontalOrigin(width: width, region: region, margin: margin)
         if phonePage, sourceView == nil, preferredPlacement == .automatic || preferredPlacement == .center {
             x = min(region.maxX - margin - width, max(region.minX + margin, view.bounds.midX - width * 0.5))
@@ -386,28 +447,30 @@ public final class AdaptivePanelController: UIViewController {
                                   max(region.minY + margin + maximum * 0.5, point.y))
         }
         let mediumHeight = Detent.medium().resolvedValue(in: context) ?? maximum * 0.5
-        let pageInsetFraction = min(1, max(0, (maximum - height) / max(1, maximum - mediumHeight)))
-        var y = phonePage ? region.maxY - margin * pageInsetFraction - height
-            : floating && !prefersPageSizing ? floatingCenterY + maximum * 0.5 - height : region.maxY - height
-        var displayHeight = height + bottomInset
-        if insetPage {
-            // 小档位卡片保留容器边缘留白；升到最大档位时连续展开到容器宽度。
-            // 档位解析仍使用逻辑内容高度，外框报告缩放后的实际显示尺寸。
-            let inset = min(floatingMargins.left, width * 0.25) * pageInsetFraction
-            let scale = max(0, (width - inset * 2) / width)
-            x += inset
-            width *= scale
-            displayHeight *= scale
-            y = region.maxY + bottomInset - inset - displayHeight
-        } else if #available(iOS 27.0, *), compactHeight, !phonePage, prefersEdgeAttachedInCompactHeight {
-            // 紧凑高度保持安全区宽度，小档位仍与底边分离，最大档位填满高度。
-            let minimum = resolvedDetents.first?.height ?? maximum
-            let fraction = min(1, max(0, (maximum - height) / max(1, maximum - minimum)))
-            y -= floatingMargins.bottom * fraction
+        let lastFloatingHeight = resolvedDetents.last(where: { $0.height < maximum - 0.5 })?.height ?? mediumHeight
+        let bottom = (floating && !prefersPageSizing ? floatingCenterY + maximum * 0.5 : region.maxY) + safeBottom
+        let attachment: SheetRegionGeometry.PageAttachment? = phonePage && hingeState != .unavailable
+            ? .init(bottom: bottom, gap: bottomGap, safeBottom: safeBottom, maximum: maximum,
+                    floatingHeight: compactHeight ? resolvedDetents.last(where: { $0.height < maximum })?.height ?? mediumHeight : mediumHeight,
+                    folded: foldedPage, stackedTopGap: stackedTopGap) : nil
+        var y = bottom - height - safeBottom
+        var displayHeight = height + safeBottom
+        if fillsRegion || phonePage || compactHeight && prefersEdgeAttachedInCompactHeight {
+            func pageFrame(at height: CGFloat) -> CGRect {
+                let frame = SheetRegionGeometry.pageFrame(x: x, bottom: bottom, width: logicalWidth, height: height,
+                    maximum: maximum, highestFloatingHeight: lastFloatingHeight, safeBottom: safeBottom, sideGap: fillsRegion ? sideGap : 0,
+                    bottomGap: bottomGap, floatingPage: phonePage || fillsRegion, compactHeight: compactHeight)
+                return attachment?.adjusting(frame) ?? frame
+            }
+            let frame = presenterEffect.frameWhenCovered(pageFrame(at: height), minimumTop: pageFrame(at: resolvedDetents[0].height).minY, in: view)
+            x = frame.minX
+            y = frame.minY
+            width = frame.width
+            displayHeight = frame.height
         }
         if phonePage {
             // 展开手机的浮层不进行整页缩放，按当前显示比例对齐物理像素。
-            let scale = max(1, traitCollection.displayScale)
+            let scale = max(1, traits.displayScale)
             x = (x * scale).rounded() / scale
             y = (y * scale).rounded() / scale
             width = (width * scale).rounded() / scale
@@ -415,12 +478,13 @@ public final class AdaptivePanelController: UIViewController {
         }
         // 动画期间使用 bounds/center 更新，避免带 transform 的 frame 参与计算。
         surface.bounds = CGRect(x: 0, y: 0, width: width, height: displayHeight)
-        surface.center = CGPoint(x: x + width * 0.5, y: y + displayHeight * 0.5)
-        surface.layer.cornerRadius = max(0, preferredCornerRadius)
-        surface.layer.borderWidth = 1 / max(1, traitCollection.displayScale)
-        surface.layer.borderColor = UIColor.separator.resolvedColor(with: traitCollection).withAlphaComponent(0.2).cgColor
-        surface.layer.maskedCorners = floating || phonePage || insetPage ? [.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMinXMaxYCorner, .layerMaxXMaxYCorner]
-            : [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+        surface.center = CGPoint(x: x + width * 0.5,
+                                 y: min(y + displayHeight * 0.5, view.bounds.maxY - displayHeight * 0.5))
+        SheetRegionGeometry.updateCorners(of: surface, relativeTo: backdrop, frame: CGRect(x: x, y: y, width: width, height: displayHeight),
+            preferredRadius: preferredCornerRadius, fullScreen: compactHeight && !prefersEdgeAttachedInCompactHeight,
+            logicalWidth: logicalWidth, attachment: attachment, isLifted: presenterEffect.isLifted)
+        surface.layer.borderWidth = 1 / max(1, traits.displayScale)
+        surface.layer.borderColor = UIColor.separator.resolvedColor(with: traits).withAlphaComponent(0.2).cgColor
         let grabberHeight: CGFloat = prefersGrabberVisible ? min(24, height) : 0
         grabberArea.isHidden = !prefersGrabberVisible
         surface.grabberHeight = grabberHeight
@@ -430,13 +494,33 @@ public final class AdaptivePanelController: UIViewController {
         surface.setNeedsLayout()
         let threshold = resolvedDetents.first { $0.identifier == largestUndimmedDetentIdentifier }?.height
         let interactionHeight = expandsForEditing ? selected.height : height
-        backdrop.isHidden = largestUndimmedDetentIdentifier == nil || (threshold.map { interactionHeight <= $0 + 0.5 } ?? false)
-        surface.accessibilityViewIsModal = !backdrop.isHidden
+        let amount: CGFloat
+        if let threshold {
+            if let next = resolvedDetents.first(where: { $0.height > threshold }) {
+                amount = min(1, max(0, (interactionHeight - threshold) / (next.height - threshold)))
+            } else { amount = 0 }
+        } else { amount = 1 }
+        if !isDismissing { presenterEffect.dimming.amount = amount }
+        backdrop.isUserInteractionEnabled = largestUndimmedDetentIdentifier != nil && amount > 0
+        surface.accessibilityViewIsModal = backdrop.isUserInteractionEnabled
         if previous != selected.identifier {
             onSelectedDetentChange?(selected.identifier, changeReason)
         }
         changeReason = .programmatic
         let frame = CGRect(x: x, y: y, width: width, height: displayHeight)
+        if !presentingPanel && !isDismissing {
+            let previousHeight = resolvedDetents.last(where: { $0.height < maximum - 0.5 })?.height ?? 0
+            let fraction = resolvedDetents.last.map { abs($0.height - maximum) < 0.5 } == true
+                ? (height - previousHeight) / max(1, maximum - previousHeight) : 0
+            presenterEffect.update(fraction, in: view, frontFrame: frame, attachment: attachment, interacting: interactiveHeight != nil)
+            if let overlay = floatingOverlay, let host = self.view.superview, overlay.bounds.width > 0 {
+                // 保持公开的 panelFrame 所用的控制器坐标系与独立绘制层一致。
+                let rect = overlay.convert(overlay.bounds, to: host)
+                self.view.bounds = overlay.bounds
+                self.view.center = CGPoint(x: rect.midX, y: rect.midY)
+                self.view.transform = CGAffineTransform(scaleX: rect.width / overlay.bounds.width, y: rect.height / overlay.bounds.height)
+            }
+        }
         if previousReportedFrame != frame || previousReportedAngle != hingeAngle || previousReportedRegion != region {
             previousReportedFrame = frame
             previousReportedAngle = hingeAngle
@@ -446,6 +530,7 @@ public final class AdaptivePanelController: UIViewController {
     }
 
     private func selectedRegion(_ regions: [CGRect]) -> CGRect? {
+        let view = layoutContainer
         if let sourceView, sourceView.window === view.window {
             let point = sourceView.convert(CGPoint(x: sourceView.bounds.midX, y: sourceView.bounds.midY), to: view)
             if let region = regions.first(where: { $0.contains(point) }) { return region }
@@ -461,6 +546,7 @@ public final class AdaptivePanelController: UIViewController {
     }
 
     private func horizontalOrigin(width: CGFloat, region: CGRect, margin: CGFloat) -> CGFloat {
+        let view = layoutContainer
         if let sourceView, sourceView.window === view.window {
             let center = sourceView.convert(CGPoint(x: sourceView.bounds.midX, y: sourceView.bounds.midY), to: view)
             return min(region.maxX - margin - width, max(region.minX + margin, center.x - width * 0.5))
@@ -487,6 +573,12 @@ public final class AdaptivePanelController: UIViewController {
         UIView.animate(withDuration: duration, delay: 0, options: [.beginFromCurrentState, UIView.AnimationOptions(rawValue: curve << 16)]) {
             self.view.layoutIfNeeded()
         }
+    }
+
+    @objc private func detentEffectChanged(_ notification: Notification) {
+        guard let detent = notification.object as? Detent,
+              detents.contains(where: { $0 === detent }) else { return }
+        invalidateDetents()
     }
 
     @objc private func backdropTapped() {
@@ -545,6 +637,30 @@ final class AdaptivePanelSurface: QuickLayoutView {
     var grabberHeight: CGFloat = 24
     var expandsForEditing = false
 
+    private var material: UIVisualEffectView?
+    private var appliedEffect: UIVisualEffect?
+
+    func updateBackgroundEffect(_ effect: UIVisualEffect?) {
+        guard effect !== appliedEffect else { return }
+        appliedEffect = effect
+        guard let effect else {
+            material?.removeFromSuperview()
+            material = nil
+            backgroundColor = .secondarySystemGroupedBackground
+            return
+        }
+        if let material { material.effect = effect }
+        else {
+            let material = UIVisualEffectView(effect: effect)
+            material.isUserInteractionEnabled = false
+            material.frame = bounds
+            material.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            insertSubview(material, at: 0)
+            self.material = material
+        }
+        backgroundColor = .clear
+    }
+
     override var body: Layout {
         // 旋转途中键盘边界可能暂时改变；始终保持相同的子视图顺序，只更新内边距。
         // 编辑时把手叠放在顶端，普通状态为内容预留把手高度。
@@ -562,11 +678,15 @@ final class AdaptivePanelSurface: QuickLayoutView {
 private final class AdaptivePanelOverlay: UIView {
     weak var panel: AdaptivePanelController?
 
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if panel?.viewIfLoaded === self { panel?.hostWindowChanged() }
+    }
+
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        guard let panel, !isHidden, alpha > 0.01, isUserInteractionEnabled else { return nil }
-        let surfacePoint = panel.surface.convert(point, from: self)
-        if let hit = panel.surface.hitTest(surfacePoint, with: event) { return hit }
-        return panel.backdrop.isHidden ? nil : panel.backdrop.hitTest(point, with: event)
+        guard let panel, panel.layoutContainer === self, !isHidden, alpha > 0.01, isUserInteractionEnabled else { return nil }
+        let hit = super.hitTest(point, with: event)
+        return hit === self ? nil : hit
     }
 }
 

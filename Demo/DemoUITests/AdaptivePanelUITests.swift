@@ -167,10 +167,18 @@ final class AdaptivePanelUITests: XCTestCase {
         XCTAssertTrue(waitUntil { !list.exists })
         app.segmentedControls["panel.engine"].buttons["UIKit"].tap()
         app.segmentedControls["panel.detent"].buttons["1/3"].tap()
+        // 小窗口中，选择下方档位会把背景按钮滚出可视区。先让两个按钮同时可见再记录位置。
+        let form = app.scrollViews.containing(.button, identifier: "panel.open").firstMatch
+        for _ in 0..<3 where !open.isHittable || !background.isHittable { form.swipeDown() }
+        XCTAssertTrue(open.isHittable && background.isHittable)
+        let backgroundFrame = background.frame
         open.tap()
         XCTAssertTrue(list.waitForExistence(timeout: 5))
-        background.tap()
-        XCTAssertTrue(background.label.contains("2"))
+        // 以可见列表为锚点，让 XCTest 将手势送到实际展示 sheet 的屏幕。
+        let anchor = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        anchor.withOffset(CGVector(dx: backgroundFrame.midX - list.frame.midX,
+                                   dy: backgroundFrame.midY - list.frame.midY)).tap()
+        XCTAssertTrue(waitUntil { background.label.contains("2") })
         let native = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         native.name = "系统非模态 Sheet"
         native.lifetime = .keepAlways

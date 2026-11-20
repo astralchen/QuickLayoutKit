@@ -79,18 +79,205 @@ struct AdaptivePanelTests {
         #expect(maximum > 0)
         print("NATIVE_RESOLVE maximum=\(maximum) medium=\(String(describing: nativeMedium))")
         print("NATIVE_PROBE frame=\(content.view.convert(content.view.bounds, to: container)) container=\(container.bounds) safe=\(container.safeAreaInsets) contentSafe=\(content.view.safeAreaInsets) windowSafe=\(window.safeAreaInsets) readable=\(container.readableContentGuide.layoutFrame) contentTraits=\(content.traitCollection)")
+        let nativeIDs: [UISheetPresentationController.Detent.Identifier] = [.init("probe"), .medium, .large]
+        var nativeFrames: [CGRect] = []
+        for id in nativeIDs {
+            sheet.selectedDetentIdentifier = id
+            container.layoutIfNeeded()
+            try await Task.sleep(for: .milliseconds(200))
+            nativeFrames.append(content.view.convert(content.view.bounds, to: window))
+        }
+        // iOS 26 的系统 sheet 分两层裁切上下角。按窗口坐标的可见半径逐角比较。
+        func corners(of view: UIView) -> [CGFloat] {
+            let scale = view.convert(view.bounds, to: window).width / max(1, view.bounds.width)
+            if #available(iOS 26, *) {
+                return [UIRectCorner.topLeft, .topRight, .bottomLeft, .bottomRight].map { view.effectiveRadius(corner: $0) * scale }
+            }
+            return [CACornerMask.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMinXMaxYCorner, .layerMaxXMaxYCorner]
+                .map { view.layer.maskedCorners.contains($0) ? view.layer.cornerRadius * scale : 0 }
+        }
+        let preferences: [CGFloat?] = [nil, 24]
+        let cornerIDs: [UISheetPresentationController.Detent.Identifier] = [.medium, .large]
+        var nativeCorners: [[CGFloat]] = []
+        for preference in preferences {
+            sheet.preferredCornerRadius = preference
+            for id in cornerIDs {
+                sheet.selectedDetentIdentifier = id
+                container.layoutIfNeeded()
+                try await Task.sleep(for: .milliseconds(160))
+                var ancestor: UIView? = content.view
+                let frame = content.view.convert(content.view.bounds, to: window)
+                var radii = Array(repeating: CGFloat.zero, count: 4)
+                while let view = ancestor, view !== window {
+                    if view.layer.masksToBounds, view.convert(view.bounds, to: window).equalTo(frame) {
+                        radii = zip(radii, corners(of: view)).map(max)
+                    }
+                    ancestor = view.superview
+                }
+                nativeCorners.append(radii)
+                print("NATIVE_CORNERS \(id.rawValue) preference=\(String(describing: preference)) radii=\(radii)")
+            }
+        }
         await withCheckedContinuation { continuation in host.dismiss(animated: false) { continuation.resume() } }
+
+        let customContent = UIViewController()
+        await withCheckedContinuation { continuation in
+            host.presentSheet(customContent, animated: false) { sheet in
+                sheet.prefersPageSizing = true
+                sheet.prefersEdgeAttachedInCompactHeight = true
+                sheet.detents = [.custom(identifier: "probe") { $0.maximumDetentValue / 3 }, .medium(), .large()]
+            } completion: { continuation.resume() }
+        }
+        let customSheet = try #require(customContent.customSheetPresentationController)
+        let surface = try #require(customSheet.presentedView)
+        let customIDs: [SheetPresentationController.Detent.Identifier] = [.medium, .large]
+        for (p, preference) in preferences.enumerated() {
+            customSheet.preferredCornerRadius = preference
+            for (d, id) in customIDs.enumerated() {
+                customSheet.selectedDetentIdentifier = id
+                customSheet.containerView?.layoutIfNeeded()
+                let actual = corners(of: surface)
+                let expected = nativeCorners[p * cornerIDs.count + d]
+                print("CUSTOM_CORNERS \(id.rawValue) preference=\(String(describing: preference)) radii=\(actual)")
+                for (a, b) in zip(actual, expected) { #expect(abs(a - b) <= 1) }
+            }
+        }
+        await withCheckedContinuation { continuation in customContent.dismiss(animated: false) { continuation.resume() } }
+        let panel = AdaptivePanelController(contentView: UIView())
+        panel.safeAreaSource = .window
+        panel.detents = [.custom(identifier: "probe") { $0.maximumDetentValue / 3 }, .medium(), .large()]
+        panel.show(in: host, animated: false)
+        defer { panel.dismiss(animated: false) }
+        let ids: [AdaptivePanelDetent.Identifier] = ["probe", .medium, .large]
+        try await Task.sleep(for: .milliseconds(350))
+        for (id, expected) in zip(ids, nativeFrames) {
+            panel.selectDetent(id, animated: false)
+            panel.view.layoutIfNeeded()
+            let actual = panel.view.convert(panel.panelFrame, to: window)
+            print("PANEL_EDGES \(id.rawValue) UIKit=\(expected) panel=\(actual)")
+            if id == .medium || id == .large {
+                for (p, preference) in preferences.enumerated() {
+                    panel.preferredCornerRadius = preference
+                    panel.view.layoutIfNeeded()
+                    let expectedCorners = nativeCorners[p * cornerIDs.count + (id == .medium ? 0 : 1)]
+                    let actualCorners = corners(of: panel.surface)
+                    print("PANEL_CORNERS \(id.rawValue) preference=\(String(describing: preference)) radii=\(actualCorners)")
+                    for (a, b) in zip(actualCorners, expectedCorners) { #expect(abs(a - b) <= 1) }
+                }
+            }
+            #expect(abs(actual.minX - expected.minX) <= 1)
+            #expect(abs(actual.maxX - expected.maxX) <= 1)
+            #expect(abs(actual.minY - expected.minY) <= 1)
+            #expect(abs(actual.maxY - expected.maxY) <= 1)
+        }
+        if window.traitCollection.horizontalSizeClass == .compact, window.traitCollection.verticalSizeClass == .regular,
+           window.traitCollection.userInterfaceIdiom == .phone, panel.context?.hingeState == .unavailable {
+            panel.selectDetent(.medium, animated: false)
+            let reference = nativeFrames[1]
+            panel.horizontalInset = 21
+            panel.view.layoutIfNeeded()
+            #expect(abs(panel.panelFrame.minX - 21) <= 1)
+            #expect(abs(panel.panelFrame.maxY - reference.maxY) <= 1)
+            panel.bottomInset = 13
+            panel.view.layoutIfNeeded()
+            #expect(abs(panel.panelFrame.width - (window.bounds.width - 42)) <= 1)
+            #expect(abs(panel.panelFrame.maxY - (window.bounds.maxY - 13)) <= 1)
+        }
     }
+    @Test func detentsAcceptAnIndependentResolutionContext() {
+        final class Context: NSObject, SheetPresentationControllerDetentResolutionContext {
+            var containerTraitCollection = UITraitCollection(verticalSizeClass: .regular)
+            let maximumDetentValue: CGFloat = 600
+        }
+        final class Subclass: AdaptivePanelController.Detent {}
+        let context = Context()
+        let anonymous = AdaptivePanelController.Detent.custom { $0.maximumDetentValue / 3 }
+        let explicitNil = AdaptivePanelController.Detent.custom(identifier: nil) { _ in nil }
+        let quarter: (any SheetPresentationControllerDetentResolutionContext) -> CGFloat? = { $0.maximumDetentValue / 4 }
+        let named = AdaptivePanelController.Detent.custom(identifier: .init("quarter"), resolver: quarter)
+        let sheetDetent: SheetPresentationController.Detent = named
+        let sharedID: SheetPresentationController.Detent.Identifier = named.identifier
+        #expect(sheetDetent === named)
+        #expect(sharedID == "quarter")
+        let medium: Subclass = .medium()
+        let large: Subclass = .large()
+        #expect(medium.identifier == .medium)
+        #expect(large.identifier == .large)
+        #expect(anonymous.identifier != explicitNil.identifier)
+        #expect(anonymous.resolvedValue(in: context) == 200)
+        #expect(explicitNil.resolvedValue(in: context) == nil)
+        #expect(named.identifier.rawValue == "quarter")
+        #expect(named.resolvedValue(in: context) == 150)
+        #expect(large.resolvedValue(in: context) == 600)
+        #expect(medium.resolvedValue(in: context) != nil)
+        context.containerTraitCollection = UITraitCollection(verticalSizeClass: .compact)
+        #expect(medium.resolvedValue(in: context) == nil)
+    }
+
+    @Test func backgroundEffectTracksTheSelectedDetentInAWindow() throws {
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        let host = UIViewController()
+        window.rootViewController = host
+        window.isHidden = false
+        defer { window.isHidden = true }
+
+        let panel = AdaptivePanelController(contentView: UIView())
+        let compact = AdaptivePanelController.Detent.custom { $0.maximumDetentValue / 3 }
+        let large = AdaptivePanelController.Detent.large()
+        panel.detents = [compact, large]
+        panel.selectedDetentIdentifier = compact.identifier
+        panel.show(in: host, animated: false)
+        defer { panel.dismiss(animated: false) }
+        func material() -> UIVisualEffectView? {
+            panel.view.layoutIfNeeded()
+            return panel.surface.subviews.compactMap { $0 as? UIVisualEffectView }.first
+        }
+        #expect(material() == nil)
+        large.backgroundEffect = UIBlurEffect(style: .dark)
+        #expect(material() == nil)
+        compact.backgroundEffect = UIBlurEffect(style: .light)
+        let current = try #require(material())
+        #expect(current.effect is UIBlurEffect)
+        #expect(panel.surface.subviews.first === current)
+        #expect(!current.isUserInteractionEnabled)
+        #expect(current.frame == panel.surface.bounds)
+        compact.backgroundEffect = nil
+        #expect(material() == nil)
+        panel.selectDetent(.large, animated: false)
+        #expect(material()?.effect is UIBlurEffect)
+        panel.detents = [.custom(identifier: .large) { _ in nil }]
+        #expect(material() == nil)
+        #expect(panel.surface.backgroundColor == .secondarySystemGroupedBackground)
+
+        panel.view.traitOverrides.verticalSizeClass = .compact
+        panel.contentViewController.view.traitOverrides.verticalSizeClass = .regular
+        panel.invalidateDetents()
+        panel.view.layoutIfNeeded()
+        let context = try #require(panel.context)
+        #expect(context.containerTraitCollection.verticalSizeClass == .compact)
+        #expect(AdaptivePanelController.Detent.medium().resolvedValue(in: context) == nil)
+        let sheetDetent = SheetPresentationController.Detent.custom { $0.maximumDetentValue / 3 }
+        #expect(sheetDetent.resolvedValue(in: context) == compact.resolvedValue(in: context))
+    }
+
     @Test func customDetentsClampAndDeactivate() {
+        let division = CGRect(x: 0, y: 224, width: 400, height: 16)
         let context = AdaptivePanelContext(containerBounds: CGRect(x: 0, y: 0, width: 400, height: 800),
-            availableRegion: CGRect(x: 0, y: 0, width: 400, height: 600), divisionRegions: [],
+            availableRegion: CGRect(x: 0, y: 0, width: 400, height: 600), divisionRegions: [division],
             containerTraitCollection: UITraitCollection(verticalSizeClass: .compact), maximumDetentValue: 600,
             hingeAngle: .pi / 2, hingeState: .partiallyOpen)
         #expect(AdaptivePanelDetent.medium().resolvedValue(in: context) == nil)
         #expect(AdaptivePanelDetent.large().resolvedValue(in: context) == 600)
         #expect(AdaptivePanelDetent.custom(identifier: "oversized") { _ in 900 }.resolvedValue(in: context) == 600)
         #expect(AdaptivePanelDetent.custom(identifier: "invalid") { _ in .nan }.resolvedValue(in: context) == nil)
-        #expect(AdaptivePanelDetent.custom(identifier: "fold") { $0.hingeAngle == .pi / 2 ? 240 : nil }.resolvedValue(in: context) == 240)
+        let folded = AdaptivePanelDetent.custom(identifier: "fold") { context in
+            context.hingeAngle == .pi / 2 ? context.divisionRegions.first?.maxY : nil
+        }
+        let sheetContext = SheetDetentContext(availableRegion: context.availableRegion, divisionRegions: [division],
+            maximumDetentValue: context.maximumDetentValue, containerTraitCollection: context.containerTraitCollection)
+        #expect(folded.resolvedValue(in: context) == 240)
+        #expect(folded.resolvedValue(in: sheetContext) == nil)
     }
 
     @Test func divisionsRespectHostCoordinatesAndVisibleExtent() {
@@ -129,7 +316,8 @@ struct AdaptivePanelTests {
         panel.largestUndimmedDetentIdentifier = "small"
         panel.selectDetent(.large, animated: false)
         #expect(panel.selectedDetentIdentifier == .large)
-        #expect(!panel.backdrop.isHidden)
+        #expect(panel.backdrop.isUserInteractionEnabled)
+        #expect(panel.surface.accessibilityViewIsModal)
         host.view.frame.size = CGSize(width: 700, height: 500)
         host.view.layoutIfNeeded()
         panel.view.layoutIfNeeded()

@@ -37,7 +37,7 @@ final class MainViewModel {
     private static let sectionDefinitions: [SectionDefinition] = [
         .init(titleKey: "main.section.layout", routes: [
             .safeAreaPadding, .safeAreaInset, .contentMargins, .positionAndZIndex, .viewThatFits,
-            .frame, .fixedSize, .containerRelativeSize, .geometry, .arrangement, .adaptivePanel, .directionalGrid,
+            .frame, .fixedSize, .containerRelativeSize, .geometry, .arrangement, .adaptivePanel, .sheetPresentation, .directionalGrid,
         ]),
         .init(titleKey: "main.section.input", routes: [
             .horizontalScroll, .dynamicScroll, .keyboard, .form,

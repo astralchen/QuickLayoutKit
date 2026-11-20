@@ -20,6 +20,7 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
     case geometry
     case arrangement
     case adaptivePanel
+    case sheetPresentation
     case directionalGrid
     case profile
     case counter
@@ -74,6 +75,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "demo.arrangement.title"
         case .adaptivePanel:
             "demo.adaptivePanel.title"
+        case .sheetPresentation:
+            "demo.sheetPresentation.title"
         case .directionalGrid:
             "demo.directionalGrid.title"
         case .profile:
@@ -147,6 +150,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "rectangle.split.2x1"
         case .adaptivePanel:
             "rectangle.bottomhalf.inset.filled"
+        case .sheetPresentation:
+            "rectangle.portrait.on.rectangle.portrait"
         case .directionalGrid:
             "square.grid.3x3"
         case .profile:

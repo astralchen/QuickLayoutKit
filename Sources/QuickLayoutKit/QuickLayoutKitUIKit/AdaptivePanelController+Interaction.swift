@@ -24,7 +24,7 @@ extension AdaptivePanelController: UIGestureRecognizerDelegate {
 
     public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         guard gestureRecognizer === pan else { return true }
-        let velocity = pan.velocity(in: view)
+        let velocity = pan.velocity(in: layoutContainer)
         guard abs(velocity.y) > abs(velocity.x) else { return false }
         if let scroll = gestureScrollView, !prefersScrollingExpandsWhenScrolledToEdge {
             return velocity.y > 0 && scroll.contentOffset.y <= -scroll.adjustedContentInset.top + 1
@@ -39,7 +39,7 @@ extension AdaptivePanelController: UIGestureRecognizerDelegate {
 
     @objc func handlePan(_ recognizer: UIPanGestureRecognizer) {
         guard !isDismissing else { return }
-        let translation = recognizer.translation(in: view).y
+        let translation = recognizer.translation(in: layoutContainer).y
         switch recognizer.state {
         case .began:
             gestureStartIdentifier = selectedDetentIdentifier
@@ -75,7 +75,7 @@ extension AdaptivePanelController: UIGestureRecognizerDelegate {
             view.layoutIfNeeded()
         case .ended:
             guard interactiveHeight != nil else { clearGesture(); return }
-            let velocity = recognizer.velocity(in: view).y
+            let velocity = recognizer.velocity(in: layoutContainer).y
             let minimum = resolvedDetents.first?.height ?? currentHeight
             let projected = currentHeight - velocity * 0.18
             if currentHeight < minimum * 0.7 || (currentHeight < minimum && velocity > 700) {

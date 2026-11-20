@@ -39,16 +39,42 @@ panel.dismiss()
 | `selectedDetentIdentifier` | 无效标识回退到当前最小有效档位，公开属性更新为实际使用的标识。空配置或全部停用时回退到 large。 |
 | `invalidateDetents()` | 外部测量依赖变化后请求重算。上下文提供可用区域、最大高度、尺寸类别、分隔带和可选折叠角度。 |
 | `animateChanges` | 合并配置变化，并从当前动画状态过渡。 |
-| `largestUndimmedDetentIdentifier` | 默认 nil 表示所有档位允许操作背景。指定标识后，高于该档位时显示遮罩并拦截背景交互。系统 Sheet 的 nil 默认值会遮罩所有档位。 |
+| `largestUndimmedDetentIdentifier` | 默认 nil 在每档显示遮罩，背景保留面板的非模态触摸穿透。指定标识后，该档及以下完全透亮，向更高档拖动时遮罩渐显并拦截背景交互。使用 `.large` 可使所有标准档位均透亮。 |
 | `prefersScrollingExpandsWhenScrolledToEdge` | 控制在内容区上滑是否先展开面板。把手独立支持切档。可通过 `trackingScrollView` 指定滚动视图。 |
 | 把手、圆角 | `prefersGrabberVisible`、`preferredCornerRadius`。把手支持辅助功能增减高度。 |
 | 紧凑高度贴边 | `prefersEdgeAttachedInCompactHeight`，默认 true。 |
 | 内容宽度 | `prefersPageSizing`、`widthFollowsPreferredContentSizeWhenEdgeAttached` 和内容控制器的 `preferredContentSize`。 |
-| 位置 | `preferredPlacement` 支持 automatic、leading、center、trailing；`sourceView` 优先。逻辑边缘遵循 RTL。 |
+| 位置 | `preferredPlacement` 接受 `SheetPresentationController.Placement`，可选 automatic、leading、center、trailing。`sourceView` 优先，逻辑边缘遵循 RTL。 |
 | 用户关闭 | `allowsInteractiveDismissal`、`shouldDismiss`、`onDismissAttempt` 和 `onDismiss`。代码调用 `dismiss` 直接关闭。 |
 | 档位变化通知 | `onSelectedDetentChange` 同时报告用户、程序和环境引起的有效档位变化。 |
 
 档位数值表示内容高度，贴底时额外包含底部安全区。浮动面板以最大档位的底边为锚点。解析器应只计算高度，避免在计算期间修改面板配置。
+
+### 自定义档位与背景材质
+
+从 iOS 15 起，`AdaptivePanelController.Detent` 支持省略标识、读取 `identifier`、调用 `resolvedValue(in:)`，以及为各档位设置 `backgroundEffect`。省略标识时每个实例都会生成一个稳定的唯一值，可以直接用于选档。
+
+```swift
+let compact = AdaptivePanelController.Detent.custom { context in
+    context.maximumDetentValue / 3
+}
+compact.backgroundEffect = UIBlurEffect(style: .systemThinMaterial)
+panel.detents = [compact, .medium(), .large()]
+panel.selectedDetentIdentifier = compact.identifier
+```
+
+档位定义在 `SheetPresentationController.Detent`。`AdaptivePanelController.Detent` 和 `AdaptivePanelDetent` 都是它的类型别名。从 iOS 15 起，同一个档位数组可以直接交给两个控制器，各自按当前容器的高度和特征解析。
+
+```swift
+let third = SheetPresentationController.Detent.custom { $0.maximumDetentValue / 3 }
+let detents = [third, .medium(), .large()]
+sheet.detents = detents
+panel.detents = detents
+```
+
+通用解析器通过 `SheetPresentationControllerDetentResolutionContext` 读取当前容器的 `containerTraitCollection` 和 `maximumDetentValue`。需要铰链角度或分隔区域时，解析器也可以显式接收 `AdaptivePanelContext`。面板每轮布局都会提供一个新的上下文对象。把这种专用档位交给独立 Sheet 时，该档位返回 `nil`，Sheet 会使用其他有效档位。
+
+档位使用引用语义。修改共享实例的 `backgroundEffect` 会更新每个选中该实例的容器，设为 `nil` 会恢复各自的默认背景。内容自身的背景决定材质的可见区域。
 
 ## 折叠环境
 

@@ -14,6 +14,15 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = scene as? UIWindowScene else { return }
+        #if DEBUG && compiler(>=6.4)
+        if #available(iOS 17.0, *), ProcessInfo.processInfo.arguments.contains("-duo-sheet-gestures") {
+            let window = DuoSheetGestureWindow(windowScene: windowScene)
+            window.rootViewController = DuoSheetGestureProbe()
+            self.window = window
+            window.makeKeyAndVisible()
+            return
+        }
+        #endif
         let window = UIWindow(windowScene: windowScene)
         window.rootViewController = AppTabBarController()
         self.window = window

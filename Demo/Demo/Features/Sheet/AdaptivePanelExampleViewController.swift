@@ -171,7 +171,6 @@ final class AdaptivePanelExampleViewController: LocalizedQuickLayoutHostingContr
                 }
                 sheet.selectedDetentIdentifier = nativeIdentifier
                 sheet.prefersGrabberVisible = true
-                sheet.preferredCornerRadius = 24
                 sheet.prefersEdgeAttachedInCompactHeight = true
                 if #available(iOS 17.0, *) { sheet.prefersPageSizing = true }
                 sheet.delegate = self
@@ -216,7 +215,7 @@ final class AdaptivePanelExampleViewController: LocalizedQuickLayoutHostingContr
         if let panel {
             panel.animateChanges {
                 panel.prefersScrollingExpandsWhenScrolledToEdge = self.expandSwitch.isOn
-                panel.largestUndimmedDetentIdentifier = self.dimSwitch.isOn ? .medium : nil
+                panel.largestUndimmedDetentIdentifier = self.dimSwitch.isOn ? .medium : .large
                 panel.preferredPlacement = [.automatic, .leading, .center, .trailing][self.placementControl.selectedSegmentIndex]
             }
         }
