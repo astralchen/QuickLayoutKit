@@ -3,6 +3,11 @@ import QuickLayoutKitCore
 import ObjectiveC
 import UIKit
 
+/// 理想尺寸查询使用临时容器建议；后代在随后的独立布局中仍需继承实际视口。
+enum QuickLayoutIdealSizeMeasurement {
+    @TaskLocal static var isActive = false
+}
+
 extension UIView {
 
     /// 使用 `containerRelativeFrame` 修饰符所需的安全区域调整后容器尺寸执行布局操作。
@@ -48,12 +53,14 @@ extension UIView {
         let inheritedSize = QuickLayoutContainerRelativeFrameContext.containerSize
             ?? inheritedRelativeContainerSize
         let relativeSize = startsContainer ? containerSize : (inheritedSize ?? containerSize)
-        objc_setAssociatedObject(
-            self,
-            &QuickLayoutGeometryObservationAssociatedKeys.relativeContainerSize,
-            NSValue(cgSize: relativeSize),
-            .OBJC_ASSOCIATION_RETAIN_NONATOMIC
-        )
+        if !QuickLayoutIdealSizeMeasurement.isActive {
+            objc_setAssociatedObject(
+                self,
+                &QuickLayoutGeometryObservationAssociatedKeys.relativeContainerSize,
+                NSValue(cgSize: relativeSize),
+                .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+            )
+        }
 
         return try QuickLayoutGeometryObservationContext.withRegistry(
             geometryObservationRegistry

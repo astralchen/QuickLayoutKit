@@ -76,6 +76,8 @@ final class MainRouter: MainRouting {
             AdaptivePanelExampleViewController()
         case .sheetPresentation:
             SheetPresentationExampleViewController()
+        case .alertExamples:
+            AlertExamplesViewController()
         case .directionalGrid:
             DirectionalGridViewController()
         case .profile:

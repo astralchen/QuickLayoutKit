@@ -168,6 +168,70 @@ let viewController = QuickLayoutHostingController {
 }
 ```
 
+### 跟踪宿主内容尺寸
+
+iOS 15 起，`QuickLayoutHostingController.sizingOptions` 接受框架自定义的
+`QuickLayoutHostingControllerSizingOptions`。默认值为 `[]`。使用 popover 时，可以让
+控制器的 `preferredContentSize` 随内容更新：
+
+```swift
+let details = QuickLayoutHostingController(sizingOptions: [.preferredContentSize]) {
+    detailsLabel.padding(.all, 16)
+}
+details.modalPresentationStyle = .popover
+details.popoverPresentationController?.sourceView = sender
+details.popoverPresentationController?.sourceRect = sender.bounds
+present(details, animated: true)
+```
+
+嵌入 Auto Layout 父视图时，使用 `.intrinsicContentSize` 向父容器提供根视图的固有尺寸：
+
+```swift
+let child = QuickLayoutHostingController { titleLabel.padding(.all, 8) }
+child.sizingOptions = [.intrinsicContentSize]
+addChild(child)
+stackView.addArrangedSubview(child.view)
+child.didMove(toParent: self)
+```
+
+两个选项可以组合，跟踪的都是宽高均未指定时的理想尺寸。更新标签等业务内容后，调用
+`setNeedsQuickLayout()`。若要计算多行文本在指定宽度下的高度，使用
+`sizeThatFits(in: CGSize(width: width, height: .infinity))`。移除 `.preferredContentSize`
+会保留最后一次写入的值，移除 `.intrinsicContentSize` 会恢复根视图原有的固有尺寸行为。
+
+将宿主设为 `AlertController` 的 `contentViewController` 或 `headerContentViewController` 时，
+默认的 `.automatic` 优先使用子控制器的正数首选高度。需要文字随弹窗宽度换行时，
+保留宿主默认的 `sizingOptions = []`，弹窗会用实际可用宽度调用 `sizeThatFits(in:)`。
+
+### Alert 面板宽度
+
+用 `AlertController.panelWidth` 指定面板如何取宽，`maximumPanelWidth` 为所有策略设置可选上限。旧的 `idealLayoutWidth = 360` 迁移为 `.points(360)`，恢复默认使用 `.automatic`。
+
+```swift
+// 普通提示随系统字号调整，最多 380 pt。
+alert.panelWidth = .automatic
+alert.maximumPanelWidth = 380
+
+// 表单在窄窗口用满可用区域，在宽窗口最多 520 pt。
+form.panelWidth = .fill
+form.maximumPanelWidth = 520
+
+// 日历声明首选宽度，同时保留按最终宽度测量高度的能力。
+calendar.preferredContentSize.width = 360
+picker.headerContentViewController = calendar
+picker.panelWidth = .content
+
+// 按当前呈现区域的比例取宽。也可以用 context.automaticWidth 调整默认值。
+preview.panelWidth = .custom { context in context.availableWidth * 0.9 }
+preview.maximumPanelWidth = 520
+```
+
+`.content` 取头部和正文所需宽度的较大值。正文受内容参考线限制时计入左右内边距。
+两者都未声明有效宽度时，面板采用 `.automatic`。`availableWidth` 已扣除安全区和呈现边距，
+并按当前分区计算。`automaticWidth` 是应用自定义上限前的默认宽度。`.custom` 可通过
+`context.containerTraitCollection` 读取同一次测量的水平尺寸类别、Dynamic Type 字号等容器特征。
+Popover 的最终尺寸由 UIKit 分配，可从 `layoutSnapshot?.panelSize` 读取。
+
 ## 控制器根布局
 
 SwiftUI 默认在系统安全区域内确定普通页面内容的尺寸和位置。需要让背景延伸到屏幕边缘时，

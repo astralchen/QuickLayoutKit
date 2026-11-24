@@ -18,6 +18,20 @@ private final class KeyboardDockingResolverState {
 @Suite(.serialized)
 struct QuickLayoutKitTests {
 
+    @Test func alertAppliesScreenMarginsInsideTheHingeSeparatedRegion() {
+        let bounds = CGRect(x: 0, y: 0, width: 867, height: 635)
+        let hinge = CGRect(x: 455.5, y: 0, width: 40, height: 669)
+        let insets = UIEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
+        let open = AlertLayout.availableRegion(bounds, divisions: [], occlusions: [],
+                                               insets: insets, anchor: nil, rtl: false)
+        let folded = AlertLayout.availableRegion(bounds, divisions: [hinge], occlusions: [],
+                                                 insets: insets, anchor: nil, rtl: false)
+
+        #expect(open.width == 843)
+        #expect(folded == CGRect(x: 12, y: 12, width: 431.5, height: 611))
+        #expect(!folded.intersects(hinge))
+    }
+
     @MainActor
     @Test func gradientViewUsesGradientAsItsRootLayerAndUpdatesConfiguration() {
         let evenlyDistributedGradient = QuickLayoutGradient(
