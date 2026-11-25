@@ -152,6 +152,7 @@ public final class AdaptivePanelController: UIViewController {
     public func show(in parent: UIViewController, containerView: UIView? = nil, animated: Bool = true) {
         guard self.parent == nil else { return }
         let container = containerView ?? parent.view!
+        let animated = animated && container.window != nil
         precondition(container === parent.view || container.isDescendant(of: parent.view), "宿主区域必须属于父控制器")
         isDismissing = false
         didRotateWhilePresented = false
@@ -174,7 +175,7 @@ public final class AdaptivePanelController: UIViewController {
         presenterEffect.installDimming(in: backdrop, surface: surface)
         didMove(toParent: parent)
         presentingPanel = true
-        view.layoutIfNeeded()
+        layoutForChanges()
         if animated {
             surface.transform = CGAffineTransform(translationX: 0, y: view.bounds.maxY - surface.frame.minY)
             presenterEffect.dimming.amount = 0
@@ -221,6 +222,7 @@ public final class AdaptivePanelController: UIViewController {
     }
 
     fileprivate func hostWindowChanged() {
+        if view.window != nil { invalidateDetents() }
         guard let overlay = floatingOverlay else { return }
         guard let host = view.superview, view.window != nil else {
             presenterEffect.restore()
@@ -232,19 +234,24 @@ public final class AdaptivePanelController: UIViewController {
             overlay.frame = container.bounds
             container.addSubview(overlay)
         }
-        invalidateDetents()
     }
 
     public func invalidateDetents() { viewIfLoaded?.setNeedsLayout() }
 
     public func animateChanges(_ changes: () -> Void) {
         loadViewIfNeeded()
-        view.layoutIfNeeded()
+        layoutForChanges()
         changes()
+        guard view.window != nil else { layoutPanel(); return }
         UIView.animate(withDuration: 0.3, delay: 0,
                        options: [.beginFromCurrentState, .allowUserInteraction, .curveEaseInOut]) {
             self.view.layoutIfNeeded()
         }
+    }
+
+    private func layoutForChanges() {
+        if view.window != nil { view.layoutIfNeeded() }
+        else { layoutPanel() }
     }
 
     public func selectDetent(_ identifier: Detent.Identifier, animated: Bool = true) {
@@ -258,7 +265,7 @@ public final class AdaptivePanelController: UIViewController {
             changeReason = .programmatic
             interactiveHeight = nil
             selectedDetentIdentifier = identifier
-            viewIfLoaded?.layoutIfNeeded()
+            if isViewLoaded { layoutForChanges() }
         }
     }
 
@@ -639,6 +646,16 @@ final class AdaptivePanelSurface: QuickLayoutView {
 
     private var material: UIVisualEffectView?
     private var appliedEffect: UIVisualEffect?
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil { setNeedsLayout() }
+    }
+
+    override func layoutSubviews() {
+        guard window != nil else { return }
+        super.layoutSubviews()
+    }
 
     func updateBackgroundEffect(_ effect: UIVisualEffect?) {
         guard effect !== appliedEffect else { return }

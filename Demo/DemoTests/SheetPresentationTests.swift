@@ -245,6 +245,29 @@ struct SheetPresentationTests {
         }
     }
 
+    @Test func panelDefersTableLayoutUntilWindowAttachment() throws {
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let host = UIViewController()
+        host.view.frame = CGRect(x: 0, y: 0, width: 400, height: 700)
+        let table = PanelTestTable(frame: .zero, style: .plain)
+        let controller = UITableViewController(style: .plain)
+        controller.tableView = table
+        let panel = AdaptivePanelController(contentViewController: controller)
+        panel.show(in: host, animated: false)
+        defer { panel.dismiss(animated: false) }
+        #expect(panel.panelFrame.height > 0)
+        #expect(table.detachedLayoutCount == 0)
+
+        let previous = scene.windows.first { $0.isKeyWindow }
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey() }
+        window.layoutIfNeeded()
+        #expect(table.bounds.height > 0)
+        #expect(table.detachedLayoutCount == 0)
+    }
+
     @Test func detentSubclassResolverAndLiveMaterial() async throws {
         final class CustomDetent: SheetPresentationController.Detent {}
         final class Context: NSObject, SheetPresentationControllerDetentResolutionContext {
@@ -305,4 +328,13 @@ struct SheetPresentationTests {
         await withCheckedContinuation { continuation in content.dismiss(animated: false) { continuation.resume() } }
     }
 
+}
+
+private final class PanelTestTable: UITableView {
+    private(set) var detachedLayoutCount = 0
+
+    override func layoutSubviews() {
+        if window == nil { detachedLayoutCount += 1 }
+        super.layoutSubviews()
+    }
 }

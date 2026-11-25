@@ -169,10 +169,10 @@ open class SheetPresentationController: UIPresentationController {
         grabber.autoresizingMask = [.flexibleLeftMargin, .flexibleRightMargin]
         updateMaterial(stop.detent)
         applyDimming(stop.dimming)
-        surface.layoutIfNeeded()
         // 卡片浮起时，内容从窗口继承的底部安全区相应减少，只补回移出的距离。
         let lift = max(0, (containerView?.bounds.maxY ?? stop.frame.maxY) - stop.frame.maxY)
         setSuppliedBottomInset(min(lift, layout.contentBottomInset))
+        if surface.window != nil { surface.layoutIfNeeded() }
     }
 
     private func updatePresenter(for frame: CGRect, in layout: SheetLayout) {
@@ -226,8 +226,11 @@ open class SheetPresentationController: UIPresentationController {
         let visible = presenting ? frameOfPresentedViewInContainerView : surface.frame
         let hidden = visible.offsetBy(dx: 0, dy: context.containerView.bounds.maxY - visible.minY)
         if presenting {
-            surface.frame = hidden
+            surface.frame = visible
             context.containerView.addSubview(surface)
+            // 等内容进入窗口后，再按显示位置的安全区排版首帧。
+            if surface.window != nil { surface.layoutIfNeeded() }
+            surface.frame = hidden
         }
         let targetDimming = presenting ? layout?.selected.dimming ?? 1 : 0
         let change = {
