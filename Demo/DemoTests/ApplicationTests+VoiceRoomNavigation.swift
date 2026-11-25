@@ -23,7 +23,7 @@ extension ApplicationTests {
         )
         let window = try makeVisibleTestWindow(
             rootViewController: navigationController,
-            size: CGSize(width: 390, height: 844)
+            size: CGSize(width: 375, height: 844)
         )
         defer { window.isHidden = true }
 
@@ -50,8 +50,9 @@ extension ApplicationTests {
 
         #expect(viewController.presentedUserCardSeatID == 1)
         let presentedViewController = try #require(
-            viewController.presentedViewController
+            viewController.presentedViewController as? AlertController
         )
+        #expect(presentedViewController.contentViewController is SeatUserCardViewController)
         presentedViewController.loadViewIfNeeded()
         presentedViewController.view.frame = window.bounds
         presentedViewController.view.setNeedsLayout()
@@ -124,9 +125,9 @@ extension ApplicationTests {
             closeButton.point(inside: pointOutsideVisualBounds, with: nil)
         )
         #expect(userCardView.bounds.width <= 340)
-        #expect(
-            userCardView.convert(userCardView.bounds, to: window).minX >= 24
-        )
+        let cardFrame = userCardView.convert(userCardView.bounds, to: window)
+        #expect(cardFrame.minX - window.bounds.minX >= 24)
+        #expect(window.bounds.maxX - cardFrame.maxX >= 24)
     }
 
     @Test func voiceRoomFollowButtonShowsRequestingState() async throws {

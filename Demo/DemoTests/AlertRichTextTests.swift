@@ -468,6 +468,33 @@ struct AlertRichTextTests {
         }
     }
 
+    @Test(arguments: [UIAlertController.Style.alert, .actionSheet])
+    func customAlertBackdropHonorsDismissalSetting(style: UIAlertController.Style) async throws {
+        let host = UIViewController()
+        let window = try makeVisibleTestWindow(rootViewController: host)
+        defer { window.isHidden = true }
+
+        let alert = AlertController(title: "Backdrop", preferredStyle: style)
+        #expect(alert.dismissesOnBackdropTap == (style == .actionSheet))
+        if style == .actionSheet { alert.dismissesOnBackdropTap = false }
+        var cancellations = 0
+        alert.addAction(AlertAction(title: "Cancel", style: .cancel) { _ in cancellations += 1 })
+        await withCheckedContinuation { done in host.presentAlert(alert, animated: false) { done.resume() } }
+        defer { host.dismiss(animated: false) }
+
+        alert.view.layoutIfNeeded()
+        let outsidePanel = CGPoint(x: alert.view.bounds.minX + 1, y: alert.view.bounds.midY)
+        let backdrop = try #require(alert.view.hitTest(outsidePanel, with: nil) as? UIControl)
+        backdrop.sendActions(for: .touchUpInside)
+        try #require(host.presentedViewController === alert && !alert.isBeingDismissed)
+        #expect(cancellations == 0)
+
+        alert.dismissesOnBackdropTap = true
+        backdrop.sendActions(for: .touchUpInside)
+        backdrop.sendActions(for: .touchUpInside)
+        #expect(await waitForCondition { host.presentedViewController == nil && cancellations == 1 })
+    }
+
     @Test func popoverDismissalNotifiesCancelOnce() throws {
         guard #available(iOS 26, *) else { return }
         let anchor = UIView()

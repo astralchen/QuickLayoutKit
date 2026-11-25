@@ -207,6 +207,8 @@ public final class AlertController: UIViewController {
     }
 
     public let preferredStyle: UIAlertController.Style
+    /// 控制自定义呈现时点击遮罩是否关闭弹窗。Action Sheet 默认开启，Alert 默认关闭。
+    public var dismissesOnBackdropTap: Bool
     public private(set) var actions: [AlertAction] = []
     /// 按添加顺序返回输入框。尚未添加输入框时为 nil。
     public private(set) var textFields: [UITextField]?
@@ -414,6 +416,7 @@ public final class AlertController: UIViewController {
     public init(title: String? = nil, message: String? = nil, preferredStyle: UIAlertController.Style) {
         self.message = message
         self.preferredStyle = preferredStyle
+        dismissesOnBackdropTap = preferredStyle == .actionSheet
         super.init(nibName: nil, bundle: nil)
         self.title = title
         modalPresentationStyle = .custom
@@ -480,7 +483,7 @@ public final class AlertController: UIViewController {
         dimmingView.backgroundColor = UIColor.black.withAlphaComponent(0.20)
         dimmingView.isAccessibilityElement = false
         dimmingView.addAction(UIAction { [weak self] _ in
-            guard let self, self.preferredStyle == .actionSheet else { return }
+            guard let self, self.dismissesOnBackdropTap else { return }
             self.close(using: self.cancelAction)
         }, for: .touchUpInside)
         view.addSubview(dimmingView)

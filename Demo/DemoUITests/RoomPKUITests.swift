@@ -36,7 +36,12 @@ final class RoomPKUITests: XCTestCase {
             XCTAssertTrue(seatLabel.waitForExistence(timeout: 3))
             XCTAssertEqual(seatLabel.label, "\(room) · 1 号麦")
             capture(app, "厅PK-\(room)资料卡")
-            app.buttons["liveRoom.userCard.close"].tap()
+            if button == current {
+                app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).tap()
+            } else {
+                app.buttons["liveRoom.userCard.close"].tap()
+            }
+            XCTAssertTrue(seatLabel.waitForNonExistence(timeout: 3))
         }
         app.buttons["liveRoom.gift.button"].tap()
         let recipient = app.buttons["liveRoom.gift.recipient.0"]

@@ -109,7 +109,8 @@ final class VoiceRoomViewController: LocalizedQuickLayoutHostingController {
 
     /// 当前用户资料卡对应的零基麦位位置；未展示时为 `nil`。
     var presentedUserCardSeatID: Int? {
-        (presentedViewController as? SeatUserCardViewController)?.seatID
+        let alert = presentedViewController as? AlertController
+        return (alert?.contentViewController as? SeatUserCardViewController)?.seatID
     }
 
     /// 当前观众面板加载的用户数量；未展示时为 `nil`。

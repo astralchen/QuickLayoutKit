@@ -120,10 +120,11 @@ extension VoiceRoomViewController {
             presentedViewController == nil,
             giftSheetViewController == nil
         else { return }
-        present(
-            SeatUserCardViewController(seat: seat, showsRoom: viewModel.state.stagePresentation.layoutID == .roomPKNine),
-            animated: true
+        let alert = SeatUserCardViewController.makeAlert(
+            seat: seat,
+            showsRoom: viewModel.state.stagePresentation.layoutID == .roomPKNine
         )
+        presentAlert(alert)
     }
 
     /// 用本地化文案、关注状态和会话消息刷新公屏。
