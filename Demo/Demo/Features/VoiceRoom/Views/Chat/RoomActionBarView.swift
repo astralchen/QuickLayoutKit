@@ -269,6 +269,8 @@ final class RoomActionBarView: TranslucentCardView, UITextFieldDelegate {
         giftButton.accessibilityIdentifier = "liveRoom.gift.button"
         giftButton.action = { [weak self] in self?.showGiftSheet() }
         configureRoundButton(moreButton, symbolName: "ellipsis")
+        // 和其他圆形按钮一起随遮罩变暗，避免系统菜单按钮额外继承呈现者的着色。
+        moreButton.tintAdjustmentMode = .normal
         moreButton.showsMenuAsPrimaryAction = true
         moreButton.accessibilityIdentifier = "liveRoom.more.button"
 

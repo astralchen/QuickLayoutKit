@@ -53,6 +53,14 @@ extension ApplicationTests {
             viewController.presentedViewController as? AlertController
         )
         #expect(presentedViewController.contentViewController is SeatUserCardViewController)
+        let moreButton = try #require(
+            viewController.view.allSubviews(of: UIButton.self).first {
+                $0.accessibilityIdentifier == "liveRoom.more.button"
+            }
+        )
+        viewController.actionBarView.tintAdjustmentMode = .dimmed
+        defer { viewController.actionBarView.tintAdjustmentMode = .automatic }
+        #expect(moreButton.tintAdjustmentMode == .normal)
         presentedViewController.loadViewIfNeeded()
         presentedViewController.view.frame = window.bounds
         presentedViewController.view.setNeedsLayout()
