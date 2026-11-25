@@ -35,10 +35,15 @@ struct SheetLayout {
         let foldedPage = sheet.hingeClosed
         if foldedPage { safe.origin.x = bounds.minX; safe.size.width = bounds.width }
         let floating = !compactHeight && traits.horizontalSizeClass == .regular
-        let phonePage = foldedPage || floating && sheet.prefersPageSizing && traits.userInterfaceIdiom == .phone
-        let form = floating && !sheet.prefersPageSizing && !phonePage
-        // 浮动表单以窗口居中；在 Duo 内屏也可位于系统侧栏背后的那一侧。
-        if form { safe.origin.x = bounds.minX; safe.size.width = bounds.width }
+        let preferred = sheet.presentedViewController.preferredContentSize
+        let foldablePhone = sheet.hasHinge && traits.userInterfaceIdiom == .phone
+        let requestsForm = floating && !sheet.prefersPageSizing && !foldedPage
+        // 折叠手机上的表单缺少宽或高时，UIKit 使用页式几何。
+        let form = requestsForm && (!foldablePhone || preferred.width > 0 && preferred.height > 0)
+        let usesPageSizing = sheet.prefersPageSizing || requestsForm && !form
+        let phonePage = foldedPage || floating && usesPageSizing && traits.userInterfaceIdiom == .phone
+        // 表单及其页式回退都可放在 Duo 内屏的系统侧栏背后。
+        if requestsForm { safe.origin.x = bounds.minX; safe.size.width = bounds.width }
         let source = sheet.sourceView.flatMap { view in
             view.window === container.window ? view.convert(view.bounds, to: container) : nil
         }
@@ -49,7 +54,8 @@ struct SheetLayout {
         if #available(iOS 27.1, *) {
             divisions = container.reservedRegions(kind: .division, options: .includeInactive).map(\.frame)
             active = container.reservedRegions(kind: .division).map { $0.frame.inset(by: $0.margins) }
-            if sheet.prefersPageSizing { active = active.filter { $0.height > $0.width } }
+            // 桌面姿态的横向铰链影响中档高度，表单的可用区域仍覆盖整个窗口。
+            if usesPageSizing || foldablePhone && form { active = active.filter { $0.height > $0.width } }
         }
         #endif
         let regions = SheetRegionGeometry.regions(in: safe, divisions: active)
@@ -62,7 +68,6 @@ struct SheetLayout {
                 return preferLeft ? $0.minX < $1.minX : $0.maxX > $1.maxX
             }.first ?? safe
         let fullscreen = compactHeight && !sheet.prefersEdgeAttachedInCompactHeight && !phonePage
-        let preferred = sheet.presentedViewController.preferredContentSize
         let readableWidth = container.readableContentGuide.layoutFrame.width
             + sheet.presentingViewController.view.layoutMargins.left + sheet.presentingViewController.view.layoutMargins.right
         let availableWidth = max(1, region.width)
@@ -111,11 +116,9 @@ struct SheetLayout {
         let context = SheetDetentContext(availableRegion: region, divisionRegions: divisions,
             maximumDetentValue: maximum, containerTraitCollection: traits,
             minimumMediumHeight: windowedPad ? 266 : 0)
-        let upperLimit = max(region.minY, bounds.minY + 8) + 10
-        let lowerLimit = region.maxY - 10
-        let centerY = min(lowerLimit - maximum / 2,
-                          max(upperLimit + maximum / 2, source?.midY ?? (regions.count == 1 || region.height == safe.height ? bounds.midY : region.midY)))
-        let fillsRegion = !compactHeight && !phonePage && (!floating || sheet.prefersPageSizing && readable >= region.width)
+        let centerY = SheetRegionGeometry.formCenterY(in: region, bounds: bounds, height: maximum,
+            preferredY: source?.midY ?? (regions.count == 1 || region.height == safe.height ? bounds.midY : region.midY))
+        let fillsRegion = !compactHeight && !phonePage && (!floating || usesPageSizing && readable >= region.width)
         let safeBottom = (!floating || phonePage || fillsRegion) && abs(region.maxY - safe.maxY) < 1 ? bounds.maxY - safe.maxY : 0
         let bottom = (form ? centerY + maximum / 2 : region.maxY) + safeBottom
         let medium = SheetPresentationController.Detent.medium().resolvedValue(in: context) ?? maximum

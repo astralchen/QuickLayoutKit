@@ -24,6 +24,12 @@ enum SheetRegionGeometry {
         return 0
     }()
 
+    static func formCenterY(in region: CGRect, bounds: CGRect, height: CGFloat, preferredY: CGFloat) -> CGFloat {
+        let upperLimit = max(region.minY, bounds.minY + 8) + 10
+        let lowerLimit = region.maxY - 10
+        return min(lowerLimit - height / 2, max(upperLimit + height / 2, preferredY))
+    }
+
     @MainActor
     static func isWindowedPad(_ view: UIView) -> Bool {
         guard #available(iOS 26, *), view.traitCollection.userInterfaceIdiom == .pad,

@@ -323,6 +323,15 @@ public final class AdaptivePanelController: UIViewController {
         // 容器接入窗口前，已由父控制器指定的尺寸类别仍可用于预布局。
         let traits = view.window == nil ? traitCollection : view.traitCollection
         let compactHeight = traits.verticalSizeClass == .compact
+        let floating = traits.horizontalSizeClass == .regular && !compactHeight
+        let window = view.window
+        let coversWindow = window.map { view.convert(view.bounds, to: $0).equalTo($0.bounds) } ?? false
+        let preferred = contentViewController.preferredContentSize
+        let innerFoldablePhone = traits.userInterfaceIdiom == .phone
+            && (hingeState == .partiallyOpen || hingeState == .fullyOpen)
+        let windowForm = floating && !prefersPageSizing && innerFoldablePhone && coversWindow && safeAreaSource == .window
+        let sizedWindowForm = windowForm && preferred.width > 0 && preferred.height > 0
+        let usesPageSizing = prefersPageSizing || windowForm && !sizedWindowForm
         let foldedPage = prefersPageSizing && hingeState == .closed
         let safeInsets = UIEdgeInsets(top: safe.minY - view.bounds.minY, left: safe.minX - view.bounds.minX,
                                       bottom: view.bounds.maxY - safe.maxY, right: view.bounds.maxX - safe.maxX)
@@ -332,6 +341,10 @@ public final class AdaptivePanelController: UIViewController {
             let visible = view.window.map { view.bounds.intersection(view.convert($0.bounds, from: $0)) } ?? view.bounds
             safe.origin.x = visible.minX
             safe.size.width = visible.width
+        } else if windowForm {
+            // 窗口级 Duo 表单和页式回退都可延伸至系统侧栏背后。
+            safe.origin.x = view.bounds.minX
+            safe.size.width = view.bounds.width
         }
         var divisions: [CGRect] = []
         var layoutDivisions: [CGRect] = []
@@ -345,15 +358,14 @@ public final class AdaptivePanelController: UIViewController {
             layoutDivisions = reserved.map { $0.frame.inset(by: $0.margins) }
             // 页面模式的横向折叠只限制 medium，large 和自定义档位仍可使用完整容器。
             // 竖向折叠则将整个面板放入单侧区域。
-            if prefersPageSizing { layoutDivisions = layoutDivisions.filter { $0.height > $0.width } }
+            if usesPageSizing || windowForm { layoutDivisions = layoutDivisions.filter { $0.height > $0.width } }
         }
         #endif
-        var region = selectedRegion(AdaptivePanelContext.regions(in: safe, divisions: layoutDivisions)) ?? safe
+        let regions = AdaptivePanelContext.regions(in: safe, divisions: layoutDivisions)
+        var region = selectedRegion(regions, usesSource: !sizedWindowForm || preferredPlacement == .automatic) ?? safe
         let originalBottom = region.maxY
-        let floating = traits.horizontalSizeClass == .regular && !compactHeight
         // Duo 内屏页面在编辑时沿用无键盘的档位上下文，仅将显示外框临时展开。
-        let innerPhonePage = prefersPageSizing && floating && traits.userInterfaceIdiom == .phone
-            && (hingeState == .partiallyOpen || hingeState == .fullyOpen)
+        let innerPhonePage = usesPageSizing && floating && innerFoldablePhone
         var expandsForEditing = false
         if avoidsKeyboard, let keyboardFrameInScreen, let window = view.window {
             let keyboard = view.convert(window.convert(keyboardFrameInScreen, from: window.screen.coordinateSpace), from: window)
@@ -372,24 +384,27 @@ public final class AdaptivePanelController: UIViewController {
         let naturalPageWidth = readableWidth > 0 ? readableWidth + (parent?.view.layoutMargins.left ?? 0) + (parent?.view.layoutMargins.right ?? 0) : region.width
         let readablePageWidth = presenterEffect.readablePageWidth(naturalPageWidth, available: region.width, in: view)
         // regular/regular 的手机 Sheet 仍以底部为锚点，并包含底部安全区。
-        let phonePage = (floating || foldedPage) && prefersPageSizing && traits.userInterfaceIdiom == .phone
+        let phonePage = (floating || foldedPage) && usesPageSizing && traits.userInterfaceIdiom == .phone
         let fillsRegion = traits.verticalSizeClass == .regular && !phonePage
-            && (!floating || (!phonePage && prefersPageSizing && readablePageWidth >= region.width))
+            && (!floating || (usesPageSizing && readablePageWidth >= region.width))
         let sideGap = min(max(0, horizontalInset), region.width / 4)
         let bottomGap = min(max(0, bottomInset), region.height)
         let safeBottom = (!floating || phonePage || fillsRegion) && abs(region.maxY - safe.maxY) < 1 && region.maxY == originalBottom
             ? safeInsets.bottom : 0
-        let margin: CGFloat = phonePage ? sideGap : floating && !prefersPageSizing ? min(max(0, view.layoutMargins.left - view.safeAreaInsets.left),
-                                            max(0, view.layoutMargins.right - view.safeAreaInsets.right)) : 0
-        var topGap = phonePage ? max(0, 8 - safeInsets.top) : margin * 2
+        let margin: CGFloat
+        if phonePage { margin = sideGap }
+        else if sizedWindowForm { margin = min(8, max(0, (region.width - preferred.width) / 2)) }
+        else if floating && !usesPageSizing {
+            margin = min(max(0, view.layoutMargins.left - view.safeAreaInsets.left),
+                         max(0, view.layoutMargins.right - view.safeAreaInsets.right))
+        } else { margin = 0 }
+        var topGap = phonePage ? max(0, 8 - safeInsets.top) : sizedWindowForm ? 0 : margin * 2
         if #unavailable(iOS 26), traits.userInterfaceIdiom == .phone, !compactHeight, !floating {
             topGap = 10
         }
-        let stackedTopGap = prefersPageSizing ? presenterEffect.additionalTop(in: view, foldedPage: foldedPage) : 0
+        let stackedTopGap = usesPageSizing ? presenterEffect.additionalTop(in: view, foldedPage: foldedPage) : 0
         topGap += stackedTopGap
         var maximum = max(1, region.height - topGap)
-        let window = view.window
-        let coversWindow = window.map { view.convert(view.bounds, to: $0).equalTo($0.bounds) } ?? false
         let windowedPad = coversWindow && SheetRegionGeometry.isWindowedPad(view)
         if #available(iOS 26, *), coversWindow, compactHeight, prefersEdgeAttachedInCompactHeight {
             if #unavailable(iOS 27) { maximum = max(maximum, min(384, region.height + safeBottom)) }
@@ -403,8 +418,8 @@ public final class AdaptivePanelController: UIViewController {
             let windowSafeTop = view.convert(window.safeAreaLayoutGuide.layoutFrame, from: window).minY
             maximum = max(1, maximum - max(0, windowSafeTop + 44 - region.minY))
         }
-        if floating, !prefersPageSizing, contentViewController.preferredContentSize.height > 0 {
-            maximum = min(maximum, contentViewController.preferredContentSize.height)
+        if floating, !usesPageSizing, preferred.height > 0 {
+            maximum = min(maximum, preferred.height + (sizedWindowForm ? 20 : 0))
         }
         let context = AdaptivePanelContext(containerBounds: view.bounds, availableRegion: region,
             divisionRegions: divisions, containerTraitCollection: traits, maximumDetentValue: maximum,
@@ -430,7 +445,6 @@ public final class AdaptivePanelController: UIViewController {
         currentHeight = height
         var width = region.width
         if floating || phonePage || (widthFollowsPreferredContentSizeWhenEdgeAttached && compactHeight) {
-            let preferredWidth = contentViewController.preferredContentSize.width
             var automaticWidth = readablePageWidth
             if phonePage {
                 // 手机展开后可变成 regular/regular；页面宽度还需受容器短边限制。
@@ -438,7 +452,7 @@ public final class AdaptivePanelController: UIViewController {
                 automaticWidth = foldedPage ? region.width - 2 * sideGap
                     : min(automaticWidth, min(view.bounds.width, view.bounds.height) - 2 * sideGap)
             }
-            let target = preferredWidth > 0 && (!floating || !prefersPageSizing) ? preferredWidth : automaticWidth
+            let target = preferred.width > 0 && (!floating || !usesPageSizing) ? preferred.width : automaticWidth
             width = min(max(1, region.width - margin * 2), max(1, target))
         }
         let logicalWidth = width
@@ -448,14 +462,20 @@ public final class AdaptivePanelController: UIViewController {
         }
         // 浮动面板以最大档位的底边为锚点，切档时保持底边和两侧边缘稳定。
         var floatingCenterY = region.midY
-        if floating, let sourceView, sourceView.window === view.window {
-            let point = sourceView.convert(CGPoint(x: sourceView.bounds.midX, y: sourceView.bounds.midY), to: view)
+        let sourceY = sourceView.flatMap { source in
+            source.window === view.window ? source.convert(source.bounds, to: view).midY : nil
+        }
+        if sizedWindowForm {
+            let center = regions.count == 1 || region.height == safe.height ? view.bounds.midY : region.midY
+            floatingCenterY = SheetRegionGeometry.formCenterY(in: region, bounds: view.bounds, height: maximum,
+                                                             preferredY: sourceY ?? center)
+        } else if floating, let sourceY {
             floatingCenterY = min(region.maxY - margin - maximum * 0.5,
-                                  max(region.minY + margin + maximum * 0.5, point.y))
+                                  max(region.minY + margin + maximum * 0.5, sourceY))
         }
         let mediumHeight = Detent.medium().resolvedValue(in: context) ?? maximum * 0.5
         let lastFloatingHeight = resolvedDetents.last(where: { $0.height < maximum - 0.5 })?.height ?? mediumHeight
-        let bottom = (floating && !prefersPageSizing ? floatingCenterY + maximum * 0.5 : region.maxY) + safeBottom
+        let bottom = (floating && !usesPageSizing ? floatingCenterY + maximum * 0.5 : region.maxY) + safeBottom
         let attachment: SheetRegionGeometry.PageAttachment? = phonePage && hingeState != .unavailable
             ? .init(bottom: bottom, gap: bottomGap, safeBottom: safeBottom, maximum: maximum,
                     floatingHeight: compactHeight ? resolvedDetents.last(where: { $0.height < maximum })?.height ?? mediumHeight : mediumHeight,
@@ -536,9 +556,9 @@ public final class AdaptivePanelController: UIViewController {
         }
     }
 
-    private func selectedRegion(_ regions: [CGRect]) -> CGRect? {
+    private func selectedRegion(_ regions: [CGRect], usesSource: Bool) -> CGRect? {
         let view = layoutContainer
-        if let sourceView, sourceView.window === view.window {
+        if usesSource, let sourceView, sourceView.window === view.window {
             let point = sourceView.convert(CGPoint(x: sourceView.bounds.midX, y: sourceView.bounds.midY), to: view)
             if let region = regions.first(where: { $0.contains(point) }) { return region }
         }

@@ -190,11 +190,22 @@ struct SheetPresentationTests {
         defer { window.isHidden = true; previous?.makeKey() }
         let anchor = UIView(frame: CGRect(x: 12, y: 100, width: 44, height: 44))
         host.view.addSubview(anchor)
+        let preferredSize = CGSize(width: 360, height: 500)
+        var sizes = Array(repeating: preferredSize, count: 5) + [.zero]
+        var engines = ["UIKit", "Sheet"]
+        if #available(iOS 27.1, *), window.traitCollection.userInterfaceIdiom == .phone,
+           window.traitCollection.horizontalSizeClass == .regular {
+            sizes += [CGSize(width: 0, height: 500), CGSize(width: 360, height: 0)]
+            engines.append("Panel")
+        }
+        sizes.append(preferredSize)
         var reference: [CGRect] = []
-        for native in [true, false] {
+        for engine in engines {
             let content = UIViewController()
-            content.preferredContentSize = CGSize(width: 360, height: 500)
-            if native {
+            content.preferredContentSize = preferredSize
+            let panel: AdaptivePanelController?
+            if engine == "UIKit" {
+                panel = nil
                 content.modalPresentationStyle = .formSheet
                 let sheet = try #require(content.sheetPresentationController)
                 sheet.prefersPageSizing = false
@@ -203,7 +214,8 @@ struct SheetPresentationTests {
                 await withCheckedContinuation { continuation in
                     host.present(content, animated: false) { continuation.resume() }
                 }
-            } else {
+            } else if engine == "Sheet" {
+                panel = nil
                 await withCheckedContinuation { continuation in
                     host.presentSheet(content, animated: false) { sheet in
                         sheet.prefersPageSizing = false
@@ -211,12 +223,23 @@ struct SheetPresentationTests {
                         sheet.preferredCornerRadius = 16
                     } completion: { continuation.resume() }
                 }
+            } else {
+                let controller = AdaptivePanelController(contentViewController: content)
+                controller.safeAreaSource = .window
+                controller.prefersPageSizing = false
+                controller.preferredCornerRadius = 16
+                controller.show(in: host, animated: false)
+                panel = controller
             }
-            for index in 0..<6 {
+            for (index, size) in sizes.enumerated() {
                 let source = index == 3 ? anchor : nil
-                if index == 5 { content.preferredContentSize = .zero }
+                if content.preferredContentSize != size { content.preferredContentSize = size }
                 let position = min(index, 3)
-                if native {
+                if let panel {
+                    panel.sourceView = source
+                    panel.prefersGrabberVisible = index < 4
+                    panel.preferredPlacement = [.leading, .center, .trailing, .trailing][position]
+                } else if engine == "UIKit" {
                     let sheet = try #require(content.sheetPresentationController)
                     sheet.sourceView = source
                     sheet.prefersGrabberVisible = index < 4
@@ -230,9 +253,10 @@ struct SheetPresentationTests {
                     if #available(iOS 27, *) { sheet.preferredPlacement = [.leading, .center, .trailing, .trailing][position] }
                 }
                 try await Task.sleep(for: .milliseconds(400))
-                let rect = content.view.convert(content.view.bounds, to: window)
-                print("SHEET_FORM \(native ? "UIKit" : "Custom") \(index) window=\(window.bounds) frame=\(rect)")
-                if native { reference.append(rect) }
+                let rect = panel.map { $0.view.convert($0.panelFrame, to: window) }
+                    ?? content.view.convert(content.view.bounds, to: window)
+                print("SHEET_FORM \(engine) \(index) window=\(window.bounds) frame=\(rect) preferred=\(size)")
+                if engine == "UIKit" { reference.append(rect) }
                 else {
                     let expected = reference[index]
                     #expect(abs(rect.minX - expected.minX) <= 1)
@@ -241,7 +265,22 @@ struct SheetPresentationTests {
                     #expect(abs(rect.height - expected.height) <= 1)
                 }
             }
-            await withCheckedContinuation { continuation in content.dismiss(animated: false) { continuation.resume() } }
+            if let panel { panel.dismiss(animated: false) }
+            else { await withCheckedContinuation { continuation in content.dismiss(animated: false) { continuation.resume() } } }
+        }
+        if engines.contains("Panel") {
+            let local = UIView(frame: CGRect(x: 20, y: 100, width: 360, height: 320))
+            host.view.addSubview(local)
+            let content = UIViewController()
+            content.preferredContentSize = CGSize(width: 180, height: 240)
+            let panel = AdaptivePanelController(contentViewController: content)
+            panel.safeAreaSource = .window
+            panel.prefersPageSizing = false
+            panel.show(in: host, containerView: local, animated: false)
+            defer { panel.dismiss(animated: false) }
+            try await Task.sleep(for: .milliseconds(200))
+            #expect(panel.panelFrame.size == content.preferredContentSize)
+            #expect(local.bounds.contains(panel.panelFrame))
         }
     }
 
