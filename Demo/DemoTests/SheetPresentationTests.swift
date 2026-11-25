@@ -193,15 +193,27 @@ struct SheetPresentationTests {
         let anchor = UIView(frame: CGRect(x: 12, y: 100, width: 44, height: 44))
         host.view.addSubview(anchor)
         let preferredSize = CGSize(width: 360, height: 500)
+        let regularPhone = window.traitCollection.userInterfaceIdiom == .phone
+            && window.traitCollection.horizontalSizeClass == .regular
+        var foldedPhone = false
+        #if compiler(>=6.4)
+        if #available(iOS 27.1, *), !regularPhone, window.traitCollection.userInterfaceIdiom == .phone {
+            window.addInteraction(UIHingeInteraction { _, update in
+                foldedPhone = update.hinge?.status == .closed
+            })
+            try await Task.sleep(for: .milliseconds(350))
+        }
+        #endif
         var sizes = Array(repeating: preferredSize, count: 5) + [.zero]
         var engines = ["UIKit", "Sheet"]
-        if #available(iOS 27.1, *), window.traitCollection.userInterfaceIdiom == .phone,
-           window.traitCollection.horizontalSizeClass == .regular {
+        if #available(iOS 27.1, *), regularPhone || foldedPhone {
             sizes += [CGSize(width: 0, height: 500), CGSize(width: 360, height: 0)]
-            engines.append("Panel")
+            // 外屏冷启动先呈现 Panel，避免先呈现其他模态才触发环境布局。
+            if foldedPhone { engines.insert("Panel", at: 0) }
+            else { engines.append("Panel") }
         }
         sizes.append(preferredSize)
-        var reference: [CGRect] = []
+        var frames: [String: [CGRect]] = [:]
         for engine in engines {
             let content = UIViewController()
             content.preferredContentSize = preferredSize
@@ -258,20 +270,24 @@ struct SheetPresentationTests {
                 let rect = panel.map { $0.view.convert($0.panelFrame, to: window) }
                     ?? content.view.convert(content.view.bounds, to: window)
                 print("SHEET_FORM \(engine) \(index) window=\(window.bounds) frame=\(rect) preferred=\(size)")
-                if engine == "UIKit" { reference.append(rect) }
-                else {
-                    let expected = reference[index]
-                    #expect(abs(rect.minX - expected.minX) <= 1)
-                    #expect(abs(rect.minY - expected.minY) <= 1)
-                    #expect(abs(rect.width - expected.width) <= 1)
-                    #expect(abs(rect.height - expected.height) <= 1)
-                }
+                frames[engine, default: []].append(rect)
             }
             if let panel { panel.dismiss(animated: false) }
             else { await withCheckedContinuation { continuation in content.dismiss(animated: false) { continuation.resume() } } }
         }
+        let reference = try #require(frames["UIKit"])
+        for engine in engines where engine != "UIKit" {
+            let actual = try #require(frames[engine])
+            #expect(actual.count == reference.count)
+            for (rect, expected) in zip(actual, reference) {
+                #expect(abs(rect.minX - expected.minX) <= 1)
+                #expect(abs(rect.minY - expected.minY) <= 1)
+                #expect(abs(rect.width - expected.width) <= 1)
+                #expect(abs(rect.height - expected.height) <= 1)
+            }
+        }
         if engines.contains("Panel") {
-            let local = UIView(frame: CGRect(x: 20, y: 100, width: 360, height: 320))
+            let local = UIView(frame: CGRect(x: 20, y: 100, width: foldedPhone ? 320 : 360, height: 320))
             host.view.addSubview(local)
             let content = UIViewController()
             content.preferredContentSize = CGSize(width: 180, height: 240)
@@ -281,8 +297,10 @@ struct SheetPresentationTests {
             panel.show(in: host, containerView: local, animated: false)
             defer { panel.dismiss(animated: false) }
             try await Task.sleep(for: .milliseconds(200))
-            #expect(panel.panelFrame.size == content.preferredContentSize)
+            let expected = foldedPhone ? local.bounds.size : content.preferredContentSize
+            #expect(panel.panelFrame.size == expected)
             #expect(local.bounds.contains(panel.panelFrame))
+            print("SHEET_FORM_LOCAL \(window.bounds) \(panel.panelFrame)")
         }
     }
 

@@ -341,8 +341,11 @@ public final class AdaptivePanelController: UIViewController {
             && (hingeState == .partiallyOpen || hingeState == .fullyOpen)
         let windowForm = floating && !prefersPageSizing && innerFoldablePhone && coversWindow && safeAreaSource == .window
         let sizedWindowForm = windowForm && preferred.width > 0 && preferred.height > 0
-        let usesPageSizing = prefersPageSizing || windowForm && !sizedWindowForm
-        let foldedPage = prefersPageSizing && hingeState == .closed
+        // 闭合外屏上的窗口级表单沿用页式几何，首选表单尺寸在内屏恢复后再使用。
+        let foldedWindowForm = !prefersPageSizing && hingeState == .closed && traits.userInterfaceIdiom == .phone
+            && coversWindow && safeAreaSource == .window
+        let usesPageSizing = prefersPageSizing || foldedWindowForm || windowForm && !sizedWindowForm
+        let foldedPage = usesPageSizing && hingeState == .closed
         let safeInsets = UIEdgeInsets(top: safe.minY - view.bounds.minY, left: safe.minX - view.bounds.minX,
                                       bottom: view.bounds.maxY - safe.maxY, right: view.bounds.maxX - safe.maxX)
         if foldedPage, safeAreaSource == .window {
@@ -462,7 +465,8 @@ public final class AdaptivePanelController: UIViewController {
                 automaticWidth = foldedPage ? region.width - 2 * sideGap
                     : min(automaticWidth, min(view.bounds.width, view.bounds.height) - 2 * sideGap)
             }
-            let target = preferred.width > 0 && (!floating || !usesPageSizing) ? preferred.width : automaticWidth
+            let usesPreferredWidth = !foldedWindowForm && preferred.width > 0 && (!floating || !usesPageSizing)
+            let target = usesPreferredWidth ? preferred.width : automaticWidth
             width = min(max(1, region.width - margin * 2), max(1, target))
         }
         let logicalWidth = width
