@@ -74,6 +74,8 @@ final class MainRouter: MainRouting {
             ArrangementViewController()
         case .adaptivePanel:
             AdaptivePanelExampleViewController()
+        case .overPresentation:
+            OverPresentationExampleViewController()
         case .sheetPresentation:
             SheetPresentationExampleViewController()
         case .alertExamples:

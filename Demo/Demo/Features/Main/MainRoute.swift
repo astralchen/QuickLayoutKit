@@ -21,6 +21,7 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
     case arrangement
     case adaptivePanel
     case sheetPresentation
+    case overPresentation
     case alertExamples
     case directionalGrid
     case profile
@@ -76,6 +77,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "demo.arrangement.title"
         case .adaptivePanel:
             "demo.adaptivePanel.title"
+        case .overPresentation:
+            "demo.overPresentation.title"
         case .sheetPresentation:
             "demo.sheetPresentation.title"
         case .alertExamples:
@@ -153,6 +156,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "rectangle.split.2x1"
         case .adaptivePanel:
             "rectangle.bottomhalf.inset.filled"
+        case .overPresentation:
+            "sidebar.trailing"
         case .sheetPresentation:
             "rectangle.portrait.on.rectangle.portrait"
         case .alertExamples:
