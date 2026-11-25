@@ -61,12 +61,16 @@ public final class AdaptivePanelController: UIViewController {
     var resolvedDetents: [(identifier: Detent.Identifier, height: CGFloat, backgroundEffect: UIVisualEffect?)] = []
     var interactiveHeight: CGFloat?
     var currentHeight: CGFloat = 0
+    var overdrag: SheetOverdrag?
+    var overdragDistance: CGFloat = 0
+    var overdragOffset: CGFloat = 0
     var draggingPanel = false
     weak var gestureScrollView: UIScrollView?
     var previousTranslation: CGFloat = 0
     var scrollStartOffset: CGFloat = 0
     var gestureStartIdentifier: Detent.Identifier?
     private var transition: UIViewPropertyAnimator?
+    private var rebound: (animator: UIViewPropertyAnimator, restingTop: CGFloat)?
     private(set) var isDismissing = false
     private var changeReason = ChangeReason.programmatic
     private var effectiveIdentifier: Detent.Identifier?
@@ -190,6 +194,7 @@ public final class AdaptivePanelController: UIViewController {
     public override func dismiss(animated: Bool = true, completion: (() -> Void)? = nil) {
         guard parent != nil, !isDismissing else { completion?(); return }
         finishTransition()
+        finishRebound(at: .end)
         isDismissing = true
         pan.isEnabled = false
         layoutContainer.endEditing(true)
@@ -213,6 +218,7 @@ public final class AdaptivePanelController: UIViewController {
             self.removeFromParent()
             self.surface.transform = .identity
             self.interactiveHeight = nil
+            self.overdragOffset = 0
             self.keyboardFrameInScreen = nil
             self.isDismissing = false
             self.pan.isEnabled = true
@@ -240,6 +246,7 @@ public final class AdaptivePanelController: UIViewController {
 
     public func animateChanges(_ changes: () -> Void) {
         loadViewIfNeeded()
+        finishRebound(at: .end)
         layoutForChanges()
         changes()
         guard view.window != nil else { layoutPanel(); return }
@@ -259,11 +266,14 @@ public final class AdaptivePanelController: UIViewController {
             animateChanges {
                 self.changeReason = .programmatic
                 self.interactiveHeight = nil
+                self.overdragOffset = 0
                 self.selectedDetentIdentifier = identifier
             }
         } else {
+            finishRebound(at: .end)
             changeReason = .programmatic
             interactiveHeight = nil
+            overdragOffset = 0
             selectedDetentIdentifier = identifier
             if isViewLoaded { layoutForChanges() }
         }
@@ -503,6 +513,9 @@ public final class AdaptivePanelController: UIViewController {
             width = (width * scale).rounded() / scale
             displayHeight = (displayHeight * scale).rounded() / scale
         }
+        if !coversWindow { overdragOffset = min(overdragOffset, max(0, y - view.bounds.minY)) }
+        y -= overdragOffset
+        displayHeight += overdragOffset
         // 动画期间使用 bounds/center 更新，避免带 transform 的 frame 参与计算。
         surface.bounds = CGRect(x: 0, y: 0, width: width, height: displayHeight)
         surface.center = CGPoint(x: x + width * 0.5,
@@ -621,13 +634,34 @@ public final class AdaptivePanelController: UIViewController {
         dismiss()
     }
 
-    func settle(to identifier: Detent.Identifier?, reason: ChangeReason) {
-        animateChanges {
+    func settle(to identifier: Detent.Identifier?, reason: ChangeReason, reboundVelocity: CGFloat? = nil) {
+        let changes = {
             self.changeReason = reason
             self.interactiveHeight = nil
+            self.overdragOffset = 0
             self.selectedDetentIdentifier = identifier
             self.invalidateDetents()
         }
+        guard let reboundVelocity, overdragOffset > 0, surface.window != nil else {
+            animateChanges(changes)
+            return
+        }
+        let animator = UIViewPropertyAnimator(duration: 0, timingParameters: SheetOverdrag.spring(velocity: reboundVelocity))
+        rebound = (animator, surface.frame.minY + overdragOffset)
+        animator.addAnimations {
+            changes()
+            self.view.layoutIfNeeded()
+        }
+        animator.addCompletion { [weak self] _ in self?.rebound = nil }
+        animator.startAnimation()
+    }
+
+    @discardableResult
+    func finishRebound(at position: UIViewAnimatingPosition) -> CGFloat {
+        guard let rebound, rebound.animator.state == .active else { return 0 }
+        rebound.animator.stopAnimation(false)
+        rebound.animator.finishAnimation(at: position)
+        return rebound.restingTop - surface.frame.minY
     }
 
     public override func accessibilityPerformEscape() -> Bool {

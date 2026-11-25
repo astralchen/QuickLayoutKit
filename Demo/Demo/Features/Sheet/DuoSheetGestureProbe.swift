@@ -6,9 +6,11 @@ import UIKit
 @available(iOS 17.0, *)
 final class DuoSheetGestureWindow: UIWindow {
     var didMoveTouch: (() -> Void)?
+    var didEndTouch: (() -> Void)?
     override func sendEvent(_ event: UIEvent) {
         super.sendEvent(event)
         if event.allTouches?.contains(where: { $0.phase == .moved }) == true { didMoveTouch?() }
+        if event.allTouches?.contains(where: { $0.phase == .ended }) == true { didEndTouch?() }
     }
 }
 
@@ -26,6 +28,9 @@ final class DuoSheetGestureProbe: UIViewController {
     private var content: UIViewController?
     private var engine = ""
     private var samples: [[CGFloat]] = []
+    private var rebound: [[CGFloat]] = []
+    private var releaseTime: CFTimeInterval = 0
+    private var displayLink: CADisplayLink?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -162,6 +167,7 @@ final class DuoSheetGestureProbe: UIViewController {
         engine = name
         content = vc
         samples = []
+        rebound = []
         close.read = { [weak self] in self?.reading() }
         close.addAction(UIAction { [weak self] _ in
             guard let self else { return }
@@ -184,6 +190,11 @@ final class DuoSheetGestureProbe: UIViewController {
         (view.window as? DuoSheetGestureWindow)?.didMoveTouch = { [weak self] in
             guard let self, let sample = geometry(), samples.last != sample else { return }
             samples.append(sample)
+        }
+        if ProcessInfo.processInfo.arguments.contains("-test-sheet-rebound") {
+            (view.window as? DuoSheetGestureWindow)?.didEndTouch = { [weak self] in
+                self?.recordRebound()
+            }
         }
         let radius = ProcessInfo.processInfo.environment["DUO_CORNER_RADIUS"].flatMap(Double.init).map { CGFloat($0) }
         let pageSizing = !ProcessInfo.processInfo.arguments.contains("-test-form-sizing")
@@ -225,15 +236,39 @@ final class DuoSheetGestureProbe: UIViewController {
         }
     }
 
-    private func geometry() -> [CGFloat]? {
-        guard let window = view.window, let content else { return nil }
-        let surface: UIView?
-        switch engine {
-        case "Panel": surface = content.view.superview
-        case "Sheet": surface = content.customSheetPresentationController?.presentedView
-        default: surface = content.view
+    private func recordRebound() {
+        guard content != nil, !samples.isEmpty else { return }
+        rebound.removeAll()
+        releaseTime = CACurrentMediaTime()
+        displayLink?.invalidate()
+        let link = CADisplayLink(target: self, selector: #selector(sampleRebound(_:)))
+        displayLink = link
+        link.add(to: .main, forMode: .common)
+    }
+
+    @objc private func sampleRebound(_ link: CADisplayLink) {
+        let time = link.timestamp - releaseTime
+        guard time < 0.6, let layer = presentationSurface?.layer.presentation(),
+              let window = view.window?.layer.presentation() else {
+            link.invalidate()
+            displayLink = nil
+            return
         }
-        guard let surface, surface.window === window else { return nil }
+        let frame = layer.convert(layer.bounds, to: window)
+        rebound.append([time, frame.minY, window.bounds.maxY - frame.maxY])
+    }
+
+    private var presentationSurface: UIView? {
+        guard let content else { return nil }
+        switch engine {
+        case "Panel": return content.view.superview
+        case "Sheet": return content.customSheetPresentationController?.presentedView
+        default: return content.view
+        }
+    }
+
+    private func geometry() -> [CGFloat]? {
+        guard let window = view.window, let surface = presentationSurface, surface.window === window else { return nil }
         let back = lowerSurface ?? view!
         let presenter = back.convert(back.bounds, to: window)
         let lowerMetrics = measuresLower ? Array(surfaceGeometry(back, in: window).suffix(4)) + scale(of: back, in: window) : []
@@ -279,7 +314,7 @@ final class DuoSheetGestureProbe: UIViewController {
         default: id = content.sheetPresentationController?.selectedDetentIdentifier?.rawValue.components(separatedBy: ".").last
         }
         let data: [String: Any] = ["detent": id ?? "third", "geometry": geometry, "samples": samples, "pose": currentPose,
-                                   "windowSize": [window.bounds.width, window.bounds.height]]
+                                   "windowSize": [window.bounds.width, window.bounds.height], "rebound": rebound]
         return (try? JSONSerialization.data(withJSONObject: data)).flatMap { String(data: $0, encoding: .utf8) }
     }
 }

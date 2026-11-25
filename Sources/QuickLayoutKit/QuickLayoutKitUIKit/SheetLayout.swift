@@ -16,6 +16,7 @@ struct SheetLayout {
     let stops: [Stop]
     let selected: Stop
     let maximumHeight: CGFloat
+    var largest: Stop { stops[stops.count - 1] }
 
     init(_ sheet: SheetPresentationController, in container: UIView) {
         let bounds = container.bounds
@@ -155,10 +156,20 @@ struct SheetLayout {
     }
 
     /// 手势可跨越多个档位，外框和背景在相邻两个档位之间连续插值。
-    func sample(at top: CGFloat) -> (frame: CGRect, dimming: CGFloat) {
+    func sample(from origin: CGFloat, translation: CGFloat, allowsOverdrag: Bool) -> (frame: CGRect, dimming: CGFloat) {
+        let limit = largest.frame.minY
+        let top: CGFloat
+        if allowsOverdrag {
+            let overdrag = SheetOverdrag(offset: limit - origin)
+            top = limit - overdrag.offset(for: overdrag.distance - translation)
+        } else {
+            top = max(limit, origin + translation)
+        }
         guard let upper = stops.firstIndex(where: { $0.frame.minY <= top }) else {
-            let largest = stops[stops.count - 1]
-            return (largest.frame, largest.dimming)
+            var frame = largest.frame
+            frame.origin.y = top
+            frame.size.height += limit - top
+            return (frame, largest.dimming)
         }
         let b = stops[upper]
         guard upper > 0 else { return (b.frame, b.dimming) }

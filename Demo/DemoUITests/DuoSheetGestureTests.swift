@@ -8,6 +8,7 @@ final class DuoSheetGestureTests: XCTestCase {
         let geometry: [CGFloat] // 前页四侧间距及四角、叠放时的下层四角和双轴比例、后页窗口坐标
         let windowSize: [CGFloat]
         let samples: [[CGFloat]]
+        let rebound: [[CGFloat]] // 松手后的时间、顶边坐标和底部间距
     }
 
     /// 同一触摸序列在不同控制器中采样帧数不同，按面板顶边位置比较。
@@ -22,6 +23,74 @@ final class DuoSheetGestureTests: XCTestCase {
 
     func testPresentingPageDuringDragsAndRotation() throws {
         try comparePresenter(stacked: false, orientations: [.portrait, .landscapeLeft])
+    }
+
+    func testSheetReboundsAtLargestDetent() throws {
+        #if DEBUG && compiler(>=6.4)
+        guard #available(iOS 17, *), UIDevice.current.userInterfaceIdiom == .phone else { throw XCTSkip("iPhone") }
+        let device = XCUIDevice.shared
+        let original = device.orientation
+        defer { device.orientation = original }
+        device.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchArguments = ["-duo-sheet-gestures", "-test-initial-large", "-test-sheet-rebound"]
+        app.launch()
+        let button = app.buttons["gesture.reading"]
+        func read() throws -> Reading {
+            try JSONDecoder().decode(Reading.self, from: Data(try XCTUnwrap(button.value as? String).utf8))
+        }
+        var reference: [[CGFloat]] = []
+        var gestures: [(offset: CGFloat, distance: CGFloat, speed: CGFloat, hold: TimeInterval)] = [
+            (180, 140, 400, 0.25), (180, 140, 1400, 0)
+        ]
+        for engine in ["UIKit", "Sheet", "Panel"] {
+            app.buttons[engine].tap()
+            XCTAssertTrue(button.waitForExistence(timeout: 5))
+            let top = try read().geometry[1]
+            if engine == "UIKit", top > 55 { gestures.append((8, 40, 400, 0.25)) }
+            for (index, gesture) in gestures.enumerated() {
+                let before = try read()
+                let bottomGap = before.geometry[3]
+                let start = button.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5))
+                    .withOffset(.init(dx: 0, dy: top + gesture.offset - button.frame.midY))
+                start.press(forDuration: 0.12, thenDragTo: start.withOffset(.init(dx: 0, dy: -gesture.distance)),
+                            withVelocity: .init(rawValue: gesture.speed), thenHoldForDuration: gesture.hold)
+                Thread.sleep(forTimeInterval: 0.65)
+                let after = try read()
+                let drag = after.samples.dropFirst(before.samples.count)
+                let pull = top - (drag.map { $0[1] }.min() ?? top)
+                for frame in drag { XCTAssertEqual(frame[3], bottomGap, accuracy: 1) }
+                for frame in after.rebound { XCTAssertEqual(frame[2], bottomGap, accuracy: 1) }
+
+                let offsets = try [0.06, 0.12, 0.20, 0.38].map { time in
+                    top - (try XCTUnwrap(after.rebound.first { $0[0] >= time }))[1]
+                }
+                XCTAssertEqual(offsets[3], 0, accuracy: 1)
+                XCTAssertEqual(after.detent, "large")
+                XCTAssertEqual(after.geometry[1], top, accuracy: 1)
+                print("SHEET_REBOUND_COMPARE", engine, gesture, before.pose, pull, offsets)
+                let motion = [pull] + offsets
+                if engine == "UIKit" {
+                    if before.pose.hasPrefix("closedPortrait") { XCTAssertGreaterThan(pull, 1) }
+                    reference.append(motion)
+                } else {
+                    XCTAssertGreaterThan(pull, 1)
+                    XCTAssertLessThan(pull, 8)
+                    XCTAssertGreaterThan(offsets[0], 1)
+                    // 普通 iPhone 的系统大档可能锁在原位，仍检查自定义 Sheet 的回弹。
+                    if reference[index][0] > 1 {
+                        for (actual, native) in zip(motion, reference[index]) {
+                            XCTAssertEqual(actual, native, accuracy: 1.5)
+                        }
+                    }
+                }
+            }
+            button.tap()
+            XCTAssertTrue(button.waitForNonExistence(timeout: 5))
+        }
+        #else
+        throw XCTSkip("The gesture fixture requires a Debug build with Swift 6.4 or newer")
+        #endif
     }
 
     func testRotatingOpenLargeSheet() throws {

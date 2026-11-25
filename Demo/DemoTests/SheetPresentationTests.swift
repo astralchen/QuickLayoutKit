@@ -1,6 +1,8 @@
 import Testing
 import UIKit
+import UIKit.UIGestureRecognizerSubclass
 import QuickLayoutKit
+@testable import QuickLayoutKitUIKit
 @testable import Demo
 
 @Suite(.serialized)
@@ -284,6 +286,60 @@ struct SheetPresentationTests {
         }
     }
 
+    @Test func canResumeAnActiveRebound() async throws {
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.windows.first { $0.isKeyWindow }
+        let window = UIWindow(windowScene: scene)
+        let host = UIViewController()
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey() }
+
+        let content = UIViewController()
+        await withCheckedContinuation { continuation in
+            host.presentSheet(content, animated: false) { $0.prefersPageSizing = true } completion: { continuation.resume() }
+        }
+        let sheet = try #require(content.customSheetPresentationController)
+        let surface = try #require(sheet.presentedView)
+        try await checkInterruptedRebound(of: surface) { pan in
+            _ = sheet.perform(NSSelectorFromString("drag:"), with: pan)
+        }
+        await withCheckedContinuation { continuation in content.dismiss(animated: false) { continuation.resume() } }
+
+        let panel = AdaptivePanelController(contentView: UIView())
+        panel.safeAreaSource = .window
+        panel.show(in: host, animated: false)
+        defer { panel.dismiss(animated: false) }
+        try await checkInterruptedRebound(of: panel.surface, send: panel.handlePan)
+    }
+
+    private func checkInterruptedRebound(of surface: UIView, send: (UIPanGestureRecognizer) -> Void) async throws {
+        let pan = SheetTestPan()
+        func drag(_ state: UIGestureRecognizer.State, distance: CGFloat, speed: CGFloat) {
+            pan.state = state
+            pan.distance = distance
+            pan.speed = speed
+            send(pan)
+        }
+        let restingTop = surface.frame.minY
+        let bottom = surface.frame.maxY
+        drag(.began, distance: 0, speed: -300)
+        drag(.changed, distance: -140, speed: -300)
+        #expect(surface.frame.minY < restingTop - 5)
+        drag(.ended, distance: -140, speed: 0)
+        try await Task.sleep(for: .milliseconds(75))
+        let visibleTop = try #require(surface.layer.presentation()?.frame.minY)
+        #expect(visibleTop < restingTop)
+        drag(.began, distance: 0, speed: -50)
+        let interruptedTop = surface.frame.minY
+        #expect(abs(interruptedTop - visibleTop) < 1)
+        drag(.changed, distance: -1, speed: -50)
+        #expect(surface.frame.minY <= interruptedTop)
+        #expect(surface.frame.minY >= interruptedTop - 1)
+        #expect(abs(surface.frame.maxY - bottom) < 0.1)
+        drag(.cancelled, distance: -1, speed: 0)
+    }
+
     @Test func panelDefersTableLayoutUntilWindowAttachment() throws {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let host = UIViewController()
@@ -305,6 +361,41 @@ struct SheetPresentationTests {
         window.layoutIfNeeded()
         #expect(table.bounds.height > 0)
         #expect(table.detachedLayoutCount == 0)
+    }
+
+    @Test func panelHandsAnOngoingDragBackToTheScrollViewAtMaximum() throws {
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.windows.first { $0.isKeyWindow }
+        let window = UIWindow(windowScene: scene)
+        let host = UIViewController()
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey() }
+        let scroll = UIScrollView()
+        scroll.contentSize = CGSize(width: 300, height: 2000)
+        let panel = AdaptivePanelController(contentView: scroll)
+        panel.detents = [.custom(identifier: "small") { _ in 140 }, .large()]
+        panel.show(in: host, animated: false)
+        defer { panel.dismiss(animated: false) }
+        panel.gestureScrollView = scroll
+        let pan = SheetTestPan()
+        pan.speed = -300
+        pan.state = .began
+        panel.handlePan(pan)
+        pan.state = .changed
+        pan.distance = -1200
+        panel.handlePan(pan)
+        let maximumFrame = panel.panelFrame
+        #expect(panel.currentHeight == panel.resolvedDetents.last?.height)
+        scroll.contentOffset.y = 80
+        pan.distance -= 50
+        panel.handlePan(pan)
+        #expect(!panel.draggingPanel)
+        #expect(scroll.contentOffset.y == 80)
+        #expect(panel.panelFrame == maximumFrame)
+        pan.state = .ended
+        panel.handlePan(pan)
+        #expect(panel.selectedDetentIdentifier == .large)
     }
 
     @Test func detentSubclassResolverAndLiveMaterial() async throws {
@@ -367,6 +458,20 @@ struct SheetPresentationTests {
         await withCheckedContinuation { continuation in content.dismiss(animated: false) { continuation.resume() } }
     }
 
+}
+
+private final class SheetTestPan: UIPanGestureRecognizer {
+    override var state: UIGestureRecognizer.State {
+        get { reportedState }
+        set { reportedState = newValue }
+    }
+
+    private var reportedState: UIGestureRecognizer.State = .possible
+    var distance: CGFloat = 0
+    var speed: CGFloat = 0
+
+    override func translation(in view: UIView?) -> CGPoint { CGPoint(x: 0, y: distance) }
+    override func velocity(in view: UIView?) -> CGPoint { CGPoint(x: 0, y: speed) }
 }
 
 private final class PanelTestTable: UITableView {

@@ -46,6 +46,15 @@ extension AdaptivePanelController: UIGestureRecognizerDelegate {
             previousTranslation = translation
             draggingPanel = gestureScrollView == nil
             scrollStartOffset = gestureScrollView?.contentOffset.y ?? 0
+            if draggingPanel {
+                let curve = SheetOverdrag(offset: finishRebound(at: .current))
+                overdrag = curve
+                overdragDistance = curve.distance
+                overdragOffset = max(0, curve.offset(for: curve.distance))
+                if overdragDistance != 0 { interactiveHeight = currentHeight }
+            } else {
+                finishRebound(at: .end)
+            }
         case .changed:
             let delta = translation - previousTranslation
             previousTranslation = translation
@@ -70,15 +79,24 @@ extension AdaptivePanelController: UIGestureRecognizerDelegate {
             }
             let minimum = resolvedDetents.first?.height ?? 1
             let lowerBound: CGFloat = allowsInteractiveDismissal ? 1 : minimum
-            interactiveHeight = min(maximum, max(lowerBound, currentHeight - delta))
+            let proposedHeight = currentHeight + overdragDistance - delta
+            if let overdrag {
+                overdragDistance = max(0, proposedHeight - maximum)
+                overdragOffset = overdrag.offset(for: overdragDistance)
+            }
+            interactiveHeight = min(maximum, max(lowerBound, proposedHeight))
             invalidateDetents()
             view.layoutIfNeeded()
+            if overdragOffset == 0 { overdragDistance = 0 }
         case .ended:
             guard interactiveHeight != nil else { clearGesture(); return }
             let velocity = recognizer.velocity(in: layoutContainer).y
             let minimum = resolvedDetents.first?.height ?? currentHeight
             let projected = currentHeight - velocity * 0.18
-            if currentHeight < minimum * 0.7 || (currentHeight < minimum && velocity > 700) {
+            if overdragOffset > 0, let largest = resolvedDetents.last {
+                let selected = resolvedDetents.first { $0.identifier == selectedDetentIdentifier && $0.height == largest.height }
+                settle(to: selected?.identifier ?? largest.identifier, reason: .interaction, reboundVelocity: velocity)
+            } else if currentHeight < minimum * 0.7 || (currentHeight < minimum && velocity > 700) {
                 attemptDismiss()
             } else {
                 let nearest = resolvedDetents.min { abs($0.height - projected) < abs($1.height - projected) }
@@ -86,7 +104,11 @@ extension AdaptivePanelController: UIGestureRecognizerDelegate {
             }
             clearGesture()
         case .cancelled, .failed:
-            if interactiveHeight != nil { settle(to: gestureStartIdentifier, reason: .interaction) }
+            if interactiveHeight != nil {
+                let largest = resolvedDetents.last?.height
+                let startsAtLargest = resolvedDetents.first { $0.identifier == gestureStartIdentifier }?.height == largest
+                settle(to: gestureStartIdentifier, reason: .interaction, reboundVelocity: startsAtLargest ? 0 : nil)
+            }
             clearGesture()
         default: break
         }
@@ -96,6 +118,8 @@ extension AdaptivePanelController: UIGestureRecognizerDelegate {
         draggingPanel = false
         gestureScrollView = nil
         gestureStartIdentifier = nil
+        overdrag = nil
+        overdragDistance = 0
     }
 
     func accessibilityAdjust(increase: Bool) {

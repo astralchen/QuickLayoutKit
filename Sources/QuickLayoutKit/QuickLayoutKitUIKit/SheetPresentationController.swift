@@ -66,10 +66,19 @@ open class SheetPresentationController: UIPresentationController {
     }
 
     open func animateChanges(_ changes: () -> Void) {
+        animateChanges(using: nil, changes)
+    }
+
+    private func animateChanges(using spring: UISpringTimingParameters?, _ changes: () -> Void) {
         stopSettling()
         changes()
         guard surface.window != nil, !transitioning, dragLayout == nil else { invalidateDetents(); return }
-        let animator = UIViewPropertyAnimator(duration: 0.5, dampingRatio: 1) { self.layoutSheet() }
+        let animator = if let spring {
+            UIViewPropertyAnimator(duration: 0, timingParameters: spring)
+        } else {
+            UIViewPropertyAnimator(duration: 0.5, dampingRatio: 1)
+        }
+        animator.addAnimations { self.layoutSheet() }
         detentAnimator = animator
         animator.addCompletion { [weak self] _ in
             self?.detentAnimator = nil
@@ -278,7 +287,8 @@ open class SheetPresentationController: UIPresentationController {
             stopSettling()
             guard let layout else { return }
             dragOrigin = surface.frame
-            if velocity > 0, layout.selected.frame == layout.stops.first?.frame {
+            if velocity > 0, layout.selected.frame == layout.stops.first?.frame,
+               dragOrigin.minY >= layout.largest.frame.minY {
                 beginUserDismissal(interactive: true)
             } else {
                 dragLayout = layout
@@ -287,7 +297,7 @@ open class SheetPresentationController: UIPresentationController {
             if let interactionController {
                 interactionController.update(max(0, min(1, distance / max(1, container.bounds.maxY - dragOrigin.minY))))
             } else if let dragLayout {
-                let sample = dragLayout.sample(at: dragOrigin.minY + distance)
+                let sample = dragLayout.sample(from: dragOrigin.minY, translation: distance, allowsOverdrag: touchedScroll == nil)
                 surface.place(in: sample.frame)
                 updatePresenter(for: sample.frame, in: dragLayout)
                 updateCorners(for: sample.frame, in: dragLayout)
@@ -300,12 +310,28 @@ open class SheetPresentationController: UIPresentationController {
             } else if let dragLayout {
                 self.dragLayout = nil
                 let projected = surface.frame.minY + velocity * 0.18
-                let nearest = dragLayout.stops.min { abs($0.frame.minY - projected) < abs($1.frame.minY - projected) }
-                let target = gesture.state == .ended ? nearest ?? dragLayout.selected : dragLayout.selected
-                animateChanges {
-                    if target.id != dragLayout.selected.id { selectedDetentIdentifier = target.id }
+                let largest = dragLayout.largest
+                let overdrag = surface.frame.minY < largest.frame.minY
+                let selected = dragLayout.selected
+                let target: SheetLayout.Stop
+                if gesture.state != .ended {
+                    target = selected
+                } else if overdrag {
+                    target = selected.frame == largest.frame ? selected : largest
+                } else {
+                    target = dragLayout.stops.min {
+                        abs($0.frame.minY - projected) < abs($1.frame.minY - projected)
+                    } ?? selected
                 }
-                if target.id != dragLayout.selected.id {
+                let changes = {
+                    if target.id != selected.id { self.selectedDetentIdentifier = target.id }
+                }
+                if overdrag, target.frame == largest.frame {
+                    animateChanges(using: SheetOverdrag.spring(velocity: gesture.state == .ended ? velocity : 0), changes)
+                } else {
+                    animateChanges(changes)
+                }
+                if target.id != selected.id {
                     sheetDelegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier(self)
                 }
             }
