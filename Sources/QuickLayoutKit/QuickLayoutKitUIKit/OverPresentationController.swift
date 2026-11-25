@@ -180,7 +180,7 @@ open class OverPresentationController: UIPresentationController, UIGestureRecogn
     /// 自定义档位依赖的外部值变化时，在下一次布局重新计算侧栏宽度。
     open func invalidateDetent() { containerView?.setNeedsLayout() }
 
-    open func animateChanges(_ changes: () -> Void) {
+    open func animateChanges(_ changes: @escaping () -> Void) {
         containerView?.layoutIfNeeded()
         UIView.animate(withDuration: 0.3, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
             changes()
