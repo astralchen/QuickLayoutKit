@@ -11,6 +11,8 @@ QuickLayoutKit 是面向 UIKit 的 [QuickLayout](https://github.com/facebookincu
 - [设计约定](#设计约定)
 - [快速开始](#快速开始)
 - [控制器根布局](#控制器根布局)
+- [导航栏与工具栏](#导航栏与工具栏)
+- [标签栏](#标签栏)
 - [宿主视图与按钮](#宿主视图与按钮)
 - [滚动视图](#滚动视图)
 - [内容边距与安全区域](#内容边距与安全区域)
@@ -342,6 +344,193 @@ override var body: Layout {
 - 页眉和页脚使用 `safeAreaPadding`，因为它们不是横向滚动内容。
 - 内层横向滚动视图使用 `contentMargins`，使首尾卡片在安全区域内可达。
 - 横向内容使用自然高度；需要等高卡片时，可以先执行理想尺寸布局，再固定交叉轴尺寸。
+
+## 导航栏与工具栏
+
+导入 `QuickLayoutKit` 后，任意 `UIViewController` 都可以配置页面标题和各位置的工具栏内容。
+
+```swift
+navigationItem
+    .navigationTitle("编辑照片")
+    .navigationBarTitleDisplayMode(.inline)
+    .navigationBarBackButtonHidden(false)
+
+toolbar(placement: .topBarTrailing) {
+    doneItem
+    if let menuItem { menuItem }
+}
+toolbar(placement: .principal) { modePicker }
+toolbar(placement: .bottomBar) {
+    undoItem
+    UIBarButtonItem.flexibleSpace()
+    trashItem
+}
+```
+
+按钮位置支持 `.topBarLeading`、`.topBarTrailing` 和 `.bottomBar`。每次调用按 UIKit
+数组顺序替换该位置的按钮，保留传入的实例。空闭包清空该组。`.title` 和 `.principal` 都接收
+一个 `UIView?`，共用当前页面的 `titleView`。返回 `nil` 可恢复系统标题。前缘按钮和系统返回键
+需要同时显示时，调用 `navigationItem.navigationBarLeadingItemsSupplementBackButton()`。
+可以使用 `navigationBarBackButtonHidden(false, animated: true)` 动画显示返回键。使用 `.large` 时由导航控制器开启
+`navigationBar.prefersLargeTitles`。
+
+从 iOS 16 起，`toolbarRole` 支持 `.navigationStack`、`.browser` 和 `.editor`。
+`toolbarTitleMenu` 在 UIKit 请求菜单时收到系统建议操作，调用方可以决定保留哪些操作及其顺序。
+
+```swift
+if #available(iOS 16.0, *) {
+    navigationItem.toolbarRole(.editor).toolbarTitleMenu { suggestedActions in
+        UIMenu(children: suggestedActions + [shareAction])
+    }
+}
+if #available(iOS 17.0, *) {
+    navigationItem.navigationBarTitleDisplayMode(.inlineLarge)
+}
+if #available(iOS 26.0, *) {
+    navigationItem.navigationSubtitle("最近编辑")
+}
+```
+
+`.inline` 使用普通内联标题，`.inlineLarge` 请求内联大标题，实际展示遵循 UIKit 的导航布局。
+`toolbarTitleMenu(nil)` 移除菜单提供者，`navigationSubtitle(nil)` 清除副标题文本。
+
+**文档和可定制工具栏（iOS 16+）**。在 `UINavigationItem` 上设置文档 URL 或已有的
+`UIDocumentProperties`。`navigationTitle(_:onRename:)` 在 UIKit 提交新标题后通知业务层。
+导航项目持有该回调，闭包引用所属控制器时可使用弱引用。再次配置会替换旧回调，
+传入 `onRename: nil` 可移除框架安装的代理。
+
+```swift
+if #available(iOS 16.0, *) {
+    navigationItem.navigationDocument(documentURL)
+        .navigationTitle(documentTitle) { [weak self] title in self?.saveTitle(title) }
+        .toolbarRole(.editor)
+        .toolbar(id: "document.editor")
+        .toolbar(placement: .topBarLeading) { fileGroup }
+        .toolbar(placement: .center) { formattingGroup }
+        .toolbar(placement: .topBarTrailing) { editGroup }
+        .toolbar(placement: .topBarPinnedTrailing) { shareGroup }
+        .toolbarOverflowMenu { exportAction }
+}
+```
+
+组使用原生 `UIBarButtonItemGroup`。UIKit 以新组替换同侧普通按钮。中央组在
+`.editor`、`.browser` 角色下可以显示在中央，在 `.navigationStack` 下进入溢出菜单。
+固定后缘组接收单个可选组。空的溢出菜单闭包清除附加内容，也可以传入
+`UIDeferredMenuElement` 延迟加载菜单项。`navigationBarBackAction(_:)` 接收可选的原生 `UIAction`。
+
+**标题和搜索位置**。iOS 17 起可用 `toolbarTitleDisplayMode(.inlineLarge)`。
+iOS 26 起，`.subtitle` 和 `.largeSubtitle` 接收单个可选视图，`.largeTitle` 接收可选字符串。
+各位置的闭包返回 `nil` 可清除该覆盖。文本可以使用 `navigationLargeSubtitle(_:)`，
+富文本使用 `navigationTitle(attributed:)`、`navigationSubtitle(attributed:)` 和
+`navigationLargeSubtitle(attributed:)`。
+
+```swift
+if #available(iOS 26.0, *) {
+    toolbar(placement: .largeTitle) { "资料库" }
+    toolbar(placement: .subtitle) { filterControl }
+    navigationItem.searchable(searchController, placement: .integratedCentered)
+        .searchToolbarIntegration(true)
+        .searchExternalIntegration(false)
+}
+```
+
+搜索位置还支持 `.integrated` 和 `.integratedButton`。如需让搜索以按钮形式收起，
+在 `searchable` 之后调用 `searchToolbarBehavior(.minimize)`，传入 `.automatic` 恢复自动位置。
+这两个入口都写入原生位置偏好，最后一次配置生效。启用工具栏整合后，可在
+`toolbar(placement: .bottomBar)` 中使用 `navigationItem.searchBarPlacementBarButtonItem` 指定顺序。
+iPadOS 26.5 上将这个系统占位项放入导航栏会触发 UIKit 异常。顶部搜索使用 `searchable` 的位置偏好。
+
+**滚动和对齐**。iOS 27 起，`toolbarMinimizationBehavior(_:)`、`toolbarMinimizationSafeAreaAdjustment(_:)`
+和 `toolbarMinimizationRestoration(_:)` 分别配置原生收起行为、安全区和恢复时机。
+UIKit 在 `.onScrollDown` 时支持 `.atScrollEdge` 恢复。iOS 27.1 起使用
+`toolbarVerticalCompressionBehavior(_:)` 设置垂直栏压缩优先级，iOS 27.2 起使用
+`toolbarTitleAlignment(_:)` 指定标题对齐。调用这些接口需要包含相应声明的 SDK。
+
+从 iOS 15 起，可以用 `searchable` 复用已有的 `UISearchController`。
+`.navigationBarDrawer(displayMode: .always)` 将搜索框保留在标题下方，
+`.navigationBarDrawer` 或 `.navigationBarDrawer()` 允许随滚动收起，省略 `placement` 则使用系统默认位置。
+传入 `prompt` 会更新占位文本，`searchable(nil)` 移除搜索框。
+
+```swift
+navigationItem
+    .searchable(searchController, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索")
+    .navigationBarBackButtonTitle("目录")
+    .navigationBarBackButtonDisplayMode(.default)
+```
+
+在来源页面配置返回按钮的标题及显示模式；推入下一页后，UIKit 使用这些设置。
+`navigationBarAppearance(_:)` 将同一份 `UINavigationBarAppearance` 应用于本页标准、紧凑以及各自的滚动边缘状态，
+传入 `nil` 恢复继承导航栏外观。
+
+工具栏按钮、标签项和标签页的列表构建器都支持直接写可选项。非空项按声明顺序保留，
+`nil`、`()` 和条件为假的 `if` 各贡献零项。返回 `Void` 的配置语句会正常执行。
+如果整个列表都为空（包括 `{}`），会清空目标位置。`.principal` 接收单个可选视图，用 `{ nil }` 清除。
+
+`UIViewController.toolbarItems(animated:)` 对应 UIKit 的 `setToolbarItems(_:animated:)`。
+可以在页面入栈前配置。已有的 `toolbar(placement: .bottomBar)` 使用同一个入口。
+
+```swift
+detail.toolbarItems(animated: true) {
+    previousItem
+    UIBarButtonItem.flexibleSpace()
+    nextItem
+}
+```
+
+也可以从导航控制器为当前栈顶页面配置按钮。
+页面入栈、出栈时 UIKit 切换到对应页面的按钮。空栈跳过构建，`toolbar {}` 清空当前页按钮。
+工具栏显隐属于整个导航控制器，清空按钮仍保留原来的显隐状态。
+
+```swift
+navigationController.toolbar {
+    previousItem
+    UIBarButtonItem.flexibleSpace()
+    nextItem
+}
+.toolbarVisibility(.visible, for: .bottomBar, animated: true)
+```
+
+`toolbarVisibility` 默认作用于底部栏，也可以指定 `.navigationBar`。
+`toolbarAppearance(_:)` 接受原生 `UIToolbarAppearance`，统一设置标准、紧凑与对应的滚动边缘外观。
+`barsHidingBehavior([.onSwipe, .whenKeyboardAppears])` 配置 UIKit 同时收起导航栏与工具栏的条件，
+另支持 `.onTap`、`.whenVerticallyCompact`，传入 `[]` 可关闭这些条件。
+
+独立的 `UIToolbar` 使用同一个按钮构建器。
+
+```swift
+editingToolbar.items(animated: true) {
+    previousItem
+    UIBarButtonItem.flexibleSpace()
+    nextItem
+}
+```
+
+## 标签栏
+
+从 iOS 15 起，在 `UITabBarController.tabPages` 中声明页面。子控制器可以用 `tabItem(_:)`
+关联已有的 `UITabBarItem`。重排时传入相同的页面实例，UIKit 会保留仍在列表中的选中页及其导航栈。
+
+```swift
+tabController.tabPages {
+    homeController.tabItem(homeItem)
+    if let inboxController { inboxController.tabItem(inboxItem) }
+    settingsController.tabItem(settingsItem)
+}
+```
+
+对于自行创建的 `UITabBar`，用 `items(animated:)` 更新标签项，用 `selectedItem` 指定选中项。
+控制器管理的标签栏通过上面的 `tabPages` 更新页面。
+
+```swift
+standaloneBar.items {
+    libraryItem
+    searchItem
+}
+standaloneBar.selectedItem = libraryItem
+```
+
+iOS 18 起，使用原生 `UITab`、`UITabGroup` 或 `UISearchTab` 的页面还可以通过
+`tabController.tabs { … }` 安装这些标签，并通过 `selectedTab` 切换选中项。
 
 ## 宿主视图与按钮
 
