@@ -1,4 +1,5 @@
 import AppLocalization
+import QuickLayoutKit
 import UIKit
 
 /// 临时切离功能不销毁页面拥有的草稿和附件。
@@ -29,14 +30,21 @@ final class AppTabBarController: UITabBarController, UITabBarControllerDelegate,
         }
         featureControllers[.voiceRoom] = FeatureNavigationController { VoiceRoomViewController() }
         // 在 UIKit 首次创建 Tab 布局前提供完整内容，避免空项目的布局缓存。
-        for item in viewModel.state.items {
-            let tabItem = UITabBarItem(title: item.title, image: UIImage(systemName: item.symbol), selectedImage: nil)
-            tabItem.accessibilityIdentifier = "app.tab.\(item.id.rawValue)"
-            featureControllers[item.id]?.tabBarItem = tabItem
+        tabPages {
+            for item in viewModel.state.items {
+                if let controller = featureControllers[item.id] {
+                    controller.tabItem(makeTabItem(for: item))
+                }
+            }
         }
-        viewControllers = viewModel.state.items.compactMap { featureControllers[$0.id] }
         viewModel.bind { [weak self] state in self?.render(state) }
         applyLocalization(.init(snapshot: Localization.localizationController.currentSnapshot))
+    }
+
+    private func makeTabItem(for item: AppNavigationViewModel.State.Item) -> UITabBarItem {
+        let tabItem = UITabBarItem(title: item.title, image: UIImage(systemName: item.symbol), selectedImage: nil)
+        tabItem.accessibilityIdentifier = "app.tab.\(item.id.rawValue)"
+        return tabItem
     }
 
     var selectedFeature: AppTab { viewModel.state.selectedTab }
