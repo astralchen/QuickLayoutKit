@@ -2,6 +2,18 @@ import XCTest
 
 final class AlertExamplesUITests: XCTestCase {
     @MainActor
+    func testPreferredActionIsAccessibleByIdentifier() {
+        continueAfterFailure = false
+        let app = launchExamples()
+        open("simple", in: app.tables["alerts.examples"])
+        let preferred = app.buttons["alerts.action.default"]
+        XCTAssertTrue(preferred.waitForExistence(timeout: 5))
+        preferred.tap()
+        XCTAssertTrue(preferred.waitForNonExistence(timeout: 5))
+        expectResult("Default action", in: app)
+    }
+
+    @MainActor
     func testLanguageSwitchMirrorsAlertExamples() {
         continueAfterFailure = false
         let app = launchExamples()

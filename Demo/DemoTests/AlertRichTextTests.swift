@@ -554,8 +554,8 @@ struct AlertRichTextTests {
         let host = UIViewController()
         host.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
         let alert = AlertController(title: "Action", preferredStyle: .alert)
-        let action = AlertAction(title: "Apply", attributedTitle: AttributedString("Apply changes"),
-                                 titleTextAlignment: .left)
+        let action = AlertAction(attributedTitle: AttributedString("Apply changes"))
+        action.titleTextAlignment = .left
         alert.addAction(action)
         alert.prepareForPresentation(from: host)
 
@@ -594,7 +594,7 @@ struct AlertRichTextTests {
 
     @Test func actionCanOverrideTheSystemVersionCornerStyle() throws {
         let alert = AlertController(preferredStyle: .alert)
-        alert.addAction(AlertAction(title: "Apply", cornerStyle: .small))
+        alert.addAction(AlertAction(title: "Apply", appearance: .init(cornerStyle: .small)))
         alert.loadViewIfNeeded()
         let button = try #require(self.button(in: alert.view))
         #expect(button.configuration?.cornerStyle == .small)
@@ -606,8 +606,8 @@ struct AlertRichTextTests {
         host.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
         let alert = AlertController(title: "Actions", preferredStyle: .alert)
         alert.view.semanticContentAttribute = .forceLeftToRight
-        let action = AlertAction(title: "Delete", style: .destructive, image: UIImage(systemName: "trash"),
-                                 titleTextAlignment: .right)
+        let action = AlertAction(title: "Delete", style: .destructive, appearance: .init(image: UIImage(systemName: "trash")))
+        action.titleTextAlignment = .right
         alert.addAction(action)
         alert.prepareForPresentation(from: host)
 

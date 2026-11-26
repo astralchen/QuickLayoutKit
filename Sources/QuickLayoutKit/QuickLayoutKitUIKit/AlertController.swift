@@ -1,51 +1,82 @@
 import UIKit
 
 @MainActor
-public final class AlertAction {
-    public let title: String
-    /// 按钮的富文本标题。存在时优先用于按钮显示。
-    public let attributedTitle: AttributedString?
-    public let style: UIAlertAction.Style
-    public let image: UIImage?
-    public let titleColor: UIColor?
+open class AlertAction: NSObject, UIAccessibilityIdentification {
+    /// 创建操作时使用的按钮外观。
+    public struct Appearance {
+        public var image: UIImage?
+        public var titleColor: UIColor?
+        public var cornerStyle: UIButton.Configuration.CornerStyle?
+
+        public init(
+            image: UIImage? = nil,
+            titleColor: UIColor? = nil,
+            cornerStyle: UIButton.Configuration.CornerStyle? = nil
+        ) {
+            self.image = image
+            self.titleColor = titleColor
+            self.cornerStyle = cornerStyle
+        }
+    }
+
+    open private(set) var title: String?
+    /// 通过 attributedTitle 初始化时使用的按钮标题。
+    open private(set) var attributedTitle: AttributedString?
+    open private(set) var style: UIAlertAction.Style
+    open private(set) var image: UIImage?
+    open private(set) var titleColor: UIColor?
     /// 覆盖当前系统版本对应的默认按钮圆角。
-    public let cornerStyle: UIButton.Configuration.CornerStyle?
+    open private(set) var cornerStyle: UIButton.Configuration.CornerStyle?
     /// 设置按钮标题的对齐方式。nil 时沿用按钮的默认对齐。
     public var titleTextAlignment: NSTextAlignment? {
         didSet { button?.setTitleAlignment(titleTextAlignment) }
     }
-    public var isEnabled: Bool {
+    open var isEnabled = true {
         didSet { button?.isEnabled = isEnabled }
+    }
+    open var accessibilityIdentifier: String? {
+        didSet { button?.accessibilityIdentifier = accessibilityIdentifier }
     }
 
     private weak var button: AlertActionButton?
-    private let handler: ((AlertAction) -> Void)?
+    fileprivate let handler: ((AlertAction) -> Void)?
 
     public init(
-        title: String,
+        title: String?,
         style: UIAlertAction.Style = .default,
-        image: UIImage? = nil,
-        titleColor: UIColor? = nil,
-        isEnabled: Bool = true,
-        attributedTitle: AttributedString? = nil,
-        titleTextAlignment: NSTextAlignment? = nil,
-        cornerStyle: UIButton.Configuration.CornerStyle? = nil,
         handler: ((AlertAction) -> Void)? = nil
     ) {
         self.title = title
-        self.attributedTitle = attributedTitle
         self.style = style
-        self.image = image
-        self.titleColor = titleColor
-        self.titleTextAlignment = titleTextAlignment
-        self.cornerStyle = cornerStyle
-        self.isEnabled = isEnabled
         self.handler = handler
+    }
+
+    public convenience init(
+        title: String?,
+        style: UIAlertAction.Style = .default,
+        appearance: Appearance,
+        handler: ((AlertAction) -> Void)? = nil
+    ) {
+        self.init(title: title, style: style, handler: handler)
+        self.image = appearance.image
+        self.titleColor = appearance.titleColor
+        self.cornerStyle = appearance.cornerStyle
+    }
+
+    public convenience init(
+        attributedTitle: AttributedString,
+        style: UIAlertAction.Style = .default,
+        appearance: Appearance = .init(),
+        handler: ((AlertAction) -> Void)? = nil
+    ) {
+        self.init(title: nil, style: style, appearance: appearance, handler: handler)
+        self.attributedTitle = attributedTitle
     }
 
     fileprivate func bind(to button: AlertActionButton) {
         self.button = button
         button.isEnabled = isEnabled
+        button.accessibilityIdentifier = accessibilityIdentifier
         button.setTitleAlignment(titleTextAlignment)
     }
 
@@ -65,12 +96,16 @@ private final class AlertActionButton: UIButton {
     }
 
     private let appearance: Appearance
+    private let usesPreferredFill: Bool
+    private let usesPopoverMaterial: Bool
     private let actionIconView: UIImageView?
     private let titleLeadingInset: CGFloat
     static let edgeInset: CGFloat = 12
 
-    init(configuration: UIButton.Configuration, appearance: Appearance) {
+    init(configuration: UIButton.Configuration, appearance: Appearance, usesPreferredFill: Bool, usesPopoverMaterial: Bool) {
+        self.usesPopoverMaterial = usesPopoverMaterial
         self.appearance = appearance
+        self.usesPreferredFill = usesPreferredFill
         var configuration = configuration
         if appearance != .standard, let image = configuration.image {
             actionIconView = UIImageView(image: image)
@@ -82,8 +117,35 @@ private final class AlertActionButton: UIButton {
         let scale = min(1, 24 / max(1, size.width, size.height))
         let imageSize = CGSize(width: size.width * scale, height: size.height * scale)
         let iconWidth = appearance == .grouped ? max(20, imageSize.width) : imageSize.width
-        titleLeadingInset = actionIconView == nil ? Self.edgeInset : Self.edgeInset * 2 + iconWidth
+        if appearance == .standard {
+            titleLeadingInset = configuration.contentInsets.leading
+        } else {
+            titleLeadingInset = actionIconView == nil ? Self.edgeInset : Self.edgeInset * 2 + iconWidth
+        }
         super.init(frame: .zero)
+        if #available(iOS 26, *) {
+            let transform = configuration.background.backgroundColorTransformer
+            configuration.background.backgroundColorTransformer = UIConfigurationColorTransformer { [weak self] color in
+                guard let self, !isEnabled, self.configuration?.baseBackgroundColor != .clear else {
+                    return transform?(color) ?? color
+                }
+                return UIColor { traits in
+                    if #available(iOS 27, *) {
+                        if traits.userInterfaceStyle == .dark { return .white.withAlphaComponent(0.125) }
+                        return .black.withAlphaComponent(usesPopoverMaterial ? 0.125 : 0.132)
+                    }
+                    return traits.userInterfaceStyle == .dark ? .white.withAlphaComponent(0.11) : .black.withAlphaComponent(0.12)
+                }
+            }
+        }
+        let transform = configuration.titleTextAttributesTransformer
+        configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { [weak self] input in
+            var attributes = transform?(input) ?? input
+            if let self, !isEnabled {
+                attributes.foregroundColor = disabledTitleColor
+            }
+            return attributes
+        }
         self.configuration = configuration
         if let actionIconView {
             // 图标固定在起始侧，标题按自己的对齐方式布局。
@@ -126,21 +188,67 @@ private final class AlertActionButton: UIButton {
             contentHorizontalAlignment = .center
             configuration.titleAlignment = appearance == .standard ? .automatic : .center
         }
-        if appearance != .standard {
-            let centered = alignment == nil || alignment == .center
-            if appearance == .modernStacked {
-                configuration.baseBackgroundColor = centered ? .secondarySystemFill : .clear
-            }
-            configuration.contentInsets.leading = titleLeadingInset
-            // 保留等宽的两侧空间，让居中标题以整行的中心为准。
-            configuration.contentInsets.trailing = centered ? titleLeadingInset : Self.edgeInset
+        let centered = contentHorizontalAlignment == .center
+        if appearance == .modernStacked && !usesPreferredFill {
+            configuration.baseBackgroundColor = centered ? .secondarySystemFill : .clear
         }
+        configuration.contentInsets.leading = titleLeadingInset
+        configuration.contentInsets.trailing = centered || appearance == .standard ? titleLeadingInset : Self.edgeInset
         self.configuration = configuration
         if let alignment = alignment ?? (appearance == .standard ? nil : .center) {
             titleLabel?.textAlignment = alignment
         }
         setNeedsLayout()
         setNeedsUpdateConfiguration()
+    }
+
+    private var disabledTitleColor: UIColor {
+        if #available(iOS 27, *) {
+            let lightOpacity: CGFloat = usesPopoverMaterial ? 0.345 : 0.378
+            return UIColor { traits in
+                traits.userInterfaceStyle == .dark ? .white.withAlphaComponent(0.262) : .black.withAlphaComponent(lightOpacity)
+            }
+        }
+        if #available(iOS 26, *) {
+            return UIColor { traits in
+                let label = UIColor.tertiaryLabel.resolvedColor(with: traits)
+                var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+                guard label.getRed(&red, green: &green, blue: &blue, alpha: &alpha) else { return label }
+                let luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+                return UIColor(white: luminance, alpha: alpha * 0.8)
+            }
+        }
+        // 旧版 UIKit 将中性灰以同一透明度叠在浅色或深色面板上。
+        return UIColor(white: 0.485, alpha: 0.64)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let scale = traitCollection.displayScale
+        guard scale > 0, let label = titleLabel, configuration?.image == nil, let host = label.superview else { return }
+        if host !== self {
+            // 新版 UIButton 将标题放入内容视图，先完成该子树的布局再按按钮中心对齐。
+            subviews.forEach { $0.layoutIfNeeded() }
+        }
+        // UIKit 居中标题遇到半个物理像素时向上取整。
+        var frame = label.frame
+        func centeredOffset(_ available: CGFloat, _ length: CGFloat) -> CGFloat {
+            let freePixels = ((available - length) * scale).rounded()
+            return (freePixels / 2).rounded() / scale
+        }
+        var column = bounds
+        if appearance == .grouped, let stack = superview as? UIStackView, stack.axis == .horizontal {
+            // 两列标题各自在半个面板内居中，分隔线只占按钮的点击区域。
+            let halfWidth = stack.bounds.width / 2
+            let x: CGFloat = self.frame.midX < stack.bounds.midX ? stack.bounds.minX : stack.bounds.midX
+            column = convert(CGRect(x: x, y: bounds.minY, width: halfWidth, height: bounds.height), from: stack)
+        }
+        let origin = convert(CGPoint(x: column.minX + centeredOffset(column.width, frame.width),
+                                     y: bounds.minY + centeredOffset(bounds.height, frame.height)), to: host)
+        let pixel = 1 / scale
+        if contentHorizontalAlignment == .center, abs(frame.minX - origin.x) <= pixel + 0.000_001 { frame.origin.x = origin.x }
+        if abs(frame.minY - origin.y) <= pixel + 0.000_001 { frame.origin.y = origin.y }
+        label.frame = frame
     }
 
     override func updateConfiguration() {
@@ -160,7 +268,7 @@ private final class AlertActionButton: UIButton {
 
 /// 支持嵌入子控制器、测量内容尺寸和使用原生 Popover 锚点的 UIKit 弹窗。
 @MainActor
-public final class AlertController: UIViewController {
+open class AlertController: UIViewController {
     public enum ContentSizing {
         /// 优先使用子控制器的首选高度。QuickLayout 宿主按实际宽度测量，其他控制器使用 Auto Layout。
         case automatic
@@ -206,13 +314,27 @@ public final class AlertController: UIViewController {
         init(_ controller: UIViewController) { self.controller = controller }
     }
 
-    public let preferredStyle: UIAlertController.Style
+    open private(set) var preferredStyle: UIAlertController.Style
     /// 控制自定义呈现时点击遮罩是否关闭弹窗。Action Sheet 默认开启，Alert 默认关闭。
     public var dismissesOnBackdropTap: Bool
-    public private(set) var actions: [AlertAction] = []
+    open private(set) var actions: [AlertAction] = []
+    /// 首选操作必须已通过 addAction(_:) 添加。支持 Return 快捷键的 Alert 可提交显式指定的禁用操作。
+    /// 未指定时，单个可用操作或可用操作中唯一的非取消项可作为默认提交项。
+    /// iOS 26 起，Action Sheet 和 Popover 也会突出显示可见的首选操作。
+    open var preferredAction: AlertAction? {
+        willSet {
+            precondition(newValue == nil || actions.contains { $0 === newValue },
+                         "Add the preferred action to this alert before assigning it.")
+        }
+        didSet {
+            guard isViewLoaded, oldValue !== preferredAction else { return }
+            rebuildActions()
+            if view.window != nil { focusForReturnKeyIfNeeded() }
+        }
+    }
     /// 按添加顺序返回输入框。尚未添加输入框时为 nil。
-    public private(set) var textFields: [UITextField]?
-    public var message: String? { didSet { updateHeader() } }
+    open private(set) var textFields: [UITextField]?
+    open var message: String? { didSet { updateHeader() } }
     /// 居中弹窗、底部 Action Sheet 和 iOS 26 及以上的 Popover 将补充说明放在主操作区下方。
     /// 旧版 Popover 将补充说明与正文一起滚动。旧版底部 Action Sheet 有独立取消区时不显示补充说明。
     public var detailMessage: String? { didSet { updateHeader() } }
@@ -303,7 +425,7 @@ public final class AlertController: UIViewController {
     /// 进场转场使用的布局结果。
     public private(set) var entranceLayoutSnapshot: LayoutSnapshot?
 
-    public override var title: String? { didSet { updateHeader() } }
+    open override var title: String? { didSet { updateHeader() } }
 
     fileprivate let panel = UIView()
     fileprivate let dimmingView = UIControl()
@@ -424,7 +546,7 @@ public final class AlertController: UIViewController {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("Use init(title:message:preferredStyle:)") }
+    public required init?(coder: NSCoder) { fatalError("Use init(title:message:preferredStyle:)") }
 
     /// 在显示前配置锚点。省略矩形时采用锚点视图的 bounds。旧版 iPhone 使用系统的底部呈现方式。
     public func setPopoverAnchor(_ sourceView: UIView, sourceRect: CGRect? = nil) {
@@ -442,7 +564,7 @@ public final class AlertController: UIViewController {
         configurePopover()
     }
 
-    public func addAction(_ action: AlertAction) {
+    open func addAction(_ action: AlertAction) {
         guard !actions.contains(where: { $0 === action }) else { return }
         guard action.style != .cancel || !actions.contains(where: { $0.style == .cancel }) else { return }
         actions.append(action)
@@ -453,7 +575,7 @@ public final class AlertController: UIViewController {
     }
 
     /// 向 .alert 添加一个输入框，并立即调用配置闭包。
-    public func addTextField(configurationHandler: ((UITextField) -> Void)? = nil) {
+    open func addTextField(configurationHandler: ((UITextField) -> Void)? = nil) {
         precondition(preferredStyle == .alert, "Text fields are supported only in the .alert style.")
         let field = UITextField()
         field.borderStyle = .none
@@ -476,7 +598,7 @@ public final class AlertController: UIViewController {
         }
     }
 
-    public override func viewDidLoad() {
+    open override func viewDidLoad() {
         super.viewDidLoad()
         view.accessibilityViewIsModal = true
 
@@ -643,7 +765,7 @@ public final class AlertController: UIViewController {
         #endif
     }
 
-    public override func viewWillAppear(_ animated: Bool) {
+    open override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         isClosing = false
         if usesPopover, preferredContentSize == .zero || hasConfiguredPanelWidth || popoverTargetWidth > 0,
@@ -652,13 +774,36 @@ public final class AlertController: UIViewController {
         }
     }
 
-    public override func viewIsAppearing(_ animated: Bool) {
+    open override func viewIsAppearing(_ animated: Bool) {
         super.viewIsAppearing(animated)
         guard let textFields, !textFields.contains(where: \.isFirstResponder) else { return }
         textFields.first { $0.isEnabled && !$0.isHidden && $0.canBecomeFirstResponder }?.becomeFirstResponder()
     }
 
-    public override func viewDidLayoutSubviews() {
+    open override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        focusForReturnKeyIfNeeded()
+    }
+
+    private var supportsReturnKeyCommand: Bool {
+        // 从 iPadOS 27 起，Alert 交给焦点系统处理硬件按键，输入框仍可直接提交。
+        if #available(iOS 27, *), traitCollection.userInterfaceIdiom == .pad { return false }
+        return preferredStyle == .alert
+    }
+
+    open override var canBecomeFirstResponder: Bool {
+        supportsReturnKeyCommand || super.canBecomeFirstResponder
+    }
+
+    private func focusForReturnKeyIfNeeded() {
+        func containsFirstResponder(_ view: UIView) -> Bool {
+            view.isFirstResponder || view.subviews.contains(where: containsFirstResponder)
+        }
+        guard supportsReturnKeyCommand, !isFirstResponder, !containsFirstResponder(view) else { return }
+        becomeFirstResponder()
+    }
+
+    open override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         dimmingView.frame = view.bounds
         if usesPopover {
@@ -784,7 +929,7 @@ public final class AlertController: UIViewController {
         }
     }
 
-    public override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+    open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         guard let previousTraitCollection else { return }
         if case .custom = panelWidth {
@@ -795,12 +940,12 @@ public final class AlertController: UIViewController {
         }
     }
 
-    public override func viewSafeAreaInsetsDidChange() {
+    open override func viewSafeAreaInsetsDidChange() {
         super.viewSafeAreaInsetsDidChange()
         view.setNeedsLayout()
     }
 
-    public override func viewWillTransition(to size: CGSize, with coordinator: any UIViewControllerTransitionCoordinator) {
+    open override func viewWillTransition(to size: CGSize, with coordinator: any UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
         coordinator.animate { [weak self] _ in
             guard let self else { return }
@@ -809,16 +954,43 @@ public final class AlertController: UIViewController {
         }
     }
 
-    public override func preferredContentSizeDidChange(forChildContentContainer container: any UIContentContainer) {
+    open override func preferredContentSizeDidChange(forChildContentContainer container: any UIContentContainer) {
         super.preferredContentSizeDidChange(forChildContentContainer: container)
         guard container === headerContentViewController || container === contentViewController else { return }
         invalidateContentSize()
     }
 
-    public override func accessibilityPerformEscape() -> Bool {
+    open override func accessibilityPerformEscape() -> Bool {
         guard let cancelAction else { return false }
         close(using: cancelAction)
         return true
+    }
+
+    private var visiblePreferredAction: AlertAction? {
+        guard preferredStyle == .alert || usesModernAppearance,
+              !(usesPopover && preferredAction?.style == .cancel) else { return nil }
+        return preferredAction
+    }
+
+    private var returnKeyAction: AlertAction? {
+        guard preferredStyle == .alert else { return nil }
+        if let preferredAction { return preferredAction }
+        let enabled = actions.filter(\.isEnabled)
+        if enabled.count == 1 { return enabled[0] }
+        let choices = enabled.filter { $0.style != .cancel }
+        return choices.count == 1 ? choices[0] : nil
+    }
+
+    open override var keyCommands: [UIKeyCommand]? {
+        guard supportsReturnKeyCommand, returnKeyAction != nil else { return super.keyCommands }
+        let submit = UIKeyCommand(input: "\r", modifierFlags: [], action: #selector(activateReturnKeyAction))
+        return (super.keyCommands ?? []) + [submit]
+    }
+
+    @objc private func activateReturnKeyAction() {
+        guard let action = returnKeyAction else { return }
+        // UIKit 的键盘提交可以触发显式指定的禁用操作；点击和 perform() 仍检查 isEnabled。
+        dismissAlert { action.handler?(action) }
     }
 
     fileprivate var isBottomAligned: Bool {
@@ -1027,6 +1199,11 @@ public final class AlertController: UIViewController {
 
     private var horizontalActionTitleInset: CGFloat { usesModernAlertLayout ? 10 : AlertActionButton.edgeInset }
 
+    private func attributedButtonTitle(for action: AlertAction) -> AttributedString? {
+        guard let title = action.attributedTitle, action === visiblePreferredAction else { return action.attributedTitle }
+        return title.mergingAttributes(AttributeContainer().font(actionFont(for: action)), mergePolicy: .keepCurrent)
+    }
+
     private func usesHorizontalActions(panelWidth: CGFloat?) -> Bool {
         guard (preferredStyle == .alert || usesModernAlertLayout), actions.count == 2,
               !traitCollection.preferredContentSizeCategory.isAccessibilityCategory else { return false }
@@ -1034,11 +1211,8 @@ public final class AlertController: UIViewController {
         let spacing: CGFloat = usesLegacyAlertLayout ? separatorThickness : 8
         let slotWidth = (panelWidth - 2 * actionSideInset - spacing) / 2 - 2 * horizontalActionTitleInset
         return actions.allSatisfy { action in
-            let font = usesLegacyAlertLayout
-                ? legacyFont(.body, size: 17, weight: action.style == .cancel ? .semibold : .regular)
-                : modernActionFont()
-            let title = action.attributedTitle.map { NSAttributedString($0) }
-                ?? NSAttributedString(string: action.title, attributes: [.font: font])
+            let title = attributedButtonTitle(for: action).map { NSAttributedString($0) }
+                ?? NSAttributedString(string: action.title ?? "", attributes: [.font: actionFont(for: action)])
             let iconWidth = action.image.map { max(20, min(24, $0.size.width)) + AlertActionButton.edgeInset } ?? 0
             return title.size().width + iconWidth <= slotWidth
         }
@@ -1073,13 +1247,13 @@ public final class AlertController: UIViewController {
         }
         for action in displayed + (usesLegacySheetLayout ? cancellation : []) {
             var configuration = UIButton.Configuration.filled()
-            configuration.title = action.title
-            if let attributedTitle = action.attributedTitle { configuration.attributedTitle = attributedTitle }
-            if action.attributedTitle == nil {
-                let font = usesModernAppearance ? modernActionFont() : legacyFont(
-                    .body, size: usesLegacyAlertLayout ? 17 : 20,
-                    weight: action.style == .cancel ? .semibold : .regular
-                )
+            let preferred = action === visiblePreferredAction
+            let usesPreferredFill = usesModernAppearance && preferred && action.style != .destructive
+            if let attributedTitle = attributedButtonTitle(for: action) {
+                configuration.attributedTitle = attributedTitle
+            } else {
+                configuration.title = action.title
+                let font = actionFont(for: action)
                 configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { attributes in
                     var attributes = attributes
                     attributes.font = font
@@ -1095,11 +1269,18 @@ public final class AlertController: UIViewController {
             configuration.contentInsets.trailing = sideInset
             if horizontal && !usesPopover { configuration.titleLineBreakMode = .byTruncatingTail }
             configuration.baseBackgroundColor = usesGroupedActions ? .clear : .secondarySystemFill
-            let foreground = usesModernAppearance ? UIColor.label : view.tintColor
-            configuration.baseForegroundColor = action.titleColor ?? (action.style == .destructive ? .systemRed : foreground)
+            var foreground = usesModernAppearance ? UIColor.label : view.tintColor
+            if usesPreferredFill {
+                configuration.baseBackgroundColor = .tintColor
+                foreground = .white
+            } else if action.style == .destructive {
+                foreground = .systemRed
+            }
+            configuration.baseForegroundColor = action.titleColor ?? foreground
             let appearance: AlertActionButton.Appearance = usesGroupedActions ? .grouped
                 : (usesModernAppearance && !horizontal ? .modernStacked : .standard)
-            let button = AlertActionButton(configuration: configuration, appearance: appearance)
+            let button = AlertActionButton(configuration: configuration, appearance: appearance,
+                                           usesPreferredFill: usesPreferredFill, usesPopoverMaterial: usesPopover)
             button.addAction(UIAction { [weak self, weak action] _ in
                 guard let action else { return }
                 self?.close(using: action)
@@ -1124,9 +1305,17 @@ public final class AlertController: UIViewController {
         if !measuring { invalidateContentSize() }
     }
 
-    private func modernActionFont() -> UIFont {
-        UIFontMetrics(forTextStyle: .body).scaledFont(
-            for: .systemFont(ofSize: 17, weight: .medium), compatibleWith: traitCollection
+    private func actionFont(for action: AlertAction) -> UIFont {
+        let preferred = action === visiblePreferredAction
+        if usesModernAppearance {
+            let body = UIFontDescriptor.preferredFontDescriptor(withTextStyle: .body, compatibleWith: traitCollection)
+            let weight: UIFont.Weight = preferred ? .semibold : .medium
+            let descriptor = body.addingAttributes([.traits: [UIFontDescriptor.TraitKey.weight: weight.rawValue]])
+            return UIFont(descriptor: descriptor, size: 0)
+        }
+        let emphasized = preferred || (visiblePreferredAction == nil && action.style == .cancel)
+        return legacyFont(
+            .body, size: usesLegacyAlertLayout ? 17 : 20, weight: emphasized ? .semibold : .regular
         )
     }
 
@@ -1205,6 +1394,7 @@ public final class AlertController: UIViewController {
             next.becomeFirstResponder()
         } else {
             field.resignFirstResponder()
+            activateReturnKeyAction()
         }
     }
 
@@ -1481,7 +1671,9 @@ public final class AlertController: UIViewController {
             }
             let messageSpacing: CGFloat = hasContent ? 16 : 20
             let contentSpacing: CGFloat = textFieldsHost.isHidden ? 24 : 12
-            for (spacing, section) in [(titleSpacing, titleHost), (messageSpacing, messageScrollView as UIView),
+            let titleHeight = titleLabel.sizeThatFits(CGSize(width: textWidth, height: .greatestFiniteMagnitude)).height
+            let titleRounding = usesModernAlertLayout && !titleHost.isHidden ? ceil(titleHeight) - titleHeight : 0
+            for (spacing, section) in [(titleSpacing + titleRounding, titleHost), (messageSpacing, messageScrollView as UIView),
                                        (contentSpacing, contentHost), (20, textFieldsHost)]
                 where stack.customSpacing(after: section) != spacing {
                 stack.setCustomSpacing(spacing, after: section)
@@ -1595,7 +1787,7 @@ public final class AlertController: UIViewController {
         }
 
         let contentSpacing: CGFloat = visibleFieldCount > 0 ? 12 : 0
-        let fieldSpacing: CGFloat = visibleFieldCount > 1 ? 13.5 : 12
+        let fieldSpacing: CGFloat = visibleFieldCount > 1 ? 12.5 : 12
         for (spacing, section) in [(0, messageScrollView as UIView),
                                    (contentSpacing, contentHost), (fieldSpacing, textFieldsHost)]
             where stack.customSpacing(after: section) != spacing {
@@ -1710,11 +1902,16 @@ public final class AlertController: UIViewController {
     }
 
     private func close(using action: AlertAction?) {
-        guard !isClosing, action?.isEnabled != false else { return }
+        guard action?.isEnabled != false else { return }
+        dismissAlert { action?.perform() }
+    }
+
+    private func dismissAlert(completion: @escaping () -> Void) {
+        guard !isClosing else { return }
         isClosing = true
         // 先结束编辑，让弹窗和键盘一起退场。
         view.endEditing(true)
-        dismiss(animated: true) { action?.perform() }
+        dismiss(animated: true, completion: completion)
     }
 
     @objc private func keyboardWillChange(_ notification: Notification) {

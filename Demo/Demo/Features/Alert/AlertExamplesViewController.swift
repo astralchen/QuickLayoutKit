@@ -58,6 +58,7 @@ final class AlertExamplesViewController: LocalizedQuickLayoutHostingController {
         var content: UIViewController?
         var usesSizeThatFits = false
         var actions: [AlertAction] = []
+        var preferredAction: AlertAction?
     }
 
     private let engine = UISegmentedControl(items: ["QuickLayoutKit", "UIKit"])
@@ -281,6 +282,7 @@ final class AlertExamplesViewController: LocalizedQuickLayoutHostingController {
             alert.contentViewController = scenario.content
         }
         scenario.actions.forEach(alert.addAction)
+        alert.preferredAction = scenario.preferredAction
         if let source {
             alert.setPopoverAnchor(source)
             if #available(iOS 26, *), scenario.content != nil || scenario.header != nil {
@@ -319,6 +321,7 @@ final class AlertExamplesViewController: LocalizedQuickLayoutHostingController {
             let title = action.attributedTitle.map { String($0.characters) } ?? action.title
             let native = UIAlertAction(title: title, style: action.style) { _ in action.perform() }
             native.isEnabled = action.isEnabled
+            native.accessibilityIdentifier = action.accessibilityIdentifier
             setNativeValue(action.titleTextAlignment?.rawValue, key: "titleTextAlignment", on: native)
             if let image = action.image, native.responds(to: NSSelectorFromString("setImage:")) {
                 native.setValue(image, forKey: "image")
@@ -327,6 +330,7 @@ final class AlertExamplesViewController: LocalizedQuickLayoutHostingController {
                 native.setValue(color, forKey: "titleTextColor")
             }
             alert.addAction(native)
+            if action === scenario.preferredAction { alert.preferredAction = native }
         }
         if let source {
             alert.popoverPresentationController?.sourceView = source
@@ -460,24 +464,35 @@ final class AlertExamplesViewController: LocalizedQuickLayoutHostingController {
             let decorated = example == .images
             let rtl = view.effectiveUserInterfaceLayoutDirection == .rightToLeft
             scenario.message = Localization.text("demo.alertExamples.simple.message")
-            scenario.actions = [
-                AlertAction(title: Localization.text("demo.alertExamples.action.default"), image: decorated ? UIImage(systemName: "paperclip") : nil,
-                            titleColor: decorated ? .systemIndigo : nil,
-                            titleTextAlignment: decorated ? (rtl ? .right : .left) : nil) { _ in report(Localization.text("demo.alertExamples.result.default")) },
-                AlertAction(title: Localization.text("demo.alertExamples.action.destructive"), style: .destructive,
-                            image: decorated ? UIImage(systemName: "trash") : nil,
-                            titleTextAlignment: decorated ? (rtl ? .left : .right) : nil) { _ in report(Localization.text("demo.alertExamples.result.destructive")) },
-                cancel,
-            ]
+            let standard = AlertAction(
+                title: Localization.text("demo.alertExamples.action.default"),
+                appearance: decorated ? .init(image: UIImage(systemName: "paperclip"), titleColor: .systemIndigo) : .init()
+            ) { _ in report(Localization.text("demo.alertExamples.result.default")) }
+            let destructive = AlertAction(
+                title: Localization.text("demo.alertExamples.action.destructive"),
+                style: .destructive,
+                appearance: decorated ? .init(image: UIImage(systemName: "trash")) : .init()
+            ) { _ in report(Localization.text("demo.alertExamples.result.destructive")) }
+            scenario.actions = [standard, destructive, cancel]
+            if example == .simple {
+                standard.accessibilityIdentifier = "alerts.action.default"
+                scenario.preferredAction = standard
+            }
             if decorated {
+                standard.titleTextAlignment = rtl ? .right : .left
+                destructive.titleTextAlignment = rtl ? .left : .right
                 scenario.attributedTitle = NSAttributedString(string: example.title, attributes: [
                     .font: UIFont.preferredFont(forTextStyle: .headline), .foregroundColor: UIColor.systemIndigo,
                 ])
                 scenario.attributedMessage = NSAttributedString(string: scenario.message!, attributes: [
                     .font: UIFont.preferredFont(forTextStyle: .subheadline), .foregroundColor: UIColor.secondaryLabel,
                 ])
-                scenario.actions.insert(AlertAction(title: Localization.text("demo.alertExamples.action.unavailable"), image: UIImage(systemName: "lock"),
-                                                    isEnabled: false), at: 2)
+                let unavailable = AlertAction(
+                    title: Localization.text("demo.alertExamples.action.unavailable"),
+                    appearance: .init(image: UIImage(systemName: "lock"))
+                )
+                unavailable.isEnabled = false
+                scenario.actions.insert(unavailable, at: 2)
             }
         case .textField, .login:
             let fields = AlertExampleFields(login: example == .login, usesPopover: usesPopover, report: report)
