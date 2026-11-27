@@ -33,11 +33,23 @@ struct SheetLayout {
             safe.size.height -= top
         }
         let compactHeight = traits.verticalSizeClass == .compact
-        let foldedPage = sheet.hingeClosed
+        var divisions: [CGRect] = []
+        var hasHinge = sheet.hasHinge
+        var foldedPage = sheet.hingeClosed
+        #if compiler(>=6.4)
+        if #available(iOS 27.1, *) {
+            divisions = container.reservedRegions(kind: .division, options: .includeInactive).map(\.frame)
+            if !hasHinge, traits.userInterfaceIdiom == .phone, traits.verticalBarEdge != .unspecified {
+                // 铰链首次回调可能晚于入场动画。首帧按当前窗口的侧栏、宽度类别和分隔区域布局。
+                hasHinge = true
+                foldedPage = traits.horizontalSizeClass == .compact && divisions.isEmpty
+            }
+        }
+        #endif
         if foldedPage { safe.origin.x = bounds.minX; safe.size.width = bounds.width }
         let floating = !compactHeight && traits.horizontalSizeClass == .regular
         let preferred = sheet.presentedViewController.preferredContentSize
-        let foldablePhone = sheet.hasHinge && traits.userInterfaceIdiom == .phone
+        let foldablePhone = hasHinge && traits.userInterfaceIdiom == .phone
         let requestsForm = floating && !sheet.prefersPageSizing && !foldedPage
         // 折叠手机上的表单缺少宽或高时，UIKit 使用页式几何。
         let form = requestsForm && (!foldablePhone || preferred.width > 0 && preferred.height > 0)
@@ -49,11 +61,9 @@ struct SheetLayout {
             view.window === container.window ? view.convert(view.bounds, to: container) : nil
         }
         let rtl = container.effectiveUserInterfaceLayoutDirection == .rightToLeft
-        var divisions: [CGRect] = []
         var active: [CGRect] = []
         #if compiler(>=6.4)
         if #available(iOS 27.1, *) {
-            divisions = container.reservedRegions(kind: .division, options: .includeInactive).map(\.frame)
             active = container.reservedRegions(kind: .division).map { $0.frame.inset(by: $0.margins) }
             // 桌面姿态的横向铰链影响中档高度，表单的可用区域仍覆盖整个窗口。
             if usesPageSizing || foldablePhone && form { active = active.filter { $0.height > $0.width } }
@@ -127,7 +137,7 @@ struct SheetLayout {
         let heights = sheet.detents.compactMap { detent in detent.resolvedValue(in: context).map { (detent, $0) } }
         let lastFloatingHeight = heights.map(\.1).filter { $0 < maximum - 0.5 }.max() ?? medium
         let floatingHeight = compactHeight ? heights.map(\.1).filter { $0 < maximum }.max() ?? medium : medium
-        let pageAttachment: SheetRegionGeometry.PageAttachment? = phonePage && sheet.hasHinge
+        let pageAttachment: SheetRegionGeometry.PageAttachment? = phonePage && hasHinge
             ? .init(bottom: bottom, gap: bottomGap, safeBottom: safeBottom, maximum: maximum,
                     floatingHeight: floatingHeight, folded: foldedPage, stackedTopGap: stackedTopGap) : nil
         attachment = pageAttachment

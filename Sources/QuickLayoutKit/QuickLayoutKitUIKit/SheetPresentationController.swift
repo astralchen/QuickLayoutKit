@@ -106,6 +106,9 @@ open class SheetPresentationController: UIPresentationController {
         presenterEffect.installDimming(in: backdrop, surface: surface)
         #if compiler(>=6.4)
         if #available(iOS 27.1, *) {
+            // 从 Popover 再次适配为 Sheet 时，重新读取本次窗口的铰链状态。
+            hasHinge = false
+            hingeClosed = false
             backdrop.addInteraction(UIHingeInteraction { [weak self] _, update in
                 guard let self else { return }
                 hasHinge = update.hinge != nil
@@ -208,8 +211,19 @@ open class SheetPresentationController: UIPresentationController {
         if let changed = notification.object as? Detent, detents.contains(where: { $0 === changed }) { invalidateDetents() }
     }
 
+    #if os(iOS) && !targetEnvironment(macCatalyst)
+    @available(iOS 26.1, *)
+    open override var backgroundEffect: UIVisualEffect? {
+        didSet { invalidateDetents() }
+    }
+    #endif
+
     private func updateMaterial(_ detent: Detent) {
-        let effect = detent.backgroundEffect
+        var effect = detent.backgroundEffect
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        // 档位未指定材质时，使用呈现控制器的背景。
+        if #available(iOS 26.1, *), effect == nil { effect = backgroundEffect }
+        #endif
         if material.effect !== effect { material.effect = effect }
         surface.backgroundColor = effect == nil ? .systemBackground : .clear
     }
@@ -221,7 +235,18 @@ open class SheetPresentationController: UIPresentationController {
         presentingViewController.view.tintAdjustmentMode = amount == 0 ? previousTint : .dimmed
     }
 
-    private func tearDown() {
+    func tearDown() {
+        NotificationCenter.default.removeObserver(self, name: Detent.effectChanged, object: nil)
+        backdrop.removeTarget(self, action: #selector(tapBackground), for: .touchUpInside)
+        if #available(iOS 27.1, *) {
+            #if compiler(>=6.4)
+            for interaction in backdrop.interactions where interaction is UIHingeInteraction { backdrop.removeInteraction(interaction) }
+            #endif
+        }
+        material.removeFromSuperview()
+        grabber.removeFromSuperview()
+        surface.removeGestureRecognizer(pan)
+        surface.content = nil
         presenterEffect.reset()
         setSuppliedBottomInset(0)
         presentingViewController.view.tintAdjustmentMode = previousTint
