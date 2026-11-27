@@ -30,7 +30,7 @@ struct LocalizedControlTests {
             let minX = try #require(xs.min()), maxX = try #require(xs.max())
             #expect(direction == .rightToLeft ? minX > 160 : maxX < 160, "placeholder direction=\(direction.rawValue), ink=\(minX)...\(maxX)")
         }
-        field.becomeFirstResponder()
+        try #require(field.becomeFirstResponder())
         field.text = "draft@example.com"
         let start = try #require(field.position(from: field.beginningOfDocument, offset: 3))
         field.selectedTextRange = field.textRange(from: start, to: start)
@@ -93,7 +93,7 @@ struct LocalizedControlTests {
         #expect(field.textAlignment == .center)
         try await Task.sleep(for: .milliseconds(100))
         let nativeCaret = native.convert(native.caretRect(for: native.beginningOfDocument), from: native.textInputView)
-        field.becomeFirstResponder()
+        try #require(field.becomeFirstResponder())
         try await Task.sleep(for: .milliseconds(100))
         let caret = field.convert(field.caretRect(for: field.beginningOfDocument), from: field.textInputView)
         #expect(abs(caret.midX - nativeCaret.midX) < 2, "localized=\(caret), native=\(nativeCaret)")

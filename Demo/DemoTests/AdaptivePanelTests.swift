@@ -22,11 +22,9 @@ struct AdaptivePanelTests {
                          CGSize(width: 540, height: 720), CGSize(width: 320, height: 180)] {
                 let horizontal: UIUserInterfaceSizeClass = size.width < 600 ? .compact : .regular
                 let vertical: UIUserInterfaceSizeClass = size.height < 500 ? .compact : .regular
-                host.setOverrideTraitCollection(UITraitCollection(traitsFrom: [
-                    UITraitCollection(userInterfaceIdiom: idiom),
-                    UITraitCollection(horizontalSizeClass: horizontal),
-                    UITraitCollection(verticalSizeClass: vertical),
-                ]), forChild: panel)
+                panel.traitOverrides.userInterfaceIdiom = idiom
+                panel.traitOverrides.horizontalSizeClass = horizontal
+                panel.traitOverrides.verticalSizeClass = vertical
                 host.view.frame.size = size
                 host.view.layoutIfNeeded()
                 let identifiers: [AdaptivePanelDetent.Identifier] = ["small", .medium, .large]
@@ -363,10 +361,8 @@ struct AdaptivePanelTests {
         let content = UIViewController()
         let panel = AdaptivePanelController(contentViewController: content)
         panel.show(in: host, animated: false)
-        host.setOverrideTraitCollection(UITraitCollection(traitsFrom: [
-            UITraitCollection(horizontalSizeClass: .regular),
-            UITraitCollection(verticalSizeClass: .regular),
-        ]), forChild: panel)
+        panel.traitOverrides.horizontalSizeClass = .regular
+        panel.traitOverrides.verticalSizeClass = .regular
         panel.view.layoutIfNeeded()
         let wide = panel.panelFrame.width
         host.view.frame.size = CGSize(width: 360, height: 520)
@@ -380,10 +376,8 @@ struct AdaptivePanelTests {
         panel.view.layoutIfNeeded()
         #expect(panel.panelFrame.width == 180)
         #expect(panel.panelFrame.height == 240)
-        host.setOverrideTraitCollection(UITraitCollection(traitsFrom: [
-            UITraitCollection(horizontalSizeClass: .compact),
-            UITraitCollection(verticalSizeClass: .compact),
-        ]), forChild: panel)
+        panel.traitOverrides.horizontalSizeClass = .compact
+        panel.traitOverrides.verticalSizeClass = .compact
         panel.prefersPageSizing = true
         panel.widthFollowsPreferredContentSizeWhenEdgeAttached = true
         panel.view.layoutIfNeeded()
