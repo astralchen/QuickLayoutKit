@@ -5,7 +5,8 @@ import UIKit
 final class TrailPlaceController: LocalizedQuickLayoutHostingController, QLPreviewControllerDataSource {
     private let photo: JournalPhoto
     private let scroll = QuickLayoutScrollView()
-    private let image = UIImageView()
+    private let inlineImage = UIImageView()
+    private let paneImage = UIImageView()
     private let section = JournalLabel(.subheadline, color: .secondaryLabel)
     private let name = JournalLabel(.title1)
     private let notes = JournalLabel(.body)
@@ -24,10 +25,13 @@ final class TrailPlaceController: LocalizedQuickLayoutHostingController, QLPrevi
         super.viewDidLoad()
         navigationItem.largeTitleDisplayMode = .never
         view.backgroundColor = .systemBackground
-        image.image = photo.thumbnail
-        image.contentMode = .scaleAspectFill
-        image.clipsToBounds = true
-        image.layer.cornerRadius = 14
+        scroll.accessibilityIdentifier = "trail.place.scroll"
+        for image in [inlineImage, paneImage] {
+            image.image = photo.thumbnail
+            image.contentMode = .scaleAspectFill
+            image.clipsToBounds = true
+            image.layer.cornerRadius = 14
+        }
         name.accessibilityTraits.insert(.header)
         save.accessibilityIdentifier = "trail.toggle"
         preview.accessibilityIdentifier = "trail.preview"
@@ -72,20 +76,73 @@ final class TrailPlaceController: LocalizedQuickLayoutHostingController, QLPrevi
     }
 
     override var body: Layout {
-        ScrollView(scroll) {
-            VStack(alignment: .leading, spacing: 16) {
-                image.resizable().aspectRatio(1.65, contentMode: .fit)
-                VStack(alignment: .leading, spacing: 4) {
-                    section
-                    name
-                }
-                notes
-                save.resizable(axis: .horizontal).frame(minHeight: 48)
-                preview.resizable(axis: .horizontal).frame(minHeight: 44)
+        GeometryReader { [self] viewport in
+            pageLayout(in: viewport)
+        }
+        .safeAreaPadding(0)
+    }
+
+    private func pageLayout(in viewport: GeometryProxy) -> Layout {
+        let divided: Bool
+        if #available(iOS 27.1, *) {
+            let bounds = CGRect(origin: .zero, size: viewport.size)
+            divided = viewport.reservedRegions(kind: .division).contains { region in
+                let cut = bounds.intersection(region.frame)
+                return !cut.isEmpty && (
+                    (cut.height == bounds.height && cut.minX > 0 && cut.maxX < bounds.width)
+                    || (cut.width == bounds.width && cut.minY > 0 && cut.maxY < bounds.height)
+                )
             }
-            .padding(20)
-            .frame(maxWidth: 720)
-            .frame(maxWidth: .infinity)
+        } else {
+            divided = false
+        }
+        return ArrangementView {
+            ScrollView(scroll) {
+                if divided {
+                    details.frame(maxWidth: 680).padding(.horizontal, 20).frame(maxWidth: .infinity)
+                } else {
+                    readingLayout.padding(.horizontal, 20).frame(maxWidth: .infinity)
+                }
+            }
+            .contentMargins(.vertical, 20, for: .scrollContent)
+            .overlayArrangementEdge(HorizontalEdge.trailing)
+            .overlayArrangementEdge(VerticalEdge.bottom)
+        } secondary: {
+            if divided {
+                paneImage.resizable().aspectRatio(1.65, contentMode: .fit).padding(20)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+        }
+        .arrangementViewStyle(.overlay)
+    }
+
+    private var readingLayout: Layout {
+        let photograph = inlineImage.resizable().aspectRatio(1.65, contentMode: .fit)
+        return ViewThatFits(in: .horizontal) {
+            if !traitCollection.preferredContentSizeCategory.isAccessibilityCategory {
+                HStack(alignment: .top, spacing: 24) {
+                    photograph.frame(minWidth: 300, idealWidth: 300, maxWidth: .infinity)
+                    details.frame(minWidth: 300, idealWidth: 300, maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            VStack(alignment: .leading, spacing: 16) {
+                photograph
+                details
+            }
+            .frame(maxWidth: 680)
+        }
+        .frame(maxWidth: 1040)
+    }
+
+    private var details: Layout {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                section
+                name
+            }
+            notes
+            save.resizable(axis: .horizontal).frame(minHeight: 48)
+            preview.resizable(axis: .horizontal).frame(minHeight: 44)
         }
     }
 

@@ -1,13 +1,15 @@
 import XCTest
 
 final class TrailGuideUITests: XCTestCase {
-    @MainActor func testRouteToPlaceAndItineraryRoundTrip() {
+    @MainActor private func openRidge() -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["-quicklayoutkit.demo.locale.identifier", "zh-Hans"]
+        app.launchArguments = ["-AppleLanguages", "(en)", "-quicklayoutkit.demo.locale.identifier", "zh-Hans"]
         app.launch()
         let catalog = app.collectionViews.firstMatch
         let guide = app.cells["trail.title"]
+        let show = app.buttons["Show Sidebar"].firstMatch
+        if !catalog.isHittable && show.isHittable { show.tap() }
         XCTAssertTrue(catalog.waitForExistence(timeout: 10))
         for _ in 0..<12 {
             if guide.exists && guide.isHittable { break }
@@ -26,6 +28,50 @@ final class TrailGuideUITests: XCTestCase {
         let toggle = app.buttons["trail.toggle"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         capture(app, "TrailGuide-Place")
+        return app
+    }
+
+    @MainActor func testPlaceFitsDetailColumnAcrossSidebarChanges() {
+        let app = openRidge()
+        let scroll = app.scrollViews["trail.place.scroll"]
+        let title = scroll.staticTexts["日落之前"]
+        let hide = app.buttons.matching(NSPredicate(format: "label IN %@", ["Hide Sidebar", "隐藏边栏", "隐藏侧边栏"])).firstMatch
+        let show = app.buttons.matching(NSPredicate(format: "label IN %@", ["Show Sidebar", "显示边栏", "显示侧边栏"])).firstMatch
+        let guide = app.cells["trail.title"]
+        let catalog = app.collectionViews.containing(.cell, identifier: "trail.title").firstMatch
+        func checkDetail() {
+            XCTAssertTrue(title.isHittable)
+            XCTAssertGreaterThanOrEqual(title.frame.minX, scroll.frame.minX)
+            XCTAssertLessThanOrEqual(title.frame.maxX, scroll.frame.maxX)
+            if guide.isHittable {
+                XCTAssertGreaterThanOrEqual(scroll.frame.minX, catalog.frame.maxX - 1)
+            }
+        }
+        checkDetail()
+        if guide.isHittable { XCTAssertTrue(hide.isHittable) }
+        if hide.isHittable || show.isHittable {
+            if show.isHittable { show.tap() }
+            XCTAssertTrue(hide.waitForExistence(timeout: 5))
+            checkDetail()
+            hide.tap()
+            XCTAssertTrue(show.waitForExistence(timeout: 5))
+            checkDetail()
+            captureScreens("TrailGuide-SidebarHidden")
+            show.tap()
+            XCTAssertTrue(hide.waitForExistence(timeout: 5))
+            checkDetail()
+            captureScreens("TrailGuide-SidebarVisible")
+        }
+        let preview = scroll.buttons["trail.preview"]
+        for _ in 0..<4 where !preview.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(preview.isHittable)
+    }
+
+    @MainActor func testRouteToPlaceAndItineraryRoundTrip() {
+        let app = openRidge()
+        let coverTitle = app.staticTexts["山野里的周末"]
+        let ridge = app.cells["trail.place.ridge"]
+        let toggle = app.buttons["trail.toggle"]
         let wasSaved = toggle.label == "从行程中移除"
         if !wasSaved { toggle.tap() }
         XCTAssertEqual(toggle.label, "从行程中移除")
@@ -80,5 +126,14 @@ final class TrailGuideUITests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    @MainActor private func captureScreens(_ name: String) {
+        for (index, screen) in XCUIScreen.screens.enumerated() {
+            let attachment = XCTAttachment(screenshot: screen.screenshot())
+            attachment.name = "\(name)-display\(index)"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
     }
 }
