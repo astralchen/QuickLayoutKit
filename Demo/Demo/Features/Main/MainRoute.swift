@@ -25,6 +25,7 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
     case popoverPresentation
     case alertExamples
     case directionalGrid
+    case trailGuide
     case profile
     case counter
     case dynamicScroll
@@ -89,6 +90,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "demo.alertExamples.title"
         case .directionalGrid:
             "demo.directionalGrid.title"
+        case .trailGuide:
+            "trail.title"
         case .profile:
             "demo.profile.title"
         case .counter:
@@ -172,6 +175,8 @@ enum MainRoute: CaseIterable, Hashable, Sendable {
             "exclamationmark.bubble"
         case .directionalGrid:
             "square.grid.3x3"
+        case .trailGuide:
+            "map"
         case .profile:
             "person.crop.circle"
         case .counter:

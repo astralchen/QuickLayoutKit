@@ -1,5 +1,5 @@
 {
-  "originHash" : "5cec7e5f1e3d1133021185526b2ab102c4ebc652c925c12046612f6f37fad112",
+  "originHash" : "22ad28b881c960ab6186af41a90385e06a1b5ef9d4fef00dcfa76c9efcadc5e4",
   "pins" : [
     {
       "identity" : "applocalization",
@@ -26,6 +26,14 @@
       "state" : {
         "branch" : "main",
         "revision" : "150570f76cf2e577be8ae3581cff588a9d561a1a"
+      }
+    },
+    {
+      "identity" : "stickypagerkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/astralchen/StickyPagerKit.git",
+      "state" : {
+        "revision" : "68b552cf59b1c03e95c5f784cb5225e71a9ce39f"
       }
     },
     {

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		4C4B00032FD0000000000003 /* ListKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4C4B00022FD0000000000002 /* ListKit */; };
+		4C5B00032FD0000000000003 /* StickyPagerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4C5B00022FD0000000000002 /* StickyPagerKit */; };
 		7714E9A22EFE2AB100F8BC60 /* QuickLayoutKit in Frameworks */ = {isa = PBXBuildFile; productRef = 7714E9A12EFE2AB100F8BC60 /* QuickLayoutKit */; };
 		77BB26A63040283A001C1ED9 /* AppLocalization in Frameworks */ = {isa = PBXBuildFile; productRef = 77BB26A53040283A001C1ED9 /* AppLocalization */; };
 		AB1500000000000000000013 /* VAPView in Frameworks */ = {isa = PBXBuildFile; productRef = AB1500000000000000000012 /* VAPView */; };
@@ -77,6 +78,7 @@
 				AB1500000000000000000013 /* VAPView in Frameworks */,
 				AB1500000000000000000023 /* SVGAView in Frameworks */,
 				4C4B00032FD0000000000003 /* ListKit in Frameworks */,
+				4C5B00032FD0000000000003 /* StickyPagerKit in Frameworks */,
 				77BB26A63040283A001C1ED9 /* AppLocalization in Frameworks */,
 				7714E9A22EFE2AB100F8BC60 /* QuickLayoutKit in Frameworks */,
 			);
@@ -142,6 +144,7 @@
 				AB1500000000000000000012 /* VAPView */,
 				AB1500000000000000000022 /* SVGAView */,
 				4C4B00022FD0000000000002 /* ListKit */,
+				4C5B00022FD0000000000002 /* StickyPagerKit */,
 				7714E9A12EFE2AB100F8BC60 /* QuickLayoutKit */,
 				77BB26A53040283A001C1ED9 /* AppLocalization */,
 			);
@@ -233,6 +236,7 @@
 				AB1500000000000000000021 /* XCRemoteSwiftPackageReference "SVGAView" */,
 				AB1500000000000000000011 /* XCRemoteSwiftPackageReference "VAPView" */,
 				4C4B00012FD0000000000001 /* XCRemoteSwiftPackageReference "ListKit" */,
+				4C5B00012FD0000000000001 /* XCRemoteSwiftPackageReference "StickyPagerKit" */,
 				7714E9A02EFE2AB100F8BC60 /* XCLocalSwiftPackageReference ".." */,
 				77BB26A430402839001C1ED9 /* XCRemoteSwiftPackageReference "AppLocalization" */,
 			);
@@ -650,6 +654,14 @@
 				kind = branch;
 			};
 		};
+		4C5B00012FD0000000000001 /* XCRemoteSwiftPackageReference "StickyPagerKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/astralchen/StickyPagerKit.git";
+			requirement = {
+				kind = revision;
+				revision = 68b552cf59b1c03e95c5f784cb5225e71a9ce39f;
+			};
+		};
 		77BB26A430402839001C1ED9 /* XCRemoteSwiftPackageReference "AppLocalization" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/astralchen/AppLocalization";
@@ -681,6 +693,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4C4B00012FD0000000000001 /* XCRemoteSwiftPackageReference "ListKit" */;
 			productName = ListKit;
+		};
+		4C5B00022FD0000000000002 /* StickyPagerKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4C5B00012FD0000000000001 /* XCRemoteSwiftPackageReference "StickyPagerKit" */;
+			productName = StickyPagerKit;
 		};
 		7714E9A12EFE2AB100F8BC60 /* QuickLayoutKit */ = {
 			isa = XCSwiftPackageProductDependency;

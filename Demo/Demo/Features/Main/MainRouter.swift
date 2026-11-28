@@ -84,6 +84,8 @@ final class MainRouter: MainRouting {
             AlertExamplesViewController()
         case .directionalGrid:
             DirectionalGridViewController()
+        case .trailGuide:
+            TrailGuideController()
         case .profile:
             ProfileViewController()
         case .counter:

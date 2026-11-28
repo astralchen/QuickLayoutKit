@@ -1,6 +1,627 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "trail.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weekend Trail Guide"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "周末徒步指南"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "دليل مسارات عطلة الأسبوع"
+          }
+        }
+      }
+    },
+    "trail.cover": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A weekend outdoors"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "山野里的周末"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عطلة بين الجبال"
+          }
+        }
+      }
+    },
+    "trail.cover.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Three walks from the ridgeline to the water’s edge."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "三条步道，从山脊走到水边。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ثلاث جولات من قمم الجبال إلى حافة الماء."
+          }
+        }
+      }
+    },
+    "trail.routes": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Routes"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路线"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المسارات"
+          }
+        }
+      }
+    },
+    "trail.places": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Places"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看点"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المحطات"
+          }
+        }
+      }
+    },
+    "trail.itinerary": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My trip"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "我的行程"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رحلتي"
+          }
+        }
+      }
+    },
+    "trail.routes.heading": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a walk"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择一条步道"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختر جولة"
+          }
+        }
+      }
+    },
+    "trail.places.heading": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Along the trails"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沿途看点"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "على طول الدروب"
+          }
+        }
+      }
+    },
+    "trail.itinerary.heading": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In the order you added them"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按加入行程的顺序"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حسب ترتيب الإضافة"
+          }
+        }
+      }
+    },
+    "trail.empty": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your itinerary is empty"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "行程里还没有看点"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رحلتك فارغة"
+          }
+        }
+      }
+    },
+    "trail.browse": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Explore places"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "浏览沿途看点"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استكشف المحطات"
+          }
+        }
+      }
+    },
+    "trail.empty.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open a place and add it to your trip."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开看点详情，即可加入行程。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "افتح إحدى المحطات وأضفها إلى رحلتك."
+          }
+        }
+      }
+    },
+    "trail.route.mountains": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow the ridge from the evening light into the high valley."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从晚霞映照的山脊走向高处的山谷。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اتبع حافة الجبل من ضوء المساء إلى الوادي المرتفع."
+          }
+        }
+      }
+    },
+    "trail.route.lakes": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start by the cabin and follow the shore to open water."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从湖边小屋出发，沿岸走到水面开阔处。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ابدأ عند الكوخ واتبع الشاطئ حتى تنفتح أمامك البحيرة."
+          }
+        }
+      }
+    },
+    "trail.route.woods": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cross a sunlit clearing before stepping under the forest canopy."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "穿过洒满阳光的空地，走进树冠下的绿荫。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اعبر فسحة مشمسة ثم ادخل في ظل الأشجار."
+          }
+        }
+      }
+    },
+    "trail.place": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Field notes"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看点手记"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ملاحظات ميدانية"
+          }
+        }
+      }
+    },
+    "trail.preview": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View full photo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看大图"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عرض الصورة كاملة"
+          }
+        }
+      }
+    },
+    "trail.add": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to my trip"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加入我的行程"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أضف إلى رحلتي"
+          }
+        }
+      }
+    },
+    "trail.remove": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove from my trip"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从行程中移除"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إزالة من رحلتي"
+          }
+        }
+      }
+    },
+    "trail.saved": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In your itinerary"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已加入行程"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ضمن رحلتك"
+          }
+        }
+      }
+    },
+    "trail.unsaved": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outside your itinerary"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未加入行程"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "خارج رحلتك"
+          }
+        }
+      }
+    },
+    "trail.note.ridge": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause on the open ridge as the light drops. Look across the folds of the hillside to see the last bright line along the crest."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "傍晚停在视野开阔的山脊上。顺着起伏的山坡望过去，最后一线阳光正落在山顶。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "توقف على حافة الجبل عند الغروب وتتبع ثنيات المنحدر حتى آخر خط مضيء على القمة."
+          }
+        }
+      }
+    },
+    "trail.note.alpine": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The valley opens between the peaks here. Frame the near slope at the edge of the photo to give the distant mountains a sense of scale."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "群峰在这里让出一片山谷。拍照时把近处的山坡留在画面边缘，更能看出远山的尺度。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ينفتح الوادي هنا بين القمم. ضع المنحدر القريب عند طرف الصورة لإبراز حجم الجبال البعيدة."
+          }
+        }
+      }
+    },
+    "trail.note.lake": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The cabin marks the start of the lakeside walk. Watch the reflection near the bank before the breeze breaks it into ripples."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "湖边小屋是这段步道的起点。风吹起涟漪之前，看看近岸水面上完整的倒影。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يشير الكوخ إلى بداية مسار البحيرة. راقب الانعكاس قرب الضفة قبل أن يحوله النسيم إلى تموجات."
+          }
+        }
+      }
+    },
+    "trail.note.shore": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Step back from the water to take in the opposite bank. The shoreline makes a quiet foreground for a wide landscape photo."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "离水边退开几步，便能把对岸尽收眼底。沿岸的轮廓适合作为广角风景照的前景。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ابتعد قليلاً عن الماء لتشاهد الضفة المقابلة. يصلح خط الشاطئ مقدمة لصورة واسعة للمشهد."
+          }
+        }
+      }
+    },
+    "trail.note.woodland": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At the clearing, look for a patch of light on the forest floor. A low viewpoint brings out the contrast with the trees beyond."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "走到林间空地，找一束落在地面上的光。放低视角，可以看到亮处与后方树影的对比。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ابحث في الفسحة عن بقعة ضوء على الأرض. اخفض زاوية النظر ليظهر التباين مع الأشجار خلفها."
+          }
+        }
+      }
+    },
+    "trail.note.forest": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The trees draw closer on this stretch. Stop under the canopy and look up through the layers of green instead of following the path with your lens."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这段路上的树木渐渐密起来。不妨在树冠下停一会儿，把镜头从小路转向头顶层层叠叠的绿色。"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تتقارب الأشجار في هذا الجزء. توقف تحت الأغصان وارفع عدستك نحو طبقات الأوراق الخضراء."
+          }
+        }
+      }
+    },
     "demo.navigationLab.title": {
       "extractionState": "manual",
       "localizations": {

@@ -111,7 +111,7 @@ extension MainRoute {
         case .horizontalScroll, .safeAreaPadding, .safeAreaInset, .contentMargins,
              .positionAndZIndex, .viewThatFits, .dynamicScroll, .containerRelativeSize, .frame, .geometry, .arrangement, .adaptivePanel, .sheetPresentation, .popoverPresentation, .overPresentation, .alertExamples, .directionalGrid:
             .systemBlue
-        case .profile, .dashboard, .fixedSize, .dailyRecord, .navigationLab:
+        case .trailGuide, .profile, .dashboard, .fixedSize, .dailyRecord, .navigationLab:
             .systemIndigo
         case .counter, .keyboard, .form:
             .systemOrange
